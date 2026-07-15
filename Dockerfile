@@ -1,23 +1,35 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Find where the block is implemented in the compiled JS bundle
+# Scan all text files in /usr/src/app (excluding node_modules) for the restriction
 RUN node -e " \
   const fs = require('fs'); \
-  const file = '/usr/src/app/docker/index.js'; \
-  if (fs.existsSync(file)) { \
-    const content = fs.readFileSync(file, 'utf8'); \
-    const idx = content.indexOf('Vitess/Planetscale/TiDB'); \
-    if (idx !== -1) { \
-      console.log('=================== FOUND ==================='); \
-      console.log(content.substring(idx - 200, idx + 300)); \
-      console.log('=================== END ==================='); \
-    } else { \
-      console.log('Vitess/Planetscale/TiDB string not found in index.js'); \
+  const path = require('path'); \
+  function search(dir) { \
+    try { \
+      const files = fs.readdirSync(dir); \
+      for (const file of files) { \
+        const fullPath = path.join(dir, file); \
+        if (file === 'node_modules' || file === '.git') continue; \
+        const stat = fs.statSync(fullPath); \
+        if (stat.isDirectory()) { \
+          search(fullPath); \
+        } else if (stat.isFile() && /\\.(js|json|html|css)$/.test(file)) { \
+          const content = fs.readFileSync(fullPath, 'utf8'); \
+          const idx = content.toLowerCase().indexOf('planetscale'); \
+          if (idx !== -1) { \
+            console.log('=================== FOUND ==================='); \
+            console.log('File:', fullPath); \
+            console.log(content.substring(Math.max(0, idx - 150), Math.min(content.length, idx + 350))); \
+            console.log('=================== END ==================='); \
+          } \
+        } \
+      } \
+    } catch (e) { \
+      console.log('Error searching', dir, e.message); \
     } \
-  } else { \
-    console.log('index.js file not found'); \
   } \
+  search('/usr/src/app'); \
 "
 
 # Unset empty DB secrets that would cause JSON parse errors
