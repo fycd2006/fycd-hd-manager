@@ -7,8 +7,9 @@ RUN node -e " \
   const file = '/usr/src/app/docker/index.js'; \
   if (fs.existsSync(file)) { \
     let content = fs.readFileSync(file, 'utf8'); \
-    const target = '/\\b(Tidb|Vitess)\\b/i'; \
-    const replacement = '/\\b(NonExistentDbName)\\b/i'; \
+    // Construct /\\b(Tidb|Vitess)\\b/i using charCode to prevent shell/node string escape issues \
+    const target = '/' + String.fromCharCode(92) + 'b(Tidb|Vitess)' + String.fromCharCode(92) + 'b/i'; \
+    const replacement = '/' + String.fromCharCode(92) + 'b(NonExistentDbName)' + String.fromCharCode(92) + 'b/i'; \
     if (content.includes(target)) { \
       content = content.split(target).join(replacement); \
       fs.writeFileSync(file, content, 'utf8'); \
