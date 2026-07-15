@@ -1,33 +1,29 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan `/usr/src/app` for the keyword "Vitess" case-insensitively
+# Hot-patch NocoDB backend and frontend to treat Vitess/TiDB connections as standard MySQL
 RUN node -e " \
   const fs = require('fs'); \
   const path = require('path'); \
-  function search(dir) { \
-    try { \
-      const files = fs.readdirSync(dir); \
-      for (const file of files) { \
-        const fullPath = path.join(dir, file); \
-        if (file === 'node_modules' || file === '.git') continue; \
-        const stat = fs.statSync(fullPath); \
-        if (stat.isDirectory()) { \
-          search(fullPath); \
-        } else if (stat.isFile() && /\\.(js|json)$/.test(file)) { \
-          const content = fs.readFileSync(fullPath, 'utf8'); \
-          const idx = content.toLowerCase().indexOf('vitess'); \
-          if (idx !== -1) { \
-            console.log('=================== FOUND ==================='); \
-            console.log('File:', fullPath); \
-            console.log(content.substring(Math.max(0, idx - 150), Math.min(content.length, idx + 350))); \
-            console.log('=================== END ==================='); \
-          } \
-        } \
-      } \
-    } catch (e) {} \
+  const files = ['/usr/src/app/docker/index.js']; \
+  const guiDir = '/usr/src/app/docker/nc-gui/_nuxt'; \
+  if (fs.existsSync(guiDir)) { \
+    fs.readdirSync(guiDir).forEach(f => { \
+      if (f.endsWith('.js')) files.push(path.join(guiDir, f)); \
+    }); \
   } \
-  search('/usr/src/app'); \
+  files.forEach(file => { \
+    if (fs.existsSync(file)) { \
+      let content = fs.readFileSync(file, 'utf8'); \
+      const original = content; \
+      content = content.replace(/VitessClient/g, 'MysqlClient'); \
+      content = content.replace(/TidbClient/g, 'MysqlClient'); \
+      if (content !== original) { \
+        fs.writeFileSync(file, content, 'utf8'); \
+        console.log('Patched database dialect restriction in:', file); \
+      } \
+    } \
+  }); \
 "
 
 # Unset empty DB secrets that would cause JSON parse errors
