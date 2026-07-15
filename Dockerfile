@@ -1,21 +1,19 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
-ENV NC_CLOUD=true
 
-# Hot-patch: Bypass the TiDB/Vitess connection restriction regex in NocoDB backend
+# Scan compiled docker folder for references to loadEEState
 RUN node -e " \
   const fs = require('fs'); \
   const file = '/usr/src/app/docker/index.js'; \
   if (fs.existsSync(file)) { \
-    let content = fs.readFileSync(file, 'utf8'); \
-    const target = '/' + String.fromCharCode(92) + 'b(Tidb|Vitess)' + String.fromCharCode(92) + 'b/i'; \
-    const replacement = '/' + String.fromCharCode(92) + 'b(NonExistentDbName)' + String.fromCharCode(92) + 'b/i'; \
-    if (content.includes(target)) { \
-      content = content.split(target).join(replacement); \
-      fs.writeFileSync(file, content, 'utf8'); \
-      console.log('Successfully patched TiDB/Vitess regex block!'); \
+    const content = fs.readFileSync(file, 'utf8'); \
+    const idx = content.indexOf('loadEEState'); \
+    if (idx !== -1) { \
+      console.log('=================== FOUND loadEEState ==================='); \
+      console.log(content.substring(idx - 100, idx + 300)); \
+      console.log('=================== END ==================='); \
     } else { \
-      console.log('Pattern not found - check might be obfuscated differently.'); \
+      console.log('loadEEState not found'); \
     } \
   } \
 "
