@@ -1,37 +1,9 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Hot-patch: Bypass the TiDB/Vitess connection restriction regex and force enable Enterprise flags in NocoDB backend
-RUN node -e " \
-  const fs = require('fs'); \
-  const file = '/usr/src/app/docker/index.js'; \
-  if (fs.existsSync(file)) { \
-    let content = fs.readFileSync(file, 'utf8'); \
-    \
-    // 1. Bypass TiDB/Vitess regex block \
-    const targetRegex = '/' + String.fromCharCode(92) + 'b(Tidb|Vitess)' + String.fromCharCode(92) + 'b/i'; \
-    const replacementRegex = '/' + String.fromCharCode(92) + 'b(NonExistentDbName)' + String.fromCharCode(92) + 'b/i'; \
-    if (content.includes(targetRegex)) { \
-      content = content.split(targetRegex).join(replacementRegex); \
-      console.log('Successfully patched TiDB/Vitess regex block!'); \
-    } \
-    \
-    // 2. Bypass EE License validation to unlock all features \
-    // Search for get 'isEE'(){return _0xXXXXXX;} and replace it with get 'isEE'(){return true;} \
-    const searchString = 'get \\\'isEE\\\'(){return '; \
-    const idx = content.indexOf(\"get 'isEE'(){return \"); \
-    if (idx !== -1) { \
-      const endIdx = content.indexOf('}', idx); \
-      const chunk = content.substring(idx, endIdx + 1); \
-      content = content.split(chunk).join(\"get 'isEE'(){return true;}\"); \
-      console.log('Successfully patched Enterprise License block!'); \
-    } else { \
-      console.log('Enterprise License pattern not found.'); \
-    } \
-    \
-    fs.writeFileSync(file, content, 'utf8'); \
-  } \
-"
+# Copy and execute the hot-patch script safely
+COPY hot-patch.js /tmp/hot-patch.js
+RUN node /tmp/hot-patch.js && rm /tmp/hot-patch.js
 
 # Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
 CMD ["sh", "-c", "\
