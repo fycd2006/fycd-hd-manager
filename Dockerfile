@@ -1,28 +1,32 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# List files in /usr/src/app
+# Scan compiled backend and frontend static assets in /usr/src/app/docker
 RUN node -e " \
   const fs = require('fs'); \
   const path = require('path'); \
-  function list(dir) { \
+  function search(dir) { \
     try { \
       const files = fs.readdirSync(dir); \
-      for (const f of files) { \
-        const p = path.join(dir, f); \
-        const s = fs.statSync(p); \
-        if (s.isDirectory()) { \
-          console.log('DIR:', p); \
-          if (f !== 'node_modules' && f !== '.git') { \
-            list(p); \
+      for (const file of files) { \
+        const fullPath = path.join(dir, file); \
+        const stat = fs.statSync(fullPath); \
+        if (stat.isDirectory()) { \
+          search(fullPath); \
+        } else if (stat.isFile() && /\\.(js|json)$/.test(file)) { \
+          const content = fs.readFileSync(fullPath, 'utf8'); \
+          const idx = content.toLowerCase().indexOf('planetscale'); \
+          if (idx !== -1) { \
+            console.log('=================== FOUND ==================='); \
+            console.log('File:', fullPath); \
+            console.log(content.substring(Math.max(0, idx - 150), Math.min(content.length, idx + 350))); \
+            console.log('=================== END ==================='); \
           } \
-        } else { \
-          console.log('FILE:', p); \
         } \
       } \
     } catch (e) {} \
   } \
-  list('/usr/src/app'); \
+  search('/usr/src/app/docker'); \
 "
 
 # Unset empty DB secrets that would cause JSON parse errors
