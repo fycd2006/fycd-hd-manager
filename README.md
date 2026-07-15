@@ -1,11 +1,11 @@
 ---
 
-title: Fycd N8n
+title: Fycd NocoDB
 emoji: 📉
 colorFrom: yellow
 colorTo: indigo
 sdk: docker
-app_port: 7860
+app_port: 8080
 pinned: false
 
 ---

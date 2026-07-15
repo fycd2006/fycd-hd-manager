@@ -1,9 +1,2 @@
-FROM docker.io/n8nio/n8n:latest
-USER root
-ENV N8N_PORT=7860
-ENV N8N_HOST=0.0.0.0
-ENV N8N_PROTOCOL=https
-ENV N8N_EDITOR_BASE_URL=https://fycd2006-fycd-n8n.hf.space
-ENV WEBHOOK_URL=https://fycd2006-fycd-n8n.hf.space/
-EXPOSE 7860
-USER node
+FROM nocodb/nocodb:latest
+EXPOSE 8080
