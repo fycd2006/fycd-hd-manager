@@ -1,35 +1,25 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan compiled docker folder for references to TiDB
+# Hot-patch: Bypass the TiDB/Vitess connection restriction regex in NocoDB backend
 RUN node -e " \
   const fs = require('fs'); \
-  const path = require('path'); \
-  function search(dir) { \
-    try { \
-      const files = fs.readdirSync(dir); \
-      for (const file of files) { \
-        const fullPath = path.join(dir, file); \
-        const stat = fs.statSync(fullPath); \
-        if (stat.isDirectory()) { \
-          search(fullPath); \
-        } else if (stat.isFile() && /\\.(js|json)$/.test(file)) { \
-          const content = fs.readFileSync(fullPath, 'utf8'); \
-          const idx = content.toLowerCase().indexOf('tidb'); \
-          if (idx !== -1) { \
-            console.log('=================== FOUND ==================='); \
-            console.log('File:', fullPath); \
-            console.log(content.substring(Math.max(0, idx - 150), Math.min(content.length, idx + 350))); \
-            console.log('=================== END ==================='); \
-          } \
-        } \
-      } \
-    } catch (e) {} \
+  const file = '/usr/src/app/docker/index.js'; \
+  if (fs.existsSync(file)) { \
+    let content = fs.readFileSync(file, 'utf8'); \
+    const target = '/\\b(Tidb|Vitess)\\b/i'; \
+    const replacement = '/\\b(NonExistentDbName)\\b/i'; \
+    if (content.includes(target)) { \
+      content = content.split(target).join(replacement); \
+      fs.writeFileSync(file, content, 'utf8'); \
+      console.log('Successfully patched TiDB/Vitess regex block!'); \
+    } else { \
+      console.log('Pattern not found - check might be obfuscated differently.'); \
+    } \
   } \
-  search('/usr/src/app/docker'); \
 "
 
-# Unset empty DB secrets and normalize database prefix to pg:// at startup
+# Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
 CMD ["sh", "-c", "\
   if [ -z \"$(echo $NC_DB_JSON | tr -d ' ')\" ]; then unset NC_DB_JSON; fi; \
   if [ -z \"$(echo $NC_DB | tr -d ' ')\" ]; then unset NC_DB; fi; \
