@@ -1,10 +1,11 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan @nocodb packages in node_modules for the restriction
+# Scan node_modules/ for the restriction, skipping heavy utility folders
 RUN node -e " \
   const fs = require('fs'); \
   const path = require('path'); \
+  const skipFolders = ['lodash', 'babel', 'core-js', 'ajv', 'swagger', 'react', 'vue', 'webpack', 'typescript', 'eslint', 'prettier', 'postcss', 'tailwindcss', 'mime', 'date-fns', 'knex', 'sequelize', 'typeorm', 'graphql', 'nest', 'express']; \
   function search(dir) { \
     try { \
       const files = fs.readdirSync(dir); \
@@ -12,8 +13,10 @@ RUN node -e " \
         const fullPath = path.join(dir, file); \
         const stat = fs.statSync(fullPath); \
         if (stat.isDirectory()) { \
+          if (skipFolders.some(skip => file.toLowerCase().includes(skip))) continue; \
           search(fullPath); \
-        } else if (stat.isFile() && /\\.(js|json|html|css)$/.test(file)) { \
+        } else if (stat.isFile() && /\\.(js|json)$/.test(file)) { \
+          if (stat.size > 1000 * 1024) continue; \
           const content = fs.readFileSync(fullPath, 'utf8'); \
           const idx = content.toLowerCase().indexOf('planetscale'); \
           if (idx !== -1) { \
@@ -26,12 +29,7 @@ RUN node -e " \
       } \
     } catch (e) {} \
   } \
-  const nocoDir = '/usr/src/app/node_modules/@nocodb'; \
-  if (fs.existsSync(nocoDir)) { \
-    search(nocoDir); \
-  } else { \
-    console.log('@nocodb directory not found'); \
-  } \
+  search('/usr/src/app/node_modules'); \
 "
 
 # Unset empty DB secrets that would cause JSON parse errors
