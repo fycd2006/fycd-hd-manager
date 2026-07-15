@@ -17,23 +17,16 @@ RUN node -e " \
     } \
     \
     // 2. Bypass EE License validation to unlock all features \
-    const targetEE = `get 'isEE'(){return _0x49dca6;}`; \
-    const replacementEE = `get 'isEE'(){return true;}`; \
-    if (content.includes(targetEE)) { \
-      content = content.split(targetEE).join(replacementEE); \
+    // Search for get 'isEE'(){return _0xXXXXXX;} and replace it with get 'isEE'(){return true;} \
+    const searchString = 'get \\\'isEE\\\'(){return '; \
+    const idx = content.indexOf(\"get 'isEE'(){return \"); \
+    if (idx !== -1) { \
+      const endIdx = content.indexOf('}', idx); \
+      const chunk = content.substring(idx, endIdx + 1); \
+      content = content.split(chunk).join(\"get 'isEE'(){return true;}\"); \
       console.log('Successfully patched Enterprise License block!'); \
     } else { \
-      // fallback matching if obfuscated names changed \
-      const altTargetEE = `get 'isEE'(){return _`; \
-      const idx = content.indexOf(`get 'isEE'(){return `); \
-      if (idx !== -1) { \
-        const endIdx = content.indexOf('}', idx); \
-        const chunk = content.substring(idx, endIdx + 1); \
-        content = content.replace(chunk, `get 'isEE'(){return true;}`); \
-        console.log('Successfully patched Enterprise License block using fallback search!'); \
-      } else { \
-        console.log('Enterprise License pattern not found.'); \
-      } \
+      console.log('Enterprise License pattern not found.'); \
     } \
     \
     fs.writeFileSync(file, content, 'utf8'); \
