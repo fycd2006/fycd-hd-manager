@@ -1,7 +1,7 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan all text files in /usr/src/app (excluding node_modules) for the restriction
+# Scan @nocodb packages in node_modules for the restriction
 RUN node -e " \
   const fs = require('fs'); \
   const path = require('path'); \
@@ -10,7 +10,6 @@ RUN node -e " \
       const files = fs.readdirSync(dir); \
       for (const file of files) { \
         const fullPath = path.join(dir, file); \
-        if (file === 'node_modules' || file === '.git') continue; \
         const stat = fs.statSync(fullPath); \
         if (stat.isDirectory()) { \
           search(fullPath); \
@@ -25,11 +24,14 @@ RUN node -e " \
           } \
         } \
       } \
-    } catch (e) { \
-      console.log('Error searching', dir, e.message); \
-    } \
+    } catch (e) {} \
   } \
-  search('/usr/src/app'); \
+  const nocoDir = '/usr/src/app/node_modules/@nocodb'; \
+  if (fs.existsSync(nocoDir)) { \
+    search(nocoDir); \
+  } else { \
+    console.log('@nocodb directory not found'); \
+  } \
 "
 
 # Unset empty DB secrets that would cause JSON parse errors
