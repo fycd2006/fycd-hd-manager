@@ -1,21 +1,42 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan compiled docker folder for references to isEE
+# Hot-patch: Bypass the TiDB/Vitess connection restriction regex and force enable Enterprise flags in NocoDB backend
 RUN node -e " \
   const fs = require('fs'); \
   const file = '/usr/src/app/docker/index.js'; \
   if (fs.existsSync(file)) { \
-    const content = fs.readFileSync(file, 'utf8'); \
-    let pos = 0; \
-    while (true) { \
-      const idx = content.indexOf('isEE', pos); \
-      if (idx === -1) break; \
-      console.log('=================== FOUND isEE ==================='); \
-      console.log(content.substring(idx - 100, idx + 200)); \
-      console.log('=================== END ==================='); \
-      pos = idx + 4; \
+    let content = fs.readFileSync(file, 'utf8'); \
+    \
+    // 1. Bypass TiDB/Vitess regex block \
+    const targetRegex = '/' + String.fromCharCode(92) + 'b(Tidb|Vitess)' + String.fromCharCode(92) + 'b/i'; \
+    const replacementRegex = '/' + String.fromCharCode(92) + 'b(NonExistentDbName)' + String.fromCharCode(92) + 'b/i'; \
+    if (content.includes(targetRegex)) { \
+      content = content.split(targetRegex).join(replacementRegex); \
+      console.log('Successfully patched TiDB/Vitess regex block!'); \
     } \
+    \
+    // 2. Bypass EE License validation to unlock all features \
+    const targetEE = `get 'isEE'(){return _0x49dca6;}`; \
+    const replacementEE = `get 'isEE'(){return true;}`; \
+    if (content.includes(targetEE)) { \
+      content = content.split(targetEE).join(replacementEE); \
+      console.log('Successfully patched Enterprise License block!'); \
+    } else { \
+      // fallback matching if obfuscated names changed \
+      const altTargetEE = `get 'isEE'(){return _`; \
+      const idx = content.indexOf(`get 'isEE'(){return `); \
+      if (idx !== -1) { \
+        const endIdx = content.indexOf('}', idx); \
+        const chunk = content.substring(idx, endIdx + 1); \
+        content = content.replace(chunk, `get 'isEE'(){return true;}`); \
+        console.log('Successfully patched Enterprise License block using fallback search!'); \
+      } else { \
+        console.log('Enterprise License pattern not found.'); \
+      } \
+    } \
+    \
+    fs.writeFileSync(file, content, 'utf8'); \
   } \
 "
 
