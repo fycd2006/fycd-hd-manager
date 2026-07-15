@@ -1,7 +1,7 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan compiled backend and frontend static assets in /usr/src/app/docker
+# Scan `/usr/src/app` for the keyword "Vitess" case-insensitively
 RUN node -e " \
   const fs = require('fs'); \
   const path = require('path'); \
@@ -10,12 +10,13 @@ RUN node -e " \
       const files = fs.readdirSync(dir); \
       for (const file of files) { \
         const fullPath = path.join(dir, file); \
+        if (file === 'node_modules' || file === '.git') continue; \
         const stat = fs.statSync(fullPath); \
         if (stat.isDirectory()) { \
           search(fullPath); \
         } else if (stat.isFile() && /\\.(js|json)$/.test(file)) { \
           const content = fs.readFileSync(fullPath, 'utf8'); \
-          const idx = content.toLowerCase().indexOf('planetscale'); \
+          const idx = content.toLowerCase().indexOf('vitess'); \
           if (idx !== -1) { \
             console.log('=================== FOUND ==================='); \
             console.log('File:', fullPath); \
@@ -26,7 +27,7 @@ RUN node -e " \
       } \
     } catch (e) {} \
   } \
-  search('/usr/src/app/docker'); \
+  search('/usr/src/app'); \
 "
 
 # Unset empty DB secrets that would cause JSON parse errors
