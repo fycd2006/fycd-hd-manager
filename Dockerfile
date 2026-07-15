@@ -1,5 +1,6 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
+ENV NC_CLOUD=true
 
 # Hot-patch: Bypass the TiDB/Vitess connection restriction regex in NocoDB backend
 RUN node -e " \
