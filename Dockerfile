@@ -1,19 +1,20 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan compiled docker folder for references to loadEEState
+# Scan compiled docker folder for references to isEE
 RUN node -e " \
   const fs = require('fs'); \
   const file = '/usr/src/app/docker/index.js'; \
   if (fs.existsSync(file)) { \
     const content = fs.readFileSync(file, 'utf8'); \
-    const idx = content.indexOf('loadEEState'); \
-    if (idx !== -1) { \
-      console.log('=================== FOUND loadEEState ==================='); \
-      console.log(content.substring(idx - 100, idx + 300)); \
+    let pos = 0; \
+    while (true) { \
+      const idx = content.indexOf('isEE', pos); \
+      if (idx === -1) break; \
+      console.log('=================== FOUND isEE ==================='); \
+      console.log(content.substring(idx - 100, idx + 200)); \
       console.log('=================== END ==================='); \
-    } else { \
-      console.log('loadEEState not found'); \
+      pos = idx + 4; \
     } \
   } \
 "
