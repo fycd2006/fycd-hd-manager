@@ -14,5 +14,6 @@ RUN if [ -d "/baserow/customizations" ]; then \
     fi
 
 ENV BASEROW_PORT=7860
+ENV BASEROW_CADDY_ADDRESSES=:7860
 
 EXPOSE 7860
