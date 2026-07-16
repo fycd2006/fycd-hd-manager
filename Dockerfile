@@ -1,9 +1,9 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Copy and execute the search-useeeconfig script safely
-COPY search-useeeconfig.js /tmp/search-useeeconfig.js
-RUN node /tmp/search-useeeconfig.js && rm /tmp/search-useeeconfig.js
+# Copy and execute the find-ee-export script safely
+COPY find-ee-export.js /tmp/find-ee-export.js
+RUN node /tmp/find-ee-export.js && rm /tmp/find-ee-export.js
 
 # Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
 CMD ["sh", "-c", "\
