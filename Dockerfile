@@ -1,9 +1,32 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Copy and execute the hot-patch script safely
-COPY hot-patch.js /tmp/hot-patch.js
-RUN node /tmp/hot-patch.js && rm /tmp/hot-patch.js
+# Scan entire app folder tree during build to find which files contain isEeUI
+RUN node -e " \
+  const fs = require('fs'); \
+  const path = require('path'); \
+  function search(dir) { \
+    try { \
+      const files = fs.readdirSync(dir); \
+      for (const file of files) { \
+        const fullPath = path.join(dir, file); \
+        if (file === 'node_modules' || file === '.git') continue; \
+        const stat = fs.statSync(fullPath); \
+        if (stat.isDirectory()) { \
+          search(fullPath); \
+        } else if (stat.isFile() && /\\.(js|json)$/.test(file)) { \
+          try { \
+            const content = fs.readFileSync(fullPath, 'utf8'); \
+            if (content.includes('isEeUI') || content.includes('isEEFeatureBlocked')) { \
+              console.log('FOUND MATCH IN:', fullPath); \
+            } \
+          } catch (e) {} \
+        } \
+      } \
+    } catch (e) {} \
+  } \
+  search('/usr/src/app'); \
+"
 
 # Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
 CMD ["sh", "-c", "\
