@@ -4,6 +4,8 @@ FROM baserow/baserow:1.29.1
 ENV DISABLE_VOLUME_CHECK=yes
 ENV BASEROW_AMOUNT_OF_WORKERS=1
 ENV BASEROW_AMOUNT_OF_GUNICORN_WORKERS=1
+ENV CELERY_BROKER_POOL_LIMIT=1
+ENV CELERY_REDIS_MAX_CONNECTIONS=2
 
 # Copy custom source code or assets to overwrite defaults
 COPY customizations/ /baserow/customizations/
