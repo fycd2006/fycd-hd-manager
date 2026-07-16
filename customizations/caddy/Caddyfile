@@ -28,7 +28,7 @@
     # Match backend and websocket routes
     @backend_routes path /api/* /ws/* /mcp/* /assistant/* {$BASEROW_CADDY_BACKEND_EXTRA_ROUTES:}
     handle @backend_routes {
-        reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
+        reverse_proxy {$PRIVATE_BACKEND_URL:127.0.0.1:8000}
     }
 
     # Match media routes
@@ -45,5 +45,5 @@
     }
 
     # All other routes go to the Nuxt.js frontend
-    reverse_proxy {$PRIVATE_WEB_FRONTEND_URL:localhost:3000}
+    reverse_proxy {$PRIVATE_WEB_FRONTEND_URL:127.0.0.1:3000}
 }
