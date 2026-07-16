@@ -1,9 +1,9 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Copy and execute the find-definition script safely
-COPY find-definition.js /tmp/find-definition.js
-RUN node /tmp/find-definition.js && rm /tmp/find-definition.js
+# Copy and execute the search-useeeconfig script safely
+COPY search-useeeconfig.js /tmp/search-useeeconfig.js
+RUN node /tmp/search-useeeconfig.js && rm /tmp/search-useeeconfig.js
 
 # Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
 CMD ["sh", "-c", "\
