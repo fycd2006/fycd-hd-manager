@@ -68,6 +68,17 @@ foreach ($line in $gitFiles) {
     }
 }
 
+# Sync custom Caddyfile if it has been modified or if we need to ensure it exists
+if (Test-Path "$srcDir\Caddyfile") {
+    $parentDir = "$destDir\customizations\caddy"
+    if (-not (Test-Path $parentDir)) {
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+    }
+    Copy-Item -Path "$srcDir\Caddyfile" -Destination "$parentDir\Caddyfile" -Force
+    Write-Host "Synced Caddyfile to customizations/caddy/Caddyfile" -ForegroundColor Green
+    $copiedCount++
+}
+
 if ($copiedCount -eq 0) {
     Write-Host "No custom source modifications detected in baserow_src (backend, web-frontend, premium, enterprise)." -ForegroundColor Yellow
     Write-Host "If you want to force push, add your files/changes in baserow_src first."
