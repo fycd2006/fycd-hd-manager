@@ -1,1 +1,5 @@
-deploy.ps1
+.env
+*.log
+.system_generated/
+/scratch/
+.token
