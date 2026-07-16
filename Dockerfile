@@ -1,19 +1,25 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Log the definition context of isEeUI inside BGeeiuXx.js
+# Scan entire app folder tree during build to find K2 definition
 RUN node -e " \
   const fs = require('fs'); \
   const file = '/usr/src/app/docker/nc-gui/_nuxt/BGeeiuXx.js'; \
   if (fs.existsSync(file)) { \
     const content = fs.readFileSync(file, 'utf8'); \
-    let pos = 0; \
-    while (true) { \
-      const idx = content.indexOf('isEeUI', pos); \
-      if (idx === -1) break; \
-      console.log('=================== FOUND ==================='); \
-      console.log(content.substring(Math.max(0, idx - 150), Math.min(content.length, idx + 150))); \
-      pos = idx + 6; \
+    // Find where K2 is imported or declared \
+    const idx = content.indexOf('T(K2)'); \
+    if (idx !== -1) { \
+      console.log('T(K2) context:', content.substring(idx - 100, idx + 100)); \
+      // Let's locate the import statement for K2 in the file header \
+      const header = content.substring(0, 10000); \
+      let pos = 0; \
+      while (true) { \
+        const importIdx = header.indexOf('K2', pos); \
+        if (importIdx === -1) break; \
+        console.log('Import K2 context:', header.substring(importIdx - 50, importIdx + 50)); \
+        pos = importIdx + 2; \
+      } \
     } \
   } \
 "
