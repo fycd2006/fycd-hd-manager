@@ -13,4 +13,6 @@ RUN if [ -d "/baserow/customizations" ]; then \
       rm -rf /baserow/customizations; \
     fi
 
-EXPOSE 80 443
+ENV BASEROW_PORT=7860
+
+EXPOSE 7860
