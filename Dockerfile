@@ -1,7 +1,7 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Log the context around isEeUI in one of the Nuxt bundles to verify minification format
+# Log the definition context of isEeUI inside BGeeiuXx.js
 RUN node -e " \
   const fs = require('fs'); \
   const file = '/usr/src/app/docker/nc-gui/_nuxt/BGeeiuXx.js'; \
@@ -12,7 +12,7 @@ RUN node -e " \
       const idx = content.indexOf('isEeUI', pos); \
       if (idx === -1) break; \
       console.log('=================== FOUND ==================='); \
-      console.log(content.substring(idx - 100, idx + 100)); \
+      console.log(content.substring(Math.max(0, idx - 150), Math.min(content.length, idx + 150))); \
       pos = idx + 6; \
     } \
   } \
