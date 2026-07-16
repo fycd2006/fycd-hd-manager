@@ -3,6 +3,7 @@ FROM baserow/baserow:1.29.1
 # Set default env variables for Hugging Face Spaces
 ENV DISABLE_VOLUME_CHECK=yes
 ENV BASEROW_AMOUNT_OF_WORKERS=1
+ENV BASEROW_AMOUNT_OF_GUNICORN_WORKERS=1
 
 # Copy custom source code or assets to overwrite defaults
 COPY customizations/ /baserow/customizations/
