@@ -1,31 +1,21 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan entire app folder tree during build to find which files contain isEeUI
+# Log the context around isEeUI in one of the Nuxt bundles to verify minification format
 RUN node -e " \
   const fs = require('fs'); \
-  const path = require('path'); \
-  function search(dir) { \
-    try { \
-      const files = fs.readdirSync(dir); \
-      for (const file of files) { \
-        const fullPath = path.join(dir, file); \
-        if (file === 'node_modules' || file === '.git') continue; \
-        const stat = fs.statSync(fullPath); \
-        if (stat.isDirectory()) { \
-          search(fullPath); \
-        } else if (stat.isFile() && /\\.(js|json)$/.test(file)) { \
-          try { \
-            const content = fs.readFileSync(fullPath, 'utf8'); \
-            if (content.includes('isEeUI') || content.includes('isEEFeatureBlocked')) { \
-              console.log('FOUND MATCH IN:', fullPath); \
-            } \
-          } catch (e) {} \
-        } \
-      } \
-    } catch (e) {} \
+  const file = '/usr/src/app/docker/nc-gui/_nuxt/BGeeiuXx.js'; \
+  if (fs.existsSync(file)) { \
+    const content = fs.readFileSync(file, 'utf8'); \
+    let pos = 0; \
+    while (true) { \
+      const idx = content.indexOf('isEeUI', pos); \
+      if (idx === -1) break; \
+      console.log('=================== FOUND ==================='); \
+      console.log(content.substring(idx - 100, idx + 100)); \
+      pos = idx + 6; \
+    } \
   } \
-  search('/usr/src/app'); \
 "
 
 # Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
