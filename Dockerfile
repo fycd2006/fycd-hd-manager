@@ -1,8 +1,9 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan entire app folder tree during build to locate Nuxt files
-RUN find /usr/src/app -name "*.js" -maxdepth 5
+# Copy and execute the hot-patch script safely
+COPY hot-patch.js /tmp/hot-patch.js
+RUN node /tmp/hot-patch.js && rm /tmp/hot-patch.js
 
 # Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
 CMD ["sh", "-c", "\
