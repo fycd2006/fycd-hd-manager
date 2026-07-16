@@ -1,28 +1,9 @@
 FROM nocodb/nocodb:latest
 ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 
-# Scan entire app folder tree during build to find K2 definition
-RUN node -e " \
-  const fs = require('fs'); \
-  const file = '/usr/src/app/docker/nc-gui/_nuxt/BGeeiuXx.js'; \
-  if (fs.existsSync(file)) { \
-    const content = fs.readFileSync(file, 'utf8'); \
-    // Find where K2 is imported or declared \
-    const idx = content.indexOf('T(K2)'); \
-    if (idx !== -1) { \
-      console.log('T(K2) context:', content.substring(idx - 100, idx + 100)); \
-      // Let's locate the import statement for K2 in the file header \
-      const header = content.substring(0, 10000); \
-      let pos = 0; \
-      while (true) { \
-        const importIdx = header.indexOf('K2', pos); \
-        if (importIdx === -1) break; \
-        console.log('Import K2 context:', header.substring(importIdx - 50, importIdx + 50)); \
-        pos = importIdx + 2; \
-      } \
-    } \
-  } \
-"
+# Copy and execute the search-k2 script safely
+COPY search-k2.js /tmp/search-k2.js
+RUN node /tmp/search-k2.js && rm /tmp/search-k2.js
 
 # Clean empty Space Secrets and translate standard PostgreSQL URL to NocoDB custom format at startup
 CMD ["sh", "-c", "\
