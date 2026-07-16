@@ -11,20 +11,22 @@ from urllib.parse import urljoin, urlparse
 from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
+import posthog
+import sentry_sdk
 from corsheaders.defaults import default_headers
+from sentry_sdk.integrations.django import DjangoIntegration
 
+from baserow.cachalot_patch import patch_cachalot_for_baserow
 from baserow.config.settings.utils import (
     Setting,
-    crontab,
     get_crontab_from_env,
     read_file,
     set_settings_from_env_if_present,
     str_to_bool,
-    try_float,
     try_int,
 )
 from baserow.core.telemetry.utils import otel_is_enabled
-from baserow.throttling.types import RateLimit
+from baserow.throttling_types import RateLimit
 from baserow.version import VERSION
 
 # A comma separated list of feature flags used to enable in-progress or not ready
@@ -60,9 +62,7 @@ if "SECRET_KEY" in os.environ:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("BASEROW_BACKEND_DEBUG", "off") == "on"
 
-# The `testserver` is needed for the
-# `src/baserow/core/mcp/utils.py::internal_api_request`.
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 ALLOWED_HOSTS += os.getenv("BASEROW_EXTRA_ALLOWED_HOSTS", "").split(",")
 
 INSTALLED_APPS = [
@@ -91,7 +91,6 @@ INSTALLED_APPS = [
     "baserow.contrib.integrations",
     "baserow.contrib.builder",
     "baserow.contrib.dashboard",
-    "baserow.contrib.automation",
     *BASEROW_BUILT_IN_PLUGINS,
 ]
 
@@ -110,14 +109,12 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "baserow.core.cache.LocalCacheMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "baserow.api.user_sources.middleware.AddUserSourceUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
     "baserow.middleware.ClearContextMiddleware",
-    "baserow.middleware.ClearDBStateMiddleware",
 ]
 
 if otel_is_enabled():
@@ -158,19 +155,9 @@ REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_USERNAME = os.getenv("REDIS_USER", "")
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
 REDIS_PROTOCOL = os.getenv("REDIS_PROTOCOL", "redis")
-REDIS_SSL_CERT_REQS = os.getenv("REDIS_SSL_CERT_REQS", "required")
-REDIS_SSL_CA_CERTS = os.getenv("REDIS_SSL_CA_CERTS", "")
-
-redis_auth = f"{REDIS_USERNAME}:{REDIS_PASSWORD}@" if REDIS_PASSWORD else ""
-redis_url_suffix = ""
-if REDIS_PROTOCOL == "rediss":
-    redis_url_suffix = f"?ssl_cert_reqs={REDIS_SSL_CERT_REQS}"
-    if REDIS_SSL_CA_CERTS:
-        redis_url_suffix += f"&ssl_ca_certs={REDIS_SSL_CA_CERTS}"
-
 REDIS_URL = os.getenv(
     "REDIS_URL",
-    f"{REDIS_PROTOCOL}://{redis_auth}{REDIS_HOST}:{REDIS_PORT}/0{redis_url_suffix}",
+    f"{REDIS_PROTOCOL}://{REDIS_USERNAME}:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0",
 )
 
 BASEROW_GROUP_STORAGE_USAGE_QUEUE = os.getenv(
@@ -190,10 +177,8 @@ CELERY_TASK_ROUTES = {
     "baserow.contrib.database.table.tasks.run_row_count_job": {"queue": "export"},
     "baserow.core.jobs.tasks.clean_up_jobs": {"queue": "export"},
 }
-CELERY_TASK_SOFT_TIME_LIMIT = int(
-    os.getenv("CELERY_TASK_SOFT_TIME_LIMIT") or 60 * 5
-)  # default 5 minutes
-CELERY_TASK_TIME_LIMIT = CELERY_TASK_SOFT_TIME_LIMIT + 60  # default 6 minutes
+CELERY_SOFT_TIME_LIMIT = 60 * 5  # 5 minutes
+CELERY_TIME_LIMIT = CELERY_SOFT_TIME_LIMIT + 60  # 60 seconds
 
 CELERY_REDBEAT_REDIS_URL = REDIS_URL
 # Explicitly set the same value as the default loop interval here so we can use it
@@ -218,12 +203,6 @@ CELERY_REDBEAT_LOCK_TIMEOUT = os.getenv(
     "CELERY_REDBEAT_LOCK_TIMEOUT", CELERY_BEAT_MAX_LOOP_INTERVAL + 60
 )
 
-CELERY_RESULT_BACKEND = REDIS_URL
-CELERY_RESULT_EXPIRES = int(
-    # default 1 hour
-    os.getenv("CELERY_RESULT_EXPIRES") or 3600
-)
-
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
@@ -236,7 +215,9 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 if "DATABASE_URL" in os.environ:
-    DATABASES = {"default": dj_database_url.parse(os.getenv("DATABASE_URL"))}
+    DATABASES = {
+        "default": dj_database_url.parse(os.getenv("DATABASE_URL"), conn_max_age=600)
+    }
 else:
     DATABASES = {
         "default": {
@@ -252,53 +233,6 @@ else:
         DATABASES["default"]["OPTIONS"] = json.loads(
             os.getenv("DATABASE_OPTIONS", "{}")
         )
-
-DATABASE_READ_REPLICAS = []
-
-# Loop over all environment variables to extract read only replicas. Multiple nodes can
-# be added providing `DATABASE_READ_{n}_URL`, or DATABASE_READ_{n}_NAME, where {n} is
-# the key of the read-only instance.
-for key, value in os.environ.items():
-    if key.startswith("DATABASE_READ_REPLICA_") and key.endswith("_URL"):
-        suffix = key[len("DATABASE_READ_REPLICA_") : -len("_URL")]
-        db_key = f"read_{suffix}"
-        DATABASES[db_key] = dj_database_url.parse(value)
-        DATABASE_READ_REPLICAS.append(db_key)
-    elif key.startswith("DATABASE_READ_") and key.endswith("_NAME"):
-        suffix = key[len("DATABASE_READ_") : -len("_NAME")]
-        db_key = f"read_{suffix}"
-
-        DATABASES[db_key] = {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv(f"DATABASE_READ_{suffix}_NAME"),
-            "USER": os.getenv(f"DATABASE_READ_{suffix}_USER"),
-            "PASSWORD": os.getenv(f"DATABASE_READ_{suffix}_PASSWORD"),
-            "HOST": os.getenv(f"DATABASE_READ_{suffix}_HOST"),
-            "PORT": os.getenv(f"DATABASE_READ_{suffix}_PORT"),
-        }
-
-        options = os.getenv(f"DATABASE_READ_{suffix}_OPTIONS")
-        if options:
-            DATABASES[db_key]["OPTIONS"] = json.loads(options)
-
-        DATABASE_READ_REPLICAS.append(db_key)
-
-# Default 0 = new connection per request; each runs a locale-setting query.
-# Increase in WSGI to save those round-trips. In ASGI be careful: async tasks
-# open their own connections and persistent ones can exhaust the pool.
-BASEROW_CONN_MAX_AGE = int(os.getenv("BASEROW_CONN_MAX_AGE", 0))
-
-# Apply the configured connection reuse timeout consistently to every database.
-# Also enable connection health checks by default so Django verifies that a
-# connection is still usable before each request/task, which prevents
-# "connection already closed" errors when connections are dropped by the server,
-# a load balancer, or a connection pooler.
-for _db_key in DATABASES:
-    DATABASES[_db_key]["CONN_MAX_AGE"] = BASEROW_CONN_MAX_AGE
-    DATABASES[_db_key].setdefault("CONN_HEALTH_CHECKS", True)
-
-DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
-
 
 GENERATED_MODEL_CACHE_NAME = "generated-models"
 CACHES = {
@@ -324,15 +258,93 @@ CACHES = {
     },
 }
 
+
+CACHALOT_TIMEOUT = int(os.getenv("BASEROW_CACHALOT_TIMEOUT", 60 * 60 * 24 * 7))
+BASEROW_CACHALOT_ONLY_CACHABLE_TABLES = os.getenv(
+    "BASEROW_CACHALOT_ONLY_CACHABLE_TABLES", None
+)
+BASEROW_CACHALOT_MODE = os.getenv("BASEROW_CACHALOT_MODE", "default")
+if BASEROW_CACHALOT_MODE == "full":
+    CACHALOT_ONLY_CACHABLE_TABLES = []
+
+elif BASEROW_CACHALOT_ONLY_CACHABLE_TABLES:
+    # Please avoid to add tables with more than 50 modifications per minute
+    # to this list, as described here:
+    # https://django-cachalot.readthedocs.io/en/latest/limits.html
+    CACHALOT_ONLY_CACHABLE_TABLES = BASEROW_CACHALOT_ONLY_CACHABLE_TABLES.split(",")
+else:
+    CACHALOT_ONLY_CACHABLE_TABLES = [
+        "auth_user",
+        "django_content_type",
+        "core_settings",
+        "core_userprofile",
+        "core_application",
+        "core_operation",
+        "core_template",
+        "core_trashentry",
+        "core_workspace",
+        "core_workspaceuser",
+        "core_workspaceuserinvitation",
+        "core_authprovidermodel",
+        "core_passwordauthprovidermodel",
+        "database_database",
+        "database_table",
+        "database_field",
+        "database_fieldependency",
+        "database_linkrowfield",
+        "database_selectoption",
+        "baserow_premium_license",
+        "baserow_premium_licenseuser",
+        "baserow_enterprise_role",
+        "baserow_enterprise_roleassignment",
+        "baserow_enterprise_team",
+        "baserow_enterprise_teamsubject",
+    ]
+
+# This list will have priority over CACHALOT_ONLY_CACHABLE_TABLES.
+BASEROW_CACHALOT_UNCACHABLE_TABLES = os.getenv(
+    "BASEROW_CACHALOT_UNCACHABLE_TABLES", None
+)
+
+if BASEROW_CACHALOT_UNCACHABLE_TABLES:
+    CACHALOT_UNCACHABLE_TABLES = list(
+        filter(bool, BASEROW_CACHALOT_UNCACHABLE_TABLES.split(","))
+    )
+
+CACHALOT_ENABLED = os.getenv("BASEROW_CACHALOT_ENABLED", "false") == "true"
+CACHALOT_CACHE = "cachalot"
+CACHALOT_UNCACHABLE_TABLES = [
+    "django_migrations",
+    "core_action",
+    "database_token",
+    "baserow_enterprise_auditlogentry",
+]
+
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = int(
-    # Default TTL is 2 hours
+    # Default TTL is 10 minutes: 60 seconds * 10
     os.getenv("BASEROW_BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS")
-    or 60 * 10 * 2
+    or 600
 )
-BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = int(
-    # Default TTL is 5 minutes
-    os.getenv("BASEROW_BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS") or 300
-)
+
+
+def install_cachalot():
+    global INSTALLED_APPS
+
+    INSTALLED_APPS.append("cachalot")
+
+    patch_cachalot_for_baserow()
+
+
+if CACHALOT_ENABLED:
+    install_cachalot()
+
+    CACHES[CACHALOT_CACHE] = {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
+        "VERSION": VERSION,
+    }
 
 
 CELERY_SINGLETON_BACKEND_CLASS = (
@@ -379,8 +391,6 @@ LANGUAGES = [
     ("es", "Spanish"),
     ("it", "Italian"),
     ("pl", "Polish"),
-    ("ko", "Korean"),
-    ("uk", "Ukrainian"),
 ]
 
 TIME_ZONE = "UTC"
@@ -414,42 +424,30 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
 }
 
-# Throttling / rate-limiting — see docs/installation/configuration.md
+# Limits the number of concurrent requests per user.
+# If BASEROW_MAX_CONCURRENT_USER_REQUESTS is not set, then the default value of -1
+# will be used which means the throttling is disabled.
 BASEROW_MAX_CONCURRENT_USER_REQUESTS = int(
     os.getenv("BASEROW_MAX_CONCURRENT_USER_REQUESTS", "") or -1
 )
-BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
-    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 180)
-)
-BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS = int(
-    os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS", "") or -1
-)
-BASEROW_THROTTLE_IP_ENABLED = str_to_bool(os.getenv("BASEROW_THROTTLE_IP_ENABLED", ""))
 
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
-        "baserow.throttling.handler.ConcurrentUserRequestsThrottle",
+        "baserow.throttling.ConcurrentUserRequestsThrottle",
     ]
 
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
         "concurrent_user_requests": BASEROW_MAX_CONCURRENT_USER_REQUESTS
     }
 
-    if BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS > 0:
-        # Insert after SecurityMiddleware so 429s still get security/CORS headers.
-        _security_idx = MIDDLEWARE.index(
-            "django.middleware.security.SecurityMiddleware"
-        )
-        MIDDLEWARE.insert(
-            _security_idx + 1,
-            "baserow.throttling.middleware.ThrottleBlacklistMiddleware",
-        )
-
     MIDDLEWARE += [
-        "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
+        "baserow.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
-BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
+# The maximum number of seconds that a request can be throttled for.
+BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
+    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 30)
+)
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 
@@ -498,9 +496,9 @@ SPECTACULAR_SETTINGS = {
     "CONTACT": {"url": "https://baserow.io/contact"},
     "LICENSE": {
         "name": "MIT",
-        "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
+        "url": "https://gitlab.com/baserow/baserow/-/blob/master/LICENSE",
     },
-    "VERSION": "2.3.2",
+    "VERSION": "1.29.1",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -522,7 +520,6 @@ SPECTACULAR_SETTINGS = {
         {"name": "Database table view sortings"},
         {"name": "Database table view decorations"},
         {"name": "Database table view groupings"},
-        {"name": "Database table view export"},
         {"name": "Database table grid view"},
         {"name": "Database table gallery view"},
         {"name": "Database table form view"},
@@ -613,22 +610,6 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
-    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
-)  # ~1TB by default
-
-FILE_UPLOAD_ACTIVE_CONTENT_POLICY = os.getenv(
-    "BASEROW_FILE_UPLOAD_ACTIVE_CONTENT_POLICY", "download"
-).lower()
-if FILE_UPLOAD_ACTIVE_CONTENT_POLICY not in ("download", "block"):
-    raise ImproperlyConfigured(
-        "BASEROW_FILE_UPLOAD_ACTIVE_CONTENT_POLICY must be set to "
-        "'download' or 'block'."
-    )
-
-BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
-    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
-)
 
 # Allows accessing and setting values on a dictionary like an object. Using this
 # we can pass plugin authors and other functions a `settings` object which can modify
@@ -666,9 +647,6 @@ if sum(ALL_STORAGE_ENABLED_VARS) > 1:
 if AWS_STORAGE_ENABLED:
     BASE_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
     AWS_S3_FILE_OVERWRITE = False
-    # This is needed to write the media file in a single call to `files_zip.writestr`
-    # as described here: https://github.com/kobotoolbox/kobocat/issues/475
-    AWS_S3_FILE_BUFFER_SIZE = BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
     set_settings_from_env_if_present(
         AttrDict(vars()),
         [
@@ -779,208 +757,64 @@ STORAGES = {
     },
 }
 
-BASEROW_PUBLIC_URL = os.getenv("BASEROW_PUBLIC_URL", "")
+BASEROW_PUBLIC_URL = os.getenv("BASEROW_PUBLIC_URL")
 if BASEROW_PUBLIC_URL:
     PUBLIC_BACKEND_URL = BASEROW_PUBLIC_URL
     PUBLIC_WEB_FRONTEND_URL = BASEROW_PUBLIC_URL
+    if BASEROW_PUBLIC_URL == "http://localhost":
+        print(
+            "WARNING: Baserow is configured to use a BASEROW_PUBLIC_URL of "
+            "http://localhost. If you attempt to access Baserow on any other hostname "
+            "requests to the backend will fail as they will be from an unknown host. "
+            "Please set BASEROW_PUBLIC_URL if you will be accessing Baserow "
+            "from any other URL then http://localhost."
+        )
 else:
     PUBLIC_BACKEND_URL = os.getenv("PUBLIC_BACKEND_URL", "http://localhost:8000")
     PUBLIC_WEB_FRONTEND_URL = os.getenv(
         "PUBLIC_WEB_FRONTEND_URL", "http://localhost:3000"
     )
+    if "PUBLIC_BACKEND_URL" not in os.environ:
+        print(
+            "WARNING: Baserow is configured to use a PUBLIC_BACKEND_URL of "
+            "http://localhost:8000. If you attempt to access Baserow on any other "
+            "hostname requests to the backend will fail as they will be from an "
+            "unknown host."
+            "Please ensure you set PUBLIC_BACKEND_URL if you will be accessing "
+            "Baserow from any other URL then http://localhost."
+        )
+    if "PUBLIC_WEB_FRONTEND_URL" not in os.environ:
+        print(
+            "WARNING: Baserow is configured to use a default PUBLIC_WEB_FRONTEND_URL "
+            "of http://localhost:3000. Emails sent by Baserow will use links pointing "
+            "to http://localhost:3000 when telling users how to access your server. If "
+            "this is incorrect please ensure you have set PUBLIC_WEB_FRONTEND_URL to "
+            "the URL where users can access your Baserow server."
+        )
 
 BASEROW_EMBEDDED_SHARE_URL = os.getenv("BASEROW_EMBEDDED_SHARE_URL")
 if not BASEROW_EMBEDDED_SHARE_URL:
     BASEROW_EMBEDDED_SHARE_URL = PUBLIC_WEB_FRONTEND_URL
 
-MEDIA_URL_PATH = "/media/"
-MEDIA_URL = os.getenv("MEDIA_URL", urljoin(PUBLIC_BACKEND_URL, MEDIA_URL_PATH))
-
 PRIVATE_BACKEND_URL = os.getenv("PRIVATE_BACKEND_URL", "http://backend:8000")
 PUBLIC_BACKEND_HOSTNAME = urlparse(PUBLIC_BACKEND_URL).hostname
 PUBLIC_WEB_FRONTEND_HOSTNAME = urlparse(PUBLIC_WEB_FRONTEND_URL).hostname
 BASEROW_EMBEDDED_SHARE_HOSTNAME = urlparse(BASEROW_EMBEDDED_SHARE_URL).hostname
-MEDIA_URL_HOSTNAME = urlparse(MEDIA_URL).hostname
 PRIVATE_BACKEND_HOSTNAME = urlparse(PRIVATE_BACKEND_URL).hostname
 
 if PUBLIC_BACKEND_HOSTNAME:
     ALLOWED_HOSTS.append(PUBLIC_BACKEND_HOSTNAME)
 
-if MEDIA_URL_HOSTNAME:
-    ALLOWED_HOSTS.append(MEDIA_URL_HOSTNAME)
-
 if PRIVATE_BACKEND_HOSTNAME:
     ALLOWED_HOSTS.append(PRIVATE_BACKEND_HOSTNAME)
 
-# Parse BASEROW_EXTRA_PUBLIC_URLS - comma-separated list of additional public URLs
-# where Baserow will be accessible. It's the same as the `BASEROW_PUBLIC_URL`, the
-# only difference is that the `BASEROW_PUBLIC_URL` is used in emails.
-BASEROW_EXTRA_PUBLIC_URLS = os.getenv("BASEROW_EXTRA_PUBLIC_URLS", "")
-EXTRA_PUBLIC_BACKEND_HOSTNAMES = []
-EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES = []
-
-if BASEROW_EXTRA_PUBLIC_URLS:
-    extra_urls = [
-        url.strip() for url in BASEROW_EXTRA_PUBLIC_URLS.split(",") if url.strip()
-    ]
-
-    for url in extra_urls:
-        # Validate URL format - must start with http:// or https://
-        if not url.startswith(("http://", "https://")):
-            print(
-                f"WARNING: BASEROW_EXTRA_PUBLIC_URLS contains invalid URL '{url}'. "
-                "URLs must start with http:// or https://. Skipping."
-            )
-            continue
-
-        parsed_url = urlparse(url)
-        hostname = parsed_url.hostname
-
-        if not hostname:
-            print(f"WARNING: URL '{url}' has no hostname. Skipping.")
-            continue
-
-        if hostname not in ALLOWED_HOSTS:
-            ALLOWED_HOSTS.append(hostname)
-        if hostname not in EXTRA_PUBLIC_BACKEND_HOSTNAMES:
-            EXTRA_PUBLIC_BACKEND_HOSTNAMES.append(hostname)
-        if hostname not in EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES:
-            EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES.append(hostname)
-
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@localhost")
-# Align Django's built-in senders with the Baserow configured sender so that any
-# code relying on Django defaults (e.g. the `Send email` action using instance
-# SMTP) uses the configured FROM_EMAIL instead of `webmaster@localhost`.
-DEFAULT_FROM_EMAIL = FROM_EMAIL
-SERVER_EMAIL = FROM_EMAIL
-RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 2  # 2 hours
-CHANGE_EMAIL_TOKEN_MAX_AGE = 60 * 60 * 12  # 12 hours
+RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 48  # 48 hours
 
 ROW_PAGE_SIZE_LIMIT = int(os.getenv("BASEROW_ROW_PAGE_SIZE_LIMIT", 200))
 BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
-
-MAX_FIELD_TEXT_LENGTH = int(os.getenv("BASEROW_MAX_FIELD_TEXT_LENGTH") or 1_000_000)
-
-# Per table, how many rows changed by a dependency cascade (formulas, lookups,
-# link row display values in other tables) are broadcast as exact realtime row
-# updates. Above the limit subscribers receive a whole-table refresh event
-# instead. Zero disables realtime events for dependant rows entirely.
-DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT = int(
-    os.getenv("BASEROW_DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT", 200)
-)
-
-SEARCH_UPDATE_BATCH_SIZE = int(
-    os.getenv("BASEROW_SEARCH_UPDATE_BATCH_SIZE", 2000)
-)  # How many rows to process per batch in search index updates.
-
-# Maximum count of records considered as a 'small table' during field rule operations.
-FIELD_RULE_ROWS_LIMIT = int(os.getenv("FIELD_RULE_ROWS_LIMIT", BATCH_ROWS_SIZE_LIMIT))
-
-# Maximum count of records returned by local baserow data source
-INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT = int(
-    os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT", 200)
-)
-INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT = int(
-    os.getenv("BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT", 1000)
-)
-INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = str_to_bool(
-    os.getenv("BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS", "true")
-)
-
-AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
-    os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
-)
-_legacy_workflow_rate_limit_max_runs = os.getenv(
-    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS"
-)
-_legacy_workflow_rate_limit_window_seconds = os.getenv(
-    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS"
-)
-_automation_workflow_rate_limits_env = os.getenv(
-    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS"
-)
-_automation_workflow_error_limits_env = os.getenv(
-    "BASEROW_AUTOMATION_WORKFLOW_ERROR_LIMITS"
-)
-
-if _automation_workflow_rate_limits_env is not None:
-    _automation_workflow_rate_limit_values = [
-        int(value.strip())
-        for value in _automation_workflow_rate_limits_env.split(",")
-        if value.strip()
-    ]
-elif (
-    _legacy_workflow_rate_limit_max_runs is not None
-    or _legacy_workflow_rate_limit_window_seconds is not None
-):
-    _automation_workflow_rate_limit_values = [
-        int(_legacy_workflow_rate_limit_max_runs or 10),
-        int(_legacy_workflow_rate_limit_window_seconds or 5),
-    ]
-else:
-    _automation_workflow_rate_limit_values = [10, 5, 30, 60 * 5, 100, 60 * 60]
-
-if len(_automation_workflow_rate_limit_values) % 2 != 0:
-    raise ImproperlyConfigured(
-        "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS must contain an even number of "
-        "comma-separated integers formatted as max_runs,window_seconds pairs."
-    )
-
-AUTOMATION_WORKFLOW_RATE_LIMITS = tuple(
-    (
-        _automation_workflow_rate_limit_values[index],
-        _automation_workflow_rate_limit_values[index + 1],
-    )
-    for index in range(0, len(_automation_workflow_rate_limit_values), 2)
-)
-AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
-    os.getenv(
-        "BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS",
-        _legacy_workflow_rate_limit_window_seconds or 5,
-    )
-)
-if _automation_workflow_error_limits_env is not None:
-    _automation_workflow_error_limit_values = [
-        int(value.strip())
-        for value in _automation_workflow_error_limits_env.split(",")
-        if value.strip()
-    ]
-else:
-    _automation_workflow_error_limit_values = [20, 300]
-
-if len(_automation_workflow_error_limit_values) % 2 != 0:
-    raise ImproperlyConfigured(
-        "BASEROW_AUTOMATION_WORKFLOW_ERROR_LIMITS must contain an even number of "
-        "comma-separated integers formatted as max_errors,window_seconds pairs."
-    )
-
-AUTOMATION_WORKFLOW_ERROR_LIMITS = tuple(
-    (
-        _automation_workflow_error_limit_values[index],
-        _automation_workflow_error_limit_values[index + 1],
-    )
-    for index in range(0, len(_automation_workflow_error_limit_values), 2)
-)
-AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS", 5)
-)
-AUTOMATION_WORKFLOW_TIMEOUT_HOURS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_TIMEOUT_HOURS", 24)
-)
-AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS", 30)
-)
-AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES", 200)
-)
-AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS", 2)
-)
-AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
-)
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
 
@@ -998,11 +832,20 @@ BASEROW_INITIAL_CREATE_SYNC_TABLE_DATA_LIMIT = int(
     os.getenv("BASEROW_INITIAL_CREATE_SYNC_TABLE_DATA_LIMIT", 5000)
 )
 
+MEDIA_URL_PATH = "/media/"
+MEDIA_URL = os.getenv("MEDIA_URL", urljoin(PUBLIC_BACKEND_URL, MEDIA_URL_PATH))
 MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/baserow/media")
 
 # Indicates the directory where the user files and user thumbnails are stored.
 USER_FILES_DIRECTORY = "user_files"
 USER_THUMBNAILS_DIRECTORY = "thumbnails"
+BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
+    Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
+)  # ~1TB by default
+
+BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
+    os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
+)
 
 EXPORT_FILES_DIRECTORY = "export_files"
 EXPORT_CLEANUP_INTERVAL_MINUTES = 5
@@ -1016,13 +859,14 @@ STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_STALE_MENTIONS_CLEANUP_INTERVAL_MINUTES", "") or 360
 )
 
-# Indicates how frequently the workspace storage should be updated. Once every X number
-# of hours.
-BASEROW_UPDATE_WORKSPACE_STORAGE_USAGE_HOURS = 24
+MIDNIGHT_CRONTAB_STR = "0 0 * * *"
+BASEROW_STORAGE_USAGE_JOB_CRONTAB = get_crontab_from_env(
+    "BASEROW_STORAGE_USAGE_JOB_CRONTAB", default_crontab=MIDNIGHT_CRONTAB_STR
+)
 
-ONE_AM_CRONTAB_STR = "0 1 * * *"
+ONE_AM_CRONTRAB_STR = "0 1 * * *"
 BASEROW_SEAT_USAGE_JOB_CRONTAB = get_crontab_from_env(
-    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTAB_STR
+    "BASEROW_SEAT_USAGE_JOB_CRONTAB", default_crontab=ONE_AM_CRONTRAB_STR
 )
 
 EMAIL_BACKEND = "djcelery_email.backends.CeleryEmailBackend"
@@ -1107,13 +951,6 @@ BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT = RateLimit.from_string(
     os.getenv("BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT", "5/h")
 )
 
-login_action_limit_from_env = os.getenv("BASEROW_LOGIN_ACTION_LOG_LIMIT")
-BASEROW_LOGIN_ACTION_LOG_LIMIT = (
-    RateLimit.from_string(login_action_limit_from_env)
-    if login_action_limit_from_env
-    else RateLimit(period_in_seconds=60 * 5, number_of_calls=1)
-)
-
 # Configurable thumbnails that are going to be generated when a user uploads an image
 # file.
 USER_THUMBNAILS = {"tiny": [None, 21], "small": [48, 48], "card_cover": [300, 160]}
@@ -1125,10 +962,16 @@ APPLICATION_TEMPLATES_DIR = os.path.join(BASE_DIR, "../../../templates")
 # The template that must be selected when the user first opens the templates select
 # modal.
 # IF CHANGING KEEP IN SYNC WITH e2e-tests/wait-for-services.sh
-DEFAULT_APPLICATION_TEMPLATES = ["project-tracker", "ab_ivory_theme"]
+DEFAULT_APPLICATION_TEMPLATE = "project-tracker"
 BASEROW_SYNC_TEMPLATES_PATTERN = os.getenv("BASEROW_SYNC_TEMPLATES_PATTERN", None)
 
 MAX_FIELD_LIMIT = int(os.getenv("BASEROW_MAX_FIELD_LIMIT", 600))
+
+INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT = int(
+    os.getenv(
+        "BASEROW_INITIAL_MIGRATION_FULL_TEXT_SEARCH_MAX_FIELD_LIMIT", MAX_FIELD_LIMIT
+    )
+)
 
 
 # set max events to be returned by every ICal feed. Empty value means no limit.
@@ -1152,7 +995,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 FILE_UPLOAD_PERMISSIONS = None
 
 MAX_FORMULA_STRING_LENGTH = 10000
-FORMULA_RANGE_MAX_ITEMS = int(os.getenv("BASEROW_FORMULA_RANGE_MAX_ITEMS", 10000))
 MAX_FIELD_REFERENCE_DEPTH = 1000
 DONT_UPDATE_FORMULAS_AFTER_MIGRATION = bool(
     os.getenv("DONT_UPDATE_FORMULAS_AFTER_MIGRATION", "")
@@ -1169,11 +1011,6 @@ BASEROW_PERIODIC_FIELD_UPDATE_UNUSED_WORKSPACE_INTERVAL_MIN = int(
 )
 PERIODIC_FIELD_UPDATE_QUEUE_NAME = os.getenv(
     "BASEROW_PERIODIC_FIELD_UPDATE_QUEUE_NAME", "export"
-)
-# Number of tasks the periodic field update is split into. Defaults to 1 (a single
-# task, like the original job); raise it to spread the work across more workers.
-PERIODIC_FIELD_UPDATE_BATCH_COUNT = int(
-    os.getenv("BASEROW_PERIODIC_FIELD_UPDATE_BATCH_COUNT") or 1
 )
 
 BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = int(
@@ -1210,27 +1047,6 @@ BASEROW_WEBHOOKS_URL_REGEX_BLACKLIST = [
 BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS = int(
     os.getenv("BASEROW_WEBHOOKS_URL_CHECK_TIMEOUT_SECS", "10")
 )
-BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK = (
-    int(os.getenv("BASEROW_MAX_WEBHOOK_CALLS_IN_QUEUE_PER_WEBHOOK", "0")) or None
-)
-BASEROW_WEBHOOKS_BATCH_LIMIT = int(os.getenv("BASEROW_WEBHOOKS_BATCH_LIMIT", 5))
-BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE = int(
-    os.getenv("BASEROW_WEBHOOK_ROWS_ENTER_VIEW_BATCH_SIZE", BATCH_ROWS_SIZE_LIMIT)
-)
-
-OAUTH_BACKEND_URL = os.getenv("BASEROW_OAUTH_BACKEND_URL") or PUBLIC_BACKEND_URL
-
-INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
-    os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
-)
-INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
-# The minimum amount of minutes the periodic task's "minute" interval
-# supports. Self-hosters can run every minute, if they choose to.
-INTEGRATIONS_PERIODIC_MINUTE_MIN = int(
-    os.getenv("BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN") or 1
-)
-
-TOTP_ISSUER_NAME = os.getenv("BASEROW_TOTP_ISSUER_NAME", "Baserow")
 
 # ======== WARNING ========
 # Please read and understand everything at:
@@ -1249,8 +1065,6 @@ if bool(os.getenv("BASEROW_ENABLE_SECURE_PROXY_SSL_HEADER", False)):
 DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS = bool(
     os.getenv("DISABLE_ANONYMOUS_PUBLIC_VIEW_WS_CONNECTIONS", "")
 )
-
-PRESENCE_VISIBLE_USERS = int(os.getenv("BASEROW_PRESENCE_VISIBLE_USERS") or 3)
 
 BASEROW_BACKEND_LOG_LEVEL = os.getenv("BASEROW_BACKEND_LOG_LEVEL", "INFO")
 BASEROW_BACKEND_DATABASE_LOG_LEVEL = os.getenv(
@@ -1286,6 +1100,12 @@ BASEROW_USER_LOG_ENTRY_CLEANUP_INTERVAL_MINUTES = int(
 BASEROW_USER_LOG_ENTRY_RETENTION_DAYS = int(
     os.getenv("BASEROW_USER_LOG_ENTRY_RETENTION_DAYS", 61)
 )
+# The maximum number of pending invites that a workspace can have. If `0` then
+# unlimited invites are allowed, which is the default value.
+BASEROW_MAX_PENDING_WORKSPACE_INVITES = int(
+    os.getenv("BASEROW_MAX_PENDING_WORKSPACE_INVITES", 0)
+)
+
 BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES", 5)
 )
@@ -1309,15 +1129,10 @@ PERMISSION_MANAGERS = [
     "element_visibility",
     "member",
     "token",
-    "write_field_values",
     "role",
     "basic",
-    "automation_workflow",
-    "automation_node",
 ]
-
 if "baserow_enterprise" not in INSTALLED_APPS:
-    PERMISSION_MANAGERS.remove("write_field_values")
     PERMISSION_MANAGERS.remove("role")
 if "baserow_premium" not in INSTALLED_APPS:
     PERMISSION_MANAGERS.remove("view_ownership")
@@ -1348,12 +1163,6 @@ LOGGING = {
             "handlers": ["console"],
             "level": BASEROW_BACKEND_DATABASE_LOG_LEVEL,
             "propagate": True,
-        },
-        # Default to ERROR to suppress 429 spam under heavy throttling.
-        "django.request": {
-            "handlers": ["console"],
-            "level": os.getenv("BASEROW_DJANGO_REQUEST_LOG_LEVEL", "ERROR"),
-            "propagate": False,
         },
     },
     "root": {
@@ -1409,23 +1218,27 @@ DEFAULT_SEARCH_MODE = os.getenv("BASEROW_DEFAULT_SEARCH_MODE", "compat")
 
 # Search specific configuration settings.
 CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT = int(
-    os.getenv("BASEROW_CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT", 60 * 60)  # 1 hour
+    os.getenv("BASEROW_CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT", 60 * 30)
 )
 # By default, Baserow will use Postgres full-text as its
 # search backend. If the product is installed on a system
 # with limited disk space, and less accurate results / degraded
 # search performance is acceptable, then switch this setting off.
-PG_FULLTEXT_SEARCH_ENABLED = str_to_bool(
+USE_PG_FULLTEXT_SEARCH = str_to_bool(
     (os.getenv("BASEROW_USE_PG_FULLTEXT_SEARCH", "true"))
 )
-PG_FULLTEXT_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
-PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS = float(
-    os.getenv("BASEROW_PG_FULLTEXT_SEARCH_UPDATE_DATA_THROTTLE_SECONDS", 2)  # seconds
-)
+PG_SEARCH_CONFIG = os.getenv("BASEROW_PG_SEARCH_CONFIG", "simple")
+AUTO_VACUUM_AFTER_SEARCH_UPDATE = str_to_bool(os.getenv("BASEROW_AUTO_VACUUM", "true"))
+TSV_UPDATE_CHUNK_SIZE = int(os.getenv("BASEROW_TSV_UPDATE_CHUNK_SIZE", "2000"))
 
 POSTHOG_PROJECT_API_KEY = os.getenv("POSTHOG_PROJECT_API_KEY", "")
-POSTHOG_HOST = os.getenv("POSTHOG_HOST") or None
-POSTHOG_ENABLED = bool(POSTHOG_PROJECT_API_KEY)
+POSTHOG_HOST = os.getenv("POSTHOG_HOST", "")
+POSTHOG_ENABLED = POSTHOG_PROJECT_API_KEY and POSTHOG_HOST
+if POSTHOG_ENABLED:
+    posthog.project_api_key = POSTHOG_PROJECT_API_KEY
+    posthog.host = POSTHOG_HOST
+else:
+    posthog.disabled = True
 
 BASEROW_BUILDER_DOMAINS = os.getenv("BASEROW_BUILDER_DOMAINS", None)
 BASEROW_BUILDER_DOMAINS = (
@@ -1449,92 +1262,22 @@ for plugin in [*BASEROW_BUILT_IN_PLUGINS, *BASEROW_BACKEND_PLUGIN_NAMES]:
         print(e)
 
 
-# Libraries that should be lazy-loaded (imported inside functions/methods) to reduce
-# memory footprint at startup. If any of these are found in sys.modules during startup,
-# a warning will be shown suggesting to either lazy-load them or remove them from this
-# list if they're legitimately needed at startup.
-BASEROW_LAZY_LOADED_LIBRARIES = [
-    "openai",
-    "anthropic",
-    "mistralai",
-    "ollama",
-    "jira2markdown",
-    "saml2",
-    "openpyxl",
-    "numpy",
-]
-
-
 SENTRY_BACKEND_DSN = os.getenv("SENTRY_BACKEND_DSN")
 SENTRY_DSN = SENTRY_BACKEND_DSN or os.getenv("SENTRY_DSN")
 
 if SENTRY_DSN:
-    import sentry_sdk
-    import sentry_sdk.integrations as _sentry_integrations
-    from loguru import logger
-    from sentry_sdk.integrations.django import DjangoIntegration
-    from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
-
-    from baserow.core.sentry import (
-        ConsoleSentryTransport,
-        drop_expected_asyncio_websocket_disconnect_events,
-    )
-
-    # Exclude integrations whose module-level imports are incompatible:
-    # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was
-    #   removed in pydantic-ai >= 1.x (now execute_tool_call)
-
-    _sentry_integrations._AUTO_ENABLING_INTEGRATIONS[:] = [
-        entry
-        for entry in _sentry_integrations._AUTO_ENABLING_INTEGRATIONS
-        if "pydantic_ai" not in entry
-    ]
-
-    SENTRY_DENYLIST = DEFAULT_DENYLIST + ["username", "email", "name"]
-    sentry_transport = None
-
-    if SENTRY_DSN == "fake":
-        logger.info(
-            "[SENTRY] Using fake backend Sentry DSN, events will be logged to the "
-            "console."
-        )
-        SENTRY_DSN = "https://public@example.invalid/1"
-        sentry_transport = ConsoleSentryTransport()
-
-    # Sample rate for performance tracing (transactions), disabled when the console transport is used
-    # (fake DSN in dev) to avoid spamming transaction envelopes to the console.
-    sentry_traces_sample_rate = (
-        0 if sentry_transport else float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 0.01))
-    )
-
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
-        traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
-        before_send=drop_expected_asyncio_websocket_disconnect_events,
-        event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
-        transport=sentry_transport,
     )
-else:
-    BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
-BASEROW_OPENAI_BASE_URL = os.getenv("BASEROW_OPENAI_BASE_URL", None) or None
 BASEROW_OPENAI_MODELS = os.getenv("BASEROW_OPENAI_MODELS", "")
 BASEROW_OPENAI_MODELS = (
     BASEROW_OPENAI_MODELS.split(",") if BASEROW_OPENAI_MODELS else []
-)
-
-BASEROW_OPENROUTER_API_KEY = os.getenv("BASEROW_OPENROUTER_API_KEY", None)
-BASEROW_OPENROUTER_ORGANIZATION = (
-    os.getenv("BASEROW_OPENROUTER_ORGANIZATION", "") or None
-)
-BASEROW_OPENROUTER_MODELS = os.getenv("BASEROW_OPENROUTER_MODELS", "")
-BASEROW_OPENROUTER_MODELS = (
-    BASEROW_OPENROUTER_MODELS.split(",") if BASEROW_OPENROUTER_MODELS else []
 )
 
 BASEROW_ANTHROPIC_API_KEY = os.getenv("BASEROW_ANTHROPIC_API_KEY", None)
@@ -1555,13 +1298,6 @@ BASEROW_OLLAMA_MODELS = (
     BASEROW_OLLAMA_MODELS.split(",") if BASEROW_OLLAMA_MODELS else []
 )
 
-BASEROW_TWO_WAY_SYNC_MAX_CONSECUTIVE_FAILURES = int(
-    os.getenv("BASEROW_TWO_WAY_SYNC_MAX_CONSECUTIVE_FAILURES", "") or 8
-)
-BASEROW_TWO_WAY_SYNC_MAX_RETRIES = int(
-    os.getenv("BASEROW_TWO_WAY_SYNC_MAX_RETRIES", "") or 3
-)
-
 BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE = str_to_bool(
     os.getenv("BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE", "true")
 )
@@ -1572,128 +1308,4 @@ BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST = (
     BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST.split(",")
     if BASEROW_POSTGRESQL_DATA_SYNC_BLACKLIST
     else []
-)
-
-# Default compression level for creating zip files. This setting balances the need to
-# save resources when compressing media files with the need to save space when
-# compressing text files.
-BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL = 5
-
-BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
-    os.getenv("BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE", "") or 10
-)
-
-BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
-
-BASEROW_EMBEDDINGS_API_URL = os.getenv("BASEROW_EMBEDDINGS_API_URL", "")
-
-# -- CACHALOT SETTINGS --
-
-CACHALOT_TIMEOUT = int(os.getenv("BASEROW_CACHALOT_TIMEOUT", 60 * 60 * 24 * 7))
-BASEROW_CACHALOT_ONLY_CACHABLE_TABLES = os.getenv(
-    "BASEROW_CACHALOT_ONLY_CACHABLE_TABLES", None
-)
-BASEROW_CACHALOT_MODE = os.getenv("BASEROW_CACHALOT_MODE", "default")
-if BASEROW_CACHALOT_MODE == "full":
-    CACHALOT_ONLY_CACHABLE_TABLES = []
-
-elif BASEROW_CACHALOT_ONLY_CACHABLE_TABLES:
-    # Please avoid to add tables with more than 50 modifications per minute to this
-    # list, as described here:
-    # https://django-cachalot.readthedocs.io/en/latest/limits.html
-    CACHALOT_ONLY_CACHABLE_TABLES = BASEROW_CACHALOT_ONLY_CACHABLE_TABLES.split(",")
-else:
-    CACHALOT_ONLY_CACHABLE_TABLES = [
-        "auth_user",
-        "django_content_type",
-        "core_settings",
-        "core_userprofile",
-        "core_application",
-        "core_operation",
-        "core_template",
-        "core_trashentry",
-        "core_workspace",
-        "core_workspaceuser",
-        "core_workspaceuserinvitation",
-        "core_authprovidermodel",
-        "core_passwordauthprovidermodel",
-        "database_database",
-        "database_table",
-        "database_field",
-        "database_fieldependency",
-        "database_linkrowfield",
-        "database_selectoption",
-        "baserow_premium_license",
-        "baserow_premium_licenseuser",
-        "baserow_enterprise_role",
-        "baserow_enterprise_roleassignment",
-        "baserow_enterprise_team",
-        "baserow_enterprise_teamsubject",
-    ]
-
-# This list will have priority over CACHALOT_ONLY_CACHABLE_TABLES.
-BASEROW_CACHALOT_UNCACHABLE_TABLES = os.getenv(
-    "BASEROW_CACHALOT_UNCACHABLE_TABLES", None
-)
-
-if BASEROW_CACHALOT_UNCACHABLE_TABLES:
-    CACHALOT_UNCACHABLE_TABLES = list(
-        filter(bool, BASEROW_CACHALOT_UNCACHABLE_TABLES.split(","))
-    )
-
-CACHALOT_ENABLED = str_to_bool(os.getenv("BASEROW_CACHALOT_ENABLED", ""))
-CACHALOT_CACHE = "cachalot"
-CACHALOT_UNCACHABLE_TABLES = [
-    "django_migrations",
-    "core_action",
-    "database_token",
-    "baserow_enterprise_auditlogentry",
-]
-
-
-def install_cachalot():
-    from baserow.cachalot_patch import patch_cachalot_for_baserow
-
-    global INSTALLED_APPS
-
-    INSTALLED_APPS.append("cachalot")
-
-    patch_cachalot_for_baserow()
-
-
-if CACHALOT_ENABLED:
-    install_cachalot()
-
-    CACHES[CACHALOT_CACHE] = {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
-        "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
-        "VERSION": VERSION,
-    }
-# -- END CACHALOT SETTINGS --
-
-
-BASEROW_DEADLOCK_MAX_RETRIES = max(
-    try_int(os.getenv("BASEROW_DEADLOCK_MAX_RETRIES"), 1),
-    1,
-)
-BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
-    try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 0.2),
-    0.1,
-)
-
-# Set to "all" to enable captcha everywhere, or comma-separated contexts like
-# "signup,invitations" to enable only in specific places.
-BASEROW_ENABLE_CAPTCHA = os.getenv("BASEROW_ENABLE_CAPTCHA", "")
-BASEROW_CAPTCHA_PROVIDER = os.getenv("BASEROW_CAPTCHA_PROVIDER", "cloudflare_turnstile")
-BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY = os.getenv(
-    "BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY", ""
-)
-BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv(
-    "BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY", ""
-)
-
-BASEROW_REALTIME_REPLAY_MAX_EVENTS = int(
-    os.getenv("BASEROW_REALTIME_REPLAY_MAX_EVENTS", 200)
 )
