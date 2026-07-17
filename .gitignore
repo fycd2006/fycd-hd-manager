@@ -3,3 +3,7 @@
 .system_generated/
 /scratch/
 .token
+node_modules/
+package.json
+package-lock.json
+check-locks.js
