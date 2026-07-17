@@ -1,14 +1,23 @@
-# === DIAGNOSTIC TEST DOCKERFILE ===
-# Temporary minimal image to test if HF build pipeline works at all.
-# Will be reverted to baserow/baserow:1.29.1 once confirmed.
-FROM python:3.11-slim
+FROM baserow/baserow:1.29.1
 
-RUN pip install --no-cache-dir flask
+# Set default env variables for Hugging Face Spaces
+ENV DISABLE_VOLUME_CHECK=yes
+ENV BASEROW_AMOUNT_OF_WORKERS=1
+ENV BASEROW_AMOUNT_OF_GUNICORN_WORKERS=1
+ENV CELERY_BROKER_POOL_LIMIT=1
+ENV CELERY_REDIS_MAX_CONNECTIONS=2
 
-WORKDIR /app
+# Copy custom source code or assets to overwrite defaults
+COPY customizations/ /baserow/customizations/
 
-RUN echo 'from flask import Flask\nimport os\napp = Flask(__name__)\n@app.route("/")\ndef home():\n    return "<h1>Build Pipeline Test OK</h1><p>If you see this, the HF build system is working.</p>"\nif __name__ == "__main__":\n    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))' > app.py
+# Script to apply customizations to baserow files before starting
+RUN if [ -d "/baserow/customizations" ]; then \
+      cp -r /baserow/customizations/* /baserow/ || true; \
+      rm -rf /baserow/customizations; \
+    fi
+
+ENV BASEROW_PORT=7860
+ENV BASEROW_CADDY_ADDRESSES=http://:7860
 
 EXPOSE 7860
-
-CMD ["python", "app.py"]
+# Trigger rebuild 2026-07-17

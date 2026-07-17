@@ -1,7 +1,7 @@
 ---
 
 title: FYCD HD MANAGER
-emoji: 📊
+emoji: ⚙️
 colorFrom: yellow
 colorTo: indigo
 sdk: docker
