@@ -528,35 +528,72 @@ export function ViewToolbar({
             <span className="header__filter-name">Row height</span>
           </a>
           {activeHeaderMenu === 'rowHeight' && (
-            <div className="select" style={{ position: 'absolute', top: '100%', left: '0', minWidth: '160px', zIndex: 100, background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '6px', padding: '6px 0' }} onClick={(e) => e.stopPropagation()}>
-              <div className="select__items">
-                <ul className="select__items-list">
-                  <li>
-                    <a className={`select__item ${rowHeightSize === 'small' ? 'active' : ''}`} onClick={() => { setRowHeightSize('small'); setActiveHeaderMenu(null) }}>
-                      <span className="select__item-name">預設 (Small)</span>
-                      {rowHeightSize === 'small' && <Check size={14} className="select__item-active-icon" style={{ marginLeft: 'auto', color: '#2563eb' }} />}
-                    </a>
-                  </li>
-                  <li>
-                    <a className={`select__item ${rowHeightSize === 'medium' ? 'active' : ''}`} onClick={() => { setRowHeightSize('medium'); setActiveHeaderMenu(null) }}>
-                      <span className="select__item-name">中等 (Medium)</span>
-                      {rowHeightSize === 'medium' && <Check size={14} className="select__item-active-icon" style={{ marginLeft: 'auto', color: '#2563eb' }} />}
-                    </a>
-                  </li>
-                  <li>
-                    <a className={`select__item ${rowHeightSize === 'large' ? 'active' : ''}`} onClick={() => { setRowHeightSize('large'); setActiveHeaderMenu(null) }}>
-                      <span className="select__item-name">較大 (Large)</span>
-                      {rowHeightSize === 'large' && <Check size={14} className="select__item-active-icon" style={{ marginLeft: 'auto', color: '#2563eb' }} />}
-                    </a>
-                  </li>
-                  <li>
-                    <a className={`select__item ${rowHeightSize === 'extra' ? 'active' : ''}`} onClick={() => { setRowHeightSize('extra'); setActiveHeaderMenu(null) }}>
-                      <span className="select__item-name">特大 (Extra)</span>
-                      {rowHeightSize === 'extra' && <Check size={14} className="select__item-active-icon" style={{ marginLeft: 'auto', color: '#2563eb' }} />}
-                    </a>
-                  </li>
-                </ul>
+            <div 
+              style={{ 
+                position: 'absolute', 
+                top: 'calc(100% + 4px)', 
+                left: '0', 
+                width: '200px', 
+                zIndex: 99999, 
+                backgroundColor: '#ffffff', 
+                boxShadow: '0 10px 25px rgba(15, 23, 42, 0.15)', 
+                borderRadius: '10px', 
+                border: '1px solid #e2e8f0', 
+                padding: '6px',
+                animation: 'fadeIn 0.15s ease-out' 
+              }} 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ padding: '4px 8px 6px 8px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                行高設定 (Row Height)
               </div>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {[
+                  { id: 'small', label: '預設 (Small)', icon: <AlignJustify size={14} /> },
+                  { id: 'medium', label: '中等 (Medium)', icon: <AlignJustify size={16} /> },
+                  { id: 'large', label: '較大 (Large)', icon: <AlignJustify size={18} /> },
+                  { id: 'extra', label: '特大 (Extra)', icon: <AlignJustify size={20} /> },
+                ].map((option) => {
+                  const isSelected = rowHeightSize === option.id
+                  return (
+                    <li key={option.id}>
+                      <div
+                        onClick={() => {
+                          setRowHeightSize(option.id as any)
+                          setActiveHeaderMenu(null)
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '8px 10px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                          color: isSelected ? '#2563eb' : '#1e293b',
+                          transition: 'background-color 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc'
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ color: isSelected ? '#2563eb' : '#64748b', display: 'flex', alignItems: 'center' }}>
+                            {option.icon}
+                          </span>
+                          <span style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400 }}>
+                            {option.label}
+                          </span>
+                        </div>
+                        {isSelected && <Check size={16} color="#2563eb" style={{ flexShrink: 0 }} />}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
             </div>
           )}
         </li>
