@@ -47,6 +47,9 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
 
   const register = useCallback(async (username: string, email: string, password: string) => {
     const result = await authService.register(username, email, password)
+    if (result.ok && result.user) {
+      setCurrentUser(result.user)
+    }
     return { ok: result.ok, error: result.error }
   }, [])
 

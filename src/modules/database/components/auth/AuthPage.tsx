@@ -28,7 +28,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ authState, authActions, them
     if (!authState.authUsername || !authState.authEmail || !authState.authPassword) return
     const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
     if (result.ok) {
-      authActions.setAuthMode('login')
       authActions.setAuthPassword('')
     } else {
       console.error(result.error || '註冊失敗')

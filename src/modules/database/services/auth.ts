@@ -44,7 +44,7 @@ export const login = async (username: string, password: string): Promise<{ ok: b
 /**
  * Register a new account
  */
-export const register = async (username: string, email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
+export const register = async (username: string, email: string, password: string): Promise<{ ok: boolean; user?: User; error?: string }> => {
   try {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
@@ -53,7 +53,7 @@ export const register = async (username: string, email: string, password: string
     })
     const data = await res.json()
     if (res.ok) {
-      return { ok: true }
+      return { ok: true, user: data.user }
     }
     return { ok: false, error: data.error || '註冊失敗' }
   } catch {
