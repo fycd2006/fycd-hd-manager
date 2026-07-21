@@ -53,7 +53,9 @@ interface SidebarProps {
   onDeleteWorkspaceOrDb: (action: 'delete_workspace' | 'delete_database', id: number, label: string) => void
   onToggleDarkReaderPanel: () => void
   onUpdateDarkReaderSettings: (settings: Partial<{ brightness: number; contrast: number; sepia: number; grayscale: number }>) => void
+  onDeleteDarkReaderSettings?: (settings: Partial<{ brightness: number; contrast: number; sepia: number; grayscale: number }>) => void
   onDeleteTable?: (tableId: number, tableName: string) => void
+  userPermissions?: any
 }
 
 export default function Sidebar({
@@ -89,7 +91,8 @@ export default function Sidebar({
   onDeleteWorkspaceOrDb,
   onToggleDarkReaderPanel,
   onUpdateDarkReaderSettings,
-  onDeleteTable
+  onDeleteTable,
+  userPermissions
 }: SidebarProps) {
   const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null)
 

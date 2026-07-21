@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSessionUser, isAdmin } from '@/lib/auth'
+import { getSessionUser } from '@/lib/auth'
+import { authorizeAction } from '@/lib/authorize'
 
 // GET: 載入所有的工作區 ➔ 資料庫 ➔ 資料表結構 (需要登入)
 export async function GET() {
@@ -27,7 +28,6 @@ export async function GET() {
       orderBy: { createdAt: 'asc' }
     })
 
-    // 1. 如果資料庫中還沒有任何 Workspace，自動進行初始化
     if (workspaces.length === 0) {
       await prisma.workspace.create({
         data: {
@@ -39,7 +39,6 @@ export async function GET() {
           }
         }
       })
-      // Re-query to match identical relation types with _count
       workspaces = await prisma.workspace.findMany({
         include: {
           databases: {
@@ -58,10 +57,7 @@ export async function GET() {
       })
     }
 
-    // 2. 獲取預設的 database ID 以便整理無主表格
     const defaultDb = workspaces[0].databases[0]
-
-    // 3. 處理舊版本中 databaseId 欄位為 null 的表格，將其統一歸類到預設資料庫下
     const orphanTables = await prisma.databaseTable.findMany({
       where: { databaseId: null }
     })
@@ -72,7 +68,6 @@ export async function GET() {
         data: { databaseId: defaultDb.id }
       })
 
-      // 重新載入已歸類的完整結構
       workspaces = await prisma.workspace.findMany({
         include: {
           databases: {
@@ -111,7 +106,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '名稱不能為空' }, { status: 400 })
     }
 
-    // 建立工作區
     if (action === 'create_workspace') {
       const newWs = await prisma.workspace.create({
         data: { name: name.trim() },
@@ -123,6 +117,9 @@ export async function POST(request: Request) {
     if (action === 'create_database') {
       const wsId = parseInt(workspaceId)
       if (isNaN(wsId)) return NextResponse.json({ error: '缺少工作區 ID' }, { status: 400 })
+
+      const { errorResponse } = await authorizeAction({ workspaceId: wsId, action: 'canManageStructure' })
+      if (errorResponse) return errorResponse
 
       const newDb = await prisma.database.create({
         data: {
@@ -138,12 +135,14 @@ export async function POST(request: Request) {
       const dbId = parseInt(databaseId)
       if (isNaN(dbId)) return NextResponse.json({ error: '缺少資料庫 ID' }, { status: 400 })
 
+      const { errorResponse } = await authorizeAction({ databaseId: dbId, action: 'canManageStructure' })
+      if (errorResponse) return errorResponse
+
       const maxOrder = await prisma.databaseTable.aggregate({
         where: { databaseId: dbId },
         _max: { order: true }
       })
 
-      // 建立資料表，預設附帶一個名稱欄位
       const newTable = await prisma.databaseTable.create({
         data: {
           name: name.trim(),
@@ -169,7 +168,7 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: 重新命名工作區或資料庫 (需要登入，工作區僅限管理員)
+// PATCH: 重新命名工作區或資料庫
 export async function PATCH(request: Request) {
   try {
     const activeUser = await getSessionUser()
@@ -188,9 +187,9 @@ export async function PATCH(request: Request) {
     if (isNaN(targetId)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
     if (action === 'rename_workspace') {
-      if (activeUser.role !== 'admin') {
-        return NextResponse.json({ error: '權限不足，僅管理員可重命名工作區' }, { status: 403 })
-      }
+      const { errorResponse } = await authorizeAction({ workspaceId: targetId, action: 'canManageWorkspace' })
+      if (errorResponse) return errorResponse
+
       const updated = await prisma.workspace.update({
         where: { id: targetId },
         data: { name: name.trim() }
@@ -199,6 +198,9 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'rename_database') {
+      const { errorResponse } = await authorizeAction({ databaseId: targetId, action: 'canManageStructure' })
+      if (errorResponse) return errorResponse
+
       const updated = await prisma.database.update({
         where: { id: targetId },
         data: { name: name.trim() }
@@ -212,7 +214,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: 刪除工作區或資料庫 (工作區與資料庫刪除僅限管理員)
+// DELETE: 刪除工作區或資料庫
 export async function DELETE(request: Request) {
   try {
     const activeUser = await getSessionUser()
@@ -231,13 +233,10 @@ export async function DELETE(request: Request) {
     const targetId = parseInt(idStr)
     if (isNaN(targetId)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    // 刪除工作區與資料庫屬於破壞性重大異動，限制僅管理員執行
-    if (activeUser.role !== 'admin') {
-      return NextResponse.json({ error: '權限不足，必須為管理員' }, { status: 403 })
-    }
-
     if (action === 'delete_workspace') {
-      // 確保至少保留一個工作區以防系統空白
+      const { errorResponse } = await authorizeAction({ workspaceId: targetId, action: 'canManageWorkspace' })
+      if (errorResponse) return errorResponse
+
       const count = await prisma.workspace.count()
       if (count <= 1) {
         return NextResponse.json({ error: '必須保留至少一個工作區' }, { status: 400 })
@@ -250,6 +249,9 @@ export async function DELETE(request: Request) {
     }
 
     if (action === 'delete_database') {
+      const { errorResponse } = await authorizeAction({ databaseId: targetId, action: 'canManageStructure' })
+      if (errorResponse) return errorResponse
+
       await prisma.database.delete({
         where: { id: targetId }
       })

@@ -49,6 +49,7 @@ interface ViewToolbarProps {
   handleExportCSV: () => void
   handleCSVImport: (e: React.ChangeEvent<HTMLInputElement>) => void
   csvInputRef: React.RefObject<HTMLInputElement | null>
+  canManageStructure?: boolean
 }
 
 export function ViewToolbar({
@@ -77,7 +78,8 @@ export function ViewToolbar({
   setRowHeightSize,
   handleExportCSV,
   handleCSVImport,
-  csvInputRef
+  csvInputRef,
+  canManageStructure = true
 }: ViewToolbarProps) {
   const [showViewContext, setShowViewContext] = useState(false)
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null)
@@ -155,21 +157,23 @@ export function ViewToolbar({
                   ))}
                 </ul>
               </div>
-              <div className="select__footer" style={{ borderTop: '1px solid #e2e8f0', padding: '4px 0' }}>
-                <a 
-                  className="select__footer-button" 
-                  onClick={() => {
-                    setShowViewContext(false)
-                    setShowNewViewModal(true)
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', color: '#64748b', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#2563eb' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b' }}
-                >
-                  <Plus size={14} style={{ marginRight: '8px' }} />
-                  新增視圖
-                </a>
-              </div>
+              {canManageStructure && (
+                <div className="select__footer" style={{ borderTop: '1px solid #e2e8f0', padding: '4px 0' }}>
+                  <a 
+                    className="select__footer-button" 
+                    onClick={() => {
+                      setShowViewContext(false)
+                      setShowNewViewModal(true)
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', color: '#64748b', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#2563eb' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b' }}
+                  >
+                    <Plus size={14} style={{ marginRight: '8px' }} />
+                    新增視圖
+                  </a>
+                </div>
+              )}
             </div>
           )}
         </li>

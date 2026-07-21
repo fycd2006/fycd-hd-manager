@@ -13,6 +13,7 @@ interface RowEditModalProps {
   onUpdateCell?: (rowId: number, fieldKey: string, value: any) => void
   onNavigatePrevious?: () => void
   onNavigateNext?: () => void
+  readOnly?: boolean
 }
 
 export default function RowEditModal({
@@ -24,7 +25,8 @@ export default function RowEditModal({
   onClose,
   onUpdateCell,
   onNavigatePrevious,
-  onNavigateNext
+  onNavigateNext,
+  readOnly = false
 }: RowEditModalProps) {
   const [formData, setFormData] = useState<Record<string, any>>({})
 
@@ -37,6 +39,7 @@ export default function RowEditModal({
   if (!show || !row) return null
 
   const handleChange = (fieldId: number, value: any) => {
+    if (readOnly) return
     const key = `field_${fieldId}`
     setFormData(prev => ({ ...prev, [key]: value }))
     onUpdateCell?.(row.id, key, value)

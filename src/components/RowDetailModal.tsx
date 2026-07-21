@@ -61,6 +61,8 @@ interface RowDetailModalProps {
   fields: TableField[]
   onUpdateCell: (rowId: number, fieldKey: string, value: CellValue) => Promise<void>
   currentUser: { username: string; role: string } | null
+  readOnly?: boolean
+  canComment?: boolean
 }
 
 export default function RowDetailModal({
@@ -70,6 +72,8 @@ export default function RowDetailModal({
   fields,
   onUpdateCell,
   currentUser,
+  readOnly = false,
+  canComment = true
 }: RowDetailModalProps) {
   const [localData, setLocalData] = useState<Record<string, CellValue>>(row?.data ?? {})
   const [editingLogId, setEditingLogId] = useState<string | null>(null)

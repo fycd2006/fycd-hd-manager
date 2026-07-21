@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { authorizeAction } from '@/lib/authorize'
 
 export async function GET(
   request: Request,
@@ -27,6 +28,9 @@ export async function POST(
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canManageStructure' })
+    if (errorResponse) return errorResponse
     const body = await request.json()
     const { name, type, options } = body
     if (!name) return NextResponse.json({ error: '欄位名稱為必填' }, { status: 400 })

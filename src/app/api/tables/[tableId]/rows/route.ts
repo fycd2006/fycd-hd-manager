@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { cookies } from 'next/headers'
 import { parseFormula, evaluateFormula } from '@/lib/formula'
+import { authorizeAction } from '@/lib/authorize'
 
 async function getSessionUsername() {
   try {
@@ -323,6 +324,10 @@ export async function POST(
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canEditData' })
+    if (errorResponse) return errorResponse
+
     const body = await request.json()
     
     const fields = await prisma.tableField.findMany({ where: { tableId: id } })
@@ -387,6 +392,9 @@ export async function PATCH(
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
+    if (errorResponse) return errorResponse
+
     const body = await request.json()
     const { rowId, data } = body
     const rid = parseInt(rowId)
@@ -434,6 +442,9 @@ export async function DELETE(
     const { tableId } = await params
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
+    if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
     const rowIdStr = searchParams.get('rowId')

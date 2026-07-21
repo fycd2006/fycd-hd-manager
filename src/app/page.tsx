@@ -938,6 +938,10 @@ export default function Home() {
     )
   }
 
+  const activeWorkspaceObj = wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId)
+  const activeMember = activeWorkspaceObj?.members?.find((m: any) => m.userId === authState.currentUser?.id)
+  const currentUserRolePermissions = getRolePermissions(activeMember?.role || authState.currentUser?.role || 'admin')
+
   return (
     <div className={`app-container theme-${themeState.theme}`}>
       {/* Toast notifications */}
@@ -952,6 +956,7 @@ export default function Home() {
         {/* Sidebar - using new modular component */}
         <Sidebar
         currentUser={authState.currentUser}
+        userPermissions={currentUserRolePermissions}
         workspaces={wsState.workspaces}
         activeWorkspaceId={wsState.activeWorkspaceId}
         activeTableId={wsState.activeTableId}
@@ -1024,6 +1029,7 @@ export default function Home() {
           <>
             {/* View selector and header toolbar */}
             <ViewToolbar
+              canManageStructure={currentUserRolePermissions.canManageStructure}
               isSidebarCollapsed={isSidebarCollapsed}
               setIsSidebarCollapsed={setIsSidebarCollapsed}
               views={views}
@@ -1155,6 +1161,7 @@ export default function Home() {
                 <KanbanView 
                   rows={displayRows} 
                   fields={fields} 
+                  readOnly={!currentUserRolePermissions.canEditData}
                   onExpandRow={(row: TableRow) => {
                     setSelectedRow(row)
                     setShowDetailModal(true)
@@ -1278,6 +1285,7 @@ export default function Home() {
           rowIndex={displayRows.findIndex(r => r.id === selectedRow.id)}
           totalRows={displayRows.length}
           fields={fields}
+          readOnly={!currentUserRolePermissions.canEditData}
           onUpdateCell={updateCell}
           onNavigatePrevious={() => {
             const idx = displayRows.findIndex(r => r.id === selectedRow.id)

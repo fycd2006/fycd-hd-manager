@@ -1,14 +1,20 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { authorizeAction } from '@/lib/authorize'
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ tableId: string; fieldId: string }> }
 ) {
   try {
-    const { fieldId } = await params
+    const { tableId, fieldId } = await params
+    const tid = parseInt(tableId)
     const fid = parseInt(fieldId)
-    if (isNaN(fid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+    if (isNaN(fid) || isNaN(tid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageStructure' })
+    if (errorResponse) return errorResponse
+
     const body = await request.json()
     const updated = await prisma.tableField.update({
       where: { id: fid },
@@ -34,9 +40,14 @@ export async function DELETE(
   { params }: { params: Promise<{ tableId: string; fieldId: string }> }
 ) {
   try {
-    const { fieldId } = await params
+    const { tableId, fieldId } = await params
+    const tid = parseInt(tableId)
     const fid = parseInt(fieldId)
-    if (isNaN(fid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+    if (isNaN(fid) || isNaN(tid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageStructure' })
+    if (errorResponse) return errorResponse
+
     await prisma.tableField.update({
       where: { id: fid },
       data: { deletedAt: new Date() }

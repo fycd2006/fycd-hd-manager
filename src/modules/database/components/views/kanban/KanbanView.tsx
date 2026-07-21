@@ -27,6 +27,7 @@ interface KanbanViewProps {
   rows: TableRow[]
   onUpdateCell: (rowId: number, fieldKey: string, value: CellValue) => Promise<void>
   onExpandRow: (row: TableRow) => void
+  readOnly?: boolean
 }
 
 export default function KanbanView({
@@ -34,6 +35,7 @@ export default function KanbanView({
   rows,
   onUpdateCell,
   onExpandRow,
+  readOnly = false
 }: KanbanViewProps) {
   const [isMounted, setIsMounted] = useState(false)
   
@@ -109,6 +111,7 @@ export default function KanbanView({
   })
 
   const handleDragEnd = (result: DropResult) => {
+    if (readOnly) return
     const { source, destination, draggableId } = result
 
     // Dropped outside the list or no movement
