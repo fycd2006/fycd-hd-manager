@@ -19,6 +19,7 @@ interface GridViewProps {
   editInputRef?: React.RefObject<HTMLInputElement | null>
   searchQuery?: string
   filterRules?: FilterRule[]
+  readOnly?: boolean
   
   // Callbacks
   getFrozenLeftOffset?: (fieldIndex: number) => number
@@ -53,6 +54,7 @@ export default function GridView({
   sortField,
   sortOrder,
   groupByField,
+  readOnly = false,
   onAddRow,
   onShowNewFieldModal,
   onHandleResizeStart,
@@ -93,6 +95,7 @@ export default function GridView({
   })
 
   const handleUpdateCell = (rowId: number, fieldId: number, value: any) => {
+    if (readOnly) return
     if (onUpdateCell) {
       onUpdateCell(rowId, `field_${fieldId}`, value)
     }
@@ -124,14 +127,14 @@ export default function GridView({
         sortOrder={sortOrder}
         groupByField={groupByField}
         onUpdateCell={handleUpdateCell}
-        onAddRow={onAddRow}
-        onAddField={onShowNewFieldModal}
+        onAddRow={readOnly ? () => {} : onAddRow}
+        onAddField={readOnly ? () => {} : onShowNewFieldModal}
         onResizeColumn={handleResizeColumn}
         onResizeColumnEnd={handleResizeColumnEnd}
         onExpandRow={handleExpandRow}
         onFieldClick={(field) => onToggleSort?.(`field_${field.id}`)}
-        onOpenFieldContextMenu={onOpenFieldContextMenu}
-        onUpdateField={onUpdateField}
+        onOpenFieldContextMenu={readOnly ? undefined : onOpenFieldContextMenu}
+        onUpdateField={readOnly ? undefined : onUpdateField}
       />
     </div>
   )

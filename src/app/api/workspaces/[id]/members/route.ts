@@ -158,6 +158,9 @@ export async function POST(
         return NextResponse.json({ error: '該使用者已經是此工作區的成員' }, { status: 400 })
       }
 
+      // Fetch workspace name
+      const workspaceObj = await prisma.workspace.findUnique({ where: { id: workspaceId } })
+
       // Add directly to WorkspaceUser
       const newMember = await prisma.workspaceUser.create({
         data: {
@@ -170,8 +173,23 @@ export async function POST(
         }
       })
 
+      // Send in-app notification
+      await prisma.notification.create({
+        data: {
+          userId: existingUser.id,
+          type: 'workspace_invite',
+          title: `已將您加入工作區：${workspaceObj?.name || '新工作區'}`,
+          message: `${activeUser.username} 已將您新增至工作區「${workspaceObj?.name || '新工作區'}」，角色權限：${inviteRole}`,
+          data: JSON.stringify({
+            workspaceId,
+            workspaceName: workspaceObj?.name,
+            role: inviteRole
+          })
+        }
+      })
+
       return NextResponse.json({
-        message: '成員已新增至工作區',
+        message: '成員已成功新增至工作區並傳送站內通知',
         member: {
           id: newMember.id,
           userId: newMember.userId,
@@ -183,7 +201,7 @@ export async function POST(
       }, { status: 201 })
     }
 
-    // Create invitation record
+    // Create invitation record for email
     const invitation = await prisma.workspaceInvitation.create({
       data: {
         workspaceId,
@@ -194,7 +212,7 @@ export async function POST(
     })
 
     return NextResponse.json({
-      message: '邀請已寄出',
+      message: '邀請已成功寄出',
       invitation
     }, { status: 201 })
 

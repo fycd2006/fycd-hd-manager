@@ -16,6 +16,8 @@ import { AuthScreen } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
 import MembersModal from '@/modules/database/components/modals/MembersModal'
+import NotificationsModal from '@/modules/database/components/modals/NotificationsModal'
+import { getRolePermissions } from '@/lib/permissions'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
@@ -143,8 +145,22 @@ export default function Home() {
   const [frozenColumnsCount, setFrozenColumnsCount] = useState<number>(1)
   const [autoInherit, setAutoInherit] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false)
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0)
   const [workspaceMemberCount, setWorkspaceMemberCount] = useState<number>(1)
   const [systemUsers, setSystemUsers] = useState<User[]>([])
+
+  useEffect(() => {
+    if (authState.currentUser) {
+      fetch('/api/notifications')
+        .then(res => res.ok ? res.json() : { notifications: [] })
+        .then(data => {
+          const unread = (data.notifications || []).filter((n: any) => !n.read).length
+          setUnreadNotificationsCount(unread)
+        })
+        .catch(() => {})
+    }
+  }, [authState.currentUser, showNotificationsModal])
   
   // Rename modal states
   const [renameType, setRenameType] = useState<'workspace' | 'database' | 'table' | null>(null)
@@ -946,7 +962,9 @@ export default function Home() {
         darkReaderSettings={themeState.darkReaderSettings}
         isSidebarCollapsed={isSidebarCollapsed}
         memberCount={workspaceMemberCount}
+        notificationCount={unreadNotificationsCount}
         onShowMembersModal={() => setShowMembersModal(true)}
+        onShowNotificationsModal={() => setShowNotificationsModal(true)}
         onToggleTheme={themeActions.toggleTheme}
         onLogout={authActions.logout}
         onToggleWorkspaceCollapse={wsActions.toggleWorkspaceCollapse}
@@ -1046,11 +1064,17 @@ export default function Home() {
                 '--row-height': rowHeightSize === 'medium' ? '44px' : rowHeightSize === 'large' ? '60px' : rowHeightSize === 'extra' ? '80px' : '32px'
               } as any}
             >
-              {currentView === 'grid' && (
-                <GridView
-                  visibleFields={fields.filter(f => !hiddenFieldKeys.includes(`field_${f.id}`))}
-                  displayRows={displayRows}
-                  gridLoading={gridLoading}
+              {currentView === 'grid' && (() => {
+                const activeWorkspaceObj = wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId)
+                const activeMember = activeWorkspaceObj?.members?.find((m: any) => m.userId === authState.currentUser?.id)
+                const rolePerms = getRolePermissions(activeMember?.role || authState.currentUser?.role || 'admin')
+
+                return (
+                  <GridView
+                    visibleFields={fields.filter(f => !hiddenFieldKeys.includes(`field_${f.id}`))}
+                    displayRows={displayRows}
+                    gridLoading={gridLoading}
+                    readOnly={!rolePerms.canEditData}
                   onUpdateCell={updateCell}
                   frozenColumnsCount={frozenColumnsCount}
                   columnWidths={columnWidths}
@@ -1113,7 +1137,8 @@ export default function Home() {
                   onUpdateField={handleUpdateField}
                   onOpenFieldContextMenu={(field, x, y) => setFieldContextMenu({ field, x, y })}
                 />
-              )}
+              )
+              })()}
 
               {currentView === 'gallery' && (
                 <GalleryView 
@@ -1272,6 +1297,15 @@ export default function Home() {
           workspace={activeTable ? wsState.workspaces.find(w => w.databases?.some(d => d.tables?.some(t => t.id === activeTable.id))) || wsState.workspaces[0] : wsState.workspaces[0]}
           onToast={uiActions.addToast}
           onUpdateWorkspaceMemberCount={setWorkspaceMemberCount}
+        />
+      )}
+
+      {showNotificationsModal && (
+        <NotificationsModal
+          show={showNotificationsModal}
+          onClose={() => setShowNotificationsModal(false)}
+          onToast={uiActions.addToast}
+          onRefreshWorkspaces={wsActions.fetchWorkspaces}
         />
       )}
 

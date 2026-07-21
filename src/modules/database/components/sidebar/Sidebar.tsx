@@ -15,7 +15,8 @@ import {
   PanelLeft,
   Table as TableIcon,
   Users,
-  UserPlus
+  UserPlus,
+  Bell
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -30,7 +31,9 @@ interface SidebarProps {
   darkReaderSettings: { brightness: number; contrast: number; sepia: number; grayscale: number }
   isSidebarCollapsed?: boolean
   memberCount?: number
+  notificationCount?: number
   onShowMembersModal?: () => void
+  onShowNotificationsModal?: () => void
   
   // Actions
   onToggleTheme: () => void
@@ -65,7 +68,9 @@ export default function Sidebar({
   darkReaderSettings,
   isSidebarCollapsed = false,
   memberCount,
+  notificationCount = 0,
   onShowMembersModal,
+  onShowNotificationsModal,
   
   onToggleTheme,
   onLogout,
@@ -198,6 +203,22 @@ export default function Sidebar({
                   {/* Top Workspace Navigation Links */}
                   {!isSidebarCollapsed && (
                     <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div
+                        onClick={() => onShowNotificationsModal?.()}
+                        className="sidebar-hover-item"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Bell size={16} color="#64748b" />
+                          <span>Notifications</span>
+                        </div>
+                        {notificationCount > 0 && (
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#ffffff', backgroundColor: '#ef4444', padding: '1px 7px', borderRadius: '10px' }}>
+                            {notificationCount}
+                          </span>
+                        )}
+                      </div>
+
                       <div
                         onClick={() => onShowMembersModal?.()}
                         className="sidebar-hover-item"

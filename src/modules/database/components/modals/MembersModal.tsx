@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Search, Plus, UserPlus, Shield, Trash2, Mail, Users, ChevronDown, Check, MoreVertical, HelpCircle, ExternalLink, Copy, Lock } from 'lucide-react'
+import { X, Search, Plus, UserPlus, Shield, Trash2, Mail, Users, ChevronDown, Check, MoreVertical, HelpCircle, Copy } from 'lucide-react'
 import type { Workspace } from '@/modules/database/types'
 
 export interface WorkspaceMember {
@@ -9,7 +9,7 @@ export interface WorkspaceMember {
   userId: number
   name: string
   email: string
-  role: string // 'admin' | 'builder' | 'editor' | 'commenter' | 'viewer' | 'no_role'
+  role: string // 'admin' | 'builder' | 'editor' | 'commenter' | 'viewer'
   twoFactor: boolean
   createdAt: string
 }
@@ -29,43 +29,43 @@ export interface WorkspaceTeam {
   members: { id: number; name: string; email: string }[]
 }
 
-export interface BaserowRoleDefinition {
+export interface RoleDefinition {
   uid: string
   name: string
   description: string
-  isBillable: boolean
+  badgeColor: string
 }
 
-export const BASEROW_ROLES: BaserowRoleDefinition[] = [
+export const WORKSPACE_ROLES: RoleDefinition[] = [
   {
     uid: 'admin',
-    name: 'Admin',
-    description: '可以完整配置工作區、建立與修改資料庫、資料表、欄位，並管理成員與權限設定。',
-    isBillable: true
+    name: 'Admin (系統管理員)',
+    description: '可完整配置工作區、建立與修改資料庫、資料表、欄位，並管理成員與權限設定。',
+    badgeColor: '#2563eb'
   },
   {
     uid: 'builder',
-    name: 'Builder',
+    name: 'Builder (建立者)',
     description: '可建立與修改資料庫、資料表、欄位、檢視表及資料列，但無法管理工作區成員。',
-    isBillable: true
+    badgeColor: '#0284c7'
   },
   {
     uid: 'editor',
-    name: 'Editor',
+    name: 'Editor (編輯者)',
     description: '可新增、編輯與刪除資料列的數值，但無法修改資料表結構或欄位型態。',
-    isBillable: true
+    badgeColor: '#16a34a'
   },
   {
     uid: 'commenter',
-    name: 'Commenter',
+    name: 'Commenter (評論者)',
     description: '可檢視資料表內容並在資料列留言討論，但無法修改資料內容或結構。',
-    isBillable: true
+    badgeColor: '#d97706'
   },
   {
     uid: 'viewer',
-    name: 'Viewer',
+    name: 'Viewer (檢視者)',
     description: '唯讀權限。僅能瀏覽資料表、欄位與檢視表，無法進行任何修改或留言。',
-    isBillable: false
+    badgeColor: '#64748b'
   }
 ]
 
@@ -189,7 +189,7 @@ export default function MembersModal({
       })
       const data = await res.json()
       if (res.ok) {
-        onToast(data.message || '邀請已成功寄出！', 'success')
+        onToast(data.message || '邀請已成功發送並推送站內通知！', 'success')
         setInviteEmail('')
         setShowInviteModal(false)
         await fetchMembersData()
@@ -223,8 +223,8 @@ export default function MembersModal({
       })
       if (res.ok) {
         setMembers(prev => prev.map(m => m.userId === userId ? { ...m, role: newRole } : m))
-        const roleObj = BASEROW_ROLES.find(r => r.uid === newRole)
-        onToast(`成員權限已成功更新為「${roleObj?.name || newRole}」`, 'success')
+        const roleObj = WORKSPACE_ROLES.find(r => r.uid === newRole)
+        onToast(`成員角色權限已更新為「${roleObj?.name || newRole}」`, 'success')
       } else {
         onToast('更新角色權限失敗', 'error')
       }
@@ -293,7 +293,7 @@ export default function MembersModal({
     }
   }
 
-  const selectedInviteRoleObj = BASEROW_ROLES.find(r => r.uid === inviteRole) || BASEROW_ROLES[0]
+  const selectedInviteRoleObj = WORKSPACE_ROLES.find(r => r.uid === inviteRole) || WORKSPACE_ROLES[0]
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)' }}>
@@ -385,7 +385,7 @@ export default function MembersModal({
                       </tr>
                     ) : (
                       filteredMembers.map((m) => {
-                        const currentRoleObj = BASEROW_ROLES.find(r => r.uid === m.role) || { uid: m.role, name: m.role.toUpperCase(), description: '', isBillable: true }
+                        const currentRoleObj = WORKSPACE_ROLES.find(r => r.uid === m.role) || { uid: m.role, name: m.role.toUpperCase(), description: '', badgeColor: '#2563eb' }
 
                         return (
                           <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -402,7 +402,7 @@ export default function MembersModal({
                             {/* Email */}
                             <td style={{ padding: '16px 20px', color: '#475569' }}>{m.email}</td>
 
-                            {/* Highest Role with Baserow Floating Role Context Trigger */}
+                            {/* Highest Role with Floating Role Context Trigger */}
                             <td style={{ padding: '16px 20px', position: 'relative' }}>
                               <div
                                 onClick={(e) => {
@@ -410,22 +410,11 @@ export default function MembersModal({
                                   setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX })
                                   setActiveRoleContextMember(activeRoleContextMember?.id === m.id ? null : m)
                                 }}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
                               >
                                 <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>
                                   {currentRoleObj.name}
                                 </span>
-
-                                {currentRoleObj.isBillable ? (
-                                  <span style={{ padding: '1px 7px', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0284c7', fontSize: '11px', fontWeight: 700 }}>
-                                    Billable
-                                  </span>
-                                ) : (
-                                  <span style={{ padding: '1px 7px', borderRadius: '4px', backgroundColor: '#fef9c3', color: '#854d0e', fontSize: '11px', fontWeight: 700 }}>
-                                    Free
-                                  </span>
-                                )}
-
                                 <ChevronDown size={14} color="#64748b" />
                               </div>
                             </td>
@@ -518,7 +507,7 @@ export default function MembersModal({
                       </tr>
                     ) : (
                       invites.map((inv) => {
-                        const rObj = BASEROW_ROLES.find(r => r.uid === inv.role) || { name: inv.role.toUpperCase(), isBillable: true }
+                        const rObj = WORKSPACE_ROLES.find(r => r.uid === inv.role) || { name: inv.role.toUpperCase() }
                         return (
                           <tr key={inv.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>{inv.email}</td>
@@ -585,7 +574,7 @@ export default function MembersModal({
         </div>
       </div>
 
-      {/* Baserow EditRoleContext Floating Popup Window */}
+      {/* Clean EditRoleContext Floating Popup Window */}
       {activeRoleContextMember && (
         <div
           ref={roleMenuRef}
@@ -595,13 +584,10 @@ export default function MembersModal({
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
               變更角色權限 (Role)
             </span>
-            <a href="https://baserow.io/user-docs/subscriptions-overview#who-is-considered-a-user-for-billing-purposes" target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              <HelpCircle size={12} /> 權限說明 <ExternalLink size={10} />
-            </a>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '280px', overflowY: 'auto' }}>
-            {BASEROW_ROLES.map((role) => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto' }}>
+            {WORKSPACE_ROLES.map((role) => {
               const isSelected = activeRoleContextMember.role === role.uid
               return (
                 <div
@@ -610,20 +596,9 @@ export default function MembersModal({
                   style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', border: isSelected ? '1px solid #93c5fd' : '1px solid transparent', backgroundColor: isSelected ? '#eff6ff' : 'transparent', transition: 'all 0.15s ease', display: 'flex', flexDirection: 'column', gap: '4px' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? '#1e40af' : '#0f172a' }}>
-                        {role.name}
-                      </span>
-                      {role.isBillable ? (
-                        <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0284c7', fontSize: '10px', fontWeight: 700 }}>
-                          Billable
-                        </span>
-                      ) : (
-                        <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#fef9c3', color: '#854d0e', fontSize: '10px', fontWeight: 700 }}>
-                          Free
-                        </span>
-                      )}
-                    </div>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? '#1e40af' : '#0f172a' }}>
+                      {role.name}
+                    </span>
                     {isSelected && <Check size={16} color="#2563eb" />}
                   </div>
                   <p style={{ fontSize: '11px', color: '#64748b', margin: 0, lineHeight: 1.4 }}>
@@ -636,10 +611,10 @@ export default function MembersModal({
         </div>
       )}
 
-      {/* Baserow Invite Workspace Members Modal (Floating Centered Dialog) */}
+      {/* Invite Workspace Members Modal */}
       {showInviteModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)' }}>
-          <div style={{ width: '520px', backgroundColor: '#ffffff', borderRadius: '16px', padding: '28px', boxShadow: '0 25px 60px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0', animation: 'modalSlideIn 0.2s ease-out' }}>
+          <div style={{ width: '520px', backgroundColor: '#ffffff', borderRadius: '16px', padding: '28px', boxShadow: '0 25px 60px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
                 Invite workspace members
@@ -667,32 +642,24 @@ export default function MembersModal({
                 )}
               </div>
 
-              {/* Baserow Custom Role Selector Dropdown */}
+              {/* Custom Role Selector Dropdown */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>Select role permission</label>
-                  <span style={{ fontSize: '11px', color: '#64748b' }}>🛈 各角色權限可隨時於成員列表中調整</span>
                 </div>
 
                 <div
                   onClick={() => setShowInviteRoleDropdown(!showInviteRoleDropdown)}
                   style={{ padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{selectedInviteRoleObj.name}</span>
-                    {selectedInviteRoleObj.isBillable ? (
-                      <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0284c7', fontSize: '11px', fontWeight: 700 }}>Billable</span>
-                    ) : (
-                      <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#fef9c3', color: '#854d0e', fontSize: '11px', fontWeight: 700 }}>Free</span>
-                    )}
-                  </div>
+                  <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{selectedInviteRoleObj.name}</span>
                   <ChevronDown size={16} color="#64748b" />
                 </div>
 
                 {/* Floating Role Selection List */}
                 {showInviteRoleDropdown && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, marginTop: '4px', backgroundColor: '#ffffff', borderRadius: '10px', boxShadow: '0 15px 35px rgba(0,0,0,0.18)', border: '1px solid #e2e8f0', padding: '6px', maxHeight: '240px', overflowY: 'auto' }}>
-                    {BASEROW_ROLES.map(role => (
+                    {WORKSPACE_ROLES.map(role => (
                       <div
                         key={role.uid}
                         onClick={() => {
@@ -701,14 +668,7 @@ export default function MembersModal({
                         }}
                         style={{ padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', backgroundColor: inviteRole === role.uid ? '#eff6ff' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px' }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontWeight: 700, fontSize: '13px', color: inviteRole === role.uid ? '#2563eb' : '#0f172a' }}>{role.name}</span>
-                          {role.isBillable ? (
-                            <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#e0f2fe', color: '#0284c7', fontSize: '10px', fontWeight: 700 }}>Billable</span>
-                          ) : (
-                            <span style={{ padding: '1px 6px', borderRadius: '4px', backgroundColor: '#fef9c3', color: '#854d0e', fontSize: '10px', fontWeight: 700 }}>Free</span>
-                          )}
-                        </div>
+                        <span style={{ fontWeight: 700, fontSize: '13px', color: inviteRole === role.uid ? '#2563eb' : '#0f172a' }}>{role.name}</span>
                         <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{role.description}</p>
                       </div>
                     ))}

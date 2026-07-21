@@ -19,7 +19,22 @@ model User {
   comments       RowComment[]
   workspaceUsers WorkspaceUser[]
   teamUsers      WorkspaceTeamUser[]
+  notifications  Notification[]
   createdAt      DateTime            @default(now())
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // 'workspace_invite', 'system'
+  title       String
+  message     String
+  data        String?  @db.Text // JSON metadata: { workspaceId, workspaceName, inviteId, role }
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Project {

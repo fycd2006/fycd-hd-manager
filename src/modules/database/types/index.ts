@@ -35,6 +35,7 @@ export interface Workspace {
   id: number
   name: string
   databases: Database[]
+  members?: { userId: number; role: string }[]
 }
 
 // =============================================
