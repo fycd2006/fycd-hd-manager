@@ -53,6 +53,7 @@ export async function POST(request: Request) {
       user: sessionData
     })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || '登入失敗' }, { status: 500 })
+    console.error('Login error:', error)
+    return NextResponse.json({ error: error.message || '伺服器資料庫連線失敗，請確認 DATABASE_URL 設定' }, { status: 500 })
   }
 }
