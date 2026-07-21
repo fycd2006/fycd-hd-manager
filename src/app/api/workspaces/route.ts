@@ -11,8 +11,18 @@ export async function GET() {
       return NextResponse.json({ error: '未授權，請先登入' }, { status: 401 })
     }
 
+    const workspaceWhere = activeUser.role === 'admin' 
+      ? {} 
+      : { members: { some: { userId: activeUser.id } } }
+
     let workspaces = await prisma.workspace.findMany({
+      where: workspaceWhere,
       include: {
+        members: {
+          include: {
+            user: { select: { id: true, username: true, email: true } }
+          }
+        },
         databases: {
           include: {
             tables: {
@@ -31,16 +41,29 @@ export async function GET() {
     if (workspaces.length === 0) {
       await prisma.workspace.create({
         data: {
-          name: '我的工作區',
+          name: `${activeUser.username || '個人'} 的工作區`,
           databases: {
             create: {
               name: '預設資料庫'
+            }
+          },
+          members: {
+            create: {
+              userId: activeUser.id,
+              role: 'admin',
+              twoFactor: false
             }
           }
         }
       })
       workspaces = await prisma.workspace.findMany({
+        where: workspaceWhere,
         include: {
+          members: {
+            include: {
+              user: { select: { id: true, username: true, email: true } }
+            }
+          },
           databases: {
             include: {
               tables: {
@@ -69,7 +92,13 @@ export async function GET() {
       })
 
       workspaces = await prisma.workspace.findMany({
+        where: workspaceWhere,
         include: {
+          members: {
+            include: {
+              user: { select: { id: true, username: true, email: true } }
+            }
+          },
           databases: {
             include: {
               tables: {

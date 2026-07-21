@@ -68,6 +68,15 @@ export async function authorizeAction(
     }
   })
 
+  if (!workspaceUser && user.role !== 'admin') {
+    return {
+      errorResponse: NextResponse.json(
+        { error: '權限不足：您未加入此工作區，無法存取或執行操作' },
+        { status: 403 }
+      )
+    }
+  }
+
   // System admin defaults to 'admin' role if no explicit WorkspaceUser record exists
   const role = workspaceUser?.role || (user.role === 'admin' ? 'admin' : 'viewer')
   const permissions = getRolePermissions(role)
