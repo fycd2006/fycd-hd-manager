@@ -111,11 +111,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '名稱不能為空' }, { status: 400 })
     }
 
-    // 建立工作區僅限管理員
+    // 建立工作區
     if (action === 'create_workspace') {
-      if (activeUser.role !== 'admin') {
-        return NextResponse.json({ error: '權限不足，僅管理員可建立工作區' }, { status: 403 })
-      }
       const newWs = await prisma.workspace.create({
         data: { name: name.trim() },
         include: { databases: true }
