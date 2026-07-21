@@ -219,19 +219,19 @@ export default function MembersModal({
           <div style={{ display: 'flex', gap: '32px' }}>
             <button
               onClick={() => setActiveTab('members')}
-              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'members' ? 600 : 500, color: activeTab === 'members' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'members' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'members' ? 600 : 500, color: activeTab === 'members' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'members' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
             >
               Members ({members.length})
             </button>
             <button
               onClick={() => setActiveTab('invites')}
-              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'invites' ? 600 : 500, color: activeTab === 'invites' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'invites' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'invites' ? 600 : 500, color: activeTab === 'invites' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'invites' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
             >
               Invites ({invites.length})
             </button>
             <button
               onClick={() => setActiveTab('teams')}
-              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'teams' ? 600 : 500, color: activeTab === 'teams' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'teams' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', border: 'none', cursor: 'pointer' }}
+              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'teams' ? 600 : 500, color: activeTab === 'teams' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'teams' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
             >
               Teams ({teams.length})
             </button>
