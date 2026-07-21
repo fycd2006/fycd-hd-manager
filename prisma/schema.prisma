@@ -11,13 +11,15 @@ generator client {
 }
 
 model User {
-  id        Int          @id @default(autoincrement())
-  username  String       @unique
-  email     String       @unique
-  password  String       // Store hashed password
-  role      String       @default("member") // admin, member
-  comments  RowComment[]
-  createdAt DateTime     @default(now())
+  id             Int                 @id @default(autoincrement())
+  username       String              @unique
+  email          String              @unique
+  password       String              // Store hashed password
+  role           String              @default("member") // admin, member
+  comments       RowComment[]
+  workspaceUsers WorkspaceUser[]
+  teamUsers      WorkspaceTeamUser[]
+  createdAt      DateTime            @default(now())
 }
 
 model Project {
@@ -106,10 +108,60 @@ model TableView {
 }
 
 model Workspace {
-  id        Int        @id @default(autoincrement())
-  name      String
-  databases Database[]
-  createdAt DateTime   @default(now())
+  id          Int                   @id @default(autoincrement())
+  name        String
+  databases   Database[]
+  members     WorkspaceUser[]
+  invitations WorkspaceInvitation[]
+  teams       WorkspaceTeam[]
+  createdAt   DateTime              @default(now())
+}
+
+model WorkspaceUser {
+  id          Int       @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @default("member") // admin, member, viewer
+  twoFactor   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, userId])
+}
+
+model WorkspaceInvitation {
+  id          Int       @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  email       String
+  role        String    @default("member") // admin, member, viewer
+  invitedBy   Int?
+  createdAt   DateTime  @default(now())
+
+  @@index([workspaceId])
+}
+
+model WorkspaceTeam {
+  id          Int                 @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  members     WorkspaceTeamUser[]
+  createdAt   DateTime            @default(now())
+
+  @@index([workspaceId])
+}
+
+model WorkspaceTeamUser {
+  id     Int           @id @default(autoincrement())
+  teamId Int
+  team   WorkspaceTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId Int
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
 }
 
 model Database {

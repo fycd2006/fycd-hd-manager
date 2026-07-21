@@ -13,7 +13,9 @@ import {
   Trash2, 
   PanelLeftClose,
   PanelLeft,
-  Table as TableIcon
+  Table as TableIcon,
+  Users,
+  UserPlus
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -27,6 +29,8 @@ interface SidebarProps {
   showDarkReaderPanel: boolean
   darkReaderSettings: { brightness: number; contrast: number; sepia: number; grayscale: number }
   isSidebarCollapsed?: boolean
+  memberCount?: number
+  onShowMembersModal?: () => void
   
   // Actions
   onToggleTheme: () => void
@@ -60,6 +64,8 @@ export default function Sidebar({
   showDarkReaderPanel,
   darkReaderSettings,
   isSidebarCollapsed = false,
+  memberCount,
+  onShowMembersModal,
   
   onToggleTheme,
   onLogout,
@@ -189,6 +195,34 @@ export default function Sidebar({
             <div className="sidebar__section sidebar__section--scrollable" style={{ flex: 1, overflowY: 'auto' }}>
               <div className="sidebar__section-scrollable">
                 <div className="sidebar__section-scrollable-inner" data-highlight="applications" style={{ padding: isSidebarCollapsed ? '8px 0' : '8px' }}>
+                  {/* Top Workspace Navigation Links */}
+                  {!isSidebarCollapsed && (
+                    <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
+                      <div
+                        onClick={() => onShowMembersModal?.()}
+                        className="sidebar-hover-item"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Users size={16} color="#64748b" />
+                          <span>Members</span>
+                        </div>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', backgroundColor: '#e2e8f0', padding: '1px 7px', borderRadius: '10px' }}>
+                          {memberCount ?? 1}
+                        </span>
+                      </div>
+
+                      <div
+                        onClick={() => onShowMembersModal?.()}
+                        className="sidebar-hover-item"
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
+                      >
+                        <UserPlus size={16} color="#64748b" />
+                        <span>Invite others</span>
+                      </div>
+                    </div>
+                  )}
+
                   <ul className="tree" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                     <li>
                       <div className="tree__heading" style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '6px 0' : '6px 8px', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

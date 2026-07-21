@@ -15,6 +15,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo'
 import { AuthScreen } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
+import MembersModal from '@/modules/database/components/modals/MembersModal'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
@@ -142,6 +143,7 @@ export default function Home() {
   const [frozenColumnsCount, setFrozenColumnsCount] = useState<number>(1)
   const [autoInherit, setAutoInherit] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
+  const [workspaceMemberCount, setWorkspaceMemberCount] = useState<number>(1)
   const [systemUsers, setSystemUsers] = useState<User[]>([])
   
   // Rename modal states
@@ -943,7 +945,8 @@ export default function Home() {
         showDarkReaderPanel={themeState.showDarkReaderPanel}
         darkReaderSettings={themeState.darkReaderSettings}
         isSidebarCollapsed={isSidebarCollapsed}
-        
+        memberCount={workspaceMemberCount}
+        onShowMembersModal={() => setShowMembersModal(true)}
         onToggleTheme={themeActions.toggleTheme}
         onLogout={authActions.logout}
         onToggleWorkspaceCollapse={wsActions.toggleWorkspaceCollapse}
@@ -1259,6 +1262,16 @@ export default function Home() {
             const idx = displayRows.findIndex(r => r.id === selectedRow.id)
             if (idx >= 0 && idx < displayRows.length - 1) setSelectedRow(displayRows[idx + 1])
           }}
+        />
+      )}
+
+      {showMembersModal && (
+        <MembersModal
+          show={showMembersModal}
+          onClose={() => setShowMembersModal(false)}
+          workspace={activeTable ? wsState.workspaces.find(w => w.databases?.some(d => d.tables?.some(t => t.id === activeTable.id))) || wsState.workspaces[0] : wsState.workspaces[0]}
+          onToast={uiActions.addToast}
+          onUpdateWorkspaceMemberCount={setWorkspaceMemberCount}
         />
       )}
 
