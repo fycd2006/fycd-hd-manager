@@ -141,15 +141,26 @@ export default function MembersModal({
     }
   }, [show, workspace?.id])
 
-  // Close floating menus on click outside
+  // Close floating menus on click outside or Escape key
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (roleMenuRef.current && !roleMenuRef.current.contains(e.target as Node)) {
         setActiveRoleContextMember(null)
       }
+      setActiveActionMenuMemberId(null)
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveRoleContextMember(null)
+        setActiveActionMenuMemberId(null)
+      }
     }
     window.addEventListener('mousedown', handleClickOutside)
-    return () => window.removeEventListener('mousedown', handleClickOutside)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   if (!show || !workspace) return null

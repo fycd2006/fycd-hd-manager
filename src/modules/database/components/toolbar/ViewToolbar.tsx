@@ -90,6 +90,17 @@ export function ViewToolbar({
   useOnClickOutside(viewContextRef, () => setShowViewContext(false))
   useOnClickOutside(headerToolbarRef, () => setActiveHeaderMenu(null))
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowViewContext(false)
+        setActiveHeaderMenu(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const getViewIcon = (type: string, props: any) => {
     switch (type) {
       case 'kanban': return <Kanban {...props} />

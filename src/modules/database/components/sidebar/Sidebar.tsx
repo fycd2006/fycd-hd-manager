@@ -107,6 +107,28 @@ export default function Sidebar({
     setActiveMenuKey(null)
   }
 
+  // Close menus on outside click or Escape key
+  React.useEffect(() => {
+    if (!activeMenuKey) return
+
+    const handleOutsideClick = () => {
+      setActiveMenuKey(null)
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveMenuKey(null)
+      }
+    }
+
+    window.addEventListener('mousedown', handleOutsideClick)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', handleOutsideClick)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeMenuKey])
+
   return (
     <>
       <style>{`
