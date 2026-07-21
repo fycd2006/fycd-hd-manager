@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Icons } from '@/modules/database/constants'
-import type { User, Workspace, Database, DynamicTable } from '@/modules/database/types'
+import type { User, Workspace } from '@/modules/database/types'
 import { 
   ChevronsUpDown, 
   Plus, 
@@ -16,7 +15,11 @@ import {
   Table as TableIcon,
   Users,
   UserPlus,
-  Bell
+  Bell,
+  Sun,
+  Moon,
+  LogOut,
+  Sliders
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -63,11 +66,8 @@ export default function Sidebar({
   workspaces,
   activeWorkspaceId,
   activeTableId,
-  collapsedWorkspaces,
   collapsedDatabases,
   theme,
-  showDarkReaderPanel,
-  darkReaderSettings,
   isSidebarCollapsed = false,
   memberCount,
   notificationCount = 0,
@@ -76,7 +76,6 @@ export default function Sidebar({
   
   onToggleTheme,
   onLogout,
-  onToggleWorkspaceCollapse,
   onToggleDatabaseCollapse,
   onSetActiveWorkspaceId,
   onSetActiveTableId,
@@ -90,7 +89,6 @@ export default function Sidebar({
   onShowRenameModal,
   onDeleteWorkspaceOrDb,
   onToggleDarkReaderPanel,
-  onUpdateDarkReaderSettings,
   onDeleteTable,
   userPermissions
 }: SidebarProps) {
@@ -98,6 +96,7 @@ export default function Sidebar({
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0]
   const activeWorkspaceName = activeWorkspace ? activeWorkspace.name : '選擇工作區'
+  const canManageStructure = userPermissions?.canManageStructure ?? true
 
   const toggleMenu = (key: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -111,385 +110,438 @@ export default function Sidebar({
   return (
     <>
       <style>{`
-        .sidebar-hover-item { transition: background-color 0.15s ease; }
-        .sidebar-hover-item:hover { background-color: rgba(0,0,0,0.04) !important; }
-        .sidebar-hover-icon { transition: background-color 0.15s ease; }
-        .sidebar-hover-icon:hover { background-color: rgba(0,0,0,0.08) !important; }
-        .tree__sub.active { background-color: rgba(37, 99, 235, 0.08) !important; }
+        .sidebar-hover-item { transition: all 0.15s ease; }
+        .sidebar-hover-item:hover { background-color: rgba(15, 23, 42, 0.05) !important; }
+        .sidebar-hover-icon { transition: all 0.15s ease; }
+        .sidebar-hover-icon:hover { background-color: rgba(15, 23, 42, 0.08) !important; color: #0f172a !important; }
+        .sidebar-active-table {
+          background-color: #eff6ff !important;
+          color: #1d4ed8 !important;
+          font-weight: 600 !important;
+        }
+        .sidebar-active-table::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 4px;
+          bottom: 4px;
+          width: 3px;
+          background-color: #2563eb;
+          border-radius: 0 4px 4px 0;
+        }
       `}</style>
       <div 
         className={`layout__col-1 ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`}
         style={{ 
-          width: isSidebarCollapsed ? '0px' : '240px', 
+          width: isSidebarCollapsed ? '0px' : '250px', 
           opacity: isSidebarCollapsed ? 0 : 1,
           visibility: isSidebarCollapsed ? 'hidden' : 'visible',
           overflow: 'hidden',
-          transition: 'width 0.2s ease, opacity 0.2s ease, visibility 0.2s', 
+          transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease', 
           position: 'relative', 
           display: 'flex', 
           flexDirection: 'column', 
           backgroundColor: '#f8fafc', 
           borderRight: isSidebarCollapsed ? 'none' : '1px solid #e2e8f0', 
-          zIndex: 50 
+          zIndex: 50,
+          userSelect: 'none'
         }}
         onClick={closeMenu}
       >
-        <div className="sidebar" style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: '240px' }}>
-          {/* Workspace Selector (User Context) */}
-          <a 
-            className="sidebar__workspaces-selector sidebar-hover-item"
-            data-highlight="workspaces"
-            onClick={(e) => {
-              if (isSidebarCollapsed) {
-                onToggleSidebarCollapse?.()
-              } else {
-                toggleMenu('workspace-selector', e)
-              }
-            }}
-            title={isSidebarCollapsed ? '點擊展開側邊欄' : '切換工作區'}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', height: '52px', padding: isSidebarCollapsed ? '0' : '0 12px', cursor: 'pointer', borderBottom: '1px solid #e2e8f0' }}
-          >
-            <div className="sidebar__user-avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '13px', marginRight: isSidebarCollapsed ? 0 : '10px', flexShrink: 0 }}>
-              {activeWorkspaceName.charAt(0).toUpperCase()}
-            </div>
-            {!isSidebarCollapsed && (
-              <>
-                <span className="sidebar__workspaces-selector-selected-workspace" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>
+        <div className="sidebar" style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: '250px' }}>
+          
+          {/* Workspace Header Selector Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+            <div 
+              className="sidebar-hover-item"
+              onClick={(e) => {
+                if (isSidebarCollapsed) {
+                  onToggleSidebarCollapse?.()
+                } else {
+                  toggleMenu('workspace-selector', e)
+                }
+              }}
+              title="切換工作區"
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, padding: '4px 6px', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden' }}
+            >
+              <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0, boxShadow: '0 2px 6px rgba(37,99,235,0.25)' }}>
+                {activeWorkspaceName.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
                   {activeWorkspaceName}
                 </span>
-                <ChevronsUpDown className="sidebar__workspaces-selector-icon" size={14} color="#64748b" />
-              </>
-            )}
-          </a>
-
-          {activeMenuKey === 'workspace-selector' && (
-            <div className="context select" style={{ position: 'absolute', top: '56px', left: isSidebarCollapsed ? '56px' : '12px', zIndex: 100000, background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '220px' }}>
-              <div className="select__items">
-                <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: '4px 0' }}>
-                  {workspaces.map(ws => (
-                    <li key={ws.id}>
-                      <a 
-                        className={`select__item sidebar-hover-item ${activeWorkspaceId === ws.id ? 'active' : ''}`}
-                        onClick={() => {
-                          onSetActiveWorkspaceId(ws.id)
-                          closeMenu()
-                        }}
-                        style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '13px', color: '#1e293b' }}
-                      >
-                        <span className="select__item-name">{ws.name}</span>
-                      </a>
-                    </li>
-                  ))}
-                  <li style={{ borderTop: '1px solid #e2e8f0', marginTop: '4px', paddingTop: '4px' }}>
-                    <a
-                      className="select__item sidebar-hover-item"
-                      onClick={() => {
-                        closeMenu()
-                        onShowWorkspaceModal()
-                      }}
-                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#2563eb' }}
-                    >
-                      <Plus className="select__item-icon" size={14} />
-                      <span className="select__item-name">新增工作區</span>
-                    </a>
-                  </li>
-                </ul>
+                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>
+                  工作區
+                </span>
               </div>
+              <ChevronsUpDown size={14} color="#64748b" style={{ flexShrink: 0 }} />
+            </div>
+
+            {onToggleSidebarCollapse && (
+              <button
+                onClick={onToggleSidebarCollapse}
+                title="收合側邊欄"
+                className="sidebar-hover-icon"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px' }}
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            )}
+          </div>
+
+          {/* Workspace Switcher Dropdown */}
+          {activeMenuKey === 'workspace-selector' && (
+            <div style={{ position: 'absolute', top: '54px', left: '12px', right: '12px', zIndex: 100000, background: '#ffffff', boxShadow: '0 12px 30px rgba(15, 23, 42, 0.15)', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '6px 0', animation: 'fadeIn 0.15s ease-out' }}>
+              <div style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                您的工作區
+              </div>
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '220px', overflowY: 'auto' }}>
+                {workspaces.map(ws => (
+                  <li key={ws.id}>
+                    <div 
+                      className={`sidebar-hover-item ${activeWorkspaceId === ws.id ? 'active' : ''}`}
+                      onClick={() => {
+                        onSetActiveWorkspaceId(ws.id)
+                        closeMenu()
+                      }}
+                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '13px', color: activeWorkspaceId === ws.id ? '#2563eb' : '#1e293b', fontWeight: activeWorkspaceId === ws.id ? 600 : 400, backgroundColor: activeWorkspaceId === ws.id ? '#eff6ff' : 'transparent' }}
+                    >
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
+                      {activeWorkspaceId === ws.id && <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb' }} />}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {canManageStructure && (
+                <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '4px', paddingTop: '4px', padding: '0 4px' }}>
+                  <div
+                    className="sidebar-hover-item"
+                    onClick={() => {
+                      closeMenu()
+                      onShowWorkspaceModal()
+                    }}
+                    style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#2563eb', fontWeight: 600, borderRadius: '6px' }}
+                  >
+                    <Plus size={14} />
+                    <span>新增工作區</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Sidebar With Workspace (Applications) */}
+          {/* Navigation & Database Tree Section */}
           {activeWorkspace && (
-            <div className="sidebar__section sidebar__section--scrollable" style={{ flex: 1, overflowY: 'auto' }}>
-              <div className="sidebar__section-scrollable">
-                <div className="sidebar__section-scrollable-inner" data-highlight="applications" style={{ padding: isSidebarCollapsed ? '8px 0' : '8px' }}>
-                  {/* Top Workspace Navigation Links */}
-                  {!isSidebarCollapsed && (
-                    <div style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
-                      <div
-                        onClick={() => onShowNotificationsModal?.()}
-                        className="sidebar-hover-item"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Bell size={16} color="#64748b" />
-                          <span>Notifications</span>
-                        </div>
-                        {notificationCount > 0 && (
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#ffffff', backgroundColor: '#ef4444', padding: '1px 7px', borderRadius: '10px' }}>
-                            {notificationCount}
-                          </span>
-                        )}
-                      </div>
-
-                      <div
-                        onClick={() => onShowMembersModal?.()}
-                        className="sidebar-hover-item"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Users size={16} color="#64748b" />
-                          <span>Members</span>
-                        </div>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', backgroundColor: '#e2e8f0', padding: '1px 7px', borderRadius: '10px' }}>
-                          {memberCount ?? 1}
-                        </span>
-                      </div>
-
-                      <div
-                        onClick={() => onShowMembersModal?.()}
-                        className="sidebar-hover-item"
-                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
-                      >
-                        <UserPlus size={16} color="#64748b" />
-                        <span>Invite others</span>
-                      </div>
-                    </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
+              
+              {/* Workspace Quick Actions */}
+              <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '2px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
+                <div
+                  onClick={() => onShowNotificationsModal?.()}
+                  className="sidebar-hover-item"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Bell size={16} color="#64748b" />
+                    <span>站內通知</span>
+                  </div>
+                  {notificationCount > 0 && (
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#ffffff', backgroundColor: '#ef4444', padding: '2px 8px', borderRadius: '10px' }}>
+                      {notificationCount}
+                    </span>
                   )}
+                </div>
 
-                  <ul className="tree" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                    <li>
-                      <div className="tree__heading" style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '6px 0' : '6px 8px', fontSize: '11px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {!isSidebarCollapsed && (
-                          <div className="tree__heading-name">
-                            Databases
+                <div
+                  onClick={() => onShowMembersModal?.()}
+                  className="sidebar-hover-item"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Users size={16} color="#64748b" />
+                    <span>成員列表</span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', backgroundColor: '#e2e8f0', padding: '2px 8px', borderRadius: '10px' }}>
+                    {memberCount ?? 1}
+                  </span>
+                </div>
+
+                {canManageStructure && (
+                  <div
+                    onClick={() => onShowMembersModal?.()}
+                    className="sidebar-hover-item"
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500 }}
+                  >
+                    <UserPlus size={16} color="#64748b" />
+                    <span>邀請新成員</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Databases Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 8px 8px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span>資料庫 (DATABASES)</span>
+                {canManageStructure && (
+                  <button
+                    title="建立資料庫"
+                    onClick={() => onShowDatabaseModal(activeWorkspace.id)}
+                    className="sidebar-hover-icon"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Plus size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Databases Tree */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {activeWorkspace.databases.map(db => {
+                  const dbMenuKey = `db-${db.id}`
+                  const isDbMenuOpen = activeMenuKey === dbMenuKey
+                  const isDbCollapsed = !!collapsedDatabases[db.id]
+
+                  return (
+                    <div key={db.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                      
+                      {/* Database Item Row */}
+                      <div 
+                        className="sidebar-hover-item"
+                        style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', position: 'relative' }}
+                      >
+                        <div 
+                          onClick={() => onToggleDatabaseCollapse(db.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden' }}
+                        >
+                          <ChevronRight
+                            size={14}
+                            color="#64748b"
+                            style={{ 
+                              flexShrink: 0,
+                              transition: 'transform 0.15s ease',
+                              transform: !isDbCollapsed ? 'rotate(90deg)' : 'none'
+                            }}
+                          />
+                          <DatabaseIcon size={15} color="#2563eb" style={{ flexShrink: 0 }} />
+                          <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {db.name}
+                          </span>
+                        </div>
+
+                        {canManageStructure && (
+                          <button
+                            onClick={(e) => toggleMenu(dbMenuKey, e)}
+                            className="sidebar-hover-icon"
+                            title="資料庫選項"
+                            style={{ background: 'none', border: 'none', padding: '3px', borderRadius: '4px', color: '#64748b', display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
+                          >
+                            <MoreVertical size={14} />
+                          </button>
+                        )}
+
+                        {/* Database Options Dropdown */}
+                        {isDbMenuOpen && (
+                          <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 1000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
+                            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                              <li>
+                                <div
+                                  className="sidebar-hover-item"
+                                  onClick={() => {
+                                    closeMenu()
+                                    onSetRenameType('database')
+                                    onSetRenameId(db.id)
+                                    onSetRenameNameValue(db.name)
+                                    onShowRenameModal()
+                                  }}
+                                  style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
+                                >
+                                  <Pencil size={14} />
+                                  <span>重新命名</span>
+                                </div>
+                              </li>
+                              <li>
+                                <div
+                                  className="sidebar-hover-item"
+                                  onClick={() => {
+                                    closeMenu()
+                                    onDeleteWorkspaceOrDb('delete_database', db.id, db.name)
+                                  }}
+                                  style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={14} />
+                                  <span>刪除資料庫</span>
+                                </div>
+                              </li>
+                            </ul>
                           </div>
                         )}
-                        <a
-                          className="tree__heading-add sidebar-hover-icon"
-                          title="Create Database"
-                          onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-                          style={{ cursor: 'pointer', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '4px' }}
-                        >
-                          <Plus size={14} />
-                        </a>
                       </div>
-                      
-                      <ul className="tree" data-highlight="applications-database" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                        {activeWorkspace.databases.map(db => {
-                          const dbMenuKey = `db-${db.id}`
-                          const isDbMenuOpen = activeMenuKey === dbMenuKey
-                          const isDbCollapsed = !!collapsedDatabases[db.id]
 
-                          return (
-                            <li key={db.id} className="tree__item" style={{ margin: '2px 0' }}>
-                              <div className="tree__action tree__action--has-options sidebar-hover-item" style={{ display: 'flex', alignItems: 'center', padding: isSidebarCollapsed ? '10px 0' : '4px 8px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', borderRadius: '6px', cursor: 'pointer', position: 'relative' }}>
-                                <a
-                                  onClick={() => onToggleDatabaseCollapse(db.id)}
-                                  className="tree__link"
-                                  title={db.name}
-                                  style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '8px', flex: isSidebarCollapsed ? 'none' : 1, textDecoration: 'none', color: '#1e293b', fontSize: '13px', fontWeight: 500, overflow: 'hidden' }}
-                                >
-                                  {!isSidebarCollapsed && (
-                                    <ChevronRight
-                                      size={14}
-                                      color="#64748b"
-                                      style={{ 
-                                        flexShrink: 0,
-                                        transition: 'transform 0.15s ease',
-                                        transform: !isDbCollapsed ? 'rotate(90deg)' : 'none'
-                                      }}
-                                    />
-                                  )}
-                                  <DatabaseIcon className="tree__icon tree__icon--type" size={isSidebarCollapsed ? 18 : 14} color="#2563eb" style={{ flexShrink: 0 }} />
-                                  {!isSidebarCollapsed && <span className="tree__link-text" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{db.name}</span>}
-                                </a>
+                      {/* Tables Sub-tree */}
+                      {!isDbCollapsed && (
+                        <div style={{ paddingLeft: '22px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px', marginBottom: '4px' }}>
+                          {db.tables.map(table => {
+                            const tblMenuKey = `tbl-${table.id}`
+                            const isTblMenuOpen = activeMenuKey === tblMenuKey
+                            const isActive = activeTableId === table.id
 
-                                {!isSidebarCollapsed && (
-                                  <a
-                                    onClick={(e) => toggleMenu(dbMenuKey, e)}
-                                    className={`tree__options sidebar-hover-icon ${isDbMenuOpen ? 'active' : ''}`}
-                                    title="Database Options"
-                                    style={{ padding: '4px', borderRadius: '4px', color: '#64748b', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                            return (
+                              <div
+                                key={table.id}
+                                className={`sidebar-hover-item ${isActive ? 'sidebar-active-table' : ''}`}
+                                style={{ 
+                                  padding: '6px 10px', 
+                                  borderRadius: '6px', 
+                                  position: 'relative',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  cursor: 'pointer'
+                                }}
+                                onClick={() => onSetActiveTableId(table.id)}
+                                onDoubleClick={() => {
+                                  if (canManageStructure) {
+                                    onSetRenameType('table')
+                                    onSetRenameId(table.id)
+                                    onSetRenameNameValue(table.name)
+                                    onShowRenameModal()
+                                  }
+                                }}
+                                title={`${table.name} (雙擊可重新命名)`}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
+                                  <TableIcon size={14} color={isActive ? '#2563eb' : '#64748b'} style={{ flexShrink: 0 }} />
+                                  <span style={{ fontSize: '13px', color: isActive ? '#1d4ed8' : '#334155', fontWeight: isActive ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {table.name}
+                                  </span>
+                                </div>
+
+                                {canManageStructure && (
+                                  <button
+                                    className="sidebar-hover-icon"
+                                    title="資料表選項"
+                                    onClick={(e) => toggleMenu(tblMenuKey, e)}
+                                    style={{ 
+                                      background: 'none',
+                                      border: 'none',
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      justifyContent: 'center', 
+                                      padding: '2px 4px', 
+                                      cursor: 'pointer', 
+                                      color: '#64748b',
+                                      borderRadius: '4px',
+                                      flexShrink: 0
+                                    }}
                                   >
-                                    <MoreVertical size={14} />
-                                  </a>
+                                    <MoreVertical size={13} />
+                                  </button>
                                 )}
 
-                                {isDbMenuOpen && (
-                                  <div className="context select" style={{ position: 'absolute', left: isSidebarCollapsed ? '56px' : 'auto', right: isSidebarCollapsed ? 'auto' : '0', top: isSidebarCollapsed ? '0' : '100%', zIndex: 100, background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '160px' }}>
-                                    <div className="select__items">
-                                      <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: '4px 0' }}>
+                                {/* Table Options Dropdown */}
+                                {isTblMenuOpen && (
+                                  <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 1000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
+                                    <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                                      <li>
+                                        <div
+                                          className="sidebar-hover-item"
+                                          onClick={() => {
+                                            closeMenu()
+                                            onSetRenameType('table')
+                                            onSetRenameId(table.id)
+                                            onSetRenameNameValue(table.name)
+                                            onShowRenameModal()
+                                          }}
+                                          style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
+                                        >
+                                          <Pencil size={14} />
+                                          <span>重新命名</span>
+                                        </div>
+                                      </li>
+                                      {onDeleteTable && (
                                         <li>
-                                          <a
-                                            className="select__item sidebar-hover-item"
+                                          <div
+                                            className="sidebar-hover-item"
                                             onClick={() => {
                                               closeMenu()
-                                              onSetRenameType('database')
-                                              onSetRenameId(db.id)
-                                              onSetRenameNameValue(db.name)
-                                              onShowRenameModal()
+                                              onDeleteTable(table.id, table.name)
                                             }}
-                                            style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
+                                            style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
                                           >
-                                            <Pencil className="select__item-icon" size={14} />
-                                            <span className="select__item-name">重新命名</span>
-                                          </a>
+                                            <Trash2 size={14} />
+                                            <span>刪除資料表</span>
+                                          </div>
                                         </li>
-                                        <li>
-                                          <a
-                                            className="select__item sidebar-hover-item"
-                                            onClick={() => {
-                                              closeMenu()
-                                              onDeleteWorkspaceOrDb('delete_database', db.id, db.name)
-                                            }}
-                                            style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
-                                          >
-                                            <Trash2 className="select__item-icon" size={14} />
-                                            <span className="select__item-name">刪除資料庫</span>
-                                          </a>
-                                        </li>
-                                      </ul>
-                                    </div>
+                                      )}
+                                    </ul>
                                   </div>
                                 )}
                               </div>
+                            )
+                          })}
 
-                              {!isDbCollapsed && (
-                                <div style={{ paddingLeft: isSidebarCollapsed ? '0' : '16px' }}>
-                                  <ul className="tree__subs" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                                    {db.tables.map(table => {
-                                      const tblMenuKey = `tbl-${table.id}`
-                                      const isTblMenuOpen = activeMenuKey === tblMenuKey
-                                      const isActive = activeTableId === table.id
-
-                                      return (
-                                        <li
-                                          key={table.id}
-                                          className={`tree__sub sidebar-hover-item ${isActive ? 'active' : ''}`}
-                                          style={{ 
-                                            margin: isSidebarCollapsed ? '4px 0' : '2px 0', 
-                                            borderRadius: '6px', 
-                                            position: 'relative',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: isSidebarCollapsed ? 'center' : 'flex-start'
-                                          }}
-                                        >
-                                          <a
-                                            className="tree__sub-link"
-                                            title={`${table.name} (雙擊可重新命名)`}
-                                            onClick={() => onSetActiveTableId(table.id)}
-                                            onDoubleClick={() => {
-                                              if (!isSidebarCollapsed) {
-                                                onSetRenameType('table')
-                                                onSetRenameId(table.id)
-                                                onSetRenameNameValue(table.name)
-                                                onShowRenameModal()
-                                              }
-                                            }}
-                                            style={{ padding: isSidebarCollapsed ? '8px 0' : '6px 8px', display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', flex: isSidebarCollapsed ? 'none' : 1, textDecoration: 'none', color: isActive ? '#2563eb' : '#334155', fontWeight: isActive ? 600 : 400, fontSize: '13px', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                          >
-                                            {isSidebarCollapsed ? (
-                                              <TableIcon size={16} color={isActive ? '#2563eb' : '#64748b'} />
-                                            ) : (
-                                              table.name
-                                            )}
-                                          </a>
-
-                                          {!isSidebarCollapsed && (
-                                            <a
-                                              className={`tree__options sidebar-hover-icon ${isTblMenuOpen ? 'active' : ''}`}
-                                              title="資料表選項"
-                                              onClick={(e) => toggleMenu(tblMenuKey, e)}
-                                              style={{ 
-                                                display: 'flex', 
-                                                alignItems: 'center', 
-                                                justifyContent: 'center', 
-                                                padding: '4px 6px', 
-                                                cursor: 'pointer', 
-                                                color: '#64748b',
-                                                borderRadius: '4px',
-                                                marginRight: '2px',
-                                                flexShrink: 0
-                                              }}
-                                            >
-                                              <MoreVertical size={14} />
-                                            </a>
-                                          )}
-
-                                          {isTblMenuOpen && (
-                                            <div className="context select" style={{ position: 'absolute', left: isSidebarCollapsed ? '56px' : 'auto', right: isSidebarCollapsed ? 'auto' : '0', top: isSidebarCollapsed ? '0' : '100%', zIndex: 1000, background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.18)', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '160px' }}>
-                                              <div className="select__items">
-                                                <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: '4px 0' }}>
-                                                  <li>
-                                                    <a
-                                                      className="select__item sidebar-hover-item"
-                                                      onClick={() => {
-                                                        closeMenu()
-                                                        onSetRenameType('table')
-                                                        onSetRenameId(table.id)
-                                                        onSetRenameNameValue(table.name)
-                                                        onShowRenameModal()
-                                                      }}
-                                                      style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
-                                                    >
-                                                      <Pencil className="select__item-icon" size={14} />
-                                                      <span className="select__item-name">重新命名</span>
-                                                    </a>
-                                                  </li>
-                                                  {onDeleteTable && (
-                                                    <li>
-                                                      <a
-                                                        className="select__item sidebar-hover-item"
-                                                        onClick={() => {
-                                                          closeMenu()
-                                                          onDeleteTable(table.id, table.name)
-                                                        }}
-                                                        style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
-                                                      >
-                                                        <Trash2 className="select__item-icon" size={14} />
-                                                        <span className="select__item-name">刪除資料表</span>
-                                                      </a>
-                                                    </li>
-                                                  )}
-                                                </ul>
-                                              </div>
-                                            </div>
-                                          )}
-                                        </li>
-                                      )
-                                    })}
-                                  </ul>
-                                  {!isSidebarCollapsed && (
-                                    <a
-                                      className="tree__sub-add sidebar-hover-item"
-                                      onClick={() => onShowCreateTableModal?.(db.id)}
-                                      style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', color: '#64748b', fontSize: '12px', cursor: 'pointer', fontWeight: 500, borderRadius: '6px', margin: '2px 0' }}
-                                    >
-                                      <Plus className="tree__sub-add-icon" size={14} />
-                                      新增資料表
-                                    </a>
-                                  )}
-                                </div>
-                              )}
-                            </li>
-                          )
-                        })}
-                      </ul>
-                    </li>
-                  </ul>
-                </div>
+                          {canManageStructure && (
+                            <div
+                              className="sidebar-hover-item"
+                              onClick={() => onShowCreateTableModal?.(db.id)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', color: '#64748b', fontSize: '12px', cursor: 'pointer', fontWeight: 500, borderRadius: '6px', marginTop: '2px' }}
+                            >
+                              <Plus size={14} />
+                              <span>新增資料表</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
 
-          {/* Sidebar Foot */}
-          <div className="sidebar__section sidebar__section--bottom" style={{ marginTop: 'auto', borderTop: '1px solid #e2e8f0', padding: isSidebarCollapsed ? '8px 0' : '8px 12px' }}>
-            <div className="sidebar__foot" style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between' }}>
-              {!isSidebarCollapsed && (
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>FYCD Manager</span>
-              )}
-              {onToggleSidebarCollapse && (
-                <a
-                  className="sidebar__foot-link sidebar-hover-icon"
-                  onClick={onToggleSidebarCollapse}
-                  title={isSidebarCollapsed ? '展開側邊欄' : '收闔側邊欄'}
-                  style={{ cursor: 'pointer', color: '#64748b', padding: '6px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  {isSidebarCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
-                </a>
-              )}
+          {/* Sidebar Footer */}
+          <div style={{ marginTop: 'auto', borderTop: '1px solid #e2e8f0', padding: '10px 12px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+              <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#3b82f6', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
+                {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {currentUser?.username || 'User'}
+                </span>
+                <span style={{ fontSize: '10px', color: '#64748b', textTransform: 'capitalize' }}>
+                  {currentUser?.role || 'Member'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                onClick={onToggleTheme}
+                title={theme === 'dark' ? '切換為明亮模式' : '切換為深色模式'}
+                className="sidebar-hover-icon"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+              </button>
+
+              <button
+                onClick={onToggleDarkReaderPanel}
+                title="調整色彩與濾鏡設定"
+                className="sidebar-hover-icon"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Sliders size={15} />
+              </button>
+
+              <button
+                onClick={onLogout}
+                title="登出系統"
+                className="sidebar-hover-icon"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <LogOut size={15} />
+              </button>
             </div>
           </div>
         </div>
