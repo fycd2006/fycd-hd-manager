@@ -1,7 +1,6 @@
 'use client'
 
-import React from 'react'
-import { User } from '@/modules/database/types'
+import React, { useState } from 'react'
 
 interface AuthScreenProps {
   authMode: 'login' | 'register'
@@ -12,8 +11,8 @@ interface AuthScreenProps {
   onAuthUsernameChange: (value: string) => void
   onAuthEmailChange: (value: string) => void
   onAuthPasswordChange: (value: string) => void
-  onLogin: (e: React.FormEvent) => void
-  onRegister: (e: React.FormEvent) => void
+  onLogin: (e: React.FormEvent) => Promise<void>
+  onRegister: (e: React.FormEvent) => Promise<void>
 }
 
 export default function AuthScreen({
@@ -28,6 +27,23 @@ export default function AuthScreen({
   onLogin,
   onRegister
 }: AuthScreenProps) {
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (submitting) return
+    setSubmitting(true)
+    try {
+      if (authMode === 'login') {
+        await onLogin(e)
+      } else {
+        await onRegister(e)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(circle at top, #eef4ff 0%, #f8fafc 45%, #eef2f7 100%)', color: 'var(--text-primary)', fontFamily: 'inherit' }}>
       <div style={{ background: 'var(--bg-secondary)', padding: '40px', borderRadius: '16px', border: '1px solid var(--border-color)', maxWidth: '420px', width: '100%', boxShadow: '0 20px 60px rgba(15, 23, 42, 0.08)' }}>
@@ -41,16 +57,19 @@ export default function AuthScreen({
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '6px' }}>Baserow-like database workspace</p>
         </div>
 
-        <form onSubmit={authMode === 'login' ? onLogin : onRegister} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>帳號名稱 (Username)</label>
+            <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              {authMode === 'login' ? '帳號名稱或 Email (Username or Email)' : '帳號名稱 (Username)'}
+            </label>
             <input
               type="text"
-              placeholder="請輸入帳號"
+              placeholder={authMode === 'login' ? '請輸入帳號或電子郵件' : '請輸入帳號'}
               value={authUsername}
               onChange={e => onAuthUsernameChange(e.target.value)}
               style={{ padding: '10px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none' }}
               required
+              disabled={submitting}
             />
           </div>
 
@@ -59,11 +78,12 @@ export default function AuthScreen({
               <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>電子郵件 (Email)</label>
               <input
                 type="email"
-                placeholder="例如：jeff@example.com"
+                placeholder="例如：user@example.com"
                 value={authEmail}
                 onChange={e => onAuthEmailChange(e.target.value)}
                 style={{ padding: '10px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none' }}
                 required
+                disabled={submitting}
               />
             </div>
           )}
@@ -77,14 +97,37 @@ export default function AuthScreen({
               onChange={e => onAuthPasswordChange(e.target.value)}
               style={{ padding: '10px 12px', background: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)', outline: 'none' }}
               required
+              disabled={submitting}
             />
           </div>
 
           <button
             type="submit"
-            style={{ marginTop: '10px', padding: '12px', background: 'var(--accent-gradient)', border: 'none', color: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px', boxShadow: '0 8px 18px rgba(37,99,235,0.18)' }}
+            disabled={submitting}
+            style={{
+              marginTop: '10px',
+              padding: '12px',
+              background: submitting ? '#94a3b8' : 'var(--accent-gradient)',
+              border: 'none',
+              color: 'white',
+              borderRadius: '8px',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              fontWeight: 600,
+              fontSize: '14px',
+              boxShadow: submitting ? 'none' : '0 8px 18px rgba(37,99,235,0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
           >
-            {authMode === 'login' ? '登入系統' : '註冊帳號'}
+            {submitting ? (
+              <span>處理中...</span>
+            ) : authMode === 'login' ? (
+              '登入系統'
+            ) : (
+              '註冊帳號'
+            )}
           </button>
         </form>
 
@@ -92,14 +135,22 @@ export default function AuthScreen({
           {authMode === 'login' ? (
             <span>
               還沒有帳戶？{' '}
-              <button onClick={() => onAuthModeChange('register')} style={{ color: 'var(--accent-secondary)', fontWeight: 500 }}>
+              <button
+                type="button"
+                onClick={() => onAuthModeChange('register')}
+                style={{ color: 'var(--accent-secondary)', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer' }}
+              >
                 立即註冊
               </button>
             </span>
           ) : (
             <span>
               已經有帳戶了？{' '}
-              <button onClick={() => onAuthModeChange('login')} style={{ color: 'var(--accent-secondary)', fontWeight: 500 }}>
+              <button
+                type="button"
+                onClick={() => onAuthModeChange('login')}
+                style={{ color: 'var(--accent-secondary)', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer' }}
+              >
                 立即登入
               </button>
             </span>
@@ -109,3 +160,4 @@ export default function AuthScreen({
     </div>
   )
 }
+

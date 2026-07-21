@@ -867,33 +867,57 @@ export default function Home() {
     .flatMap(d => d.tables)
     .find(t => t.id === wsState.activeTableId)
 
+  // Show loading spinner while checking authentication
+  if (authState.authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#64748b' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: 500 }}>驗證身份中...</p>
+      </div>
+    )
+  }
+
   // Show auth screen if not authenticated using new store
   if (!authState.currentUser) {
-    return <AuthScreen 
-      authMode={authState.authMode}
-      authUsername={authState.authUsername}
-      authEmail={authState.authEmail}
-      authPassword={authState.authPassword}
-      onAuthModeChange={authActions.setAuthMode}
-      onAuthUsernameChange={authActions.setAuthUsername}
-      onAuthEmailChange={authActions.setAuthEmail}
-      onAuthPasswordChange={authActions.setAuthPassword}
-      onLogin={async (e) => {
-        e.preventDefault()
-        const result = await authActions.login(authState.authUsername, authState.authPassword)
-        if (!result.ok) {
-          uiActions.addToast(result.error || '登入失敗', 'error')
-        }
-      }}
-      onRegister={async (e) => {
-        e.preventDefault()
-        const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
-        if (result.ok) {
-          authActions.setAuthMode('login')
-          authActions.setAuthPassword('')
-        }
-      }}
-    />
+    return (
+      <>
+        {/* Toast notifications */}
+        {uiState.toasts.map(toast => (
+          <div key={toast.id} className={`toast toast-${toast.type}`}>
+            {toast.message}
+          </div>
+        ))}
+        <AuthScreen 
+          authMode={authState.authMode}
+          authUsername={authState.authUsername}
+          authEmail={authState.authEmail}
+          authPassword={authState.authPassword}
+          onAuthModeChange={authActions.setAuthMode}
+          onAuthUsernameChange={authActions.setAuthUsername}
+          onAuthEmailChange={authActions.setAuthEmail}
+          onAuthPasswordChange={authActions.setAuthPassword}
+          onLogin={async (e) => {
+            const result = await authActions.login(authState.authUsername, authState.authPassword)
+            if (result.ok) {
+              uiActions.addToast(`登入成功，歡迎回來！`, 'success')
+            } else {
+              uiActions.addToast(result.error || '登入失敗，請檢查帳號或密碼', 'error')
+            }
+          }}
+          onRegister={async (e) => {
+            const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
+            if (result.ok) {
+              uiActions.addToast('註冊成功！請直接登入系統', 'success')
+              authActions.setAuthMode('login')
+              authActions.setAuthPassword('')
+            } else {
+              uiActions.addToast(result.error || '註冊失敗', 'error')
+            }
+          }}
+        />
+      </>
+    )
   }
 
   return (
