@@ -1,0 +1,18 @@
+.ab-icon {
+  font-size: calc(var(--body-font-size, 14px) + 2px);
+  font-weight: var(--body-font-weight, 400);
+  margin: 2px;
+  color: color-mix(
+    in srgb,
+    var(--body-text-color) 50%,
+    var(--body-text-color-complement)
+  );
+
+  &.ab-icon--button {
+    cursor: pointer;
+
+    &:hover {
+      color: var(--body-text-color, $black);
+    }
+  }
+}

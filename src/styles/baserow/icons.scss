@@ -1,0 +1,9 @@
+// Icons handled via Lucide React icons
+@mixin baserow-icon($name) {
+  // SVG mask handled by Lucide React
+}
+
+%icon {
+  display: inline-block;
+  vertical-align: middle;
+}

@@ -1,0 +1,75 @@
+.layout {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+}
+
+.layout__resize {
+  position: absolute;
+  top: 0; bottom: 0; right: auto; left: auto;
+  width: 5px;
+  z-index: 15;
+}
+
+.layout__resize:hover {
+  cursor: col-resize;
+}
+
+.layout__resize:hover::before {
+  content: '';
+  background-color: #cbd5e1;
+  width: 3px;
+  position: absolute;
+  top: 0; bottom: 0; right: auto; left: 0;
+}
+
+.layout__col-1 {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 240px;
+}
+
+.layout__col-2 {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 240px;
+}
+
+.layout__col-2-scroll {
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 0;
+  overflow: auto;
+}
+
+.layout__col-2-scroll.layout__col-2-scroll--white-background {
+  background-color: #ffffff;
+}
+
+.layout__col-2-1 {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 48px;
+}
+
+.layout__col-2-2 {
+  position: absolute;
+  z-index: 5;
+  top: 48px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.layout__col-3 {
+  position: absolute;
+  z-index: 5;
+  height: 100%;
+}

@@ -1,0 +1,146 @@
+.formula-input-field {
+  height: auto;
+  font-size: 13px;
+  min-height: 36px;
+  line-height: 25px;
+  padding: 5px 12px;
+
+  // If the field is empty, then give it the
+  // same padding as a normal form input field.
+  &:has(div.is-editor-empty) {
+    padding: 10px 16px;
+    line-height: 100%;
+  }
+
+  &.formula-input-field--large {
+    line-height: 25px;
+    padding: 10px 12px;
+    min-height: 48px;
+  }
+}
+
+.formula-input-field--focused {
+  border-color: $palette-blue-500;
+
+  &.formula-input-field--error {
+    border-color: $palette-red-400 !important;
+  }
+}
+
+.formula-input-field--error {
+  border-color: $palette-red-400;
+}
+
+.formula-input-field--disabled {
+  user-select: none;
+}
+
+.formula-input-field__reset-button {
+  width: 100%;
+}
+
+/* stylelint-disable-next-line selector-class-pattern */
+.formula-input-field--formula-empty .ProseMirror div:first-child::before {
+  content: var(--formula-placeholder);
+  float: left;
+  color: $palette-neutral-500;
+  pointer-events: none;
+  height: 0;
+}
+
+// Atomic comma style
+.formula-input-field__comma,
+.formula-input-field__parenthesis {
+  color: $palette-cyan-900;
+  font-weight: 500;
+  background-color: $palette-cyan-50;
+  padding: 0 8px;
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: top;
+
+  @include rounded;
+}
+
+// Group parenthesis style
+.formula-input-field__group-parenthesis {
+  color: $palette-purple-900;
+  font-weight: 500;
+  background-color: $palette-purple-50;
+  padding: 0 8px;
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-block;
+  vertical-align: top;
+
+  @include rounded;
+}
+
+// Remove left padding for closing parenthesis of functions with no arguments
+.formula-input-field__parenthesis[data-no-args='true'] {
+  padding-left: 0;
+}
+
+// Spacing between adjacent formula atoms (closing parens, commas, group parens)
+.formula-input-field__parenthesis,
+.formula-input-field__comma,
+.formula-input-field__group-parenthesis {
+  &:has(
+    + :is(
+      .function-formula-component,
+      .formula-input-field__parenthesis,
+      .formula-input-field__comma,
+      .formula-input-field__group-parenthesis
+    )
+  ) {
+    margin-right: 4px;
+  }
+}
+
+// Spacing after function components (but not before their own closing paren)
+.function-formula-component:has(
+  + :is(.function-formula-component, .formula-input-field__group-parenthesis)
+) {
+  margin-right: 4px;
+}
+
+// Spacing before commas preceded by function components
+.function-formula-component + .formula-input-field__comma {
+  margin-left: 4px;
+}
+
+// Spacing between closing parens and operators, and between operators and functions
+:is(
+  .formula-input-field__parenthesis[data-formula-closing-paren='true'],
+  .formula-input-field__group-parenthesis[data-group-closing-paren='true']
+):has(+ .operator-formula-component),
+.operator-formula-component:has(+ .function-formula-component) {
+  margin-right: 4px;
+}
+
+// Remove right padding for function components with no arguments
+.function-formula-component[data-no-args='true'] {
+  .function-formula-component__name {
+    padding-right: 2px;
+  }
+}
+
+.formula-input-field__view-full-error {
+  margin-left: 5px;
+}
+
+// Paren match highlight on hover (disabled for no-arg functions)
+.formula-input-field__paren-highlight:not([data-no-args='true']) {
+  &.formula-input-field__parenthesis {
+    box-shadow: inset 0 0 0 1.5px $palette-cyan-800;
+  }
+
+  &.formula-input-field__group-parenthesis {
+    box-shadow: inset 0 0 0 1.5px $palette-purple-800;
+  }
+
+  &.function-formula-component .function-formula-component__name {
+    box-shadow: inset 0 0 0 1.5px $palette-cyan-800;
+  }
+}

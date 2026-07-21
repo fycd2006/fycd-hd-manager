@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        Int          @id @default(autoincrement())
+  username  String       @unique
+  email     String       @unique
+  password  String       // Store hashed password
+  role      String       @default("member") // admin, member
+  comments  RowComment[]
+  createdAt DateTime     @default(now())
+}
+
+model Project {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?     @db.Text
+  status      String      @default("active") // active, completed, pending
+  equipments  Equipment[]
+  createdAt   DateTime    @default(now())
+}
+
+model Equipment {
+  id           Int      @id @default(autoincrement())
+  name         String
+  category     String
+  serialNumber String   @unique
+  status       String   @default("available") // available, in_use, maintenance
+  project      Project? @relation(fields: [projectId], references: [id])
+  projectId    Int?
+  createdAt    DateTime @default(now())
+}
+
+// =============================================
+// Baserow 風格：動態資料表系統
+// =============================================
+
+model DatabaseTable {
+  id         Int          @id @default(autoincrement())
+  name       String
+  order      Int          @default(0)
+  fields     TableField[]
+  rows       TableRow[]
+  views      TableView[]
+  databaseId Int?
+  database   Database?    @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
+}
+
+model TableField {
+  id        Int           @id @default(autoincrement())
+  tableId   Int
+  table     DatabaseTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  name      String
+  type      String        @default("text") // text, long_text, number, boolean, date, single_select, url, email
+  order     Int           @default(0)
+  options   String?       @db.Text // JSON string for field-specific options (e.g. select choices)
+  createdAt DateTime      @default(now())
+  deletedAt DateTime?
+
+  @@index([tableId])
+}
+
+model TableRow {
+  id        Int           @id @default(autoincrement())
+  tableId   Int
+  table     DatabaseTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  data      String        @db.Text // JSON string: { "field_1": "value", "field_2": 42, ... }
+  order     Int           @default(0)
+  comments  RowComment[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+
+  @@index([tableId])
+}
+
+model TableView {
+  id           Int           @id @default(autoincrement())
+  tableId      Int
+  table        DatabaseTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  name         String
+  type         String        @default("grid") // grid, kanban, gallery
+  filters      String?       @db.Text         // JSON: FilterRule[]
+  sortField    String?
+  sortOrder    String?       @default("asc")
+  hiddenFields String?       @db.Text         // JSON: string[] (hidden field keys like field_3)
+  columnWidths String?       @db.Text         // JSON: Record<string, number> (mapping field keys to widths)
+  rowColors    String?       @db.Text         // JSON: { fieldKey, operator, value, color }[]
+  groupByField String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([tableId])
+}
+
+model Workspace {
+  id        Int        @id @default(autoincrement())
+  name      String
+  databases Database[]
+  createdAt DateTime   @default(now())
+}
+
+model Database {
+  id          Int             @id @default(autoincrement())
+  name        String
+  workspaceId Int
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tables      DatabaseTable[]
+  createdAt   DateTime        @default(now())
+}
+
+model RowComment {
+  id        Int      @id @default(autoincrement())
+  rowId     Int
+  row       TableRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+
+
