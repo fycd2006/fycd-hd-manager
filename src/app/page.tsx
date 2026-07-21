@@ -134,7 +134,7 @@ export default function Home() {
   const [fieldContextMenu, setFieldContextMenu] = useState<{ field: TableField; x: number; y: number } | null>(null)
   const [editingFieldForModal, setEditingFieldForModal] = useState<TableField | null>(null)
   
-  // Drag and Drop
+  const [authError, setAuthError] = useState<string | null>(null)
   const [draggedFieldId, setDraggedFieldId] = useState<number | null>(null)
   
   // CSV Import Refs
@@ -888,10 +888,8 @@ export default function Home() {
   // Show loading spinner while checking authentication
   if (authState.authLoading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#64748b' }}>
-        <div style={{ width: '40px', height: '40px', border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-        <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: 500 }}>驗證身份中...</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', width: '100vw', backgroundColor: '#f8fafc' }}>
+        <div style={{ width: '32px', height: '32px', border: '4px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       </div>
     )
   }
@@ -900,9 +898,8 @@ export default function Home() {
   if (!authState.currentUser) {
     return (
       <>
-        {/* Toast notifications */}
         {uiState.toasts.map(toast => (
-          <div key={toast.id} className={`toast toast-${toast.type}`}>
+          <div key={toast.id} className={`toast toast-${toast.type}`} style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999, padding: '10px 16px', borderRadius: '8px', background: toast.type === 'error' ? '#ef4444' : '#10b981', color: '#fff', fontSize: '13px', fontWeight: 500, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
             {toast.message}
           </div>
         ))}
@@ -911,25 +908,32 @@ export default function Home() {
           authUsername={authState.authUsername}
           authEmail={authState.authEmail}
           authPassword={authState.authPassword}
-          onAuthModeChange={authActions.setAuthMode}
+          errorMessage={authError}
+          onAuthModeChange={(mode) => {
+            setAuthError(null)
+            authActions.setAuthMode(mode)
+          }}
           onAuthUsernameChange={authActions.setAuthUsername}
           onAuthEmailChange={authActions.setAuthEmail}
           onAuthPasswordChange={authActions.setAuthPassword}
           onLogin={async (e) => {
+            setAuthError(null)
             const result = await authActions.login(authState.authUsername, authState.authPassword)
             if (result.ok) {
               uiActions.addToast(`登入成功，歡迎回來！`, 'success')
             } else {
+              setAuthError(result.error || '登入失敗，請檢查帳號或密碼')
               uiActions.addToast(result.error || '登入失敗，請檢查帳號或密碼', 'error')
             }
           }}
           onRegister={async (e) => {
+            setAuthError(null)
             const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
             if (result.ok) {
-              uiActions.addToast('註冊成功！請直接登入系統', 'success')
-              authActions.setAuthMode('login')
+              uiActions.addToast('註冊成功並已自動登入系統！', 'success')
               authActions.setAuthPassword('')
             } else {
+              setAuthError(result.error || '註冊失敗')
               uiActions.addToast(result.error || '註冊失敗', 'error')
             }
           }}

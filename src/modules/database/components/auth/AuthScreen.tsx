@@ -7,6 +7,7 @@ interface AuthScreenProps {
   authUsername: string
   authEmail: string
   authPassword: string
+  errorMessage?: string | null
   onAuthModeChange: (mode: 'login' | 'register') => void
   onAuthUsernameChange: (value: string) => void
   onAuthEmailChange: (value: string) => void
@@ -20,6 +21,7 @@ export default function AuthScreen({
   authUsername,
   authEmail,
   authPassword,
+  errorMessage,
   onAuthModeChange,
   onAuthUsernameChange,
   onAuthEmailChange,
@@ -56,6 +58,12 @@ export default function AuthScreen({
           <h2 style={{ fontSize: '22px', fontWeight: 700, margin: 0 }}>Baserow</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '6px' }}>Baserow-like database workspace</p>
         </div>
+
+        {errorMessage && (
+          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px', fontWeight: 500 }}>
+            {errorMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

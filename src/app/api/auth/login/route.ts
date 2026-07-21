@@ -12,14 +12,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '帳號與密碼為必填' }, { status: 400 })
     }
 
-    // 1. Find User by username or email
+    const normalizedInput = username.trim()
+    const normalizedEmail = username.trim().toLowerCase()
+
+    // 1. Find User by username or email (case-insensitive fallback)
     const user = await prisma.user.findFirst({
       where: {
-        OR: [{ username }, { email: username }]
+        OR: [
+          { username: normalizedInput },
+          { email: normalizedEmail },
+          { email: normalizedInput }
+        ]
       }
     })
     if (!user) {
-      return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 })
+      return NextResponse.json({ error: '帳號或密碼錯誤，請確認用戶名/Email是否正確' }, { status: 401 })
     }
 
     // 2. Hash and compare password
