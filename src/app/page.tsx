@@ -898,11 +898,26 @@ export default function Home() {
   if (!authState.currentUser) {
     return (
       <>
-        {uiState.toasts.map(toast => (
-          <div key={toast.id} className={`toast toast-${toast.type}`} style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999, padding: '10px 16px', borderRadius: '8px', background: toast.type === 'error' ? '#ef4444' : '#10b981', color: '#fff', fontSize: '13px', fontWeight: 500, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-            {toast.message}
-          </div>
-        ))}
+        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, display: 'flex', flexDirection: 'column-reverse', gap: '10px', pointerEvents: 'none' }}>
+          {uiState.toasts.map(toast => (
+            <div
+              key={toast.id}
+              style={{
+                pointerEvents: 'auto',
+                padding: '12px 18px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#ffffff',
+                backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#2563eb',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                border: '1px solid rgba(255,255,255,0.25)'
+              }}
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>
         <AuthScreen 
           authMode={authState.authMode}
           authUsername={authState.authUsername}
@@ -948,12 +963,26 @@ export default function Home() {
 
   return (
     <div className={`app-container theme-${themeState.theme}`}>
-      {/* Toast notifications */}
-      {uiState.toasts.map(toast => (
-        <div key={toast.id} className={`toast toast-${toast.type}`}>
-          {toast.message}
-        </div>
-      ))}
+      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, display: 'flex', flexDirection: 'column-reverse', gap: '10px', pointerEvents: 'none' }}>
+        {uiState.toasts.map(toast => (
+          <div
+            key={toast.id}
+            style={{
+              pointerEvents: 'auto',
+              padding: '12px 18px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#ffffff',
+              backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#2563eb',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+              border: '1px solid rgba(255,255,255,0.25)'
+            }}
+          >
+            {toast.message}
+          </div>
+        ))}
+      </div>
 
       {/* Layout structure */}
       <div className="layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
