@@ -118,7 +118,6 @@ export const csvRowToTableRow = (
         data[key] = value ? value.split(',').map(v => v.trim()).filter(Boolean) : []
         break
       case 'link_row':
-      case 'file':
         data[key] = []
         break
       default:

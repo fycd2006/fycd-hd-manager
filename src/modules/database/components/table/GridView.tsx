@@ -63,6 +63,7 @@ export default function GridView({
   onUpdateField,
   onOpenFieldContextMenu,
   onExpandRow,
+  onDeleteRow,
   onToggleSort
 }: GridViewProps) {
   if (gridLoading) {
@@ -132,6 +133,7 @@ export default function GridView({
         onResizeColumn={handleResizeColumn}
         onResizeColumnEnd={handleResizeColumnEnd}
         onExpandRow={handleExpandRow}
+        onDeleteRow={readOnly ? undefined : onDeleteRow}
         onFieldClick={(field) => onToggleSort?.(`field_${field.id}`)}
         onOpenFieldContextMenu={readOnly ? undefined : onOpenFieldContextMenu}
         onUpdateField={readOnly ? undefined : onUpdateField}

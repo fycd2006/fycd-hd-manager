@@ -98,10 +98,30 @@ export type ViewConfigPatch = {
 // =============================================
 // Filters & Sorting
 // =============================================
+export type FilterOperator =
+  | 'contains'
+  | 'not_contains'
+  | 'equals'
+  | 'not_equals'
+  | 'empty'
+  | 'not_empty'
+  | 'higher_than'
+  | 'higher_than_or_equal'
+  | 'lower_than'
+  | 'lower_than_or_equal'
+  | 'date_equal'
+  | 'date_before'
+  | 'date_after'
+
 export interface FilterRule {
   fieldKey: string
-  operator: 'contains' | 'not_contains' | 'equals' | 'not_equals' | 'empty' | 'not_empty'
+  operator: FilterOperator
   value: string
+}
+
+export interface FilterGroupConfig {
+  filterType?: 'AND' | 'OR'
+  rules: FilterRule[]
 }
 
 export interface RowColorRule {

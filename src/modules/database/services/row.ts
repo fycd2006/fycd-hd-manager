@@ -5,15 +5,39 @@
 
 import { TableRow, CellValue } from '../types'
 
+export interface FetchRowsResponse {
+  rows: TableRow[]
+  pagination?: {
+    page: number
+    pageSize: number
+    totalRows: number
+    totalPages: number
+  }
+}
+
 /**
- * Fetch all rows for a table
+ * Fetch all rows for a table (with optional pagination, sort, filter)
  */
-export const fetchRows = async (tableId: number): Promise<TableRow[]> => {
+export function fetchRows(tableId: number): Promise<TableRow[]>
+export function fetchRows(tableId: number, options: { page: number; pageSize?: number | 'all'; sort?: string; order?: 'asc' | 'desc'; filter?: string }): Promise<FetchRowsResponse>
+export async function fetchRows(
+  tableId: number,
+  options?: { page?: number; pageSize?: number | 'all'; sort?: string; order?: 'asc' | 'desc'; filter?: string }
+): Promise<TableRow[] | FetchRowsResponse> {
   try {
-    const res = await fetch(`/api/tables/${tableId}/rows`)
+    const params = new URLSearchParams()
+    if (options?.page) params.append('page', String(options.page))
+    if (options?.pageSize) params.append('pageSize', String(options.pageSize))
+    if (options?.sort) params.append('sort', options.sort)
+    if (options?.order) params.append('order', options.order)
+    if (options?.filter) params.append('filter', options.filter)
+
+    const queryString = params.toString() ? `?${params.toString()}` : ''
+    const res = await fetch(`/api/tables/${tableId}/rows${queryString}`)
     if (res.ok) {
       const data = await res.json()
-      return Array.isArray(data) ? data : []
+      if (Array.isArray(data)) return data
+      return data as FetchRowsResponse
     }
     return []
   } catch {

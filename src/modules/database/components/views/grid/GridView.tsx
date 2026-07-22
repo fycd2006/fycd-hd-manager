@@ -28,6 +28,7 @@ interface GridViewProps {
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
   onResizeColumnEnd?: (fieldId: number, newWidth: number) => void;
   onExpandRow?: (rowId: number) => void;
+  onDeleteRow?: (rowId: number) => void;
   onFieldClick?: (field: TableField, e: React.MouseEvent) => void;
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
@@ -46,6 +47,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onResizeColumn,
   onResizeColumnEnd,
   onExpandRow,
+  onDeleteRow,
   onFieldClick,
   onOpenFieldContextMenu,
   onUpdateField,
@@ -60,6 +62,14 @@ export const GridView: React.FC<GridViewProps> = ({
   const [autofillStart, setAutofillStart] = useState<[number, number] | null>(null);
   const [autofillEnd, setAutofillEnd] = useState<[number, number] | null>(null);
   const [cellContextMenu, setCellContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<any>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 2200);
+  }, []);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -102,8 +112,10 @@ export const GridView: React.FC<GridViewProps> = ({
     const tsv = lines.join('\n');
     if (tsv && typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(tsv);
+      const count = (selectionBounds.maxRow - selectionBounds.minRow + 1) * (selectionBounds.maxCol - selectionBounds.minCol + 1);
+      showToast(`已複製 ${count} 個儲存格至剪貼簿`);
     }
-  }, [selectionBounds, rows, fields]);
+  }, [selectionBounds, rows, fields, showToast]);
 
   const handleClearSelectionValues = useCallback(() => {
     if (!selectionBounds) return;
@@ -116,7 +128,25 @@ export const GridView: React.FC<GridViewProps> = ({
         }
       }
     }
-  }, [selectionBounds, rows, fields, onUpdateCell]);
+    showToast('已清空選取儲存格內容');
+  }, [selectionBounds, rows, fields, onUpdateCell, showToast]);
+
+  const handleDeleteSelectedRows = useCallback(() => {
+    if (!selectionBounds) return;
+    const rowIdsToDelete = new Set<number>();
+    for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
+      const targetRow = rows[r];
+      if (targetRow) {
+        rowIdsToDelete.add(targetRow.id);
+      }
+    }
+    const count = rowIdsToDelete.size;
+    rowIdsToDelete.forEach(id => onDeleteRow?.(id));
+    setSelectedCell(null);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+    showToast(`已刪除 ${count} 列資料`);
+  }, [selectionBounds, rows, onDeleteRow, showToast]);
 
   const handleCutSelection = useCallback(() => {
     handleCopySelection();
@@ -694,8 +724,33 @@ export const GridView: React.FC<GridViewProps> = ({
           onCut={handleCutSelection}
           onPaste={handlePasteSelection}
           onClearValues={handleClearSelectionValues}
-          onDeleteRows={handleClearSelectionValues}
+          onDeleteRows={handleDeleteSelectedRows}
         />
+      )}
+
+      {/* Floating UI/UX Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            background: '#0f172a',
+            color: '#ffffff',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 500,
+            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
+            zIndex: 999999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <span>✨ {toastMessage}</span>
+        </div>
       )}
     </div>
   );

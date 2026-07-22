@@ -3,8 +3,14 @@ import { useEffect } from 'react';
 export function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, handler: (event: MouseEvent | TouchEvent) => void) {
   useEffect(() => {
     const listener = (event: MouseEvent | TouchEvent) => {
-      // Do nothing if clicking ref's element or descendent elements
-      if (!ref.current || ref.current.contains(event.target as Node)) {
+      const target = event.target as HTMLElement;
+      // Do nothing if clicking ref's element, descendent elements, or portal modals
+      if (
+        !ref.current ||
+        ref.current.contains(target as Node) ||
+        target?.closest?.('[data-relation-modal="true"]') ||
+        target?.closest?.('.portal-modal')
+      ) {
         return;
       }
       handler(event);

@@ -56,12 +56,24 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       {/* 1. Row Index / Actions Column */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
-        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        onClick={(e) => {
+          onSelectCell(0, e);
+        }}
       >
         {isHovered ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', color: '#64748b' }}>
             <GripVertical style={{ width: '14px', height: '14px', cursor: 'grab' }} />
-            <input type="checkbox" style={{ width: '14px', height: '14px', cursor: 'pointer' }} />
+            <input
+              type="checkbox"
+              checked={Boolean(selectionBounds && selectionBounds.minRow <= rowIndex && selectionBounds.maxRow >= rowIndex)}
+              onChange={(e) => {
+                e.stopPropagation();
+                onSelectCell(0);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+            />
             <Maximize2 
               style={{ width: '14px', height: '14px', cursor: 'pointer' }} 
               onClick={(e) => {

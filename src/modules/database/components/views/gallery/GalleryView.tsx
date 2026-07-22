@@ -31,9 +31,6 @@ export default function GalleryView({
   rows,
   onExpandRow,
 }: GalleryViewProps) {
-  
-  // Find first file field to use as card cover
-  const fileField = fields.find(f => f.type === 'file')
   const firstTextField = fields.find(f => f.type === 'text')
 
   if (rows.length === 0) {
@@ -66,17 +63,6 @@ export default function GalleryView({
         const titleKey = firstTextField ? `field_${firstTextField.id}` : Object.keys(row.data)[0]
         const title = row.data[titleKey] || `列 ID: ${row.id}`
 
-        // Find cover image
-        let coverUrl = ''
-        if (fileField) {
-          const files = row.data[`field_${fileField.id}`]
-          if (Array.isArray(files) && files.length > 0) {
-            // Find first image file
-            const img = files.find(f => /\.(jpeg|jpg|gif|png|webp|svg)$/i.test((f as any)?.url || ''))
-            coverUrl = img ? (img as any).url : (files[0] as any)?.url
-          }
-        }
-
         return (
           <div
             key={row.id}
@@ -100,11 +86,11 @@ export default function GalleryView({
               e.currentTarget.style.borderColor = 'var(--border-color)'
             }}
           >
-            {/* Card Cover */}
+            {/* Card Header Placeholder */}
             <div
               style={{
                 height: '140px',
-                background: coverUrl ? `url(${coverUrl}) center/cover no-repeat` : 'rgba(0,0,0,0.2)',
+                background: 'rgba(0,0,0,0.2)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -112,11 +98,9 @@ export default function GalleryView({
                 color: 'var(--text-muted)'
               }}
             >
-              {!coverUrl && (
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
-                </svg>
-              )}
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+              </svg>
             </div>
 
             {/* Card Body */}
@@ -128,7 +112,7 @@ export default function GalleryView({
               {/* Secondary fields (up to 3) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid var(--border-color)', paddingTop: '8px' }}>
                 {fields
-                  .filter(f => f.id !== firstTextField?.id && (!fileField || f.id !== fileField.id))
+                  .filter(f => f.id !== firstTextField?.id)
                   .slice(0, 3)
                   .map(f => {
                     const val = row.data[`field_${f.id}`]

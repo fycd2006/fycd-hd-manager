@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Maximize2 } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
+import { formatDateValue } from '@/modules/database/utils';
 
 const getOptionColor = (str: string) => {
   let hash = 0;
@@ -80,6 +83,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const getInitialStringValue = (val: any, type: string): string => {
     if (val === null || val === undefined) return '';
     if (type === 'boolean') return String(val);
+    if (type === 'date') return formatDateValue(val);
     const items = parseSelectItems(val);
     if (items.length > 0) return items.join(', ');
     return String(val);
@@ -158,11 +162,339 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     }
   };
 
+  // Hover state for showing + button on empty link_row cells
+  const [isCellHovered, setIsCellHovered] = useState(false);
+  const [isLongTextModalOpen, setIsLongTextModalOpen] = useState(false);
+  const cellRef = useRef<HTMLDivElement>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (isEditing && field.type === 'long_text' && cellRef.current) {
+      const rect = cellRef.current.getBoundingClientRect();
+      setPopoverPos({
+        top: rect.top,
+        left: rect.left,
+        width: Math.max(380, rect.width)
+      });
+    }
+  }, [isEditing, field.type]);
+
+  // link_row relation modal state when cell is editing
+  const [relationSearch, setRelationSearch] = useState('');
+  const [relationRows, setRelationRows] = useState<any[]>([]);
+  const [targetFields, setTargetFields] = useState<TableField[]>([]);
+  const [relationLoading, setRelationLoading] = useState(false);
+
+  const fieldOptions = React.useMemo(() => {
+    if (!field.options) return {};
+    try {
+      return typeof field.options === 'string' ? JSON.parse(field.options) : field.options;
+    } catch {
+      return {};
+    }
+  }, [field.options]);
+
+  const targetTableId = fieldOptions?.targetTableId;
+
+  // Fetch target table fields & rows when link_row cell starts editing
+  useEffect(() => {
+    if (isEditing && field.type === 'link_row' && targetTableId) {
+      setRelationLoading(true);
+      fetch(`/api/tables/${targetTableId}/fields`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            data.sort((a, b) => (a.order || 0) - (b.order || 0));
+            setTargetFields(data);
+          }
+        })
+        .catch(console.error);
+
+      fetch(`/api/tables/${targetTableId}/rows?page=1&pageSize=30`)
+        .then(res => res.json())
+        .then(data => {
+          const rowsArray = Array.isArray(data) ? data : (data.rows || []);
+          setRelationRows(rowsArray);
+        })
+        .catch(console.error)
+        .finally(() => setRelationLoading(false));
+    }
+  }, [isEditing, field.type, targetTableId]);
+
+  // Temporary selected items state while Modal is open
+  const [tempSelectedItems, setTempSelectedItems] = useState<Array<{ id: number; value: string }>>([]);
+
+  // Initialize tempSelectedItems when editing starts
+  useEffect(() => {
+    if (isEditing && field.type === 'link_row') {
+      let rawList: any[] = [];
+      if (Array.isArray(value)) {
+        rawList = value;
+      } else if (typeof value === 'string' && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) rawList = parsed;
+        } catch {}
+      }
+
+      const initialItems = rawList.flatMap(item => {
+        if (typeof item === 'object' && item !== null && 'id' in item) {
+          const numId = Number((item as any).id);
+          if (isNaN(numId)) return [];
+          return [{ id: numId, value: String((item as any).value || `列 ID: ${numId}`) }];
+        }
+        const numId = Number(item);
+        if (!isNaN(numId)) {
+          return [{ id: numId, value: `列 ID: ${numId}` }];
+        }
+        return [];
+      });
+
+      setTempSelectedItems(initialItems);
+    }
+  }, [isEditing, field.type, value]);
+
+  // Debounced search when relationSearch changes while editing
+  useEffect(() => {
+    if (isEditing && field.type === 'link_row' && targetTableId) {
+      const timer = setTimeout(() => {
+        setRelationLoading(true);
+        const url = relationSearch.trim()
+          ? `/api/tables/${targetTableId}/rows?search=${encodeURIComponent(relationSearch.trim())}&page=1&pageSize=30`
+          : `/api/tables/${targetTableId}/rows?page=1&pageSize=30`;
+        fetch(url)
+          .then(res => res.json())
+          .then(data => setRelationRows(Array.isArray(data) ? data : (data.rows || [])))
+          .catch(console.error)
+          .finally(() => setRelationLoading(false));
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [relationSearch, isEditing, field.type, targetTableId]);
+
   // State for Combobox (single/multi select)
   const [comboSearch, setComboSearch] = useState('');
 
   const renderCellContent = () => {
     if (isEditing) {
+      if (field.type === 'link_row') {
+        const parseCurrentItems = (): Array<{ id: number; value: string }> => {
+          let rawList: any[] = [];
+          if (Array.isArray(value)) {
+            rawList = value;
+          } else if (typeof value === 'string' && value.trim()) {
+            try {
+              const parsed = JSON.parse(value);
+              if (Array.isArray(parsed)) rawList = parsed;
+            } catch {}
+          }
+
+          const primaryField = targetFields[0];
+          const primaryKey = primaryField ? `field_${primaryField.id}` : null;
+
+          return rawList.flatMap(item => {
+            if (typeof item === 'object' && item !== null && 'id' in item) {
+              const numId = Number((item as any).id);
+              if (isNaN(numId)) return [];
+              let label = String((item as any).value || '');
+              if (!label || label.startsWith('列 ID:')) {
+                const rRow = relationRows.find(r => r.id === numId);
+                if (rRow && primaryKey && rRow.data?.[primaryKey]) {
+                  label = String(rRow.data[primaryKey]);
+                }
+              }
+              return [{ id: numId, value: label || `列 ID: ${numId}` }];
+            }
+            const numId = Number(item);
+            if (isNaN(numId)) return [];
+            let label = '';
+            const rRow = relationRows.find(r => r.id === numId);
+            if (rRow && primaryKey && rRow.data?.[primaryKey]) {
+              label = String(rRow.data[primaryKey]);
+            }
+            return [{ id: numId, value: label || `列 ID: ${numId}` }];
+          });
+        };
+
+        const currentIds = tempSelectedItems.map(i => i.id);
+
+        const toggleRowSelection = (targetRow: any) => {
+          const targetId = targetRow.id;
+          const isLinked = currentIds.includes(targetId);
+          if (isLinked) {
+            setTempSelectedItems(prev => prev.filter(i => i.id !== targetId));
+          } else {
+            const primaryField = targetFields[0];
+            const primaryKey = primaryField ? `field_${primaryField.id}` : Object.keys(targetRow.data || {})[0];
+            const primaryVal = String(targetRow.data?.[primaryKey] ?? `列 ID: ${targetId}`);
+            setTempSelectedItems(prev => [...prev, { id: targetId, value: primaryVal }]);
+          }
+        };
+
+        const handleConfirmRelation = () => {
+          onUpdate(tempSelectedItems);
+          onCancelEdit();
+        };
+
+        const modalContent = (
+          <div
+            data-relation-modal="true"
+            className="portal-modal"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99999,
+              backgroundColor: 'rgba(0, 0, 0, 0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleConfirmRelation();
+            }}
+          >
+            <div
+              data-relation-modal="true"
+              className="portal-modal"
+              style={{
+                width: '780px',
+                maxWidth: '92vw',
+                height: '560px',
+                maxHeight: '85vh',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Modal Top Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '400px' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Search rows (支援全欄位比對)..."
+                    value={relationSearch}
+                    onChange={e => setRelationSearch(e.target.value)}
+                    style={{ flex: 1, padding: '6px 12px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>
+                    已選擇 {currentIds.length} 項
+                  </span>
+                  <button
+                    onClick={() => handleConfirmRelation()}
+                    style={{ padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                  >
+                    ✕ 完成關閉
+                  </button>
+                </div>
+              </div>
+
+              {/* Table Grid View Body */}
+              <div style={{ flex: 1, overflow: 'auto', background: '#ffffff' }}>
+                {relationLoading ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '13px' }}>
+                    載入關聯表格資料中...
+                  </div>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
+                        <th style={{ width: '44px', padding: '10px 12px', textAlign: 'center' }}>選取</th>
+                        {targetFields.map(f => (
+                          <th key={f.id} style={{ padding: '10px 12px', fontWeight: 600, color: '#334155', borderRight: '1px solid #e2e8f0' }}>
+                            {f.name}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {relationRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={targetFields.length + 1} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontStyle: 'italic' }}>
+                            找不到符合條件的關聯列
+                          </td>
+                        </tr>
+                      ) : (
+                        relationRows.map(r => {
+                          const isLinked = currentIds.includes(r.id);
+                          return (
+                            <tr
+                              key={r.id}
+                              onClick={() => toggleRowSelection(r)}
+                              style={{
+                                borderBottom: '1px solid #e2e8f0',
+                                background: isLinked ? '#f0fdf4' : 'transparent',
+                                cursor: 'pointer',
+                                transition: 'background 0.1s ease',
+                              }}
+                            >
+                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isLinked}
+                                  onChange={() => {}}
+                                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                />
+                              </td>
+                              {targetFields.map(f => {
+                                const fKey = `field_${f.id}`;
+                                const cellVal = r.data?.[fKey];
+                                let displayCell = '';
+                                if (cellVal != null && cellVal !== '') {
+                                  if (typeof cellVal === 'boolean') {
+                                    displayCell = cellVal ? '✓' : '';
+                                  } else if (Array.isArray(cellVal)) {
+                                    displayCell = cellVal
+                                      .map(item => (typeof item === 'object' && item !== null ? item.value || item.name || item.id : String(item)))
+                                      .filter(Boolean)
+                                      .join(', ');
+                                  } else if (typeof cellVal === 'object') {
+                                    displayCell = String(cellVal.value || cellVal.name || cellVal.id || '');
+                                  } else {
+                                    displayCell = String(cellVal);
+                                  }
+                                }
+                                return (
+                                  <td key={f.id} style={{ padding: '10px 12px', color: '#1e293b', borderRight: '1px solid #f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                                    {displayCell}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <button
+                  onClick={() => handleConfirmRelation()}
+                  style={{ padding: '6px 16px', background: '#6366f1', border: 'none', borderRadius: '6px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  確認
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+
+        return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
+      }
+
       if (field.type === 'boolean') {
         return (
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', zIndex: 10 }}>
@@ -453,14 +785,204 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         );
       }
 
-      const inputType = field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text';
+      if (field.type === 'long_text') {
+        const charCount = localVal ? localVal.length : 0;
+        const lineCount = localVal ? localVal.split('\n').length : 0;
+
+        const handleSaveLongText = () => {
+          onUpdate(localVal);
+          setIsLongTextModalOpen(false);
+          onCancelEdit();
+        };
+
+        return (
+          <>
+            {/* Floating Popover Editor via Portal on document.body */}
+            {typeof document !== 'undefined' && createPortal(
+              <div
+                tabIndex={-1}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'fixed',
+                  top: popoverPos ? popoverPos.top : 0,
+                  left: popoverPos ? popoverPos.left : 0,
+                  width: popoverPos ? popoverPos.width : Math.max(380, cellWidth),
+                  height: '200px',
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  boxShadow: '0 16px 32px -5px rgba(0, 0, 0, 0.25), 0 8px 12px -6px rgba(0, 0, 0, 0.12)',
+                  zIndex: 999999,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                    <span>📝 多行文字編輯 ({field.name})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={() => setIsLongTextModalOpen(true)}
+                      style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', color: '#2563eb', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                      title="展開全螢幕彈窗編輯"
+                    >
+                      <Maximize2 size={13} />
+                      <span>全螢幕展開</span>
+                    </button>
+                    <button
+                      onClick={() => onCancelEdit()}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px', padding: '2px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Textarea */}
+                <textarea
+                  ref={inputRef as any}
+                  value={localVal}
+                  onChange={(e) => setLocalVal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      onCancelEdit();
+                    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      handleSaveLongText();
+                    }
+                  }}
+                  placeholder="在此輸入多行文字內容 (支援 Shift+Enter 換行，Ctrl+Enter 儲存)..."
+                  style={{
+                    flex: 1,
+                    width: '100%',
+                    padding: '10px 12px',
+                    fontSize: '13px',
+                    fontFamily: 'inherit',
+                    border: 'none',
+                    outline: 'none',
+                    resize: 'none',
+                    color: '#0f172a',
+                    lineHeight: 1.5,
+                    background: '#ffffff'
+                  }}
+                />
+
+                {/* Footer */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: '11px', color: '#64748b' }}>
+                  <span>{charCount} 字 | {lineCount} 行 (Ctrl+Enter 儲存)</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => onCancelEdit()}
+                      style={{ padding: '4px 10px', background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleSaveLongText}
+                      style={{ padding: '4px 12px', background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      儲存
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
+
+            {/* Full Modal Dialog via Portal */}
+            {isLongTextModalOpen && typeof document !== 'undefined' && createPortal(
+              <div
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  zIndex: 9999999,
+                  backgroundColor: 'rgba(0, 0, 0, 0.45)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onClick={() => setIsLongTextModalOpen(false)}
+              >
+                <div
+                  style={{
+                    width: '680px',
+                    maxWidth: '92vw',
+                    height: '460px',
+                    maxHeight: '85vh',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '8px',
+                    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden'
+                  }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#1e293b' }}>
+                      完整多行文字編輯器 — {field.name}
+                    </h4>
+                    <button onClick={() => setIsLongTextModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#64748b' }}>✕</button>
+                  </div>
+                  <textarea
+                    value={localVal}
+                    onChange={e => setLocalVal(e.target.value)}
+                    placeholder="在此輸入或貼上長文字內容..."
+                    style={{ flex: 1, padding: '16px', fontSize: '14px', lineHeight: 1.6, fontFamily: 'inherit', border: 'none', outline: 'none', resize: 'none', color: '#0f172a' }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <span style={{ fontSize: '12px', color: '#64748b' }}>{charCount} 個字元 | {lineCount} 行記錄</span>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => setIsLongTextModalOpen(false)}
+                        style={{ padding: '6px 14px', background: '#e2e8f0', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={handleSaveLongText}
+                        style={{ padding: '6px 16px', background: '#2563eb', border: 'none', borderRadius: '6px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        確認儲存
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
+          </>
+        );
+      }
+
+      if (['autonumber', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'formula', 'lookup', 'rollup'].includes(field.type)) {
+        onCancelEdit();
+        return null;
+      }
+
+      const inputType = field.type === 'number' ? 'number' 
+        : field.type === 'date' ? 'date' 
+        : field.type === 'email' ? 'email' 
+        : field.type === 'url' ? 'url' 
+        : field.type === 'phone' ? 'tel' 
+        : 'text';
 
       return (
         <input
           ref={inputRef}
           type={inputType}
           value={localVal}
-          onChange={(e) => setLocalVal(e.target.value)}
+          onChange={(e) => {
+            const nextVal = e.target.value;
+            setLocalVal(nextVal);
+            if (field.type === 'date' && nextVal) {
+              onUpdate(nextVal);
+            }
+          }}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           style={{
@@ -504,11 +1026,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       
       if (items.length > 0) {
         return (
-          <div style={{ display: 'flex', gap: '4px', padding: '0 8px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '4px', padding: '0 8px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
             {items.map((itemStr, i) => {
               const { bg, text } = getOptionColor(itemStr);
               return (
-                <span key={i} style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                <span key={i} style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                   {itemStr}
                 </span>
               );
@@ -516,6 +1038,285 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           </div>
         );
       }
+    }
+
+    if (field.type === 'collaborator') {
+      // Parse collaborator value: [{id, username}] or JSON string thereof
+      let collabItems: Array<{ id: number; username: string }> = [];
+      if (Array.isArray(value)) {
+        collabItems = value.map(item => {
+          if (typeof item === 'object' && item !== null) {
+            return { id: Number(item.id), username: String(item.username || item.name || `ID: ${item.id}`) };
+          }
+          return { id: Number(item), username: `ID: ${item}` };
+        });
+      } else if (typeof value === 'string' && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            collabItems = parsed.map((item: any) => {
+              if (typeof item === 'object' && item !== null) {
+                return { id: Number(item.id), username: String(item.username || item.name || `ID: ${item.id}`) };
+              }
+              return { id: Number(item), username: `ID: ${item}` };
+            });
+          }
+        } catch {}
+      }
+
+      if (collabItems.length > 0) {
+        return (
+          <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
+            {collabItems.map((item, i) => (
+              <span key={i} style={{ background: '#e0e7ff', color: '#4338ca', border: '1px solid #a5b4fc', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {item.username}
+              </span>
+            ))}
+          </div>
+        );
+      }
+
+      return (
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 8px', fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>
+          —
+        </span>
+      );
+    }
+
+    if (field.type === 'link_row') {
+      const primaryField = targetFields[0];
+      const primaryKey = primaryField ? `field_${primaryField.id}` : null;
+
+      const formatItem = (item: any): { id: number; value: string } => {
+        if (typeof item === 'object' && item !== null) {
+          const numId = Number(item.id || 0);
+          let label = String(item.value || '');
+          if (!label || label.startsWith('列 ID:')) {
+            const rRow = relationRows.find(r => r.id === numId);
+            if (rRow && primaryKey && rRow.data?.[primaryKey]) {
+              label = String(rRow.data[primaryKey]);
+            }
+          }
+          return { id: numId, value: label || `列 ID: ${numId}` };
+        }
+        const numId = Number(item);
+        let label = '';
+        const rRow = relationRows.find(r => r.id === numId);
+        if (rRow && primaryKey && rRow.data?.[primaryKey]) {
+          label = String(rRow.data[primaryKey]);
+        }
+        return { id: numId, value: label || `列 ID: ${numId}` };
+      };
+
+      let linkItems: Array<{ id: number; value: string }> = [];
+      if (Array.isArray(value)) {
+        linkItems = value.map(formatItem);
+      } else if (typeof value === 'string' && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            linkItems = parsed.map(formatItem);
+          }
+        } catch {}
+      }
+
+      return (
+        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%' }}>
+          {linkItems.map((item, i) => (
+            <span key={i} style={{ background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500 }}>
+              {item.value}
+            </span>
+          ))}
+
+          {(isCellHovered || isSelected) && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartEdit();
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1px 6px',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                color: '#64748b',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+              title="新增/編輯關聯"
+            >
+              +
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (field.type === 'long_text') {
+      const textStr = value !== null && value !== undefined ? String(value) : '';
+      const firstLine = textStr.split('\n')[0];
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 8px', overflow: 'hidden' }}>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontSize: '13px', color: '#1e293b' }}>
+            {firstLine}
+          </span>
+          {(isCellHovered || isSelected) && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartEdit();
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1px 5px',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                color: '#64748b',
+                cursor: 'pointer',
+                flexShrink: 0,
+                marginLeft: '4px'
+              }}
+              title="開啟多行文字編輯器"
+            >
+              📄
+            </span>
+          )}
+        </div>
+      );
+    }
+
+    if (field.type === 'rating') {
+      const ratingVal = Math.min(5, Math.max(0, parseInt(String(value || 0)) || 0));
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '0 8px', width: '100%' }}>
+          {[1, 2, 3, 4, 5].map((starNum) => (
+            <span
+              key={starNum}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdate(starNum === ratingVal ? 0 : starNum);
+              }}
+              style={{ cursor: 'pointer', color: starNum <= ratingVal ? '#f59e0b' : '#cbd5e1', fontSize: '15px' }}
+            >
+              ★
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    if (field.type === 'url') {
+      const urlStr = value != null ? String(value).trim() : '';
+      if (!urlStr) return <span style={{ padding: '0 8px', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>—</span>;
+      const href = urlStr.startsWith('http://') || urlStr.startsWith('https://') ? urlStr : `https://${urlStr}`;
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: '#2563eb', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px' }}
+          >
+            🔗 {urlStr}
+          </a>
+        </div>
+      );
+    }
+
+    if (field.type === 'email') {
+      const emailStr = value != null ? String(value).trim() : '';
+      if (!emailStr) return <span style={{ padding: '0 8px', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>—</span>;
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
+          <a
+            href={`mailto:${emailStr}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: '#2563eb', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px' }}
+          >
+            ✉️ {emailStr}
+          </a>
+        </div>
+      );
+    }
+
+    if (field.type === 'phone') {
+      const phoneStr = value != null ? String(value).trim() : '';
+      if (!phoneStr) return <span style={{ padding: '0 8px', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>—</span>;
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
+          <a
+            href={`tel:${phoneStr}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{ color: '#0f172a', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px' }}
+          >
+            📞 {phoneStr}
+          </a>
+        </div>
+      );
+    }
+
+    if (field.type === 'autonumber') {
+      return (
+        <span style={{ fontFamily: 'monospace', padding: '0 8px', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>
+          #{value ?? ''}
+        </span>
+      );
+    }
+
+    if (field.type === 'number') {
+      return (
+        <span style={{ width: '100%', padding: '0 8px', textAlign: 'right', fontSize: '13px', color: '#1e293b', fontFamily: 'monospace' }}>
+          {value !== null && value !== undefined && value !== '' ? Number(value).toLocaleString() : ''}
+        </span>
+      );
+    }
+
+    if (field.type === 'created_on' || field.type === 'last_modified_on') {
+      const dStr = value ? formatDateValue(value) : '';
+      return (
+        <span style={{ padding: '0 8px', fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          🕒 {dStr || '—'}
+        </span>
+      );
+    }
+
+    if (field.type === 'created_by' || field.type === 'last_modified_by') {
+      return (
+        <span style={{ padding: '0 8px', fontSize: '12px', color: '#475569', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          👤 {value ? String(value) : '系統'}
+        </span>
+      );
+    }
+
+    if (field.type === 'formula' || field.type === 'lookup' || field.type === 'rollup') {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%', background: '#f8fafc', height: '100%' }}>
+          <span style={{ fontSize: '11px', color: '#64748b' }}>ƒ</span>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px', color: '#334155' }}>
+            {value !== null && value !== undefined ? String(value) : '—'}
+          </span>
+        </div>
+      );
+    }
+
+    if (field.type === 'date') {
+      const dateDisplay = formatDateValue(value);
+      return (
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b' }}>
+          {dateDisplay}
+        </span>
+      );
     }
 
     return (
@@ -550,16 +1351,19 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
   return (
     <div
+      ref={cellRef}
       onMouseDown={(e) => {
         if (!isEditing && e.button === 0) {
           onSelect(e);
         }
       }}
       onMouseEnter={() => {
+        setIsCellHovered(true);
         if (!isEditing) {
           onMouseEnterCell?.();
         }
       }}
+      onMouseLeave={() => setIsCellHovered(false)}
       onDoubleClick={onStartEdit}
       style={{ 
         width: `var(--field-width-${field.id}, ${cellWidth}px)`,
@@ -570,6 +1374,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         display: 'flex',
         alignItems: 'center',
         height: 'var(--row-height, 32px)',
+        overflow: 'hidden',
         userSelect: 'none',
         zIndex: isEditing ? 100 : (isSelected || isInRange ? 10 : undefined)
       }}

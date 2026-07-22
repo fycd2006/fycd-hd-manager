@@ -37,42 +37,24 @@ model Notification {
   @@index([userId])
 }
 
-model Project {
-  id          Int         @id @default(autoincrement())
-  name        String
-  description String?     @db.Text
-  status      String      @default("active") // active, completed, pending
-  equipments  Equipment[]
-  createdAt   DateTime    @default(now())
-}
-
-model Equipment {
-  id           Int      @id @default(autoincrement())
-  name         String
-  category     String
-  serialNumber String   @unique
-  status       String   @default("available") // available, in_use, maintenance
-  project      Project? @relation(fields: [projectId], references: [id])
-  projectId    Int?
-  createdAt    DateTime @default(now())
-}
 
 // =============================================
 // Baserow 風格：動態資料表系統
 // =============================================
 
 model DatabaseTable {
-  id         Int          @id @default(autoincrement())
-  name       String
-  order      Int          @default(0)
-  fields     TableField[]
-  rows       TableRow[]
-  views      TableView[]
-  databaseId Int?
-  database   Database?    @relation(fields: [databaseId], references: [id], onDelete: Cascade)
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  deletedAt  DateTime?
+  id                Int          @id @default(autoincrement())
+  name              String
+  order             Int          @default(0)
+  autonumberCounter Int          @default(0)
+  fields            TableField[]
+  rows              TableRow[]
+  views             TableView[]
+  databaseId        Int?
+  database          Database?    @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
 }
 
 model TableField {

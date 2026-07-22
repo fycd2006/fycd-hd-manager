@@ -48,6 +48,15 @@ export async function DELETE(
     const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageStructure' })
     if (errorResponse) return errorResponse
 
+    // Primary Field Lock Protection: Prevent deleting the first field (order min)
+    const firstField = await prisma.tableField.findFirst({
+      where: { tableId: tid, deletedAt: null },
+      orderBy: { order: 'asc' }
+    })
+    if (firstField && firstField.id === fid) {
+      return NextResponse.json({ error: '主要欄位（第一順位欄位）為系統核心欄位，禁止刪除' }, { status: 400 })
+    }
+
     await prisma.tableField.update({
       where: { id: fid },
       data: { deletedAt: new Date() }

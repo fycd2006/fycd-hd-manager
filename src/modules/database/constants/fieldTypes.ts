@@ -20,7 +20,6 @@ export const FIELD_TYPE_ICONS: Record<string, () => React.ReactNode> = {
   url: Icons.Link,
   email: Icons.Mail,
   link_row: Icons.Database,
-  file: Icons.File,
   lookup: Icons.Search,
   rollup: Icons.Columns,
   formula: Icons.Hash,
@@ -49,7 +48,6 @@ export const FIELD_TYPE_LABELS: Record<string, string> = {
   email: '電子郵件',
   phone: '電話號碼 (Phone)',
   link_row: '連結其它資料表 (Link Row)',
-  file: '檔案附件 (File)',
   lookup: '查閱關聯欄位 (Lookup)',
   rollup: '聚合關聯欄位 (Rollup)',
   formula: '公式運算欄位 (Formula)',
@@ -80,7 +78,6 @@ export const AVAILABLE_FIELD_TYPES = [
   'lookup',
   'rollup',
   'formula',
-  'file',
   'collaborator',
   'autonumber',
 ]
@@ -107,9 +104,9 @@ export const ROLLUP_FUNCTIONS = [
  */
 export const FILTER_OPERATORS = {
   text: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
-  number: ['equals', 'not_equals', 'empty', 'not_empty'],
+  number: ['equals', 'not_equals', 'higher_than', 'higher_than_or_equal', 'lower_than', 'lower_than_or_equal', 'empty', 'not_empty'],
   boolean: ['equals'],
-  date: ['equals', 'empty', 'not_empty'],
+  date: ['date_equal', 'date_before', 'date_after', 'empty', 'not_empty'],
   default: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
 }
 

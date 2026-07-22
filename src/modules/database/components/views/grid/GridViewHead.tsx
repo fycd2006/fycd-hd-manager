@@ -3,6 +3,7 @@
 import React from 'react';
 import { 
   Type, 
+  AlignLeft,
   Hash, 
   List, 
   Calendar, 
@@ -10,6 +11,16 @@ import {
   Link2, 
   Paperclip, 
   Star, 
+  Globe,
+  Mail,
+  Phone,
+  Users,
+  Search,
+  Columns,
+  Calculator,
+  Binary,
+  Clock,
+  UserCheck,
   Plus, 
   ChevronDown,
   ArrowUp,
@@ -19,7 +30,7 @@ import { TableField } from '@/modules/database/types';
 
 const FIELD_TYPE_ICONS: Record<string, React.ElementType> = {
   text: Type,
-  long_text: Type,
+  long_text: AlignLeft,
   number: Hash,
   single_select: List,
   multiple_select: List,
@@ -28,6 +39,18 @@ const FIELD_TYPE_ICONS: Record<string, React.ElementType> = {
   link_row: Link2,
   file: Paperclip,
   rating: Star,
+  url: Globe,
+  email: Mail,
+  phone: Phone,
+  collaborator: Users,
+  lookup: Search,
+  rollup: Columns,
+  formula: Calculator,
+  autonumber: Binary,
+  created_on: Clock,
+  last_modified_on: Clock,
+  created_by: UserCheck,
+  last_modified_by: UserCheck,
 };
 
 interface GridViewHeadProps {

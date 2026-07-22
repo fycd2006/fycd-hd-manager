@@ -48,3 +48,4 @@ tmp_baserow_ref/
 /c
 *.db
 *.db-journal
+scratch/

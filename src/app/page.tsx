@@ -1,13 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import RowDetailModal from '@/components/RowDetailModal'
-import RowEditModal from '@/modules/database/components/modals/RowEditModal'
-import KanbanView from '@/modules/database/components/views/kanban/KanbanView'
-import GalleryView from '@/modules/database/components/views/gallery/GalleryView'
-import CalendarView from '@/modules/database/components/views/calendar/CalendarView'
-import TimelineView from '@/modules/database/components/views/timeline/TimelineView'
-import FormView from '@/modules/database/components/views/form/FormView'
+import DatabaseViewRouter from '@/modules/database/components/views/DatabaseViewRouter'
+import GlobalModalsContainer from '@/modules/database/components/modals/GlobalModalsContainer'
+import useTableCSV from '@/modules/database/hooks/useTableCSV'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { PanelLeft, PanelLeftClose, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, AlignJustify, Search } from 'lucide-react'
 import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
@@ -137,8 +133,7 @@ export default function Home() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [draggedFieldId, setDraggedFieldId] = useState<number | null>(null)
   
-  // CSV Import Refs
-  const csvInputRef = useRef<HTMLInputElement>(null)
+  // Edit Input Ref
   const editInputRef = useRef<HTMLInputElement>(null)
   
   // Other UI state
@@ -250,6 +245,19 @@ export default function Home() {
     }
   }, [uiActions])
 
+  // CSV Hook
+  const { csvInputRef, handleExportCSV, handleCSVImport } = useTableCSV({
+    activeTableId: wsState.activeTableId,
+    fields,
+    rows,
+    hiddenFieldKeys,
+    workspaces: wsState.workspaces,
+    setFields,
+    setGridLoading,
+    fetchTableData,
+    addToast: uiActions.addToast,
+  })
+
   const fetchViews = useCallback(async (tableId: number) => {
     try {
       const data = await viewService.fetchViews(tableId)
@@ -320,7 +328,7 @@ export default function Home() {
       const field = fields.find(f => f.id === fieldId)
       
       let payloadValue = value
-      if (field?.type === 'link_row' && Array.isArray(value)) {
+      if ((field?.type === 'link_row' || field?.type === 'collaborator') && Array.isArray(value)) {
         payloadValue = value.map(item => {
           if (item && typeof item === 'object' && !Array.isArray(item)) {
             return (item as any).id
@@ -332,8 +340,8 @@ export default function Home() {
       const targetRow = rows.find(r => r.id === rowId)
       const oldValue = targetRow ? targetRow.data[fieldKey] : null
 
-      // Optimistically update UI state immediately
-      setRows(prev => prev.map(r => r.id === rowId ? { ...r, data: { ...r.data, [fieldKey]: payloadValue } } : r))
+      // Optimistically update UI state immediately (preserving object values for tags)
+      setRows(prev => prev.map(r => r.id === rowId ? { ...r, data: { ...r.data, [fieldKey]: value } } : r))
 
       const result = await rowService.updateCell(wsState.activeTableId, rowId, fieldKey, payloadValue)
       
@@ -382,7 +390,6 @@ export default function Home() {
             case 'boolean': baseData[key] = false; break
             case 'number': baseData[key] = null; break
             case 'link_row': baseData[key] = []; break
-            case 'file': baseData[key] = []; break
             case 'multiple_select': baseData[key] = []; break
             default: baseData[key] = ''
           }
@@ -440,70 +447,7 @@ export default function Home() {
     }
   }
 
-  // CSV Export using new utils
-  const handleExportCSV = () => {
-    try {
-      const tableName = wsState.workspaces
-        .flatMap(w => w.databases)
-        .flatMap(d => d.tables)
-        .find(t => t.id === wsState.activeTableId)?.name || 'export'
-      
-      exportToCSV(fields, rows, hiddenFieldKeys, tableName)
-      uiActions.addToast('已導出 CSV 檔案', 'success')
-    } catch (error) {
-      uiActions.addToast((error as Error).message || '導出失敗', 'error')
-    }
-  }
 
-  // CSV Import using new utils
-  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = async (evt) => {
-      const text = evt.target?.result as string
-      if (!text) return
-
-      try {
-        setGridLoading(true)
-        const { headers, rows: csvRows } = parseCSVFile(text)
-        
-        // Create fields from headers if they don't exist
-        for (let i = 0; i < headers.length; i++) {
-          const header = headers[i]
-          if (!fields.find(f => f.name === header)) {
-            await fieldService.createField(wsState.activeTableId!, {
-              name: header,
-              type: 'text',
-              options: null
-            })
-          }
-        }
-
-        // Refresh fields after creating new ones
-        const updatedFields = await fieldService.fetchFields(wsState.activeTableId!)
-        setFields(updatedFields)
-
-        // Import rows
-        for (const csvRow of csvRows) {
-          const rowData = csvRowToTableRow(csvRow, updatedFields)
-          await rowService.createRow(wsState.activeTableId!, rowData)
-        }
-
-        await fetchTableData(wsState.activeTableId!)
-        uiActions.addToast('CSV 匯入成功', 'success')
-      } catch (error) {
-        uiActions.addToast((error as Error).message || 'CSV 匯入失敗', 'error')
-      } finally {
-        setGridLoading(false)
-        if (csvInputRef.current) {
-          csvInputRef.current.value = ''
-        }
-      }
-    }
-    reader.readAsText(file)
-  }
 
   // Helper to extract cell value regardless of key format (field_1 vs 1 vs "1")
   const getCellValue = (row: TableRow, fieldKeyOrId: string) => {
@@ -653,6 +597,11 @@ export default function Home() {
     const targetIndex = fields.findIndex(f => f.id === targetFieldId)
 
     if (draggedIndex === -1 || targetIndex === -1) return
+    if (draggedIndex === 0 || targetIndex === 0) {
+      uiActions.addToast('主要欄位（第一順位欄位）位置已被鎖定，無法搬移或替代', 'error')
+      setDraggedFieldId(null)
+      return
+    }
 
     const reorderedFields = [...fields]
     const [draggedField] = reorderedFields.splice(draggedIndex, 1)
@@ -1103,325 +1052,96 @@ export default function Home() {
                 '--row-height': rowHeightSize === 'medium' ? '44px' : rowHeightSize === 'large' ? '60px' : rowHeightSize === 'extra' ? '80px' : '32px'
               } as any}
             >
-              {currentView === 'grid' && (() => {
-                const activeWorkspaceObj = wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId)
-                const activeMember = activeWorkspaceObj?.members?.find((m: any) => m.userId === authState.currentUser?.id)
-                const rolePerms = getRolePermissions(activeMember?.role || authState.currentUser?.role || 'admin')
-
-                return (
-                  <GridView
-                    visibleFields={fields.filter(f => !hiddenFieldKeys.includes(`field_${f.id}`))}
-                    displayRows={displayRows}
-                    gridLoading={gridLoading}
-                    readOnly={!rolePerms.canEditData}
-                  onUpdateCell={updateCell}
-                  frozenColumnsCount={frozenColumnsCount}
-                  columnWidths={columnWidths}
-                  sortField={sortField}
-                  sortOrder={sortOrder}
-                  groupByField={groupByField}
-                  editingFieldId={editingFieldId}
-                  editingFieldName={editingFieldName}
-                  editingCell={editingCell}
-                  editInputRef={editInputRef}
-                  searchQuery={searchQuery}
-                  filterRules={filterRules}
-                  getFrozenLeftOffset={(idx: number) => fields.slice(0, idx).reduce((sum, f) => sum + (columnWidths[`field_${f.id}`] || 150), 0)}
-                  getGroupedRows={() => groupedRows}
-                  getRowBgColorClass={getRowBgColorClass}
-                  renderCellContent={(row: TableRow, field: TableField) => {
-                    const val = row.data[`field_${field.id}`]
-                    if (val === null || val === undefined) return ''
-                    if (Array.isArray(val)) {
-                      return val.map((item, i) => (
-                        <span key={i} className="tag">
-                          {typeof item === 'object' ? (item as any).value || (item as any).name : String(item)}
-                        </span>
-                      ))
-                    }
-                    if (typeof val === 'boolean') return val ? '✓' : ''
-                    return String(val)
-                  }}
-                  onToggleSort={toggleSort}
-                  onRenameField={(fieldId: number) => {
-                    setEditingFieldId(fieldId)
-                    const field = fields.find(f => f.id === fieldId)
-                    setEditingFieldName(field?.name || '')
-                  }}
-                  onSetEditingFieldId={setEditingFieldId}
-                  onSetEditingFieldName={setEditingFieldName}
-                  onHandleColumnDragStart={handleColumnDragStart}
-                  onHandleColumnDragOver={handleColumnDragOver}
-                  onHandleColumnDrop={handleColumnDrop}
-                  onHandleResizeStart={(e: React.MouseEvent | number, fieldId: number) => {
-                    // Do nothing here during drag for performance (CSS variables handle visual resize).
-                  }}
-                  onHandleResizeEnd={(fieldId: number, newWidth: number) => {
-                    const fieldKey = `field_${fieldId}`
-                    const nextWidths = { ...columnWidths, [fieldKey]: newWidth }
-                    setColumnWidths(nextWidths)
-                    if (wsState.activeViewId) {
-                      viewService.updateViewConfig(wsState.activeTableId!, wsState.activeViewId, { columnWidths: nextWidths })
-                    }
-                  }}
-                  onSetContextMenu={setContextMenu}
-                  onExpandRow={(row: TableRow) => {
-                    setSelectedRow(row)
-                    setShowDetailModal(true)
-                  }}
-                  onDuplicateRow={duplicateRow}
-                  onDeleteRow={deleteRow}
-                  onAddRow={addRow}
-                  onShowNewFieldModal={() => setShowNewFieldModal(true)}
-                  onUpdateField={handleUpdateField}
-                  onOpenFieldContextMenu={(field, x, y) => setFieldContextMenu({ field, x, y })}
-                />
-              )
-              })()}
-
-              {currentView === 'gallery' && (
-                <GalleryView 
-                  rows={displayRows} 
-                  fields={fields} 
-                  onExpandRow={(row: TableRow) => {
-                    setSelectedRow(row)
-                    setShowDetailModal(true)
-                  }} 
-                />
-              )}
-
-              {currentView === 'kanban' && (
-                <KanbanView 
-                  rows={displayRows} 
-                  fields={fields} 
-                  readOnly={!currentUserRolePermissions.canEditData}
-                  onExpandRow={(row: TableRow) => {
-                    setSelectedRow(row)
-                    setShowDetailModal(true)
-                  }} 
-                  onUpdateCell={updateCell}
-                />
-              )}
-
-              {currentView === 'timeline' && (
-                <TimelineView 
-                  rows={displayRows} 
-                  fields={fields} 
-                  onExpandRow={(row: TableRow) => {
-                    setSelectedRow(row)
-                    setShowDetailModal(true)
-                  }} 
-                />
-              )}
+              <DatabaseViewRouter
+                currentView={currentView}
+                fields={fields}
+                hiddenFieldKeys={hiddenFieldKeys}
+                displayRows={displayRows}
+                gridLoading={gridLoading}
+                readOnly={!currentUserRolePermissions.canEditData}
+                frozenColumnsCount={frozenColumnsCount}
+                columnWidths={columnWidths}
+                sortField={sortField}
+                sortOrder={sortOrder}
+                groupByField={groupByField}
+                editingFieldId={editingFieldId}
+                editingFieldName={editingFieldName}
+                editingCell={editingCell}
+                editInputRef={editInputRef}
+                searchQuery={searchQuery}
+                filterRules={filterRules}
+                groupedRows={groupedRows}
+                getRowBgColorClass={getRowBgColorClass}
+                updateCell={updateCell}
+                toggleSort={toggleSort}
+                setEditingFieldId={setEditingFieldId}
+                setEditingFieldName={setEditingFieldName}
+                handleColumnDragStart={handleColumnDragStart}
+                handleColumnDragOver={handleColumnDragOver}
+                handleColumnDrop={handleColumnDrop}
+                setColumnWidths={setColumnWidths}
+                activeTableId={wsState.activeTableId}
+                activeViewId={wsState.activeViewId}
+                updateViewConfig={viewService.updateViewConfig}
+                setContextMenu={setContextMenu}
+                setSelectedRow={setSelectedRow}
+                setShowDetailModal={setShowDetailModal}
+                duplicateRow={duplicateRow}
+                deleteRow={deleteRow}
+                addRow={addRow}
+                setShowNewFieldModal={setShowNewFieldModal}
+                handleUpdateField={handleUpdateField}
+                setFieldContextMenu={setFieldContextMenu}
+              />
             </div>
 
-        {/* Modals - using new modular components */}
-      {wsState.showWorkspaceModal && (
-        <WorkspaceModal
-          show={wsState.showWorkspaceModal}
-          onClose={() => wsActions.setShowWorkspaceModal(false)}
-          onSubmit={async (name: string) => {
-            await wsActions.createWorkspace(name)
-          }}
-        />
-      )}
-
-      {wsState.showDatabaseModal && (
-        <DatabaseModal
-          show={wsState.showDatabaseModal}
-          onClose={() => wsActions.setShowDatabaseModal(false)}
-          onSubmit={async (name: string) => {
-            await wsActions.createDatabase(wsState.modalWsId!, name)
-          }}
-        />
-      )}
-
-      {showTableModal && (
-        <TableModal
-          show={showTableModal}
-          onClose={() => setShowTableModal(false)}
-          onSubmit={async (name: string) => {
-            if (modalDbIdForTable) {
-              const res = await wsActions.createTable(modalDbIdForTable, name)
-              if (res.ok) {
-                uiActions.addToast('資料表建立成功', 'success')
-              } else {
-                uiActions.addToast(res.error || '建立資料表失敗', 'error')
-              }
-            }
-          }}
-        />
-      )}
-
-      {showRenameModal && (
-        <RenameModal
-          show={showRenameModal}
-          onClose={() => setShowRenameModal(false)}
-          onSubmit={async (name: string) => {
-            await handleRenameSubmit(name)
-          }}
-          initialValue={renameNameValue}
-          type={renameType as 'workspace' | 'database' | 'table'}
-        />
-      )}
-
-      {showNewViewModal && (
-        <ViewModal
-          show={showNewViewModal}
-          onClose={() => setShowNewViewModal(false)}
-          onSubmit={async (name: string, type: 'grid' | 'kanban' | 'gallery' | 'calendar' | 'timeline' | 'form') => {
-            await createView(name, type)
-            setShowNewViewModal(false)
-          }}
-        />
-      )}
-
-      {showNewFieldModal && (
-        <FieldModal
-          show={showNewFieldModal}
-          editField={editingFieldForModal}
-          onClose={() => {
-            setShowNewFieldModal(false)
-            setEditingFieldForModal(null)
-          }}
-          onSubmit={async (name: string, type: string, options?: any) => {
-            if (!wsState.activeTableId) {
-              uiActions.addToast('未選擇資料表', 'error')
-              return
-            }
-            if (editingFieldForModal) {
-              await handleUpdateField(editingFieldForModal.id, { name, type, options })
-              setShowNewFieldModal(false)
-              setEditingFieldForModal(null)
-              uiActions.addToast(`欄位 "${name}" 已成功更新`, 'success')
-            } else {
-              const res = await fieldService.createField(wsState.activeTableId, { name, type, options } as any)
-              if (res.ok && res.field) {
-                setFields(prev => [...prev, res.field!])
-                setShowNewFieldModal(false)
-                uiActions.addToast(`欄位 "${name}" 已成功建立`, 'success')
-              } else {
-                uiActions.addToast(res.error || '新增欄位失敗', 'error')
-              }
-            }
-          }}
-          tables={wsState.workspaces.flatMap(w => w.databases?.flatMap(d => d.tables || []) || [])}
-          fields={fields}
-        />
-      )}
-
-      {showDetailModal && selectedRow && (
-        <RowEditModal
-          show={showDetailModal}
-          onClose={() => setShowDetailModal(false)}
-          row={selectedRow}
-          rowIndex={displayRows.findIndex(r => r.id === selectedRow.id)}
-          totalRows={displayRows.length}
-          fields={fields}
-          readOnly={!currentUserRolePermissions.canEditData}
-          onUpdateCell={updateCell}
-          onNavigatePrevious={() => {
-            const idx = displayRows.findIndex(r => r.id === selectedRow.id)
-            if (idx > 0) setSelectedRow(displayRows[idx - 1])
-          }}
-          onNavigateNext={() => {
-            const idx = displayRows.findIndex(r => r.id === selectedRow.id)
-            if (idx >= 0 && idx < displayRows.length - 1) setSelectedRow(displayRows[idx + 1])
-          }}
-        />
-      )}
-
-      {showMembersModal && (
-        <MembersModal
-          show={showMembersModal}
-          onClose={() => setShowMembersModal(false)}
-          workspace={activeTable ? wsState.workspaces.find(w => w.databases?.some(d => d.tables?.some(t => t.id === activeTable.id))) || wsState.workspaces[0] : wsState.workspaces[0]}
-          onToast={uiActions.addToast}
-          onUpdateWorkspaceMemberCount={setWorkspaceMemberCount}
-        />
-      )}
-
-      {showNotificationsModal && (
-        <NotificationsModal
-          show={showNotificationsModal}
-          onClose={() => setShowNotificationsModal(false)}
-          onToast={uiActions.addToast}
-          onRefreshWorkspaces={wsActions.fetchWorkspaces}
-        />
-      )}
-
-      {/* Field Context Menu */}
-      {fieldContextMenu && (
-        <FieldContextMenu
-          field={fieldContextMenu.field}
-          x={fieldContextMenu.x}
-          y={fieldContextMenu.y}
-          onClose={() => setFieldContextMenu(null)}
-          onEditField={(field) => {
-            setEditingFieldForModal(field)
-            setShowNewFieldModal(true)
-          }}
-          onConfigureDateDependencies={(field) => {
-            uiActions.addToast(`已設定「${field.name}」日期依賴關係`, 'info')
-          }}
-          onEditPermissions={(field) => {
-            uiActions.addToast(`已更新「${field.name}」欄位權限`, 'info')
-          }}
-          onInsertLeft={(field) => {
-            setShowNewFieldModal(true)
-            uiActions.addToast(`在「${field.name}」左側新增欄位`, 'info')
-          }}
-          onInsertRight={(field) => {
-            setShowNewFieldModal(true)
-            uiActions.addToast(`在「${field.name}」右側新增欄位`, 'info')
-          }}
-          onDuplicateField={async (field) => {
-            if (!wsState.activeTableId) return
-            const newName = `${field.name} (Copy)`
-            const res = await fieldService.createField(wsState.activeTableId, { name: newName, type: field.type, options: field.options })
-            if (res.ok && res.field) {
-              setFields(prev => [...prev, res.field!])
-              uiActions.addToast(`已複製欄位「${field.name}」`, 'success')
-            }
-          }}
-          onCreateFilter={(field) => {
-            const newRules: FilterRule[] = [...filterRules, { fieldKey: `field_${field.id}`, operator: 'contains', value: '' }]
-            setFilterRules(newRules)
-            if (wsState.activeViewId) {
-              saveViewConfig(wsState.activeViewId, { filters: JSON.stringify(newRules) })
-            }
-            uiActions.addToast(`已建立「${field.name}」的篩選條件`, 'info')
-          }}
-          onSortAsc={(field) => {
-            toggleSort(`field_${field.id}`)
-            uiActions.addToast(`已依「${field.name}」升序排序`, 'info')
-          }}
-          onSortDesc={(field) => {
-            toggleSort(`field_${field.id}`)
-            uiActions.addToast(`已依「${field.name}」降序排序`, 'info')
-          }}
-          onGroupBy={(field) => {
-            setGroupByField(`field_${field.id}`)
-            uiActions.addToast(`已依「${field.name}」分組`, 'info')
-          }}
-          onHideField={(field) => {
-            const key = `field_${field.id}`
-            if (!hiddenFieldKeys.includes(key)) {
-              const updated = [...hiddenFieldKeys, key]
-              setHiddenFieldKeys(updated)
-              if (wsState.activeViewId) {
-                saveViewConfig(wsState.activeViewId, { hiddenFields: JSON.stringify(updated) })
-              }
-              uiActions.addToast(`已隱藏欄位「${field.name}」`, 'info')
-            }
-          }}
-          onDeleteField={async (field) => {
-            if (confirm(`確定要刪除欄位「${field.name}」？`)) {
-              deleteField(field.id)
-            }
-          }}
-        />
-      )}
+      {/* Global Modals Container */}
+      <GlobalModalsContainer
+        wsState={wsState}
+        wsActions={wsActions}
+        uiActions={uiActions}
+        showTableModal={showTableModal}
+        setShowTableModal={setShowTableModal}
+        modalDbIdForTable={modalDbIdForTable}
+        showRenameModal={showRenameModal}
+        setShowRenameModal={setShowRenameModal}
+        handleRenameSubmit={handleRenameSubmit}
+        renameNameValue={renameNameValue}
+        renameType={renameType}
+        showNewViewModal={showNewViewModal}
+        setShowNewViewModal={setShowNewViewModal}
+        createView={createView}
+        showNewFieldModal={showNewFieldModal}
+        setShowNewFieldModal={setShowNewFieldModal}
+        editingFieldForModal={editingFieldForModal}
+        setEditingFieldForModal={setEditingFieldForModal}
+        handleUpdateField={handleUpdateField}
+        setFields={setFields}
+        fields={fields}
+        showDetailModal={showDetailModal}
+        setShowDetailModal={setShowDetailModal}
+        selectedRow={selectedRow}
+        setSelectedRow={setSelectedRow}
+        displayRows={displayRows}
+        currentUserRolePermissions={currentUserRolePermissions}
+        updateCell={updateCell}
+        showMembersModal={showMembersModal}
+        setShowMembersModal={setShowMembersModal}
+        activeTable={activeTable}
+        setWorkspaceMemberCount={setWorkspaceMemberCount}
+        showNotificationsModal={showNotificationsModal}
+        setShowNotificationsModal={setShowNotificationsModal}
+        fieldContextMenu={fieldContextMenu}
+        setFieldContextMenu={setFieldContextMenu}
+        filterRules={filterRules}
+        setFilterRules={setFilterRules}
+        hiddenFieldKeys={hiddenFieldKeys}
+        setHiddenFieldKeys={setHiddenFieldKeys}
+        saveViewConfig={saveViewConfig}
+        toggleSort={toggleSort}
+        setGroupByField={setGroupByField}
+        deleteField={deleteField}
+      />
           </>
         )}
 

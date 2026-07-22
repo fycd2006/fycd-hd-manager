@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { cookies } from 'next/headers'
-import { parseFormula, evaluateFormula } from '@/lib/formula'
+import { parseFormula, evaluateFormula, detectCircularDependency } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 
 async function getSessionUsername() {
@@ -30,6 +31,7 @@ export async function GET(
     const sortField = searchParams.get('sort')
     const sortOrder = searchParams.get('order') || 'asc'
     const filterParam = searchParams.get('filter')
+    const searchQuery = searchParams.get('search')?.trim()
 
     // 1. Fetch fields to identify link_row, lookup, and rollup fields
     const fields = await prisma.tableField.findMany({
@@ -49,9 +51,47 @@ export async function GET(
     })
     const userMap = new Map<number, string>(allUsers.map(u => [u.id, u.username]))
 
-    // 2. Fetch rows
+    // 2. Fetch rows (with server-side multi-field DB search across all table fields)
+    let whereCondition: any = { tableId: id, deletedAt: null }
+    if (searchQuery) {
+      const searchPattern = `%${searchQuery}%`
+      
+      const orClauses = fields.map(f => {
+        if (f.id === 1) {
+          // Field 1 uses the Generated Column index (idx_table_field_1)
+          return Prisma.sql`idx_field_1 LIKE ${searchPattern}`
+        } else {
+          // Other fields evaluate JSON_EXTRACT(data, '$.field_X')
+          const fieldPath = `$.field_${f.id}`
+          return Prisma.sql`JSON_UNQUOTE(JSON_EXTRACT(data, ${fieldPath})) LIKE ${searchPattern}`
+        }
+      })
+
+      const whereSql = orClauses.length > 0
+        ? Prisma.sql`
+            SELECT id FROM TableRow 
+            WHERE tableId = ${id} 
+              AND deletedAt IS NULL 
+              AND (${Prisma.join(orClauses, ' OR ')})
+          `
+        : Prisma.sql`
+            SELECT id FROM TableRow 
+            WHERE tableId = ${id} 
+              AND deletedAt IS NULL 
+              AND idx_field_1 LIKE ${searchPattern}
+          `
+
+      const matchingRows: any[] = await prisma.$queryRaw(whereSql)
+      const matchingIds = matchingRows.map((r: any) => Number(r.id))
+      whereCondition = {
+        tableId: id,
+        deletedAt: null,
+        id: { in: matchingIds.length > 0 ? matchingIds : [-1] }
+      }
+    }
+
     const rows = await prisma.tableRow.findMany({
-      where: { tableId: id, deletedAt: null },
+      where: whereCondition,
       orderBy: { order: 'asc' },
     })
 
@@ -127,14 +167,37 @@ export async function GET(
         where: { id: { in: Array.from(targetRowIds) }, deletedAt: null },
       })
 
+      // Fetch fields of all referenced target tables to accurately determine their Primary Field (min order)
+      const targetTableIds = Array.from(new Set(targetRows.map(tr => tr.tableId)))
+      const targetFields = await prisma.tableField.findMany({
+        where: { tableId: { in: targetTableIds }, deletedAt: null },
+        orderBy: { order: 'asc' }
+      })
+
+      // Map targetTableId -> primaryFieldKey (e.g. field_12)
+      const targetPrimaryFieldMap = new Map<number, string>()
+      targetTableIds.forEach(tid => {
+        const tfList = targetFields.filter(f => f.tableId === tid)
+        if (tfList.length > 0) {
+          targetPrimaryFieldMap.set(tid, `field_${tfList[0].id}`)
+        }
+      })
+
       targetRows.forEach(tr => {
         try {
           const trData = JSON.parse(tr.data || '{}')
           targetRowsMap.set(tr.id, trData)
           
-          const firstKey = Object.keys(trData)[0]
-          const firstVal = firstKey ? trData[firstKey] : ''
-          targetDisplayMap.set(tr.id, String(firstVal || `列 ID: ${tr.id}`))
+          const primaryKey = targetPrimaryFieldMap.get(tr.tableId)
+          let primaryVal = primaryKey ? trData[primaryKey] : null
+
+          // Fallback if primary value is empty
+          if (primaryVal == null || primaryVal === '') {
+            const firstNonEmpty = Object.values(trData).find(v => v != null && v !== '')
+            primaryVal = firstNonEmpty ?? `列 ID: ${tr.id}`
+          }
+
+          targetDisplayMap.set(tr.id, String(primaryVal))
         } catch {
           targetDisplayMap.set(tr.id, `列 ID: ${tr.id}`)
         }
@@ -166,12 +229,22 @@ export async function GET(
         const val = newData[key]
         let list: number[] = []
         if (Array.isArray(val)) {
-          list = val.map(Number).filter(n => !isNaN(n))
+          list = val.map(item => {
+            if (typeof item === 'object' && item !== null && 'id' in item) {
+              return Number(item.id)
+            }
+            return Number(item)
+          }).filter(n => !isNaN(n))
         } else if (typeof val === 'string' && val.trim()) {
           try {
             const parsedList = JSON.parse(val)
             if (Array.isArray(parsedList)) {
-              list = parsedList.map(Number).filter(n => !isNaN(n))
+              list = parsedList.map((item: any) => {
+                if (typeof item === 'object' && item !== null && 'id' in item) {
+                  return Number(item.id)
+                }
+                return Number(item)
+              }).filter(n => !isNaN(n))
             } else {
               list = val.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
             }
@@ -285,7 +358,28 @@ export async function GET(
           const cellValue = String(row.data[fieldKey] ?? '')
           switch (operator) {
             case 'contains': return cellValue.toLowerCase().includes(filterValue.toLowerCase())
+            case 'not_contains': return !cellValue.toLowerCase().includes(filterValue.toLowerCase())
             case 'equals': return cellValue === filterValue
+            case 'not_equals': return cellValue !== filterValue
+            case 'higher_than': return !isNaN(Number(cellValue)) && Number(cellValue) > Number(filterValue)
+            case 'higher_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) >= Number(filterValue)
+            case 'lower_than': return !isNaN(Number(cellValue)) && Number(cellValue) < Number(filterValue)
+            case 'lower_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) <= Number(filterValue)
+            case 'date_equal': {
+              const d1 = new Date(cellValue).getTime()
+              const d2 = new Date(filterValue).getTime()
+              return !isNaN(d1) && !isNaN(d2) && new Date(d1).toDateString() === new Date(d2).toDateString()
+            }
+            case 'date_before': {
+              const d1 = new Date(cellValue).getTime()
+              const d2 = new Date(filterValue).getTime()
+              return !isNaN(d1) && !isNaN(d2) && d1 < d2
+            }
+            case 'date_after': {
+              const d1 = new Date(cellValue).getTime()
+              const d2 = new Date(filterValue).getTime()
+              return !isNaN(d1) && !isNaN(d2) && d1 > d2
+            }
             case 'not_empty': return cellValue !== '' && cellValue !== 'null' && cellValue !== 'undefined'
             case 'empty': return cellValue === '' || cellValue === 'null' || cellValue === 'undefined'
             default: return true
@@ -307,6 +401,31 @@ export async function GET(
         return sortOrder === 'asc'
           ? String(va).localeCompare(String(vb))
           : String(vb).localeCompare(String(va))
+      })
+    }
+
+    const pageParam = searchParams.get('page')
+    const pageSizeParam = searchParams.get('pageSize')
+    const totalRows = parsed.length
+
+    if (pageSizeParam === 'all') {
+      return NextResponse.json(parsed)
+    }
+
+    if (pageParam || pageSizeParam) {
+      const page = Math.max(1, parseInt(pageParam || '1'))
+      const pageSize = Math.max(1, parseInt(pageSizeParam || '50'))
+      const startIndex = (page - 1) * pageSize
+      const paginatedRows = parsed.slice(startIndex, startIndex + pageSize)
+
+      return NextResponse.json({
+        rows: paginatedRows,
+        pagination: {
+          page,
+          pageSize,
+          totalRows,
+          totalPages: Math.ceil(totalRows / pageSize)
+        }
       })
     }
 
@@ -345,27 +464,42 @@ export async function POST(
       }
     })
 
-    // Compute Autonumbers for the table
+    // Compute Autonumbers for the table atomically
     const autonumberFields = fields.filter(f => f.type === 'autonumber')
     if (autonumberFields.length > 0) {
-      const existingRows = await prisma.tableRow.findMany({
-        where: { tableId: id },
-        select: { data: true }
+      const dbTable = await prisma.databaseTable.findUnique({ where: { id } })
+      if (dbTable && dbTable.autonumberCounter === 0) {
+        const existingRows = await prisma.tableRow.findMany({
+          where: { tableId: id },
+          select: { data: true }
+        })
+        let maxVal = 0
+        autonumberFields.forEach(f => {
+          const key = `field_${f.id}`
+          existingRows.forEach(r => {
+            try {
+              const parsedData = JSON.parse(r.data || '{}')
+              const val = Number(parsedData[key])
+              if (!isNaN(val) && val > maxVal) {
+                maxVal = val
+              }
+            } catch {}
+          })
+        })
+        if (maxVal > 0) {
+          await prisma.databaseTable.update({ where: { id }, data: { autonumberCounter: maxVal } })
+        }
+      }
+
+      const updatedTable = await prisma.databaseTable.update({
+        where: { id },
+        data: { autonumberCounter: { increment: 1 } }
       })
-      
+      const nextVal = updatedTable.autonumberCounter
+
       autonumberFields.forEach(f => {
         const key = `field_${f.id}`
-        let maxVal = 0
-        existingRows.forEach(r => {
-          try {
-            const parsedData = JSON.parse(r.data || '{}')
-            const val = Number(parsedData[key])
-            if (!isNaN(val) && val > maxVal) {
-              maxVal = val
-            }
-          } catch {}
-        })
-        rowData[key] = maxVal + 1
+        rowData[key] = nextVal
       })
     }
 
@@ -396,41 +530,141 @@ export async function PATCH(
     if (errorResponse) return errorResponse
 
     const body = await request.json()
-    const { rowId, data } = body
+    const { rowId, data, fieldKey, value } = body
     const rid = parseInt(rowId)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
-
-    // Merge new field values into existing data
-    const existing = await prisma.tableRow.findFirst({
-      where: { id: rid, tableId: tid }
-    })
-    if (!existing) return NextResponse.json({ error: '找不到該列' }, { status: 404 })
 
     const fields = await prisma.tableField.findMany({ where: { tableId: tid } })
     const username = await getSessionUsername()
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
-    const existingData = JSON.parse(existing.data || '{}')
-    const mergedData = { ...existingData, ...data }
+    const updateMap: Record<string, any> = { ...(data || {}) }
+    if (fieldKey !== undefined) {
+      updateMap[fieldKey] = value
+    }
 
     fields.forEach(f => {
       const key = `field_${f.id}`
       if (f.type === 'last_modified_by') {
-        mergedData[key] = username
+        updateMap[key] = username
       } else if (f.type === 'last_modified_on') {
-        mergedData[key] = nowStr
+        updateMap[key] = nowStr
       }
     })
 
-    const updated = await prisma.tableRow.update({
-      where: { id: rid },
-      data: { data: JSON.stringify(mergedData) },
+    const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k))
+    if (entries.length > 0) {
+      const setPairs = entries.map(([k]) => `'$.${k}', CAST(? AS JSON)`).join(', ')
+      const queryParams = entries.map(([, val]) => JSON.stringify(val ?? null))
+
+      const sqlQuery = `UPDATE TableRow SET data = JSON_SET(COALESCE(NULLIF(data, ''), '{}'), ${setPairs}), updatedAt = NOW() WHERE id = ? AND tableId = ? AND deletedAt IS NULL`
+      await prisma.$executeRawUnsafe(sqlQuery, ...queryParams, rid, tid)
+    }
+
+    // Task 3: Single-Level Cascade Recomputation (300 Rows Threshold)
+    try {
+      await cascadeRecomputeSingleLevel(tid, rid)
+    } catch (e) {
+      console.warn('[Cascade Recompute Warning]:', e)
+    }
+
+    const updated = await prisma.tableRow.findUnique({
+      where: { id: rid }
     })
+
+    if (!updated) return NextResponse.json({ error: '找不到該列' }, { status: 404 })
 
     return NextResponse.json({ ...updated, data: JSON.parse(updated.data || '{}') })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '更新資料列失敗' }, { status: 500 })
+  }
+}
+
+/**
+ * Cascade recompute direct dependent rows up to 300 rows threshold (Task 3)
+ */
+async function cascadeRecomputeSingleLevel(updatedTableId: number, updatedRowId: number) {
+  const CASCADE_THRESHOLD = 300
+
+  const relationFields = await prisma.tableField.findMany({
+    where: {
+      type: { in: ['link_row', 'lookup', 'rollup'] },
+      deletedAt: null,
+    }
+  })
+
+  const dependentTableIds = new Set<number>()
+  relationFields.forEach(f => {
+    try {
+      const opts = f.options ? JSON.parse(f.options) : {}
+      if (opts.targetTableId === updatedTableId || opts.relationTableId === updatedTableId) {
+        dependentTableIds.add(f.tableId)
+      }
+    } catch {}
+  })
+
+  if (dependentTableIds.size === 0) return
+
+  const candidateRows = await prisma.tableRow.findMany({
+    where: {
+      tableId: { in: Array.from(dependentTableIds) },
+      deletedAt: null
+    }
+  })
+
+  const affectedRows: { id: number; tableId: number; data: Record<string, any> }[] = []
+  candidateRows.forEach(r => {
+    try {
+      const parsedData = JSON.parse(r.data || '{}')
+      const isLinked = Object.keys(parsedData).some(key => {
+        const val = parsedData[key]
+        if (Array.isArray(val)) {
+          return val.some(id => Number(id) === updatedRowId)
+        }
+        return false
+      })
+      if (isLinked) {
+        affectedRows.push({ id: r.id, tableId: r.tableId, data: parsedData })
+      }
+    } catch {}
+  })
+
+  if (affectedRows.length > CASCADE_THRESHOLD) {
+    console.warn(`[Cascade Recompute] Exceeded threshold (${affectedRows.length} > ${CASCADE_THRESHOLD}). Skipping synchronous cascade recompute.`)
+    return
+  }
+
+  for (const depRow of affectedRows) {
+    const depFields = await prisma.tableField.findMany({ where: { tableId: depRow.tableId, deletedAt: null } })
+    const depData = { ...depRow.data }
+    
+    const formulaMap: Record<string, string> = {}
+    depFields.forEach(f => {
+      if (f.type === 'formula' && f.options) formulaMap[`field_${f.id}`] = f.options
+    })
+
+    depFields.forEach(f => {
+      const key = `field_${f.id}`
+      if (f.type === 'formula' && f.options) {
+        if (detectCircularDependency(key, formulaMap)) {
+          depData[key] = '#CIRCULAR!'
+        } else {
+          try {
+            const ast = parseFormula(f.options)
+            const res = evaluateFormula(ast, depData)
+            depData[key] = res != null ? String(res) : ''
+          } catch {
+            depData[key] = '#VALUE!'
+          }
+        }
+      }
+    })
+
+    await prisma.tableRow.update({
+      where: { id: depRow.id },
+      data: { data: JSON.stringify(depData) }
+    })
   }
 }
 
