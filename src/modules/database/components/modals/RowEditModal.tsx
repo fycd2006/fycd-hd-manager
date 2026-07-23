@@ -249,10 +249,17 @@ export default function RowEditModal({
                             rows={3}
                             style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', fontFamily: 'inherit' }}
                           />
+                        ) : ['formula', 'lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'uuid'].includes(field.type) ? (
+                          <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {field.type === 'formula' && <span style={{ fontWeight: 700, color: '#2563eb' }}>ƒ</span>}
+                            <span>{value !== null && value !== undefined ? String(value) : ''}</span>
+                            <span style={{ marginLeft: 'auto', fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>唯讀計算欄位</span>
+                          </div>
                         ) : (
                           <input
                             type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                             className="input input--large"
+                            readOnly={readOnly}
                             value={field.type === 'date' ? formatDateValue(value) : (value ?? '')}
                             onFocus={() => handleFocusField(fieldKey)}
                             onChange={e => handleChange(field.id, e.target.value, false)}

@@ -363,6 +363,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         setType(editField.type || 'text')
         setTypeDropdownOpen(false)
         let choices: string[] = []
+        let formulaStr = ''
         if (editField.options) {
           try {
             let parsed = typeof editField.options === 'string' ? JSON.parse(editField.options) : editField.options
@@ -372,15 +373,25 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             if (Array.isArray(parsed)) choices = parsed.map(String)
             else if (parsed && Array.isArray(parsed.choices)) choices = parsed.choices.map(String)
             else if (parsed && Array.isArray(parsed.select_options)) choices = parsed.select_options.map((o: any) => typeof o === 'object' ? o.value || o.name || String(o) : String(o))
-          } catch {}
+
+            if (parsed && typeof parsed === 'object' && parsed.formula) {
+              formulaStr = String(parsed.formula)
+            } else if (typeof editField.options === 'string' && !editField.options.startsWith('{')) {
+              formulaStr = editField.options
+            }
+          } catch {
+            if (typeof editField.options === 'string') formulaStr = editField.options
+          }
         }
         setOptionsList(choices)
+        setFormula(formulaStr)
       } else {
         setName('Single line text')
         setType('text')
         setTypeDropdownOpen(true)
         setTypeSearch('')
         setOptionsList([])
+        setFormula('')
       }
     }
   }, [editField, show])
