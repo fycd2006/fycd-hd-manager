@@ -1400,7 +1400,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
   let cellBg: string | undefined = undefined;
   if (isInRange) {
-    cellBg = 'rgba(37, 99, 235, 0.12)';
+    cellBg = 'rgba(37, 99, 235, 0.08)';
   } else if (isSelected) {
     cellBg = 'rgba(37, 99, 235, 0.04)';
   }
@@ -1418,6 +1418,19 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   } else if (isSelected) {
     cellShadow = 'inset 0 0 0 2px #2563eb';
   }
+
+  // Combine selection outer border shadow with primary column shadow if isPrimary
+  let finalBoxShadow = cellShadow;
+  if (isPrimary) {
+    const primaryShadow = '2px 0 5px -2px rgba(0, 0, 0, 0.12)';
+    finalBoxShadow = cellShadow ? `${cellShadow}, ${primaryShadow}` : primaryShadow;
+  }
+
+  // Determine if autofill handle should render at bottom-right corner of selection
+  const showAutofillHandle = !isEditing && (
+    (isSelected && (!isInRange || !rangeEdges)) ||
+    (isInRange && Boolean(rangeEdges?.bottom && rangeEdges?.right))
+  );
 
   return (
     <div
@@ -1439,7 +1452,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         width: `var(--field-width-${field.id}, ${cellWidth}px)`,
         position: isPrimary ? 'sticky' : 'relative',
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
-        boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : cellShadow,
+        boxShadow: finalBoxShadow,
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
         backgroundColor: cellBg || 'var(--bg-secondary, #ffffff)',
         boxSizing: 'border-box',
@@ -1454,8 +1467,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     >
       {renderCellContent()}
 
-      {/* Baserow Autofill handle square at bottom right of selected cell */}
-      {isSelected && !isEditing && (
+      {/* Baserow Autofill handle square at bottom right of selected area */}
+      {showAutofillHandle && (
         <div
           onMouseDown={(e) => {
             e.stopPropagation();
