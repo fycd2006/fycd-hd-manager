@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Search, Plus, UserPlus, Shield, Trash2, Mail, Users, ChevronDown, Check, MoreVertical, HelpCircle, Copy } from 'lucide-react'
+import { X, Search, Plus, UserPlus, Shield, Trash2, Mail, Users, ChevronDown, Check, MoreVertical, HelpCircle, Copy, Lock } from 'lucide-react'
 import type { Workspace } from '@/modules/database/types'
 
 export interface WorkspaceMember {
@@ -395,18 +395,30 @@ export default function MembersModal({
                         <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: '#94a3b8' }}>No members found</td>
                       </tr>
                     ) : (
-                      filteredMembers.map((m) => {
-                        const currentRoleObj = WORKSPACE_ROLES.find(r => r.uid === m.role) || { uid: m.role, name: m.role.toUpperCase(), description: '', badgeColor: '#2563eb' }
+                      filteredMembers.map((m, index) => {
+                        const isCreator = index === 0 || m.role === 'owner'
+                        const currentRoleObj = isCreator
+                          ? { uid: 'admin', name: 'Admin (建立者)', description: '工作區建立者，具備最高權限且不可變更', badgeColor: '#2563eb' }
+                          : (WORKSPACE_ROLES.find(r => r.uid === m.role) || { uid: m.role, name: m.role.toUpperCase(), description: '', badgeColor: '#2563eb' })
 
                         return (
                           <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             {/* Name */}
                             <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px' }}>
+                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isCreator ? '#1d4ed8' : '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px' }}>
                                   {m.name.charAt(0).toUpperCase()}
                                 </div>
-                                <span>{m.name}</span>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>{m.name}</span>
+                                    {isCreator && (
+                                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1d4ed8', backgroundColor: '#dbeafe', padding: '1px 6px', borderRadius: '4px' }}>
+                                        建立者
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </td>
 
@@ -417,16 +429,31 @@ export default function MembersModal({
                             <td style={{ padding: '16px 20px', position: 'relative' }}>
                               <div
                                 onClick={(e) => {
+                                  if (isCreator) {
+                                    onToast('工作區建立者之角色權限固定為「系統管理員」，不可更換。', 'info')
+                                    return
+                                  }
                                   const rect = e.currentTarget.getBoundingClientRect()
                                   setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX })
                                   setActiveRoleContextMember(activeRoleContextMember?.id === m.id ? null : m)
                                 }}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}
+                                title={isCreator ? '工作區建立者之權限固定為系統管理員' : '點擊變更角色權限'}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  cursor: isCreator ? 'not-allowed' : 'pointer',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  backgroundColor: isCreator ? '#eff6ff' : '#f8fafc',
+                                  border: isCreator ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                                  opacity: isCreator ? 0.9 : 1
+                                }}
                               >
-                                <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>
+                                <span style={{ fontWeight: 600, color: isCreator ? '#1d4ed8' : '#0f172a', fontSize: '13px' }}>
                                   {currentRoleObj.name}
                                 </span>
-                                <ChevronDown size={14} color="#64748b" />
+                                {isCreator ? <Lock size={13} color="#2563eb" /> : <ChevronDown size={14} color="#64748b" />}
                               </div>
                             </td>
 
@@ -448,23 +475,31 @@ export default function MembersModal({
 
                               {activeActionMenuMemberId === m.id && (
                                 <div style={{ position: 'absolute', right: '20px', top: '100%', zIndex: 100, width: '190px', backgroundColor: '#ffffff', borderRadius: '10px', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', border: '1px solid #e2e8f0', padding: '6px 0' }}>
-                                  <button
-                                    onClick={(e) => {
-                                      const rect = e.currentTarget.getBoundingClientRect()
-                                      setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX })
-                                      setActiveRoleContextMember(m)
-                                      setActiveActionMenuMemberId(null)
-                                    }}
-                                    style={{ width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                                  >
-                                    <Shield size={14} color="#3b82f6" /> 編輯角色權限
-                                  </button>
-                                  <button
-                                    onClick={() => handleRemoveMember(m.userId, m.name)}
-                                    style={{ width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                                  >
-                                    <Trash2 size={14} color="#ef4444" /> 從工作區移除成員
-                                  </button>
+                                  {!isCreator && (
+                                    <button
+                                      onClick={(e) => {
+                                        const rect = e.currentTarget.getBoundingClientRect()
+                                        setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX })
+                                        setActiveRoleContextMember(m)
+                                        setActiveActionMenuMemberId(null)
+                                      }}
+                                      style={{ width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                    >
+                                      <Shield size={14} color="#3b82f6" /> 編輯角色權限
+                                    </button>
+                                  )}
+                                  {!isCreator ? (
+                                    <button
+                                      onClick={() => handleRemoveMember(m.userId, m.name)}
+                                      style={{ width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                    >
+                                      <Trash2 size={14} color="#ef4444" /> 從工作區移除成員
+                                    </button>
+                                  ) : (
+                                    <div style={{ padding: '9px 14px', fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                      建立者不可移除
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </td>

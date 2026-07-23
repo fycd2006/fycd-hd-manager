@@ -223,7 +223,8 @@ export default function Sidebar({
                   <li key={ws.id}>
                     <div 
                       className={`sidebar-hover-item ${activeWorkspaceId === ws.id ? 'active' : ''}`}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         onSetActiveWorkspaceId(ws.id)
                         closeMenu()
                       }}

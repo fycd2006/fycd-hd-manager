@@ -47,7 +47,7 @@ export interface WorkspaceActions {
 
 export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<number | null>(null)
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<number | null>(null)
   const [activeTableId, setActiveTableId] = useState<number | null>(null)
   const [activeViewId, setActiveViewId] = useState<number | null>(null)
   const [collapsedWorkspaces, setCollapsedWorkspaces] = useState<Record<number, boolean>>({})
@@ -73,22 +73,40 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
     }))
   }, [])
 
+  const setActiveWorkspaceId = useCallback((id: number | null) => {
+    setActiveWorkspaceIdState(id)
+    if (id !== null) {
+      setWorkspaces(currentWorkspaces => {
+        const targetWs = currentWorkspaces.find(w => w.id === id)
+        if (targetWs && targetWs.databases && targetWs.databases.length > 0) {
+          const firstTable = targetWs.databases[0]?.tables?.[0]
+          if (firstTable) {
+            setActiveTableId(firstTable.id)
+          }
+        }
+        return currentWorkspaces
+      })
+    }
+  }, [])
+
   const fetchWorkspaces = useCallback(async () => {
     const result = await workspaceService.fetchWorkspaces()
     setWorkspaces(result)
 
     if (result.length > 0) {
-      if (!activeWorkspaceId) setActiveWorkspaceId(result[0].id)
-      
-      // Set first table as active if not already set
-      if (!activeTableId) {
-        const firstTable = result[0].databases?.[0]?.tables?.[0]
-        if (firstTable) setActiveTableId(firstTable.id)
-      }
+      setActiveWorkspaceIdState(prev => {
+        const currentActive = prev ?? result[0].id
+        const targetWs = result.find(w => w.id === currentActive) || result[0]
+        const firstTable = targetWs.databases?.[0]?.tables?.[0]
+        if (firstTable) {
+          setActiveTableId(firstTable.id)
+        }
+        return currentActive
+      })
     }
 
     return result
-  }, [activeWorkspaceId, activeTableId])
+  }, [])
 
   const createWorkspace = useCallback(async (name: string) => {
     const result = await workspaceService.createWorkspace(name)

@@ -242,6 +242,16 @@ export async function PATCH(
       return NextResponse.json({ error: '缺少參數' }, { status: 400 })
     }
 
+    // Check if target user is workspace owner/creator (earliest member)
+    const firstMember = await prisma.workspaceUser.findFirst({
+      where: { workspaceId },
+      orderBy: { createdAt: 'asc' }
+    })
+
+    if (firstMember && firstMember.userId === parseInt(userId)) {
+      return NextResponse.json({ error: '工作區建立者之角色權限固定為系統管理員，無法變更' }, { status: 400 })
+    }
+
     const updated = await prisma.workspaceUser.update({
       where: { workspaceId_userId: { workspaceId, userId: parseInt(userId) } },
       data: { role }
@@ -273,8 +283,19 @@ export async function DELETE(
     const teamId = url.searchParams.get('teamId')
 
     if (userId) {
+      const targetUserId = parseInt(userId)
+      // Check if target user is workspace creator
+      const firstMember = await prisma.workspaceUser.findFirst({
+        where: { workspaceId },
+        orderBy: { createdAt: 'asc' }
+      })
+
+      if (firstMember && firstMember.userId === targetUserId) {
+        return NextResponse.json({ error: '無法將工作區建立者從工作區中移除' }, { status: 400 })
+      }
+
       await prisma.workspaceUser.delete({
-        where: { workspaceId_userId: { workspaceId, userId: parseInt(userId) } }
+        where: { workspaceId_userId: { workspaceId, userId: targetUserId } }
       })
       return NextResponse.json({ message: '成員已從工作區移除' })
     }
