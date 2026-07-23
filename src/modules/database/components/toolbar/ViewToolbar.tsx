@@ -771,23 +771,13 @@ export function ViewToolbar({
           </div>
         </li>
 
-        <li className="header__filter-item">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 12px' }}>
-            <button className="button button--ghost button--small" onClick={handleExportCSV}>
-              <i className="iconoir-download"></i> 導出 CSV
-            </button>
-            <button className="button button--ghost button--small" onClick={() => csvInputRef.current?.click()}>
-              <i className="iconoir-upload"></i> 匯入 CSV
-            </button>
-            <input
-              ref={csvInputRef}
-              type="file"
-              accept=".csv"
-              style={{ display: 'none' }}
-              onChange={handleCSVImport}
-            />
-          </div>
-        </li>
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv"
+          style={{ display: 'none' }}
+          onChange={handleCSVImport}
+        />
       </ul>
     </header>
   )
