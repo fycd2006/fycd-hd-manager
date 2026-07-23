@@ -7,6 +7,7 @@ import { ChevronRight, ChevronDown } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
+import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
 import { MultiCellContextMenu } from '@/modules/database/components/menu/MultiCellContextMenu';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 
@@ -793,53 +794,17 @@ export const GridView: React.FC<GridViewProps> = ({
           {fields.map((field) => {
             const summary = fieldSummaries[field.id];
             const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
-            const isMenuOpen = aggMenuState?.fieldId === field.id;
-
-            let displayText = '';
-            if (mode === 'count') displayText = `${summary?.count || 0} 筆填寫`;
-            else if (mode === 'empty_count') displayText = `${summary?.emptyCount || 0} 筆空白`;
-            else if (mode === 'percent') displayText = `${summary?.percentFilled || 0}% 填寫率`;
-            else if (mode === 'sum') displayText = summary?.sum !== null ? `Σ ${summary.sum}` : `${summary?.count || 0} 筆`;
-            else if (mode === 'avg') displayText = summary?.avg !== null ? `均 ${summary.avg}` : `${summary?.count || 0} 筆`;
-            else if (mode === 'min') displayText = summary?.min !== null ? `小 ${summary.min}` : '-';
-            else if (mode === 'max') displayText = summary?.max !== null ? `大 ${summary.max}` : '-';
-            else if (mode === 'unique') displayText = `${summary?.uniqueCount || 0} 項不重複`;
-            else if (mode === 'none') displayText = '';
-
             return (
-              <div
+              <GridViewFieldFooter
                 key={field.id}
-                className="grid-view__summary-cell"
-                style={{
-                  width: `var(--field-width-${field.id}, ${field.width || 180}px)`,
-                  flexShrink: 0,
-                  padding: '5px 8px',
-                  borderRight: '1px solid #e2e8f0',
-                  whiteSpace: 'nowrap',
-                  overflow: 'visible',
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  background: isMenuOpen ? '#e0f2fe' : 'transparent',
+                field={field}
+                summaryData={summary}
+                totalRowCount={rows.length}
+                aggregationMode={mode}
+                onSelectAggregationMode={(fieldId, newMode) => {
+                  setAggregationModes(prev => ({ ...prev, [fieldId]: newMode }))
                 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isMenuOpen) {
-                    setAggMenuState(null);
-                  } else {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setAggMenuState({ fieldId: field.id, x: rect.left, y: rect.top });
-                  }
-                }}
-                title="點擊切換統計方式"
-              >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 500, color: '#334155' }}>
-                  {displayText}
-                </span>
-                <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '4px' }}>▼</span>
-              </div>
+              />
             );
           })}
         </div>
