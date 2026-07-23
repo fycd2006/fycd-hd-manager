@@ -1116,45 +1116,86 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'single_select' || field.type === 'multiple_select') {
       const items = parseSelectItems(value);
-      
-      if (items.length > 0) {
-        const visibleItems = items.slice(0, 3);
-        const hiddenCount = items.length - visibleItems.length;
+      const visibleItems = items.slice(0, 3);
+      const hiddenCount = items.length - visibleItems.length;
 
-        return (
-          <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
-            {visibleItems.map((itemStr, i) => {
-              const { bg, text } = getOptionColor(itemStr);
-              return (
-                <span 
-                  key={i} 
-                  style={{ 
-                    background: bg, 
-                    color: text, 
-                    padding: '2px 8px', 
-                    borderRadius: '12px', 
-                    fontSize: '12px', 
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap', 
-                    textOverflow: 'ellipsis', 
-                    overflow: 'hidden',
-                    maxWidth: '120px',
-                    display: 'inline-block'
-                  }}
-                  title={itemStr}
-                >
-                  {itemStr}
-                </span>
-              );
-            })}
-            {hiddenCount > 0 && (
-              <span style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', padding: '2px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenCount} 個選項`}>
-                +{hiddenCount}
+      return (
+        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
+          {visibleItems.map((itemStr, i) => {
+            const { bg, text } = getOptionColor(itemStr);
+            return (
+              <span 
+                key={i} 
+                style={{ 
+                  background: bg, 
+                  color: text, 
+                  padding: '2px 8px', 
+                  borderRadius: '12px', 
+                  fontSize: '12px', 
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap', 
+                  textOverflow: 'ellipsis', 
+                  overflow: 'hidden',
+                  maxWidth: '120px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                title={itemStr}
+              >
+                <span>{itemStr}</span>
+                {isCellHovered && !isEditing && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const nextItems = items.filter(x => x !== itemStr);
+                      onUpdate(field.type === 'single_select' ? (nextItems[0] || '') : JSON.stringify(nextItems));
+                    }}
+                    style={{ cursor: 'pointer', color: text, opacity: 0.7, fontSize: '11px', lineHeight: 1 }}
+                    title="移除"
+                  >
+                    ×
+                  </span>
+                )}
               </span>
-            )}
-          </div>
-        );
-      }
+            );
+          })}
+
+          {hiddenCount > 0 && (
+            <span style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', padding: '2px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenCount} 個選項`}>
+              +{hiddenCount}
+            </span>
+          )}
+
+          {isCellHovered && !isEditing && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartEdit();
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '2px 8px',
+                background: '#f1f5f9',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#475569',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'background-color 0.15s, color 0.15s'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#475569'; }}
+              title="選擇選項"
+            >
+              +
+            </span>
+          )}
+        </div>
+      );
     }
 
     if (field.type === 'collaborator') {
