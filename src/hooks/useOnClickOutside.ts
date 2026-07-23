@@ -9,7 +9,8 @@ export function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, hand
         !ref.current ||
         ref.current.contains(target as Node) ||
         target?.closest?.('[data-relation-modal="true"]') ||
-        target?.closest?.('.portal-modal')
+        target?.closest?.('.portal-modal') ||
+        target?.closest?.('[data-longtext-portal="true"]')
       ) {
         return;
       }

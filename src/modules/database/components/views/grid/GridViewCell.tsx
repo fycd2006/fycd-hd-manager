@@ -837,6 +837,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           // Fullscreen modal overlay
           return typeof document !== 'undefined' && createPortal(
             <div
+              data-longtext-portal="true"
               style={{
                 position: 'fixed',
                 inset: 0,
@@ -941,6 +942,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           <>
             {/* Invisible backdrop to catch click-outside */}
             <div
+              data-longtext-portal="true"
               style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
               onMouseDown={() => {
                 onUpdate(localVal);
@@ -949,6 +951,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             />
             {/* Editor container */}
             <div
+              data-longtext-portal="true"
               style={{
                 position: 'fixed',
                 top: popoverPos ? popoverPos.top - 1 : 0,
