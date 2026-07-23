@@ -135,18 +135,25 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const getFieldOptions = (): string[] => {
     if (!field.options) return [];
     let rawItems: any[] = [];
-    try {
-      let parsed = typeof field.options === 'string' ? JSON.parse(field.options) : field.options;
-      if (typeof parsed === 'string') {
-        try { parsed = JSON.parse(parsed); } catch {}
-      }
-      if (Array.isArray(parsed)) rawItems = parsed;
-      else if (parsed && Array.isArray(parsed.choices)) rawItems = parsed.choices;
-      else if (parsed && Array.isArray(parsed.select_options)) rawItems = parsed.select_options;
-    } catch {
-      // Fallback below
+    let opts: any = field.options;
+    if (typeof opts === 'string') {
+      try {
+        let parsed = JSON.parse(opts);
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed); } catch {}
+        }
+        opts = parsed;
+      } catch {}
     }
-    if (rawItems.length === 0 && typeof field.options === 'string') {
+    if (Array.isArray(opts)) {
+      rawItems = opts;
+    } else if (opts && typeof opts === 'object') {
+      if (Array.isArray(opts.choices)) rawItems = opts.choices;
+      else if (Array.isArray(opts.select_options)) rawItems = opts.select_options;
+      else if (Array.isArray(opts.options)) rawItems = opts.options;
+    }
+
+    if (rawItems.length === 0 && typeof field.options === 'string' && field.options.trim()) {
       rawItems = field.options.split(',');
     }
     const cleaned = rawItems.flatMap(cleanChoice);
@@ -189,21 +196,32 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
-    if (isEditing && field.type === 'long_text' && cellRef.current) {
+    if (isEditing && cellRef.current) {
       const rect = cellRef.current.getBoundingClientRect();
       const viewportW = window.innerWidth;
       const viewportH = window.innerHeight;
-      const editorW = Math.max(400, rect.width);
-      const editorH = 200;
-      // Ensure editor doesn't overflow viewport
-      let top = rect.top;
-      let left = rect.left;
-      if (top + editorH > viewportH - 16) top = Math.max(8, viewportH - editorH - 16);
-      if (left + editorW > viewportW - 16) left = Math.max(8, viewportW - editorW - 16);
-      setPopoverPos({ top, left, width: editorW });
+
+      if (field.type === 'long_text') {
+        const editorW = Math.max(400, rect.width);
+        const editorH = 200;
+        let top = rect.top;
+        let left = rect.left;
+        if (top + editorH > viewportH - 16) top = Math.max(8, viewportH - editorH - 16);
+        if (left + editorW > viewportW - 16) left = Math.max(8, viewportW - editorW - 16);
+        setPopoverPos({ top, left, width: editorW });
+      } else if (field.type === 'single_select' || field.type === 'multiple_select') {
+        const editorW = Math.max(220, rect.width);
+        const editorH = 260;
+        let top = rect.bottom + 2;
+        let left = rect.left;
+        if (top + editorH > viewportH - 16) top = Math.max(8, rect.top - editorH - 4);
+        if (left + editorW > viewportW - 16) left = Math.max(8, viewportW - editorW - 16);
+        setPopoverPos({ top, left, width: editorW });
+      }
     }
     if (!isEditing) {
       setIsLongTextExpanded(false);
+      setComboSearch('');
     }
   }, [isEditing, field.type]);
 
@@ -581,117 +599,144 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         const isExactMatch = options.some(opt => opt.toLowerCase() === comboSearch.toLowerCase());
 
         return (
-          <div 
-            tabIndex={0}
-            onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                 onUpdate(localVal);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') onCancelEdit();
-              if (e.key === 'Enter' && comboSearch) {
-                 const finalVal = comboSearch;
-                 if (!isExactMatch && onUpdateField) {
-                   const newOptions = [...options, comboSearch];
-                   onUpdateField(field.id, { options: { choices: newOptions } as any });
-                 }
-                 setLocalVal(finalVal);
-                 onUpdate(finalVal);
-                 onCancelEdit();
-              }
-            }}
-            style={{
-              position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-              background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', 
-              zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
-              alignItems: 'center', padding: '0 8px'
-            }}
-          >
-            {localVal ? (
-              <span style={{ ...getOptionColor(localVal), padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                {localVal}
-              </span>
-            ) : (
-              <span style={{ color: '#94a3b8', fontSize: '13px' }}>請選擇...</span>
-            )}
-            <div style={{ marginLeft: 'auto', color: '#64748b' }}>
-              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            
-            {/* Dropdown Menu */}
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: '200px',
-              background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
-              borderRadius: '6px', maxHeight: '250px', display: 'flex', flexDirection: 'column', zIndex: 10000
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          <>
+            <div 
+              tabIndex={0}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node) && !document.querySelector('[data-select-portal="true"]')?.contains(e.relatedTarget as Node)) {
+                   onUpdate(localVal);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') onCancelEdit();
+                if (e.key === 'Enter' && comboSearch) {
+                   const finalVal = comboSearch;
+                   if (!isExactMatch && onUpdateField) {
+                     const newOptions = [...options, comboSearch];
+                     onUpdateField(field.id, { options: { choices: newOptions } as any });
+                   }
+                   setLocalVal(finalVal);
+                   onUpdate(finalVal);
+                   onCancelEdit();
+                }
+              }}
+              style={{
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+                background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', 
+                zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
+                alignItems: 'center', padding: '0 8px'
+              }}
+            >
+              {localVal ? (
+                <span style={{ ...getOptionColor(localVal), padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                  {localVal}
+                </span>
+              ) : (
+                <span style={{ color: '#94a3b8', fontSize: '13px' }}>請選擇...</span>
+              )}
+              <div style={{ marginLeft: 'auto', color: '#64748b' }}>
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                <input
-                  ref={inputRef as any}
-                  autoFocus
-                  type="text"
-                  value={comboSearch}
-                  onChange={(e) => setComboSearch(e.target.value)}
-                  placeholder="搜尋或輸入新增..."
-                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
-                />
-              </div>
-              <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
-                {filteredOptions.map((opt, i) => {
-                  const { bg, text } = getOptionColor(opt);
-                  const isSelected = localVal === opt;
-                  return (
-                    <div 
-                      key={i} 
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setLocalVal(opt);
-                        onUpdate(opt);
-                        onCancelEdit();
-                      }}
-                      style={{ padding: '6px 12px', cursor: 'pointer', background: isSelected ? '#f8fafc' : 'transparent', display: 'flex', alignItems: 'center' }}
-                      onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.background = '#f8fafc' }}
-                      onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#f8fafc' : 'transparent'}
-                    >
-                      <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
-                        {opt}
-                      </span>
-                    </div>
-                  );
-                })}
-                {comboSearch && !isExactMatch && (
-                  <div 
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (onUpdateField) {
-                        const newOptions = [...options, comboSearch];
-                        onUpdateField(field.id, { options: { choices: newOptions } as any });
-                      }
-                      setLocalVal(comboSearch);
-                      onUpdate(comboSearch);
-                      onCancelEdit();
-                    }}
-                    style={{ padding: '6px 12px', fontSize: '13px', cursor: 'pointer', color: '#2563eb', fontStyle: 'italic' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    建立 "{comboSearch}"
-                  </div>
-                )}
-                {filteredOptions.length === 0 && !comboSearch && (
-                  <div style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>無選項，請直接搜尋建立</div>
-                )}
               </div>
             </div>
-          </div>
+
+            {typeof document !== 'undefined' && createPortal(
+              <>
+                <div 
+                  data-select-portal="true"
+                  style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
+                  onMouseDown={() => {
+                    onUpdate(localVal);
+                    onCancelEdit();
+                  }}
+                />
+                <div
+                  data-select-portal="true"
+                  style={{
+                    position: 'fixed',
+                    top: popoverPos ? popoverPos.top : 0,
+                    left: popoverPos ? popoverPos.left : 0,
+                    minWidth: popoverPos ? popoverPos.width : 220,
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
+                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)', 
+                    borderRadius: '8px',
+                    maxHeight: '260px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    zIndex: 999999,
+                    overflow: 'hidden'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input
+                      ref={inputRef as any}
+                      autoFocus
+                      type="text"
+                      value={comboSearch}
+                      onChange={(e) => setComboSearch(e.target.value)}
+                      placeholder="搜尋或輸入新增..."
+                      style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
+                    />
+                  </div>
+                  <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
+                    {filteredOptions.map((opt, i) => {
+                      const { bg, text } = getOptionColor(opt);
+                      const isSelected = localVal === opt;
+                      return (
+                        <div 
+                          key={i} 
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLocalVal(opt);
+                            onUpdate(opt);
+                            onCancelEdit();
+                          }}
+                          style={{ padding: '6px 12px', cursor: 'pointer', background: isSelected ? '#f1f5f9' : 'transparent', display: 'flex', alignItems: 'center' }}
+                          onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.background = '#f8fafc' }}
+                          onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#f1f5f9' : 'transparent'}
+                        >
+                          <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
+                            {opt}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {comboSearch && !isExactMatch && (
+                      <div 
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (onUpdateField) {
+                            const newOptions = [...options, comboSearch];
+                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                          }
+                          setLocalVal(comboSearch);
+                          onUpdate(comboSearch);
+                          onCancelEdit();
+                        }}
+                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#2563eb', fontWeight: 500, background: '#eff6ff' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#dbeafe'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#eff6ff'}
+                      >
+                        + 建立 "{comboSearch}"
+                      </div>
+                    )}
+                    {filteredOptions.length === 0 && !comboSearch && (
+                      <div style={{ padding: '12px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
+                    )}
+                  </div>
+                </div>
+              </>,
+              document.body
+            )}
+          </>
         );
       }
 
@@ -706,147 +751,172 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         const searchAlreadySelected = currentItems.some(item => item.toLowerCase() === comboSearch.toLowerCase());
 
         return (
-          <div 
-            tabIndex={0}
-            onBlur={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                 handleBlur();
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') onCancelEdit();
-              if (e.key === 'Enter' && comboSearch && !searchAlreadySelected) {
-                 if (!isExactMatch && onUpdateField) {
-                   const newOptions = [...options, comboSearch];
-                   onUpdateField(field.id, { options: { choices: newOptions } as any });
-                 }
-                 const nextItems = [...currentItems, comboSearch];
-                 const nextVal = JSON.stringify(nextItems);
-                 setLocalVal(nextVal);
-                 onUpdate(nextVal);
-                 setComboSearch(''); // reset search after enter
-                 e.preventDefault(); // prevent ending edit
-              }
-            }}
-            style={{
-              position: 'absolute', top: 0, left: 0, width: '100%', minHeight: '100%', 
-              background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', 
-              zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
-              flexWrap: 'wrap', gap: '4px', padding: '4px 8px', alignItems: 'center'
-            }}
-          >
-            {currentItems.map((item, i) => {
-              const { bg, text } = getOptionColor(item);
-              return (
-                <span key={i} style={{ background: bg, color: text, padding: '2px 6px', borderRadius: '9999px', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
-                  {item}
-                  <span 
-                    onClick={() => {
-                      const nextItems = currentItems.filter(v => v !== item);
-                      const nextVal = JSON.stringify(nextItems);
-                      setLocalVal(nextVal);
-                      onUpdate(nextVal);
-                    }}
-                    style={{ marginLeft: '4px', cursor: 'pointer', opacity: 0.6 }}
-                  >×</span>
-                </span>
-              );
-            })}
-            
-            <div style={{ marginLeft: 'auto', color: '#64748b' }}>
-              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            
-            {/* Dropdown Menu */}
-            <div
-              data-grid-portal="true"
+          <>
+            <div 
+              tabIndex={0}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node) && !document.querySelector('[data-select-portal="true"]')?.contains(e.relatedTarget as Node)) {
+                   handleBlur();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') onCancelEdit();
+                if (e.key === 'Enter' && comboSearch && !searchAlreadySelected) {
+                   if (!isExactMatch && onUpdateField) {
+                     const newOptions = [...options, comboSearch];
+                     onUpdateField(field.id, { options: { choices: newOptions } as any });
+                   }
+                   const nextItems = [...currentItems, comboSearch];
+                   const nextVal = JSON.stringify(nextItems);
+                   setLocalVal(nextVal);
+                   onUpdate(nextVal);
+                   setComboSearch(''); // reset search after enter
+                   e.preventDefault(); // prevent ending edit
+                }
+              }}
               style={{
-              position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: '200px',
-              background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
-              borderRadius: '6px', maxHeight: '250px', display: 'flex', flexDirection: 'column', zIndex: 10000
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <input
-                  ref={inputRef as any}
-                  autoFocus
-                  type="text"
-                  value={comboSearch}
-                  onChange={(e) => setComboSearch(e.target.value)}
-                  placeholder="搜尋或輸入新增..."
-                  style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
-                />
-              </div>
-              <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
-                {filteredOptions.map((opt, i) => {
-                  const isSelected = currentItems.includes(opt);
-                  const { bg, text } = getOptionColor(opt);
-                  return (
-                    <div 
-                      key={i} 
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        let nextItems = [...currentItems];
-                        if (!isSelected) nextItems.push(opt);
-                        else nextItems = nextItems.filter(item => item !== opt);
+                position: 'absolute', top: 0, left: 0, width: '100%', minHeight: '100%', 
+                background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', 
+                zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
+                flexWrap: 'wrap', gap: '4px', padding: '4px 8px', alignItems: 'center'
+              }}
+            >
+              {currentItems.map((item, i) => {
+                const { bg, text } = getOptionColor(item);
+                return (
+                  <span key={i} style={{ background: bg, color: text, padding: '2px 6px', borderRadius: '9999px', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
+                    {item}
+                    <span 
+                      onClick={() => {
+                        const nextItems = currentItems.filter(v => v !== item);
                         const nextVal = JSON.stringify(nextItems);
                         setLocalVal(nextVal);
                         onUpdate(nextVal);
                       }}
-                      style={{ 
-                        padding: '6px 12px', cursor: 'pointer', 
-                        background: isSelected ? '#f8fafc' : 'transparent', 
-                        display: 'flex', alignItems: 'center', gap: '8px'
-                      }}
-                      onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.background = '#f8fafc' }}
-                      onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#f8fafc' : 'transparent'}
-                    >
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected}
-                        onChange={() => {}} // handled by parent div click
-                        style={{ margin: 0, cursor: 'pointer', pointerEvents: 'none' }}
-                      />
-                      <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
-                        {opt}
-                      </span>
-                    </div>
-                  );
-                })}
-                {comboSearch && !isExactMatch && !searchAlreadySelected && (
-                  <div 
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (onUpdateField) {
-                        const newOptions = [...options, comboSearch];
-                        onUpdateField(field.id, { options: { choices: newOptions } as any });
-                      }
-                      const nextItems = [...currentItems, comboSearch];
-                      const nextVal = JSON.stringify(nextItems);
-                      setLocalVal(nextVal);
-                      onUpdate(nextVal);
-                      setComboSearch('');
-                    }}
-                    style={{ padding: '6px 12px', fontSize: '13px', cursor: 'pointer', color: '#2563eb', fontStyle: 'italic' }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    建立 "{comboSearch}"
-                  </div>
-                )}
-                {filteredOptions.length === 0 && !comboSearch && (
-                  <div style={{ padding: '6px 12px', fontSize: '12px', color: '#94a3b8' }}>無選項，請直接搜尋建立</div>
-                )}
+                      style={{ marginLeft: '4px', cursor: 'pointer', opacity: 0.6 }}
+                    >×</span>
+                  </span>
+                );
+              })}
+              
+              <div style={{ marginLeft: 'auto', color: '#64748b' }}>
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
               </div>
             </div>
-          </div>
+
+            {typeof document !== 'undefined' && createPortal(
+              <>
+                <div 
+                  data-select-portal="true"
+                  style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
+                  onMouseDown={() => {
+                    onUpdate(localVal);
+                    onCancelEdit();
+                  }}
+                />
+                <div
+                  data-select-portal="true"
+                  style={{
+                    position: 'fixed',
+                    top: popoverPos ? popoverPos.top : 0,
+                    left: popoverPos ? popoverPos.left : 0,
+                    minWidth: popoverPos ? popoverPos.width : 220,
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
+                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)', 
+                    borderRadius: '8px',
+                    maxHeight: '260px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    zIndex: 999999,
+                    overflow: 'hidden'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input
+                      ref={inputRef as any}
+                      autoFocus
+                      type="text"
+                      value={comboSearch}
+                      onChange={(e) => setComboSearch(e.target.value)}
+                      placeholder="搜尋或輸入新增..."
+                      style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
+                    />
+                  </div>
+                  <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
+                    {filteredOptions.map((opt, i) => {
+                      const isSelected = currentItems.includes(opt);
+                      const { bg, text } = getOptionColor(opt);
+                      return (
+                        <div 
+                          key={i} 
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            let nextItems = [...currentItems];
+                            if (!isSelected) nextItems.push(opt);
+                            else nextItems = nextItems.filter(item => item !== opt);
+                            const nextVal = JSON.stringify(nextItems);
+                            setLocalVal(nextVal);
+                            onUpdate(nextVal);
+                          }}
+                          style={{ 
+                            padding: '6px 12px', cursor: 'pointer', 
+                            background: isSelected ? '#f8fafc' : 'transparent', 
+                            display: 'flex', alignItems: 'center', gap: '8px'
+                          }}
+                          onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.background = '#f8fafc' }}
+                          onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#f8fafc' : 'transparent'}
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected}
+                            onChange={() => {}} // handled by parent div click
+                            style={{ margin: 0, cursor: 'pointer', pointerEvents: 'none' }}
+                          />
+                          <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
+                            {opt}
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {comboSearch && !isExactMatch && !searchAlreadySelected && (
+                      <div 
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (onUpdateField) {
+                            const newOptions = [...options, comboSearch];
+                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                          }
+                          const nextItems = [...currentItems, comboSearch];
+                          const nextVal = JSON.stringify(nextItems);
+                          setLocalVal(nextVal);
+                          onUpdate(nextVal);
+                          setComboSearch('');
+                        }}
+                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#2563eb', fontWeight: 500, background: '#eff6ff' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#dbeafe'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#eff6ff'}
+                      >
+                        + 建立 "{comboSearch}"
+                      </div>
+                    )}
+                    {filteredOptions.length === 0 && !comboSearch && (
+                      <div style={{ padding: '12px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
+                    )}
+                  </div>
+                </div>
+              </>,
+              document.body
+            )}
+          </>
         );
       }
 
