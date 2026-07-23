@@ -1136,8 +1136,12 @@ export default function Home() {
                 onReorderRows={handleReorderRows}
               />
             </div>
+          </>
+        )}
+      </div>
+    </div>
 
-      {/* Global Modals Container */}
+      {/* Global Modals Container - Always Mounted */}
       <GlobalModalsContainer
         wsState={wsState}
         wsActions={wsActions}
@@ -1185,7 +1189,7 @@ export default function Home() {
         deleteField={deleteField}
       />
 
-      {/* User Account & Subscription Modals */}
+      {/* User Account & Subscription Modals - Always Mounted */}
       {authState.currentUser && (
         <UserSettingsModal
           show={showUserSettingsModal}
@@ -1211,11 +1215,6 @@ export default function Home() {
         onUpdateDarkReaderSettings={themeActions.updateDarkReaderSettings}
         onToast={uiActions.addToast}
       />
-          </>
-        )}
-
-      </div>
     </div>
-  </div>
   )
 }
