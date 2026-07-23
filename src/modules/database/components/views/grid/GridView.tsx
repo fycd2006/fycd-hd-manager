@@ -426,29 +426,66 @@ export const GridView: React.FC<GridViewProps> = ({
     [selectedCell, isEditing, fields.length, rows.length]
   );
 
-  // Aggregation summaries for field columns
+  // Column aggregation mode selection state
+  const [aggregationModes, setAggregationModes] = useState<Record<number, string>>({});
+  const [activeAggMenuFieldId, setActiveAggMenuFieldId] = useState<number | null>(null);
+
+  // Advanced Aggregation summaries for field columns
   const fieldSummaries = useMemo(() => {
-    const result: Record<number, { count: number; sum: number | null; avg: number | null }> = {};
+    const result: Record<number, {
+      count: number;
+      emptyCount: number;
+      percentFilled: number;
+      sum: number | null;
+      avg: number | null;
+      min: any;
+      max: any;
+      uniqueCount: number;
+    }> = {};
 
     fields.forEach((field) => {
       let count = 0;
+      let emptyCount = 0;
       let sum = 0;
-      let isNumeric = field.type === 'number' || field.type === 'rating';
+      let numericCount = 0;
+      let minVal: any = null;
+      let maxVal: any = null;
+      const uniqueVals = new Set<string>();
 
       rows.forEach((row) => {
         const val = row.values[field.id];
         if (val !== undefined && val !== null && val !== '') {
           count++;
-          if (isNumeric && !isNaN(Number(val))) {
-            sum += Number(val);
+          const strVal = String(val);
+          uniqueVals.add(strVal);
+
+          const num = Number(val);
+          if (!isNaN(num) && typeof val !== 'boolean') {
+            sum += num;
+            numericCount++;
+            if (minVal === null || num < minVal) minVal = num;
+            if (maxVal === null || num > maxVal) maxVal = num;
+          } else {
+            if (minVal === null || strVal < String(minVal)) minVal = strVal;
+            if (maxVal === null || strVal > String(maxVal)) maxVal = strVal;
           }
+        } else {
+          emptyCount++;
         }
       });
 
+      const total = rows.length;
+      const percentFilled = total > 0 ? Math.round((count / total) * 100) : 0;
+
       result[field.id] = {
         count,
-        sum: isNumeric && count > 0 ? sum : null,
-        avg: isNumeric && count > 0 ? Number((sum / count).toFixed(2)) : null,
+        emptyCount,
+        percentFilled,
+        sum: numericCount > 0 ? Number(sum.toFixed(2)) : null,
+        avg: numericCount > 0 ? Number((sum / numericCount).toFixed(2)) : null,
+        min: minVal,
+        max: maxVal,
+        uniqueCount: uniqueVals.size,
       };
     });
 
@@ -690,13 +727,61 @@ export const GridView: React.FC<GridViewProps> = ({
               </div>
             )}
 
-            {/* 3. Add Row & Aggregation Summary Footer */}
-            <div className="grid-view__summary-bar" style={{ display: 'flex', width: 'max-content', minWidth: '100%', borderTop: '1px solid var(--border-color, #e2e8f0)', background: 'var(--bg-secondary, #f8fafc)', fontSize: '12px', color: '#64748b' }}>
-              <div style={{ width: `${rowDetailsWidth}px`, flexShrink: 0, padding: '6px 8px', textAlign: 'center', fontWeight: 600, borderRight: '1px solid #e2e8f0' }}>
+              {/* 3. Add Row Button at bottom of list */}
+              <div style={{ padding: '12px 16px', background: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  onClick={onAddRow}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '6px',
+                    padding: '6px 12px', borderRadius: '6px',
+                    background: '#f8fafc', border: '1px solid #cbd5e1', cursor: 'pointer',
+                    fontSize: '13px', color: '#2563eb', fontWeight: 500,
+                  }}
+                >
+                  <span style={{ fontSize: '14px', fontWeight: 'bold' }}>+</span>
+                  新增資料列
+                </button>
+              </div>
+            </div>
+
+            {/* 4. Sticky Aggregation Summary Footer */}
+            <div
+              className="grid-view__summary-bar"
+              style={{
+                position: 'sticky',
+                bottom: 0,
+                zIndex: 30,
+                display: 'flex',
+                width: 'max-content',
+                minWidth: '100%',
+                borderTop: '1.5px solid #cbd5e1',
+                background: '#f8fafc',
+                fontSize: '12px',
+                color: '#475569',
+                boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
+                flexShrink: 0,
+              }}
+            >
+              <div style={{ width: `${rowDetailsWidth}px`, flexShrink: 0, padding: '6px 8px', textAlign: 'center', fontWeight: 600, borderRight: '1px solid #e2e8f0', background: '#f1f5f9', color: '#334155' }}>
                 {rows.length} 筆
               </div>
               {fields.map((field) => {
                 const summary = fieldSummaries[field.id];
+                const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
+                const isNumeric = field.type === 'number' || field.type === 'rating';
+                const isMenuOpen = activeAggMenuFieldId === field.id;
+
+                let displayText = '';
+                if (mode === 'count') displayText = `${summary?.count || 0} 筆填寫`;
+                else if (mode === 'empty_count') displayText = `${summary?.emptyCount || 0} 筆空白`;
+                else if (mode === 'percent') displayText = `${summary?.percentFilled || 0}% 填寫率`;
+                else if (mode === 'sum') displayText = summary?.sum !== null ? `Σ ${summary.sum}` : `${summary?.count || 0} 筆`;
+                else if (mode === 'avg') displayText = summary?.avg !== null ? `均 ${summary.avg}` : `${summary?.count || 0} 筆`;
+                else if (mode === 'min') displayText = summary?.min !== null ? `小 ${summary.min}` : '-';
+                else if (mode === 'max') displayText = summary?.max !== null ? `大 ${summary.max}` : '-';
+                else if (mode === 'unique') displayText = `${summary?.uniqueCount || 0} 項不重複`;
+                else if (mode === 'none') displayText = '';
+
                 return (
                   <div
                     key={field.id}
@@ -704,36 +789,91 @@ export const GridView: React.FC<GridViewProps> = ({
                     style={{
                       width: `var(--field-width-${field.id}, ${field.width || 180}px)`,
                       flexShrink: 0,
-                      padding: '6px 8px',
+                      padding: '4px 8px',
                       borderRight: '1px solid #e2e8f0',
                       whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
+                      overflow: 'visible',
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      background: isMenuOpen ? '#e0f2fe' : 'transparent',
                     }}
+                    onClick={() => setActiveAggMenuFieldId(isMenuOpen ? null : field.id)}
+                    title="點擊切換統計方式"
                   >
-                    {summary?.sum !== null ? (
-                      <span>Σ {summary.sum} (均 {summary.avg})</span>
-                    ) : (
-                      <span>{summary?.count || 0} 筆填寫</span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 500, color: '#334155' }}>
+                      {displayText}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '4px' }}>▼</span>
+
+                    {/* Column Aggregation Menu Popover */}
+                    {isMenuOpen && (
+                      <div
+                        data-grid-portal="true"
+                        style={{
+                          position: 'absolute',
+                          bottom: '100%',
+                          left: 0,
+                          marginBottom: '4px',
+                          width: '160px',
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '6px',
+                          boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+                          zIndex: 100000,
+                          padding: '4px 0',
+                          fontSize: '12px',
+                          color: '#334155',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {[
+                          { key: 'count', label: '已填寫筆數 (Count)' },
+                          { key: 'empty_count', label: '未填寫筆數 (Empty)' },
+                          { key: 'percent', label: '填寫百分比 (%)' },
+                          ...(isNumeric ? [
+                            { key: 'sum', label: '總和 (Sum)' },
+                            { key: 'avg', label: '平均值 (Average)' },
+                          ] : []),
+                          { key: 'min', label: '最小值 (Min)' },
+                          { key: 'max', label: '最大值 (Max)' },
+                          { key: 'unique', label: '不重複項目數 (Unique)' },
+                          { key: 'none', label: '不顯示 (None)' },
+                        ].map((item) => (
+                          <div
+                            key={item.key}
+                            onClick={() => {
+                              setAggregationModes(prev => ({ ...prev, [field.id]: item.key }));
+                              setActiveAggMenuFieldId(null);
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              cursor: 'pointer',
+                              background: mode === item.key ? '#f1f5f9' : 'transparent',
+                              fontWeight: mode === item.key ? 600 : 400,
+                              color: mode === item.key ? '#2563eb' : '#334155',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                            onMouseEnter={(e) => { if (mode !== item.key) e.currentTarget.style.background = '#f8fafc'; }}
+                            onMouseLeave={(e) => { if (mode !== item.key) e.currentTarget.style.background = 'transparent'; }}
+                          >
+                            <span>{item.label}</span>
+                            {mode === item.key && <span style={{ color: '#2563eb' }}>✓</span>}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 );
               })}
-              <div style={{ flex: 1, padding: '12px 8px 180px 8px', minHeight: '200px' }}>
-                <a
-                  className="grid-view__add-row"
-                  onClick={onAddRow}
-                  style={{ cursor: 'pointer', color: '#3b82f6', fontWeight: 500 }}
-                >
-                  <i className="grid-view__add-row-icon iconoir-plus" style={{ marginRight: '4px' }}></i>
-                  新增資料列
-                </a>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
 
       {cellContextMenu && selectionBounds && (
         <MultiCellContextMenu
