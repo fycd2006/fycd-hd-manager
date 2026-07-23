@@ -35,6 +35,7 @@ interface GridViewProps {
   onUndo?: () => void;
   onRedo?: () => void;
   onReorderFields?: (sourceFieldId: number, targetFieldId: number) => void;
+  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -57,6 +58,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onUndo,
   onRedo,
   onReorderFields,
+  onReorderRows,
 }) => {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -465,9 +467,9 @@ export const GridView: React.FC<GridViewProps> = ({
     >
       <div 
         className="grid-view__scroll-container" 
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'hidden', width: '100%' }}
+        style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto', width: '100%', minHeight: 0 }}
       >
-        <div style={{ minWidth: '100%', width: 'max-content', display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <div style={{ minWidth: '100%', width: 'max-content', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           {/* 1. Header Row */}
           <div style={{ position: 'sticky', top: 0, zIndex: 30, background: '#ffffff', flexShrink: 0, borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
             <GridViewHead
@@ -494,7 +496,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 setCellContextMenu({ x: e.clientX, y: e.clientY });
               }
             }}
-            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}
+            style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative', minHeight: 0 }}
           >
           <div className="grid-view__body-inner" style={{ width: 'max-content', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
             {groupedSections ? (
@@ -680,6 +682,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         onUpdateField={onUpdateField}
                         onCancelEditCell={() => setIsEditing(false)}
                         onExpandRow={() => onExpandRow?.(row.id)}
+                        onReorderRows={onReorderRows}
                       />
                     </div>
                   );

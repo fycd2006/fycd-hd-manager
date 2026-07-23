@@ -411,6 +411,17 @@ export default function Home() {
     }
   }
 
+  // Reorder rows (Drag & Drop)
+  const handleReorderRows = (srcIdx: number, targetIdx: number) => {
+    setRows(prev => {
+      const next = [...prev]
+      const [moved] = next.splice(srcIdx, 1)
+      next.splice(targetIdx, 0, moved)
+      return next
+    })
+    uiActions.addToast('已調整列順序', 'success')
+  }
+
   // Delete row using new service
   const deleteRow = async (rowId: number) => {
     if (!wsState.activeTableId) return
@@ -1095,6 +1106,7 @@ export default function Home() {
                 setFieldContextMenu={setFieldContextMenu}
                 onUndo={undo}
                 onRedo={redo}
+                onReorderRows={handleReorderRows}
               />
             </div>
 

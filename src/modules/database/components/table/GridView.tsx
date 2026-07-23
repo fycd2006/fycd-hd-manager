@@ -46,6 +46,7 @@ interface GridViewProps {
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void
   onUndo?: () => void
   onRedo?: () => void
+  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void
 }
 
 export default function GridView({
@@ -70,6 +71,7 @@ export default function GridView({
   onUndo,
   onRedo,
   onHandleColumnDrop,
+  onReorderRows,
 }: GridViewProps) {
   if (gridLoading) {
     return (
@@ -145,6 +147,7 @@ export default function GridView({
         onUndo={onUndo}
         onRedo={onRedo}
         onReorderFields={(srcId, targetId) => (onHandleColumnDrop as any)?.(undefined, targetId, srcId)}
+        onReorderRows={onReorderRows}
       />
     </div>
   )

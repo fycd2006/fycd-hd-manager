@@ -50,6 +50,7 @@ interface DatabaseViewRouterProps {
   setFieldContextMenu: (menu: { field: TableField; x: number; y: number } | null) => void
   onUndo?: () => void
   onRedo?: () => void
+  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void
 }
 
 export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
@@ -94,6 +95,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   setFieldContextMenu,
   onUndo,
   onRedo,
+  onReorderRows,
 }) => {
   return (
     <>
@@ -167,6 +169,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           onOpenFieldContextMenu={(field, x, y) => setFieldContextMenu({ field, x, y })}
           onUndo={onUndo}
           onRedo={onRedo}
+          onReorderRows={onReorderRows}
         />
       )}
 

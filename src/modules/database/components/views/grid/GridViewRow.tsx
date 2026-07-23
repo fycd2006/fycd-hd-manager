@@ -25,6 +25,7 @@ interface GridViewRowProps {
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
   onCancelEditCell: () => void;
   onExpandRow?: () => void;
+  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void;
 }
 
 export const GridViewRow: React.FC<GridViewRowProps> = ({
@@ -43,20 +44,51 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   onUpdateField,
   onCancelEditCell,
   onExpandRow,
+  onReorderRows,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDragTarget, setIsDragTarget] = useState(false);
 
   return (
     <div 
       className={`grid-view__row ${isHovered ? 'hover' : ''}`} 
-      style={{ display: 'flex', width: 'max-content', minWidth: '100%', minHeight: 'var(--row-height, 33px)' }}
+      draggable={true}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', String(rowIndex));
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        if (!isDragTarget) setIsDragTarget(true);
+      }}
+      onDragLeave={() => setIsDragTarget(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragTarget(false);
+        const sourceIdxStr = e.dataTransfer.getData('text/plain');
+        if (sourceIdxStr !== '') {
+          const sourceIdx = parseInt(sourceIdxStr, 10);
+          if (!isNaN(sourceIdx) && sourceIdx !== rowIndex) {
+            onReorderRows?.(sourceIdx, rowIndex);
+          }
+        }
+      }}
+      style={{
+        display: 'flex',
+        width: 'max-content',
+        minWidth: '100%',
+        minHeight: 'var(--row-height, 33px)',
+        borderTop: isDragTarget ? '2px solid #2563eb' : undefined,
+        boxSizing: 'border-box',
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* 1. Row Index / Actions Column */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
-        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
         onClick={(e) => {
           onSelectCell(0, e);
         }}
