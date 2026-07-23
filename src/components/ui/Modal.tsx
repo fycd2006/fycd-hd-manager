@@ -56,38 +56,39 @@ export default function Modal({
   }
 
   const sizeClassMap = {
-    tiny: 'modal__box--tiny',
-    small: 'modal__box--small',
-    medium: '',
-    large: 'modal__box--wide',
-    full: 'modal__box--full-screen'
+    tiny: 'modal-box--tiny',
+    small: 'modal-box--small',
+    medium: 'modal-box--medium',
+    large: 'modal-box--large',
+    full: 'modal-box--full'
   }
 
   return (
     <div
       ref={modalRef}
-      className="modal__wrapper"
+      className="modal-overlay visible"
       onClick={handleOutsideClick}
     >
       <div
-        className={`modal__box ${sizeClassMap[size] || ''}`}
+        className={`modal-box ${sizeClassMap[size] || ''}`}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || showCloseButton) && (
-          <div className="modal__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            {title && <h2 className="box__title" style={{ margin: 0 }}>{title}</h2>}
+          <div className="modal-header">
+            {title && <h2 className="modal-title">{title}</h2>}
             {showCloseButton && (
-              <a
+              <button
+                type="button"
                 onClick={onClose}
-                className="modal__close"
-                style={{ cursor: 'pointer', fontSize: '18px', color: '#909399', textDecoration: 'none' }}
+                className="modal-close-btn"
+                aria-label="Close"
               >
                 ✕
-              </a>
+              </button>
             )}
           </div>
         )}
-        <div className="modal__content">
+        <div className="modal-body">
           {children}
         </div>
       </div>
