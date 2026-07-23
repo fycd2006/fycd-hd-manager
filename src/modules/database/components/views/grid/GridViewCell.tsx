@@ -1106,16 +1106,40 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const items = parseSelectItems(value);
       
       if (items.length > 0) {
+        const visibleItems = items.slice(0, 3);
+        const hiddenCount = items.length - visibleItems.length;
+
         return (
-          <div style={{ display: 'flex', gap: '4px', padding: '0 8px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
-            {items.map((itemStr, i) => {
+          <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
+            {visibleItems.map((itemStr, i) => {
               const { bg, text } = getOptionColor(itemStr);
               return (
-                <span key={i} style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                <span 
+                  key={i} 
+                  style={{ 
+                    background: bg, 
+                    color: text, 
+                    padding: '2px 8px', 
+                    borderRadius: '12px', 
+                    fontSize: '12px', 
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap', 
+                    textOverflow: 'ellipsis', 
+                    overflow: 'hidden',
+                    maxWidth: '120px',
+                    display: 'inline-block'
+                  }}
+                  title={itemStr}
+                >
                   {itemStr}
                 </span>
               );
             })}
+            {hiddenCount > 0 && (
+              <span style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', padding: '2px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenCount} 個選項`}>
+                +{hiddenCount}
+              </span>
+            )}
           </div>
         );
       }
@@ -1201,13 +1225,39 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         } catch {}
       }
 
+      const visibleLinks = linkItems.slice(0, 3);
+      const hiddenLinkCount = linkItems.length - visibleLinks.length;
+
       return (
-        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%' }}>
-          {linkItems.map((item, i) => (
-            <span key={i} style={{ background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500 }}>
+        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
+          {visibleLinks.map((item, i) => (
+            <span 
+              key={i} 
+              style={{ 
+                background: '#eff6ff', 
+                color: '#1d4ed8', 
+                border: '1px solid #bfdbfe', 
+                padding: '2px 8px', 
+                borderRadius: '6px', 
+                fontSize: '12px', 
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                maxWidth: '120px',
+                display: 'inline-block'
+              }}
+              title={item.value}
+            >
               {item.value}
             </span>
           ))}
+
+          {hiddenLinkCount > 0 && (
+            <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 6px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenLinkCount} 筆關聯`}>
+              +{hiddenLinkCount}
+            </span>
+          )}
 
           {(isCellHovered || isSelected) && (
             <span
@@ -1219,15 +1269,16 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '1px 6px',
-                background: '#f1f5f9',
-                border: '1px solid #cbd5e1',
+                padding: '2px 6px',
+                background: '#e0f2fe',
+                border: '1px solid #7dd3fc',
                 borderRadius: '4px',
                 fontSize: '12px',
                 fontWeight: 'bold',
-                color: '#64748b',
+                color: '#0284c7',
                 cursor: 'pointer',
                 flexShrink: 0,
+                transition: 'background-color 0.15s'
               }}
               title="新增/編輯關聯"
             >

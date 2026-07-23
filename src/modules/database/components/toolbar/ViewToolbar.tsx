@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput } from 'lucide-react'
+import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X } from 'lucide-react'
 import type { TableView, TableField, FilterRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -86,12 +86,17 @@ export function ViewToolbar({
 
   const headerToolbarRef = useRef<HTMLElement>(null)
   const viewContextRef = useRef<HTMLLIElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   useOnClickOutside(viewContextRef, () => setShowViewContext(false))
   useOnClickOutside(headerToolbarRef, () => setActiveHeaderMenu(null))
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
       if (e.key === 'Escape') {
         setShowViewContext(false)
         setActiveHeaderMenu(null)
@@ -600,33 +605,60 @@ export function ViewToolbar({
 
         <li className="header__filter-item header__filter-item--right">
           <div className="header__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', color: '#94a3b8' }} />
+            <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b', pointerEvents: 'none' }} />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="搜尋記錄..."
+              placeholder="搜尋記錄 (Ctrl+K)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ 
-                width: '180px', 
-                padding: '6px 30px 6px 30px', 
+                width: searchQuery ? '240px' : '200px', 
+                padding: '6px 28px 6px 30px', 
                 borderRadius: '6px', 
-                border: '1px solid #e2e8f0', 
+                border: '1px solid #cbd5e1', 
                 fontSize: '13px', 
-                backgroundColor: '#f8fafc',
-                transition: 'all 0.2s',
-                outline: 'none'
+                backgroundColor: '#ffffff',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                outline: 'none',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
               }}
-              onFocus={(e) => { e.currentTarget.style.backgroundColor = '#fff'; e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.1)' }}
-              onBlur={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none' }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#2563eb';
+                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.12)';
+                e.currentTarget.style.width = '240px';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = '#cbd5e1';
+                e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+                if (!searchQuery) e.currentTarget.style.width = '200px';
+              }}
             />
-            {searchQuery.length > 0 && (
-              <a 
-                className="header__search-clear" 
+            {searchQuery ? (
+              <span 
                 onClick={() => setSearchQuery('')}
-                style={{ position: 'absolute', right: '8px', cursor: 'pointer', color: '#ef4444', display: 'flex' }}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  cursor: 'pointer',
+                  color: '#94a3b8',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '2px',
+                  borderRadius: '50%',
+                  transition: 'color 0.15s, background-color 0.15s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fef2f2'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                title="清除搜尋"
               >
-                <i className="iconoir-cancel" style={{ fontSize: '14px' }}></i>
-              </a>
+                <X size={13} />
+              </span>
+            ) : (
+              <span style={{ position: 'absolute', right: '8px', fontSize: '10px', color: '#94a3b8', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '1px 4px', pointerEvents: 'none', fontWeight: 600 }}>
+                ⌘K
+              </span>
             )}
           </div>
         </li>
