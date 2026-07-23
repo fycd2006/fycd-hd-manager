@@ -589,11 +589,12 @@ export default function Home() {
     e.preventDefault()
   }
 
-  const handleColumnDrop = async (e: React.DragEvent, targetFieldId: number) => {
-    e.preventDefault()
-    if (draggedFieldId === null || draggedFieldId === targetFieldId || !wsState.activeTableId) return
+  const handleColumnDrop = async (e: React.DragEvent | undefined, targetFieldId: number, sourceFieldId?: number) => {
+    e?.preventDefault?.()
+    const fromId = sourceFieldId ?? draggedFieldId
+    if (fromId === null || fromId === undefined || fromId === targetFieldId || !wsState.activeTableId) return
 
-    const draggedIndex = fields.findIndex(f => f.id === draggedFieldId)
+    const draggedIndex = fields.findIndex(f => f.id === fromId)
     const targetIndex = fields.findIndex(f => f.id === targetFieldId)
 
     if (draggedIndex === -1 || targetIndex === -1) return

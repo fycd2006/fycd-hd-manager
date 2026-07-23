@@ -34,6 +34,7 @@ interface GridViewProps {
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
   onUndo?: () => void;
   onRedo?: () => void;
+  onReorderFields?: (sourceFieldId: number, targetFieldId: number) => void;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -55,6 +56,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onUpdateField,
   onUndo,
   onRedo,
+  onReorderFields,
 }) => {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -478,6 +480,7 @@ export const GridView: React.FC<GridViewProps> = ({
               onResizeColumnEnd={onResizeColumnEnd}
               onFieldClick={onFieldClick}
               onOpenFieldContextMenu={onOpenFieldContextMenu}
+              onReorderFields={onReorderFields}
             />
           </div>
 

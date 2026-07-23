@@ -69,6 +69,7 @@ export default function GridView({
   onToggleSort,
   onUndo,
   onRedo,
+  onHandleColumnDrop,
 }: GridViewProps) {
   if (gridLoading) {
     return (
@@ -143,6 +144,7 @@ export default function GridView({
         onUpdateField={readOnly ? undefined : onUpdateField}
         onUndo={onUndo}
         onRedo={onRedo}
+        onReorderFields={(srcId, targetId) => (onHandleColumnDrop as any)?.(undefined, targetId, srcId)}
       />
     </div>
   )

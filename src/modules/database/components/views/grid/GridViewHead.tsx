@@ -63,6 +63,7 @@ interface GridViewHeadProps {
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
   onResizeColumnEnd?: (fieldId: number, newWidth: number) => void;
+  onReorderFields?: (sourceFieldId: number, targetFieldId: number) => void;
 }
 
 export const GridViewHead: React.FC<GridViewHeadProps> = ({
@@ -75,7 +76,11 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   onOpenFieldContextMenu,
   onResizeColumn,
   onResizeColumnEnd,
+  onReorderFields,
 }) => {
+  const [draggedFieldId, setDraggedFieldId] = React.useState<number | null>(null);
+  const [dragOverFieldId, setDragOverFieldId] = React.useState<number | null>(null);
+
   return (
     <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', minHeight: '33px' }}>
       {/* 1. Row Identifier / Number Header Column */}
@@ -91,19 +96,63 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
         const IconComponent = FIELD_TYPE_ICONS[field.type] || Type;
         const columnWidth = field.width || 180;
         const isSorted = sortField === `field_${field.id}`;
+        const isDraggingThis = draggedFieldId === field.id;
+        const isDragTarget = dragOverFieldId === field.id && draggedFieldId !== field.id;
 
         return (
           <div
             key={field.id}
             className="grid-view__column grid-view__column--field"
-            style={{ width: `var(--field-width-${field.id}, ${columnWidth}px)`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', position: 'relative', cursor: 'pointer', backgroundColor: isSorted ? '#f8fafc' : undefined }}
+            draggable={true}
+            onDragStart={(e) => {
+              e.dataTransfer.setData('text/plain', String(field.id));
+              e.dataTransfer.effectAllowed = 'move';
+              setDraggedFieldId(field.id);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              if (dragOverFieldId !== field.id) {
+                setDragOverFieldId(field.id);
+              }
+            }}
+            onDragLeave={() => {
+              if (dragOverFieldId === field.id) {
+                setDragOverFieldId(null);
+              }
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOverFieldId(null);
+              setDraggedFieldId(null);
+              if (draggedFieldId && draggedFieldId !== field.id) {
+                onReorderFields?.(draggedFieldId, field.id);
+              }
+            }}
+            onDragEnd={() => {
+              setDraggedFieldId(null);
+              setDragOverFieldId(null);
+            }}
+            style={{
+              width: `var(--field-width-${field.id}, ${columnWidth}px)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0 10px',
+              position: 'relative',
+              cursor: 'grab',
+              backgroundColor: isDraggingThis ? '#e0f2fe' : isSorted ? '#f8fafc' : undefined,
+              opacity: isDraggingThis ? 0.6 : 1,
+              boxShadow: isDragTarget ? 'inset 3px 0 0 0 #2563eb' : undefined,
+              transition: 'background-color 0.15s, box-shadow 0.15s',
+            }}
             onClick={(e) => onFieldClick?.(field, e)}
             onContextMenu={(e) => {
               e.preventDefault();
               onOpenFieldContextMenu?.(field, e.clientX, e.clientY);
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, pointerEvents: 'none' }}>
               <IconComponent style={{ width: '14px', height: '14px', color: isSorted ? '#2563eb' : '#64748b', flexShrink: 0 }} />
               <span style={{ fontSize: '13px', fontWeight: isSorted ? 600 : 500, color: isSorted ? '#2563eb' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {field.name}
