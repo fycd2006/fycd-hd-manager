@@ -1459,10 +1459,44 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       );
     }
 
+    if (field.type === 'boolean') {
+      const isChecked = Boolean(value === true || value === 'true' || value === 1 || value === '1');
+      return (
+        <div 
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', cursor: 'pointer' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdate(!isChecked);
+          }}
+        >
+          <div
+            style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '4px',
+              border: isChecked ? '1px solid #2563eb' : '1px solid #cbd5e1',
+              backgroundColor: isChecked ? '#2563eb' : '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s ease',
+              boxShadow: isChecked ? '0 1px 2px rgba(37, 99, 235, 0.2)' : 'none'
+            }}
+          >
+            {isChecked && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     if (field.type === 'formula' || field.type === 'lookup' || field.type === 'rollup') {
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%', background: '#f8fafc', height: '100%' }}>
-          <span style={{ fontSize: '11px', color: '#64748b' }}>ƒ</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%', background: 'rgba(248, 250, 252, 0.6)', height: '100%' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>ƒ</span>
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px', color: '#334155' }}>
             {value !== null && value !== undefined ? String(value) : '—'}
           </span>
@@ -1582,8 +1616,14 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           onMouseEnterCell?.();
         }
       }}
-      onMouseLeave={() => setIsCellHovered(false)}
-      onDoubleClick={onStartEdit}
+      onDoubleClick={() => {
+        if (field.type === 'boolean') {
+          const isChecked = Boolean(value === true || value === 'true' || value === 1 || value === '1');
+          onUpdate(!isChecked);
+        } else if (!['formula', 'lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber'].includes(field.type)) {
+          onStartEdit();
+        }
+      }}
       style={{ 
         width: `var(--field-width-${field.id}, ${cellWidth}px)`,
         position: isPrimary ? 'sticky' : 'relative',

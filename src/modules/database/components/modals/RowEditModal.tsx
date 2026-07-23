@@ -235,8 +235,8 @@ export default function RowEditModal({
                         ) : field.type === 'boolean' ? (
                           <input
                             type="checkbox"
-                            checked={value === 'true' || value === true || value === '1'}
-                            onChange={e => handleChange(field.id, e.target.checked ? 'true' : 'false', true)}
+                            checked={value === 'true' || value === true || value === '1' || value === 1}
+                            onChange={e => handleChange(field.id, e.target.checked, true)}
                             style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                           />
                         ) : field.type === 'long_text' ? (

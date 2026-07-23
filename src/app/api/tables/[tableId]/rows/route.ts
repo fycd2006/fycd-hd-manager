@@ -282,14 +282,26 @@ export async function GET(
       // D. Compute Formulas dynamically (Safe AST Evaluation)
       formulaFields.forEach(ff => {
         const destKey = `field_${ff.id}`
-        const expr = ff.options // options holds formula string
+        let expr = ff.options // options holds formula string or JSON object
         if (!expr) {
           newData[destKey] = ''
           return
         }
 
+        if (typeof expr === 'string' && (expr.startsWith('{') || expr.startsWith('"'))) {
+          try {
+            let parsed = JSON.parse(expr)
+            if (typeof parsed === 'string') {
+              try { parsed = JSON.parse(parsed) } catch {}
+            }
+            if (parsed && typeof parsed === 'object' && parsed.formula) {
+              expr = parsed.formula
+            }
+          } catch {}
+        }
+
         try {
-          const ast = parseFormula(expr)
+          const ast = parseFormula(String(expr))
           const result = evaluateFormula(ast, newData)
           newData[destKey] = result != null ? String(result) : ''
         } catch (e) {
