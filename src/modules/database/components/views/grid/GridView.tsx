@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
@@ -376,6 +377,8 @@ export const GridView: React.FC<GridViewProps> = ({
     setIsEditing(false);
   });
 
+
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (!selectedCell) return;
@@ -429,7 +432,18 @@ export const GridView: React.FC<GridViewProps> = ({
 
   // Column aggregation mode selection state
   const [aggregationModes, setAggregationModes] = useState<Record<number, string>>({});
-  const [activeAggMenuFieldId, setActiveAggMenuFieldId] = useState<number | null>(null);
+  const [aggMenuState, setAggMenuState] = useState<{ fieldId: number; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!aggMenuState) return;
+    const handleGlobalClick = () => setAggMenuState(null);
+    window.addEventListener('click', handleGlobalClick);
+    window.addEventListener('scroll', handleGlobalClick, true);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+      window.removeEventListener('scroll', handleGlobalClick, true);
+    };
+  }, [aggMenuState]);
 
   // Advanced Aggregation summaries for field columns
   const fieldSummaries = useMemo(() => {
@@ -779,8 +793,7 @@ export const GridView: React.FC<GridViewProps> = ({
           {fields.map((field) => {
             const summary = fieldSummaries[field.id];
             const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
-            const isNumeric = field.type === 'number' || field.type === 'rating';
-            const isMenuOpen = activeAggMenuFieldId === field.id;
+            const isMenuOpen = aggMenuState?.fieldId === field.id;
 
             let displayText = '';
             if (mode === 'count') displayText = `${summary?.count || 0} 筆填寫`;
@@ -811,73 +824,21 @@ export const GridView: React.FC<GridViewProps> = ({
                   cursor: 'pointer',
                   background: isMenuOpen ? '#e0f2fe' : 'transparent',
                 }}
-                onClick={() => setActiveAggMenuFieldId(isMenuOpen ? null : field.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isMenuOpen) {
+                    setAggMenuState(null);
+                  } else {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setAggMenuState({ fieldId: field.id, x: rect.left, y: rect.top });
+                  }
+                }}
                 title="點擊切換統計方式"
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 500, color: '#334155' }}>
                   {displayText}
                 </span>
                 <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '4px' }}>▼</span>
-
-                {/* Column Aggregation Menu Popover */}
-                {isMenuOpen && (
-                  <div
-                    data-grid-portal="true"
-                    style={{
-                      position: 'absolute',
-                      bottom: '100%',
-                      left: 0,
-                      marginBottom: '4px',
-                      width: '160px',
-                      background: '#ffffff',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '6px',
-                      boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
-                      zIndex: 100000,
-                      padding: '4px 0',
-                      fontSize: '12px',
-                      color: '#334155',
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {[
-                      { key: 'count', label: '已填寫筆數 (Count)' },
-                      { key: 'empty_count', label: '未填寫筆數 (Empty)' },
-                      { key: 'percent', label: '填寫百分比 (%)' },
-                      ...(isNumeric ? [
-                        { key: 'sum', label: '總和 (Sum)' },
-                        { key: 'avg', label: '平均值 (Average)' },
-                      ] : []),
-                      { key: 'min', label: '最小值 (Min)' },
-                      { key: 'max', label: '最大值 (Max)' },
-                      { key: 'unique', label: '不重複項目數 (Unique)' },
-                      { key: 'none', label: '不顯示 (None)' },
-                    ].map((item) => (
-                      <div
-                        key={item.key}
-                        onClick={() => {
-                          setAggregationModes(prev => ({ ...prev, [field.id]: item.key }));
-                          setActiveAggMenuFieldId(null);
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          cursor: 'pointer',
-                          background: mode === item.key ? '#f1f5f9' : 'transparent',
-                          fontWeight: mode === item.key ? 600 : 400,
-                          color: mode === item.key ? '#2563eb' : '#334155',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                        }}
-                        onMouseEnter={(e) => { if (mode !== item.key) e.currentTarget.style.background = '#f8fafc'; }}
-                        onMouseLeave={(e) => { if (mode !== item.key) e.currentTarget.style.background = 'transparent'; }}
-                      >
-                        <span>{item.label}</span>
-                        {mode === item.key && <span style={{ color: '#2563eb' }}>✓</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             );
           })}
@@ -899,30 +860,75 @@ export const GridView: React.FC<GridViewProps> = ({
         />
       )}
 
-      {/* Floating UI/UX Toast Notification */}
-      {toastMessage && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            background: '#0f172a',
-            color: '#ffffff',
-            padding: '10px 18px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: 500,
-            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)',
-            zIndex: 999999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            animation: 'fadeIn 0.2s ease-out'
-          }}
-        >
-          <span>✨ {toastMessage}</span>
-        </div>
-      )}
+      {/* Global Aggregation Menu Portal */}
+      {aggMenuState && (() => {
+        const targetField = fields.find(f => f.id === aggMenuState.fieldId);
+        if (!targetField) return null;
+        const isNumeric = targetField.type === 'number' || targetField.type === 'rating';
+        const currentMode = aggregationModes[targetField.id] || (isNumeric ? 'sum' : 'count');
+
+        return createPortal(
+          <div
+            data-grid-portal="true"
+            style={{
+              position: 'fixed',
+              left: `${aggMenuState.x}px`,
+              bottom: `${window.innerHeight - aggMenuState.y + 4}px`,
+              width: '180px',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.18)',
+              zIndex: 999999,
+              padding: '6px 0',
+              fontSize: '12px',
+              color: '#334155',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '4px 12px 6px 12px', fontSize: '11px', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #f1f5f9', marginBottom: '4px' }}>
+              【{targetField.name}】統計方式
+            </div>
+            {[
+              { key: 'count', label: '已填寫筆數 (Count)' },
+              { key: 'empty_count', label: '未填寫筆數 (Empty)' },
+              { key: 'percent', label: '填寫百分比 (%)' },
+              ...(isNumeric ? [
+                { key: 'sum', label: '總和 (Sum)' },
+                { key: 'avg', label: '平均值 (Average)' },
+              ] : []),
+              { key: 'min', label: '最小值 (Min)' },
+              { key: 'max', label: '最大值 (Max)' },
+              { key: 'unique', label: '不重複項目數 (Unique)' },
+              { key: 'none', label: '不顯示 (None)' },
+            ].map((item) => (
+              <div
+                key={item.key}
+                onClick={() => {
+                  setAggregationModes(prev => ({ ...prev, [targetField.id]: item.key }));
+                  setAggMenuState(null);
+                }}
+                style={{
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  background: currentMode === item.key ? '#f1f5f9' : 'transparent',
+                  fontWeight: currentMode === item.key ? 600 : 400,
+                  color: currentMode === item.key ? '#2563eb' : '#334155',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+                onMouseEnter={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = '#f8fafc'; }}
+                onMouseLeave={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span>{item.label}</span>
+                {currentMode === item.key && <span style={{ color: '#2563eb', fontWeight: 'bold' }}>✓</span>}
+              </div>
+            ))}
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 };
