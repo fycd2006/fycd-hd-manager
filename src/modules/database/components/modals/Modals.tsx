@@ -420,7 +420,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     ft.key.toLowerCase().includes(typeSearch.toLowerCase())
   )
 
-  const selectedTypeObj = fieldTypeItems.find(ft => ft.key === type) || fieldTypeItems[0]
+  const selectedTypeObj = fieldTypeItems.find(ft => ft.key === type || (ft.key === 'phone_number' && type === 'phone') || (ft.key === 'collaborators' && type === 'collaborator')) || fieldTypeItems[0]
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()

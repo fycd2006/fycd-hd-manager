@@ -1470,6 +1470,55 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       );
     }
 
+    if (field.type === 'password') {
+      const pwdStr = value != null ? String(value) : '';
+      return (
+        <span style={{ padding: '0 8px', fontSize: '13px', color: '#64748b', letterSpacing: '2px', fontFamily: 'monospace' }}>
+          {pwdStr ? '••••••••' : ''}
+        </span>
+      );
+    }
+
+    if (field.type === 'uuid') {
+      const uuidStr = value != null ? String(value) : '';
+      return (
+        <span style={{ padding: '0 8px', fontSize: '11px', color: '#64748b', fontFamily: 'monospace', background: '#f1f5f9', borderRadius: '4px', margin: '0 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {uuidStr || '—'}
+        </span>
+      );
+    }
+
+    if (field.type === 'duration') {
+      const durVal = value != null ? String(value) : '';
+      return (
+        <span style={{ padding: '0 8px', fontSize: '13px', color: '#334155', fontFamily: 'monospace' }}>
+          ⏱️ {durVal || '00:00:00'}
+        </span>
+      );
+    }
+
+    if (field.type === 'edit_row_link') {
+      return (
+        <div style={{ padding: '0 8px', display: 'flex', alignItems: 'center' }}>
+          <span style={{ padding: '2px 8px', fontSize: '12px', color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
+            Expand row ↗
+          </span>
+        </div>
+      );
+    }
+
+    if (field.type === 'ai_prompt') {
+      const aiStr = value != null ? String(value) : '';
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
+          <span style={{ fontSize: '12px', color: '#8b5cf6' }}>✨</span>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px', color: '#4c1d95' }}>
+            {aiStr || 'Generative AI Prompt'}
+          </span>
+        </div>
+      );
+    }
+
     if (field.type === 'date') {
       const dateDisplay = formatDateValue(value);
       return (
