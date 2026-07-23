@@ -98,51 +98,61 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [selectionStart, selectionEnd]);
 
   const handleCopySelection = useCallback(() => {
-    if (!selectionBounds) return;
     const lines: string[] = [];
-    for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
-      const row = rows[r];
-      if (!row) continue;
-      const rowCells: string[] = [];
-      for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
-        const field = fields[c];
-        if (!field) continue;
-        const val = row.values?.[field.id] ?? (row as any).data?.[`field_${field.id}`] ?? (row as any).data?.[field.id] ?? '';
-        let cellStr = '';
-        if (val !== null && val !== undefined) {
-          if (Array.isArray(val)) {
-            cellStr = val.map(item => typeof item === 'object' ? item.value || item.name || String(item) : String(item)).join(', ');
-          } else if (typeof val === 'object') {
-            cellStr = (val as any).value || (val as any).name || String(val);
-          } else {
-            cellStr = String(val);
-          }
+    if (selectedRowIds.size > 0) {
+      rows.forEach((row) => {
+        if (selectedRowIds.has(row.id)) {
+          const rowCells: string[] = fields.map((field) => {
+            const val = row.values?.[field.id] ?? (row as any).data?.[`field_${field.id}`] ?? (row as any).data?.[field.id] ?? '';
+            return String(val ?? '').replace(/\t/g, ' ').replace(/\n/g, ' ');
+          });
+          lines.push(rowCells.join('\t'));
         }
-        rowCells.push(cellStr.replace(/\t/g, ' ').replace(/\n/g, ' '));
+      });
+    } else if (selectionBounds) {
+      for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
+        const row = rows[r];
+        if (!row) continue;
+        const rowCells: string[] = [];
+        for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
+          const field = fields[c];
+          if (!field) continue;
+          const val = row.values?.[field.id] ?? (row as any).data?.[`field_${field.id}`] ?? (row as any).data?.[field.id] ?? '';
+          rowCells.push(String(val ?? '').replace(/\t/g, ' ').replace(/\n/g, ' '));
+        }
+        lines.push(rowCells.join('\t'));
       }
-      lines.push(rowCells.join('\t'));
     }
     const tsv = lines.join('\n');
     if (tsv && typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(tsv);
-      const count = (selectionBounds.maxRow - selectionBounds.minRow + 1) * (selectionBounds.maxCol - selectionBounds.minCol + 1);
-      showToast(`已複製 ${count} 個儲存格至剪貼簿`);
+      showToast('已複製資料至剪貼簿');
     }
-  }, [selectionBounds, rows, fields, showToast]);
+  }, [selectedRowIds, selectionBounds, rows, fields, showToast]);
 
   const handleClearSelectionValues = useCallback(() => {
-    if (!selectionBounds) return;
-    for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
-      for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
-        const targetRow = rows[r];
-        const targetField = fields[c];
-        if (targetRow && targetField) {
-          onUpdateCell?.(targetRow.id, targetField.id, null);
+    if (selectedRowIds.size > 0) {
+      rows.forEach((row) => {
+        if (selectedRowIds.has(row.id)) {
+          fields.forEach((field) => {
+            onUpdateCell?.(row.id, field.id, null);
+          });
+        }
+      });
+      showToast('已清空選取列內容');
+    } else if (selectionBounds) {
+      for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
+        for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
+          const targetRow = rows[r];
+          const targetField = fields[c];
+          if (targetRow && targetField) {
+            onUpdateCell?.(targetRow.id, targetField.id, null);
+          }
         }
       }
+      showToast('已清空選取儲存格內容');
     }
-    showToast('已清空選取儲存格內容');
-  }, [selectionBounds, rows, fields, onUpdateCell, showToast]);
+  }, [selectedRowIds, selectionBounds, rows, fields, onUpdateCell, showToast]);
 
   const handleDeleteSelectedRows = useCallback(() => {
     const rowIdsToDelete = new Set<number>(selectedRowIds);
@@ -926,12 +936,24 @@ export const GridView: React.FC<GridViewProps> = ({
         </div>
       </div>
 
-      {cellContextMenu && selectionBounds && (
+      {cellContextMenu && (selectionBounds || selectedRowIds.size > 0) && (
         <MultiCellContextMenu
           x={cellContextMenu.x}
           y={cellContextMenu.y}
-          selectedCellCount={(selectionBounds.maxRow - selectionBounds.minRow + 1) * (selectionBounds.maxCol - selectionBounds.minCol + 1)}
-          selectedRowCount={selectionBounds.maxRow - selectionBounds.minRow + 1}
+          selectedCellCount={
+            selectedRowIds.size > 0
+              ? selectedRowIds.size * fields.length
+              : selectionBounds
+              ? (selectionBounds.maxRow - selectionBounds.minRow + 1) * (selectionBounds.maxCol - selectionBounds.minCol + 1)
+              : 0
+          }
+          selectedRowCount={
+            selectedRowIds.size > 0
+              ? selectedRowIds.size
+              : selectionBounds
+              ? selectionBounds.maxRow - selectionBounds.minRow + 1
+              : 0
+          }
           onClose={() => setCellContextMenu(null)}
           onCopy={handleCopySelection}
           onCut={handleCutSelection}
@@ -939,63 +961,6 @@ export const GridView: React.FC<GridViewProps> = ({
           onClearValues={handleClearSelectionValues}
           onDeleteRows={handleDeleteSelectedRows}
         />
-      )}
-
-      {/* Floating Batch Action Bar when rows are multi-selected */}
-      {selectedRowIds.size > 0 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '60px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#0f172a',
-            color: '#ffffff',
-            padding: '10px 20px',
-            borderRadius: '10px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            zIndex: 9999,
-            fontSize: '13px',
-            fontWeight: 500,
-            animation: 'fadeInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
-          }}
-        >
-          <span>已逐一選取 <strong style={{ color: '#60a5fa' }}>{selectedRowIds.size}</strong> 列資料</span>
-          <button
-            type="button"
-            onClick={handleDeleteSelectedRows}
-            style={{
-              background: '#ef4444',
-              color: 'white',
-              border: 'none',
-              padding: '6px 14px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px'
-            }}
-          >
-            刪除選取列 ({selectedRowIds.size})
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedRowIds(new Set())}
-            style={{
-              background: 'transparent',
-              color: '#94a3b8',
-              border: '1px solid #334155',
-              padding: '5px 10px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px'
-            }}
-          >
-            取消選取
-          </button>
-        </div>
       )}
 
       {/* Global Aggregation Menu Portal */}
