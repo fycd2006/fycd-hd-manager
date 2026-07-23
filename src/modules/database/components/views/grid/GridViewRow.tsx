@@ -63,6 +63,8 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   const isRowSelected = Boolean(
     isRowSelectedDirectly ||
     (selectionBounds &&
+    selectionBounds.minCol === 0 &&
+    selectionBounds.maxCol === Math.max(0, fields.length - 1) &&
     rowIndex >= selectionBounds.minRow &&
     rowIndex <= selectionBounds.maxRow)
   );
