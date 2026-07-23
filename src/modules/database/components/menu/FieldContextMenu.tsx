@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import {
   Pencil,
+  RefreshCcw,
   Calendar,
   Lock,
   ArrowLeft,
@@ -23,6 +24,7 @@ interface FieldContextMenuProps {
   y: number;
   onClose: () => void;
   onEditField: (field: TableField) => void;
+  onChangePrimaryField?: (field: TableField) => void;
   onConfigureDateDependencies?: (field: TableField) => void;
   onEditPermissions?: (field: TableField) => void;
   onInsertLeft: (field: TableField) => void;
@@ -42,6 +44,7 @@ export const FieldContextMenu: React.FC<FieldContextMenuProps> = ({
   y,
   onClose,
   onEditField,
+  onChangePrimaryField,
   onConfigureDateDependencies,
   onEditPermissions,
   onInsertLeft,
@@ -76,13 +79,18 @@ export const FieldContextMenu: React.FC<FieldContextMenuProps> = ({
 
   // Ensure menu stays within window bounds
   const adjustedX = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1000) - 250);
-  const adjustedY = Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 480);
+  const adjustedY = Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 520);
 
   const menuItems = [
     {
       label: 'Edit field',
       icon: Pencil,
       onClick: () => { onEditField(field); onClose(); }
+    },
+    {
+      label: 'Change primary field',
+      icon: RefreshCcw,
+      onClick: () => { onChangePrimaryField?.(field); onClose(); }
     },
     {
       label: 'Configure date dependencies',

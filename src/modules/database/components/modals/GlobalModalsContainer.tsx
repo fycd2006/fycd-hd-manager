@@ -263,6 +263,29 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
             setEditingFieldForModal(field)
             setShowNewFieldModal(true)
           }}
+          onChangePrimaryField={async (field) => {
+            if (!wsState.activeTableId) return
+            const targetFieldId = field.id
+            const currentIndex = fields.findIndex(f => f.id === targetFieldId)
+            if (currentIndex === -1 || currentIndex === 0) {
+              uiActions.addToast(`欄位「${field.name}」已經是主要欄位`, 'info')
+              return
+            }
+
+            const reorderedFields = [...fields]
+            const [targetField] = reorderedFields.splice(currentIndex, 1)
+            reorderedFields.splice(0, 0, targetField)
+
+            const fieldOrders = reorderedFields.map(f => f.id)
+            setFields(reorderedFields.map((f, index) => ({ ...f, order: index })))
+
+            try {
+              await fieldService.reorderFields(wsState.activeTableId, fieldOrders)
+              uiActions.addToast(`已成功將「${field.name}」設定為主要欄位`, 'success')
+            } catch {
+              uiActions.addToast('變更主要欄位失敗', 'error')
+            }
+          }}
           onConfigureDateDependencies={(field) => {
             uiActions.addToast(`已設定「${field.name}」日期依賴關係`, 'info')
           }}
