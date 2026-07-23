@@ -65,6 +65,7 @@ export const GridView: React.FC<GridViewProps> = ({
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const footerScrollRef = useRef<HTMLDivElement>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -518,11 +519,42 @@ export const GridView: React.FC<GridViewProps> = ({
       className="grid-view"
       style={{ outline: 'none', height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
-      {/* 1. Scrollable Main Area: Header + Virtualized Rows Body */}
+      {/* 1. Header Container (Synchronized Horizontal Scroll) */}
+      <div
+        ref={headerScrollRef}
+        className="grid-view__head-container"
+        style={{
+          width: '100%',
+          overflowX: 'hidden',
+          overflowY: 'hidden',
+          flexShrink: 0,
+          background: '#ffffff',
+          borderBottom: '1px solid var(--border-color, #e2e8f0)',
+          zIndex: 30
+        }}
+      >
+        <GridViewHead
+          fields={fields}
+          rowDetailsWidth={rowDetailsWidth}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onAddField={onAddField}
+          onResizeColumn={handleResizeColumnLocal}
+          onResizeColumnEnd={onResizeColumnEnd}
+          onFieldClick={onFieldClick}
+          onOpenFieldContextMenu={onOpenFieldContextMenu}
+          onReorderFields={onReorderFields}
+        />
+      </div>
+
+      {/* 2. Scrollable Rows Body Container */}
       <div 
         ref={bodyRef}
         className="grid-view__scroll-container" 
         onScroll={(e) => {
+          if (headerScrollRef.current) {
+            headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
+          }
           if (footerScrollRef.current) {
             footerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
           }
@@ -536,22 +568,6 @@ export const GridView: React.FC<GridViewProps> = ({
         style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative' }}
       >
         <div style={{ minWidth: '100%', width: 'max-content', display: 'flex', flexDirection: 'column' }}>
-          {/* Header Row (Sticky Top) */}
-          <div style={{ position: 'sticky', top: 0, zIndex: 30, background: '#ffffff', flexShrink: 0, borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-            <GridViewHead
-              fields={fields}
-              rowDetailsWidth={rowDetailsWidth}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onAddField={onAddField}
-              onResizeColumn={handleResizeColumnLocal}
-              onResizeColumnEnd={onResizeColumnEnd}
-              onFieldClick={onFieldClick}
-              onOpenFieldContextMenu={onOpenFieldContextMenu}
-              onReorderFields={onReorderFields}
-            />
-          </div>
-
           {/* Rows Body */}
           <div className="grid-view__body-inner" style={{ width: 'max-content', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
             {groupedSections ? (
