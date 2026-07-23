@@ -76,6 +76,9 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
   const setActiveWorkspaceId = useCallback((id: number | null) => {
     setActiveWorkspaceIdState(id)
     if (id !== null) {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('activeWorkspaceId', String(id))
+      }
       setWorkspaces(currentWorkspaces => {
         const targetWs = currentWorkspaces.find(w => w.id === id)
         if (targetWs && targetWs.databases && targetWs.databases.length > 0) {
@@ -94,14 +97,17 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
     setWorkspaces(result)
 
     if (result.length > 0) {
+      const savedWsId = typeof window !== 'undefined' ? localStorage.getItem('activeWorkspaceId') : null
+      const parsedWsId = savedWsId ? parseInt(savedWsId, 10) : null
+
       setActiveWorkspaceIdState(prev => {
-        const currentActive = prev ?? result[0].id
-        const targetWs = result.find(w => w.id === currentActive) || result[0]
+        const validWsId = (parsedWsId && result.some(w => w.id === parsedWsId)) ? parsedWsId : (prev ?? result[0].id)
+        const targetWs = result.find(w => w.id === validWsId) || result[0]
         const firstTable = targetWs.databases?.[0]?.tables?.[0]
         if (firstTable) {
           setActiveTableId(firstTable.id)
         }
-        return currentActive
+        return targetWs.id
       })
     }
 

@@ -195,7 +195,6 @@ export default function Sidebar({
                   toggleMenu('workspace-selector', e)
                 }
               }}
-              onMouseDown={(e) => e.stopPropagation()}
               title="切換工作區"
               style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, padding: '4px 6px', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden' }}
             >
@@ -240,7 +239,6 @@ export default function Sidebar({
                   border: '1px solid #cbd5e1', padding: '6px 0', animation: 'fadeIn 0.15s ease-out'
                 }}
                 onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
               >
                 {/* Search Bar */}
                 <div style={{ padding: '6px 10px', borderBottom: '1px solid #f1f5f9' }}>
