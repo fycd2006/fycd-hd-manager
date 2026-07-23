@@ -13,6 +13,7 @@
     "@hello-pangea/dnd": "^18.0.1",
     "@prisma/client": "^6.19.3",
     "@tanstack/react-virtual": "^3.14.6",
+    "darkreader": "^4.9.128",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
     "react": "19.2.4",

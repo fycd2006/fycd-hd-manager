@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
+import * as DarkReader from 'darkreader'
 import { Theme, DarkReaderSettings } from '../types'
 
 export interface ThemeState {
@@ -39,19 +40,34 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     }
   })
 
-  // Apply theme to document
+  // Apply theme & DarkReader engine to document
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
-  }, [theme])
 
-  // Apply dark reader settings to document
-  useEffect(() => {
+    const hasCustomFilter = darkReaderSettings.brightness !== 100 ||
+                            darkReaderSettings.contrast !== 100 ||
+                            darkReaderSettings.sepia > 0 ||
+                            darkReaderSettings.grayscale > 0
+
+    if (theme === 'dark' || hasCustomFilter) {
+      DarkReader.enable({
+        brightness: darkReaderSettings.brightness,
+        contrast: darkReaderSettings.contrast,
+        sepia: darkReaderSettings.sepia,
+        grayscale: darkReaderSettings.grayscale,
+      })
+    } else {
+      DarkReader.disable()
+    }
+
     document.documentElement.style.setProperty('--darkreader-brightness', `${darkReaderSettings.brightness}%`)
     document.documentElement.style.setProperty('--darkreader-contrast', `${darkReaderSettings.contrast}%`)
     document.documentElement.style.setProperty('--darkreader-sepia', `${darkReaderSettings.sepia}%`)
     document.documentElement.style.setProperty('--darkreader-grayscale', `${darkReaderSettings.grayscale}%`)
-  }, [darkReaderSettings])
+  }, [theme, darkReaderSettings])
 
   const toggleTheme = () => {
     setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'))
