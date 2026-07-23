@@ -40,7 +40,7 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     }
   })
 
-  // Apply theme & DarkReader engine to document
+  // Apply native CSS theme & optional DarkReader custom filter to document
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -52,7 +52,8 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
                             darkReaderSettings.sepia > 0 ||
                             darkReaderSettings.grayscale > 0
 
-    if (theme === 'dark' || hasCustomFilter) {
+    // Only invoke DarkReader engine if user explicitly customizes display filters
+    if (hasCustomFilter) {
       DarkReader.enable({
         brightness: darkReaderSettings.brightness,
         contrast: darkReaderSettings.contrast,
