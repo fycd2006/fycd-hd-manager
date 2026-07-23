@@ -1719,7 +1719,14 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   let cellShadow: string | undefined = undefined;
   if (isEditing) {
     cellShadow = undefined;
-  } else if (isSelected && !isInRange) {
+  } else if (isInRange && rangeEdges) {
+    const borders: string[] = [];
+    if (rangeEdges.top) borders.push('inset 0 2px 0 0 #2563eb');
+    if (rangeEdges.bottom) borders.push('inset 0 -2px 0 0 #2563eb');
+    if (rangeEdges.left) borders.push('inset 2px 0 0 0 #2563eb');
+    if (rangeEdges.right) borders.push('inset -2px 0 0 0 #2563eb');
+    cellShadow = borders.length > 0 ? borders.join(', ') : undefined;
+  } else if (isSelected) {
     // Single selected cell focus outline
     cellShadow = 'inset 0 0 0 2px #2563eb';
   }

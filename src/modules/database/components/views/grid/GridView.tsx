@@ -842,6 +842,7 @@ export const GridView: React.FC<GridViewProps> = ({
                             setSelectedCell([rIndex, cIndex]);
                             setSelectionStart([rIndex, cIndex]);
                             setSelectionEnd([rIndex, cIndex]);
+                            setIsDraggingSelection(true);
                           }
                           setIsEditing(false);
                         }}
