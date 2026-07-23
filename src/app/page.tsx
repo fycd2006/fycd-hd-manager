@@ -1092,6 +1092,8 @@ export default function Home() {
                 setShowNewFieldModal={setShowNewFieldModal}
                 handleUpdateField={handleUpdateField}
                 setFieldContextMenu={setFieldContextMenu}
+                onUndo={undo}
+                onRedo={redo}
               />
             </div>
 

@@ -32,6 +32,8 @@ interface GridViewProps {
   onFieldClick?: (field: TableField, e: React.MouseEvent) => void;
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -51,6 +53,8 @@ export const GridView: React.FC<GridViewProps> = ({
   onFieldClick,
   onOpenFieldContextMenu,
   onUpdateField,
+  onUndo,
+  onRedo,
 }) => {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -262,6 +266,20 @@ export const GridView: React.FC<GridViewProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isEditing) return;
+
+      // Undo: Ctrl+Z / Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        onUndo?.();
+        showToast('已執行復原 (Undo)');
+      }
+
+      // Redo: Ctrl+Y / Cmd+Y or Ctrl+Shift+Z
+      if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
+        e.preventDefault();
+        onRedo?.();
+        showToast('已執行重做 (Redo)');
+      }
 
       // Copy: Ctrl+C / Cmd+C
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {

@@ -48,6 +48,8 @@ interface DatabaseViewRouterProps {
   setShowNewFieldModal: (show: boolean) => void
   handleUpdateField: (fieldId: number, updates: Partial<TableField>) => void
   setFieldContextMenu: (menu: { field: TableField; x: number; y: number } | null) => void
+  onUndo?: () => void
+  onRedo?: () => void
 }
 
 export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
@@ -90,6 +92,8 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   setShowNewFieldModal,
   handleUpdateField,
   setFieldContextMenu,
+  onUndo,
+  onRedo,
 }) => {
   return (
     <>
@@ -161,6 +165,8 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           onShowNewFieldModal={() => setShowNewFieldModal(true)}
           onUpdateField={handleUpdateField}
           onOpenFieldContextMenu={(field, x, y) => setFieldContextMenu({ field, x, y })}
+          onUndo={onUndo}
+          onRedo={onRedo}
         />
       )}
 

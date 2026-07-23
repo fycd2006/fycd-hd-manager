@@ -44,6 +44,8 @@ interface GridViewProps {
   onUpdateCell?: (rowId: number, fieldKey: string, value: any) => void
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void
+  onUndo?: () => void
+  onRedo?: () => void
 }
 
 export default function GridView({
@@ -64,7 +66,9 @@ export default function GridView({
   onOpenFieldContextMenu,
   onExpandRow,
   onDeleteRow,
-  onToggleSort
+  onToggleSort,
+  onUndo,
+  onRedo,
 }: GridViewProps) {
   if (gridLoading) {
     return (
@@ -137,6 +141,8 @@ export default function GridView({
         onFieldClick={(field) => onToggleSort?.(`field_${field.id}`)}
         onOpenFieldContextMenu={readOnly ? undefined : onOpenFieldContextMenu}
         onUpdateField={readOnly ? undefined : onUpdateField}
+        onUndo={onUndo}
+        onRedo={onRedo}
       />
     </div>
   )
