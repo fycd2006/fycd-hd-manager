@@ -7,23 +7,35 @@ import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
 
 const BASEROW_PALETTE = [
-  { bg: '#fef3c7', text: '#92400e' }, // Soft yellow (西西)
-  { bg: '#fca5a5', text: '#7f1d1d' }, // Soft red/coral (哈哈)
-  { bg: '#fef08a', text: '#854d0e' }, // Soft gold/amber (1211)
-  { bg: '#dcfce7', text: '#14532d' }, // Soft green
-  { bg: '#dbeafe', text: '#1e40af' }, // Soft blue
-  { bg: '#f3e8ff', text: '#581c87' }, // Soft purple
-  { bg: '#fce7f3', text: '#831843' }, // Soft pink
-  { bg: '#ffedd5', text: '#7c2d12' }, // Soft orange
+  { bg: '#fee2e2', text: '#991b1b' }, // Soft Red
+  { bg: '#dbeafe', text: '#1e40af' }, // Soft Blue
+  { bg: '#dcfce7', text: '#166534' }, // Soft Green
+  { bg: '#fef3c7', text: '#92400e' }, // Soft Yellow
+  { bg: '#f3e8ff', text: '#6b21a8' }, // Soft Purple
+  { bg: '#fce7f3', text: '#9d174d' }, // Soft Pink
+  { bg: '#ffedd5', text: '#9a3412' }, // Soft Orange
+  { bg: '#ccfbf1', text: '#115e59' }, // Soft Teal
+  { bg: '#e0e7ff', text: '#3730a3' }, // Soft Indigo
+  { bg: '#cffafe', text: '#155e75' }, // Soft Cyan
 ];
 
-const getOptionColor = (str: string) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+const getOptionColor = (str: string, allOptions?: string[]) => {
+  if (!str) return { bg: '#f1f5f9', text: '#475569', backgroundColor: '#f1f5f9', color: '#475569' };
+  
+  let idx = -1;
+  if (allOptions && Array.isArray(allOptions) && allOptions.length > 0) {
+    idx = allOptions.findIndex(opt => opt.toLowerCase() === str.toLowerCase());
   }
-  const idx = Math.abs(hash) % BASEROW_PALETTE.length;
-  const palette = BASEROW_PALETTE[idx];
+
+  if (idx < 0) {
+    let hash = 5381;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    }
+    idx = Math.abs(hash);
+  }
+
+  const palette = BASEROW_PALETTE[idx % BASEROW_PALETTE.length];
   return {
     backgroundColor: palette.bg,
     color: palette.text,
@@ -628,7 +640,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               }}
             >
               {localVal ? (
-                <span style={{ ...getOptionColor(localVal), padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                <span style={{ ...getOptionColor(localVal, options), padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
                   {localVal}
                 </span>
               ) : (
@@ -686,7 +698,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   </div>
                   <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
                     {filteredOptions.map((opt, i) => {
-                      const { bg, text } = getOptionColor(opt);
+                      const { bg, text } = getOptionColor(opt, options);
                       const isSelected = localVal === opt;
                       return (
                         <div 
@@ -782,7 +794,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               }}
             >
               {currentItems.map((item, i) => {
-                const { bg, text } = getOptionColor(item);
+                const { bg, text } = getOptionColor(item, options);
                 return (
                   <span key={i} style={{ background: bg, color: text, padding: '2px 6px', borderRadius: '9999px', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
                     {item}
@@ -852,7 +864,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
                     {filteredOptions.map((opt, i) => {
                       const isSelected = currentItems.includes(opt);
-                      const { bg, text } = getOptionColor(opt);
+                      const { bg, text } = getOptionColor(opt, options);
                       return (
                         <div 
                           key={i} 
@@ -1185,6 +1197,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     }
 
     if (field.type === 'single_select' || field.type === 'multiple_select') {
+      const allOptions = getFieldOptions();
       const items = parseSelectItems(value);
       const visibleItems = items.slice(0, 3);
       const hiddenCount = items.length - visibleItems.length;
@@ -1192,7 +1205,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       return (
         <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
           {visibleItems.map((itemStr, i) => {
-            const { bg, text } = getOptionColor(itemStr);
+            const { bg, text } = getOptionColor(itemStr, allOptions);
             return (
               <span 
                 key={i} 
