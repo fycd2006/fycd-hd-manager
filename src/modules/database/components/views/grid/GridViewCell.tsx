@@ -1239,7 +1239,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
       const visibleLinks = linkItems.slice(0, 4);
       const hiddenLinkCount = linkItems.length - visibleLinks.length;
-      const showControls = isCellHovered || isSelected || isEditing;
+      const showControls = isCellHovered || isEditing;
 
       return (
         <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
@@ -1334,7 +1334,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontSize: '13px', color: textStr ? '#1e293b' : '#94a3b8', lineHeight: '1.4' }}>
             {firstLine || (isCellHovered ? '點擊編輯...' : '')}
           </span>
-          {(isCellHovered || isSelected) && textStr && (
+          {isCellHovered && textStr && (
             <span
               onClick={(e) => {
                 e.stopPropagation();
@@ -1377,7 +1377,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'url') {
       const urlStr = value != null ? String(value).trim() : '';
-      if (!urlStr) return <span style={{ padding: '0 8px', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>—</span>;
+      if (!urlStr) return null;
       const href = urlStr.startsWith('http://') || urlStr.startsWith('https://') ? urlStr : `https://${urlStr}`;
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
@@ -1396,7 +1396,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'email') {
       const emailStr = value != null ? String(value).trim() : '';
-      if (!emailStr) return <span style={{ padding: '0 8px', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>—</span>;
+      if (!emailStr) return null;
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
           <a
@@ -1410,9 +1410,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       );
     }
 
-    if (field.type === 'phone') {
+    if (field.type === 'phone' || field.type === 'phone_number') {
       const phoneStr = value != null ? String(value).trim() : '';
-      if (!phoneStr) return <span style={{ padding: '0 8px', color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>—</span>;
+      if (!phoneStr) return null;
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
           <a
