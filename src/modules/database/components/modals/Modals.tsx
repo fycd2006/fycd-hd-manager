@@ -360,6 +360,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     if (editField) {
       setName(editField.name || '')
       setType(editField.type || 'text')
+      setTypeDropdownOpen(false)
       let choices: string[] = []
       if (editField.options) {
         try {
@@ -374,8 +375,9 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
       }
       setOptionsList(choices)
     } else {
-      setName('')
+      setName('Field')
       setType('text')
+      setTypeDropdownOpen(true)
       setOptionsList([])
     }
   }, [editField, show])
@@ -452,7 +454,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   }
 
   return (
-    <Modal show={show} onClose={onClose} title="" size="small">
+    <Modal show={show} onClose={onClose} title="" size="small" overflowVisible={true}>
       <form onSubmit={handleSubmit}>
         {/* Header Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>

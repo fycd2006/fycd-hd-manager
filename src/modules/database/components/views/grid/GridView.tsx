@@ -975,6 +975,16 @@ export const GridView: React.FC<GridViewProps> = ({
               />
             );
           })}
+          {/* Footer Add Field Spacer */}
+          <div
+            style={{
+              width: '40px',
+              minWidth: '40px',
+              flexShrink: 0,
+              borderLeft: '1px solid #e2e8f0',
+              background: '#f8fafc'
+            }}
+          />
         </div>
       </div>
 

@@ -14,6 +14,7 @@ interface ModalProps {
   fullHeight?: boolean
   contentScrollable?: boolean
   noPadding?: boolean
+  overflowVisible?: boolean
 }
 
 export default function Modal({
@@ -25,6 +26,7 @@ export default function Modal({
   closeOnOutsideClick = true,
   closeOnEscape = true,
   showCloseButton = true,
+  overflowVisible = false,
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -71,6 +73,7 @@ export default function Modal({
     >
       <div
         className={`modal-box ${sizeClassMap[size] || ''}`}
+        style={overflowVisible ? { overflow: 'visible' } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || showCloseButton) && (
@@ -88,7 +91,7 @@ export default function Modal({
             )}
           </div>
         )}
-        <div className="modal-body">
+        <div className="modal-body" style={overflowVisible ? { overflow: 'visible' } : undefined}>
           {children}
         </div>
       </div>
