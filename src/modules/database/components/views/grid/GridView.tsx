@@ -622,6 +622,10 @@ export const GridView: React.FC<GridViewProps> = ({
     return result;
   }, [fields, rows]);
 
+  const totalTableWidth = useMemo(() => {
+    return fields.reduce((sum, f) => sum + (f.width || 180), rowDetailsWidth) + 40;
+  }, [fields, rowDetailsWidth]);
+
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
@@ -691,7 +695,7 @@ export const GridView: React.FC<GridViewProps> = ({
       >
         <div style={{ minWidth: '100%', width: 'max-content', display: 'flex', flexDirection: 'column' }}>
           {/* Rows Body */}
-          <div className="grid-view__body-inner" style={{ width: 'max-content', minWidth: '100%', display: 'flex', flexDirection: 'column', paddingRight: '48px', boxSizing: 'border-box' }}>
+          <div className="grid-view__body-inner" style={{ width: 'max-content', minWidth: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
             {groupedSections ? (
               <div className="grid-view__grouped-body" style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
                 {groupedSections.map(([groupKey, groupData]) => {
@@ -709,102 +713,80 @@ export const GridView: React.FC<GridViewProps> = ({
                           backgroundColor: '#f8fafc',
                           borderTop: '1px solid #e2e8f0',
                           borderBottom: '1px solid #e2e8f0',
-                          padding: '0 12px',
+                          paddingLeft: '12px',
                           fontWeight: 600,
                           fontSize: '13px',
                           color: '#334155',
                           cursor: 'pointer',
-                          userSelect: 'none',
-                          position: 'sticky',
-                          top: 0,
-                          zIndex: 20,
-                          gap: '8px'
+                          userSelect: 'none'
                         }}
                       >
-                        <span style={{ color: '#64748b', display: 'flex', alignItems: 'center' }}>
-                          {isCollapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
-                        </span>
-                        <span style={{ color: '#64748b', fontWeight: 500 }}>{groupedField?.name || '欄位'}:</span>
-                        <span style={{
-                          backgroundColor: groupKey === '（空白）' ? '#f1f5f9' : '#e0f2fe',
-                          color: groupKey === '（空白）' ? '#64748b' : '#0369a1',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          fontSize: '12px',
-                          fontWeight: 600
-                        }}>
-                          {groupKey}
-                        </span>
-                        <span style={{
-                          backgroundColor: '#e2e8f0',
-                          color: '#475569',
-                          borderRadius: '10px',
-                          padding: '1px 7px',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          marginLeft: '4px'
-                        }}>
-                          {groupData.rows.length} 筆
+                        {isCollapsed ? <ChevronRight size={16} style={{ marginRight: '6px' }} /> : <ChevronDown size={16} style={{ marginRight: '6px' }} />}
+                        <span>{groupKey}</span>
+                        <span style={{ marginLeft: '8px', fontSize: '12px', color: '#64748b', fontWeight: 400 }}>
+                          ({groupData.rows.length} 筆資料)
                         </span>
                       </div>
 
-                      {/* Group Rows */}
-                      {!isCollapsed && groupData.rows.map((row, inGrpIdx) => {
-                        const rIndex = groupData.originalIndices[inGrpIdx];
-                        return (
-                          <GridViewRow
-                            key={row.id}
-                            row={row}
-                            rowIndex={rIndex}
-                            fields={fields}
-                            rowDetailsWidth={rowDetailsWidth}
-                            selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
-                            isCellEditing={selectedCell?.[0] === rIndex && isEditing}
-                            selectionBounds={selectionBounds}
-                            isRowSelectedDirectly={selectedRowIds.has(row.id)}
-                            onToggleRowCheckbox={handleToggleRowCheckbox}
-                            onSelectRowHeader={handleSelectRowHeader}
-                            onMouseEnterRowHeader={handleMouseEnterRowHeader}
-                            onSelectCell={(cIndex, e) => {
-                              if (e?.shiftKey && selectionStart) {
-                                setSelectionEnd([rIndex, cIndex]);
-                              } else {
-                                setSelectedRowIds(new Set());
-                                setSelectionStart([rIndex, cIndex]);
-                                setSelectionEnd([rIndex, cIndex]);
-                                setIsDraggingSelection(true);
-                                setSelectedCell([rIndex, cIndex]);
-                                setIsEditing(false);
-                              }
-                            }}
-                            onMouseEnterCell={(cIndex) => {
-                              if (isDraggingSelection) {
-                                setSelectionEnd([rIndex, cIndex]);
-                              } else if (isAutofilling) {
-                                setAutofillEnd([rIndex, cIndex]);
-                                setSelectionEnd([rIndex, cIndex]);
-                              }
-                            }}
-                            onStartAutofillCell={(cIndex) => {
-                              setIsAutofilling(true);
-                              setAutofillStart([rIndex, cIndex]);
-                              setAutofillEnd([rIndex, cIndex]);
-                              setSelectionStart([rIndex, cIndex]);
-                              setSelectionEnd([rIndex, cIndex]);
-                            }}
-                            onStartEditCell={(cIndex) => {
-                              setSelectedCell([rIndex, cIndex]);
-                              setIsEditing(true);
-                            }}
-                            onUpdateCell={(fieldId, val) => {
-                              onUpdateCell?.(row.id, fieldId, val);
-                            }}
-                            onUpdateField={onUpdateField}
-                            onCancelEditCell={() => setIsEditing(false)}
-                            onExpandRow={() => onExpandRow?.(row.id)}
-                          />
-                        );
-                      })}
+                      {/* Grouped Rows */}
+                      {!isCollapsed && (
+                        <div className="grid-view__grouped-rows" style={{ display: 'flex', flexDirection: 'column' }}>
+                          {groupData.rows.map((row: RowData, inGrpIdx: number) => {
+                            const rIndex = groupData.originalIndices[inGrpIdx];
+                            return (
+                              <GridViewRow
+                                key={row.id}
+                                row={row}
+                                rowIndex={rIndex >= 0 ? rIndex : 0}
+                                fields={fields}
+                                rowDetailsWidth={rowDetailsWidth}
+                                selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
+                                isCellEditing={selectedCell?.[0] === rIndex && isEditing}
+                                selectionBounds={selectionBounds}
+                                isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                                onToggleRowCheckbox={handleToggleRowCheckbox}
+                                onSelectRowHeader={handleSelectRowHeader}
+                                onMouseEnterRowHeader={handleMouseEnterRowHeader}
+                                onSelectCell={(cIndex, e) => {
+                                  if (e?.shiftKey && selectedCell) {
+                                    setSelectionStart(selectedCell);
+                                    setSelectionEnd([rIndex, cIndex]);
+                                  } else {
+                                    setSelectedCell([rIndex, cIndex]);
+                                    setSelectionStart([rIndex, cIndex]);
+                                    setSelectionEnd([rIndex, cIndex]);
+                                  }
+                                  setIsEditing(false);
+                                }}
+                                onMouseEnterCell={(cIndex) => {
+                                  if (isDraggingSelection && selectionStart) {
+                                    setSelectionEnd([rIndex, cIndex]);
+                                  }
+                                }}
+                                onStartAutofillCell={(cIndex, e) => {
+                                  e.stopPropagation();
+                                  setIsAutofilling(true);
+                                  setAutofillStart([rIndex, cIndex]);
+                                  setAutofillEnd([rIndex, cIndex]);
+                                  setSelectionStart([rIndex, cIndex]);
+                                  setSelectionEnd([rIndex, cIndex]);
+                                }}
+                                onStartEditCell={(cIndex) => {
+                                  setSelectedCell([rIndex, cIndex]);
+                                  setIsEditing(true);
+                                }}
+                                onUpdateCell={(fieldId, val) => {
+                                  onUpdateCell?.(row.id, fieldId, val);
+                                }}
+                                onUpdateField={onUpdateField}
+                                onCancelEditCell={() => setIsEditing(false)}
+                                onExpandRow={() => onExpandRow?.(row.id)}
+                                onReorderRows={onReorderRows}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -814,7 +796,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 className="grid-view__rows"
                 style={{
                   height: `${rowVirtualizer.getTotalSize()}px`,
-                  width: '100%',
+                  width: `${totalTableWidth}px`,
                   position: 'relative',
                   userSelect: isDraggingSelection ? 'none' : 'auto'
                 }}
@@ -831,7 +813,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         position: 'absolute',
                         top: 0,
                         left: 0,
-                        width: '100%',
+                        width: `${totalTableWidth}px`,
                         transform: `translateY(${virtualRow.start}px)`,
                         zIndex: selectedCell?.[0] === rIndex && isEditing ? 100 : (selectedCell?.[0] === rIndex ? 10 : 1),
                       }}
@@ -849,26 +831,23 @@ export const GridView: React.FC<GridViewProps> = ({
                         onSelectRowHeader={handleSelectRowHeader}
                         onMouseEnterRowHeader={handleMouseEnterRowHeader}
                         onSelectCell={(cIndex, e) => {
-                          if (e?.shiftKey && selectionStart) {
+                          if (e?.shiftKey && selectedCell) {
+                            setSelectionStart(selectedCell);
                             setSelectionEnd([rIndex, cIndex]);
                           } else {
-                            setSelectedRowIds(new Set());
+                            setSelectedCell([rIndex, cIndex]);
                             setSelectionStart([rIndex, cIndex]);
                             setSelectionEnd([rIndex, cIndex]);
-                            setIsDraggingSelection(true);
-                            setSelectedCell([rIndex, cIndex]);
-                            setIsEditing(false);
                           }
+                          setIsEditing(false);
                         }}
                         onMouseEnterCell={(cIndex) => {
-                          if (isDraggingSelection) {
-                            setSelectionEnd([rIndex, cIndex]);
-                          } else if (isAutofilling) {
-                            setAutofillEnd([rIndex, cIndex]);
+                          if (isDraggingSelection && selectionStart) {
                             setSelectionEnd([rIndex, cIndex]);
                           }
                         }}
-                        onStartAutofillCell={(cIndex) => {
+                        onStartAutofillCell={(cIndex, e) => {
+                          e.stopPropagation();
                           setIsAutofilling(true);
                           setAutofillStart([rIndex, cIndex]);
                           setAutofillEnd([rIndex, cIndex]);
@@ -893,14 +872,13 @@ export const GridView: React.FC<GridViewProps> = ({
               </div>
             )}
 
-            {/* Baserow Add Row Bar (Full width table row entry) */}
+            {/* Baserow Add Row Bar (Full width table row entry matching row length) */}
             <div
               className="grid-view__add-row-bar"
               onClick={onAddRow}
               style={{
                 display: 'flex',
-                width: 'max-content',
-                minWidth: '100%',
+                width: `${totalTableWidth}px`,
                 height: 'var(--row-height, 33px)',
                 borderBottom: '1px solid var(--border-color, #e2e8f0)',
                 background: '#ffffff',
@@ -931,16 +909,17 @@ export const GridView: React.FC<GridViewProps> = ({
                 <Plus style={{ width: '14px', height: '14px' }} />
               </div>
 
-              {/* Add row text spanning remaining width */}
+              {/* Add row text spanning remaining width matching row length */}
               <div
                 style={{
+                  width: `${totalTableWidth - rowDetailsWidth}px`,
                   display: 'flex',
                   alignItems: 'center',
                   paddingLeft: '12px',
                   fontSize: '13px',
                   color: '#2563eb',
                   fontWeight: 500,
-                  flex: 1,
+                  borderRight: '1px solid var(--border-color, #e2e8f0)',
                   boxSizing: 'border-box',
                 }}
               >
@@ -978,9 +957,7 @@ export const GridView: React.FC<GridViewProps> = ({
           className="grid-view__summary-bar"
           style={{
             display: 'flex',
-            width: 'max-content',
-            minWidth: '100%',
-            paddingRight: '48px',
+            width: `${totalTableWidth}px`,
             boxSizing: 'border-box',
             fontSize: '12px',
             color: '#475569',
@@ -1019,6 +996,17 @@ export const GridView: React.FC<GridViewProps> = ({
               />
             );
           })}
+          {/* Footer Add Field Spacer */}
+          <div
+            style={{
+              width: '40px',
+              minWidth: '40px',
+              flexShrink: 0,
+              borderRight: '1px solid #e2e8f0',
+              boxSizing: 'border-box',
+              background: '#f8fafc'
+            }}
+          />
         </div>
       </div>
 
