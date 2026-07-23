@@ -339,10 +339,10 @@ const getOptionColor = (str: string) => {
 
 export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], editField }: FieldModalProps) {
   const [activeTab, setActiveTab] = useState<'basic' | 'advanced'>('basic')
-  const [name, setName] = useState('')
+  const [name, setName] = useState('Single line text')
   const [nameError, setNameError] = useState(false)
   const [type, setType] = useState('text')
-  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false)
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(true)
   const [typeSearch, setTypeSearch] = useState('')
   
   // Options state
@@ -357,28 +357,31 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (editField) {
-      setName(editField.name || '')
-      setType(editField.type || 'text')
-      setTypeDropdownOpen(false)
-      let choices: string[] = []
-      if (editField.options) {
-        try {
-          let parsed = typeof editField.options === 'string' ? JSON.parse(editField.options) : editField.options
-          if (typeof parsed === 'string') {
-            try { parsed = JSON.parse(parsed) } catch {}
-          }
-          if (Array.isArray(parsed)) choices = parsed.map(String)
-          else if (parsed && Array.isArray(parsed.choices)) choices = parsed.choices.map(String)
-          else if (parsed && Array.isArray(parsed.select_options)) choices = parsed.select_options.map((o: any) => typeof o === 'object' ? o.value || o.name || String(o) : String(o))
-        } catch {}
+    if (show) {
+      if (editField) {
+        setName(editField.name || '')
+        setType(editField.type || 'text')
+        setTypeDropdownOpen(false)
+        let choices: string[] = []
+        if (editField.options) {
+          try {
+            let parsed = typeof editField.options === 'string' ? JSON.parse(editField.options) : editField.options
+            if (typeof parsed === 'string') {
+              try { parsed = JSON.parse(parsed) } catch {}
+            }
+            if (Array.isArray(parsed)) choices = parsed.map(String)
+            else if (parsed && Array.isArray(parsed.choices)) choices = parsed.choices.map(String)
+            else if (parsed && Array.isArray(parsed.select_options)) choices = parsed.select_options.map((o: any) => typeof o === 'object' ? o.value || o.name || String(o) : String(o))
+          } catch {}
+        }
+        setOptionsList(choices)
+      } else {
+        setName('Single line text')
+        setType('text')
+        setTypeDropdownOpen(true)
+        setTypeSearch('')
+        setOptionsList([])
       }
-      setOptionsList(choices)
-    } else {
-      setName('Field')
-      setType('text')
-      setTypeDropdownOpen(true)
-      setOptionsList([])
     }
   }, [editField, show])
 
@@ -591,6 +594,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         key={ft.key}
                         onClick={() => {
                           setType(ft.key)
+                          setName(ft.label)
                           setTypeDropdownOpen(false)
                           setTypeSearch('')
                         }}
