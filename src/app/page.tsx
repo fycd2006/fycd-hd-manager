@@ -497,6 +497,14 @@ export default function Home() {
     )
   }
 
+  const frozenDisplayRowsRef = useRef<TableRow[] | null>(null)
+
+  useEffect(() => {
+    if (!editingCell) {
+      frozenDisplayRowsRef.current = null
+    }
+  }, [editingCell])
+
   // Get display rows with filters and sorting
   const getDisplayRows = () => {
     let result = [...rows]
@@ -550,7 +558,22 @@ export default function Home() {
       })
     }
 
-    // Sort
+    // Defer re-sorting if a cell is currently being edited
+    if (editingCell && frozenDisplayRowsRef.current && frozenDisplayRowsRef.current.length > 0) {
+      const rowMap = new Map(result.map(r => [r.id, r]))
+      const updatedFrozenList: TableRow[] = []
+      frozenDisplayRowsRef.current.forEach(fRow => {
+        const latest = rowMap.get(fRow.id)
+        if (latest) {
+          updatedFrozenList.push(latest)
+          rowMap.delete(fRow.id)
+        }
+      })
+      rowMap.forEach(newRow => updatedFrozenList.push(newRow))
+      return updatedFrozenList
+    }
+
+    // Sort when not editing
     if (sortField) {
       result.sort((a, b) => {
         const va = getCellValue(a, sortField)
@@ -566,6 +589,7 @@ export default function Home() {
       })
     }
 
+    frozenDisplayRowsRef.current = result
     return result
   }
 
