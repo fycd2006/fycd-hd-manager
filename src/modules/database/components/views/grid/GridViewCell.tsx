@@ -1399,13 +1399,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const cellWidth = field.width || 180;
 
   let cellBg: string | undefined = undefined;
-  let cellBorderColor: string | undefined = undefined;
 
   if (isInRange) {
-    cellBg = 'rgba(37, 99, 235, 0.12)';
-    cellBorderColor = 'rgba(37, 99, 235, 0.22)';
+    cellBg = 'rgba(37, 99, 235, 0.08)';
   } else if (isSelected) {
-    cellBg = 'rgba(37, 99, 235, 0.05)';
+    cellBg = 'rgba(37, 99, 235, 0.04)';
   }
 
   let cellShadow: string | undefined = undefined;
@@ -1450,8 +1448,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         position: isPrimary ? 'sticky' : 'relative',
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
         boxShadow: finalBoxShadow,
-        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : (cellBorderColor ? `1px solid ${cellBorderColor}` : undefined),
-        borderBottom: cellBorderColor ? `1px solid ${cellBorderColor}` : undefined,
+        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
         backgroundColor: cellBg || 'var(--bg-secondary, #ffffff)',
         boxSizing: 'border-box',
         display: 'flex',
