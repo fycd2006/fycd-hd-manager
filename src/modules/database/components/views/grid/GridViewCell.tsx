@@ -1627,6 +1627,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           onMouseEnterCell?.();
         }
       }}
+      onMouseLeave={() => {
+        setIsCellHovered(false);
+      }}
       onDoubleClick={() => {
         if (field.type === 'boolean') {
           const isChecked = Boolean(value === true || value === 'true' || value === 1 || value === '1');
