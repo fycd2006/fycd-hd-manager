@@ -741,7 +741,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             </div>
             
             {/* Dropdown Menu */}
-            <div style={{
+            <div
+              data-grid-portal="true"
+              style={{
               position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: '200px',
               background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
               borderRadius: '6px', maxHeight: '250px', display: 'flex', flexDirection: 'column', zIndex: 10000
