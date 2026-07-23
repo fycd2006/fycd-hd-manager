@@ -52,11 +52,6 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   return (
     <div 
       className={`grid-view__row ${isHovered ? 'hover' : ''}`} 
-      draggable={true}
-      onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', String(rowIndex));
-        e.dataTransfer.effectAllowed = 'move';
-      }}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -88,14 +83,25 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       {/* 1. Row Index / Actions Column */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
-        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
+        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={(e) => {
           onSelectCell(0, e);
         }}
       >
         {isHovered ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', color: '#64748b' }}>
-            <GripVertical style={{ width: '14px', height: '14px', cursor: 'grab' }} />
+            <span
+              draggable={true}
+              onDragStart={(e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('text/plain', String(rowIndex));
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab' }}
+              title="按住並拖曳即可移動此列"
+            >
+              <GripVertical style={{ width: '14px', height: '14px' }} />
+            </span>
             <input
               type="checkbox"
               checked={Boolean(selectionBounds && selectionBounds.minRow <= rowIndex && selectionBounds.maxRow >= rowIndex)}
