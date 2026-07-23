@@ -749,6 +749,7 @@ export const GridView: React.FC<GridViewProps> = ({
                               if (e?.shiftKey && selectionStart) {
                                 setSelectionEnd([rIndex, cIndex]);
                               } else {
+                                setSelectedRowIds(new Set());
                                 setSelectionStart([rIndex, cIndex]);
                                 setSelectionEnd([rIndex, cIndex]);
                                 setIsDraggingSelection(true);
@@ -831,6 +832,7 @@ export const GridView: React.FC<GridViewProps> = ({
                           if (e?.shiftKey && selectionStart) {
                             setSelectionEnd([rIndex, cIndex]);
                           } else {
+                            setSelectedRowIds(new Set());
                             setSelectionStart([rIndex, cIndex]);
                             setSelectionEnd([rIndex, cIndex]);
                             setIsDraggingSelection(true);
