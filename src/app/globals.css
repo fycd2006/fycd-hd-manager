@@ -29,7 +29,8 @@
   --bg-input: #f8fafc;
 }
 
-[data-theme='dark'] {
+[data-theme='dark'],
+.theme-dark {
   /* Dark theme for contrast and manual toggle */
   --bg-primary: #12131a;
   --bg-secondary: #181922;
@@ -49,6 +50,7 @@
   --accent-gradient: linear-gradient(135deg, #4f46e5, #6366f1, #818cf8);
   --bg-toolbar: #181922;
   --bg-input: #12131a;
+  color-scheme: dark;
 }
 
 html {

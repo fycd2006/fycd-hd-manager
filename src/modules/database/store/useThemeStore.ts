@@ -39,7 +39,7 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     }
   })
 
-  // Apply native CSS theme & optional DarkReader custom filter to document
+  // Apply native CSS theme & DarkReader engine to document
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -51,12 +51,12 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
                             darkReaderSettings.sepia > 0 ||
                             darkReaderSettings.grayscale > 0
 
-    // Safely load DarkReader on client-side only to prevent Next.js SSR "window is not defined" error
+    // Safely load DarkReader on client-side to guarantee 100% visible dark/light transformation
     import('darkreader').then(DarkReader => {
       if (typeof window !== 'undefined' && window.fetch) {
         DarkReader.setFetchMethod(window.fetch)
       }
-      if (hasCustomFilter) {
+      if (theme === 'dark' || hasCustomFilter) {
         DarkReader.enable({
           brightness: darkReaderSettings.brightness,
           contrast: darkReaderSettings.contrast,
