@@ -83,21 +83,35 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
 
   return (
     <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', minHeight: '33px' }}>
-      {/* 1. Row Identifier / Number Header Column */}
+      {/* 1. Row Identifier / Number Header Column (Sticky Frozen Left: 0) */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
-        style={{ width: `${rowDetailsWidth}px`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', fontSize: '11px', color: '#94a3b8' }}
+        style={{
+          width: `${rowDetailsWidth}px`,
+          position: 'sticky',
+          left: 0,
+          zIndex: 25,
+          backgroundColor: 'var(--bg-secondary, #ffffff)',
+          borderRight: '1px solid var(--border-color, #e2e8f0)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'monospace',
+          fontSize: '11px',
+          color: '#94a3b8'
+        }}
       >
         #
       </div>
 
       {/* 2. Field Column Headers */}
-      {fields.map((field) => {
+      {fields.map((field, fieldIndex) => {
         const IconComponent = FIELD_TYPE_ICONS[field.type] || Type;
         const columnWidth = field.width || 180;
         const isSorted = sortField === `field_${field.id}`;
         const isDraggingThis = draggedFieldId === field.id;
         const isDragTarget = dragOverFieldId === field.id && draggedFieldId !== field.id;
+        const isPrimary = fieldIndex === 0;
 
         return (
           <div
@@ -135,15 +149,18 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             }}
             style={{
               width: `var(--field-width-${field.id}, ${columnWidth}px)`,
+              position: isPrimary ? 'sticky' : 'relative',
+              left: isPrimary ? `${rowDetailsWidth}px` : undefined,
+              zIndex: isPrimary ? 24 : 1,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '0 10px',
-              position: 'relative',
               cursor: 'grab',
-              backgroundColor: isDraggingThis ? '#e0f2fe' : isSorted ? '#f8fafc' : undefined,
+              backgroundColor: isDraggingThis ? '#e0f2fe' : 'var(--bg-secondary, #ffffff)',
               opacity: isDraggingThis ? 0.6 : 1,
-              boxShadow: isDragTarget ? 'inset 3px 0 0 0 #2563eb' : undefined,
+              boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 #2563eb' : undefined),
+              borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
               transition: 'background-color 0.15s, box-shadow 0.15s',
             }}
             onClick={(e) => onFieldClick?.(field, e)}

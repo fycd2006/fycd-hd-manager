@@ -80,10 +80,22 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 1. Row Index / Actions Column */}
+      {/* 1. Row Index / Actions Column (Sticky Left: 0) */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
-        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'default' }}
+        style={{
+          width: `${rowDetailsWidth}px`,
+          position: 'sticky',
+          left: 0,
+          zIndex: 15,
+          backgroundColor: 'var(--bg-secondary, #ffffff)',
+          borderRight: '1px solid var(--border-color, #e2e8f0)',
+          padding: '0 4px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'default'
+        }}
         onClick={(e) => {
           onSelectCell(0, e);
         }}
@@ -157,6 +169,8 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             isEditing={isSelected && isCellEditing}
             isInRange={isInRange}
             rangeEdges={rangeEdges}
+            isPrimary={cIndex === 0}
+            rowDetailsWidth={rowDetailsWidth}
             onSelect={(e) => onSelectCell(cIndex, e)}
             onMouseEnterCell={() => onMouseEnterCell?.(cIndex)}
             onStartAutofill={(e) => onStartAutofillCell?.(cIndex, e)}

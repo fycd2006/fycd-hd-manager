@@ -56,6 +56,8 @@ interface GridViewCellProps {
   isEditing: boolean;
   isInRange?: boolean;
   rangeEdges?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
+  isPrimary?: boolean;
+  rowDetailsWidth?: number;
   onSelect: (e?: React.MouseEvent) => void;
   onMouseEnterCell?: () => void;
   onStartAutofill?: (e: React.MouseEvent) => void;
@@ -66,12 +68,15 @@ interface GridViewCellProps {
 }
 
 export const GridViewCell: React.FC<GridViewCellProps> = ({
+  rowId,
   field,
   value,
   isSelected,
   isEditing,
   isInRange,
   rangeEdges,
+  isPrimary = false,
+  rowDetailsWidth = 56,
   onSelect,
   onMouseEnterCell,
   onStartAutofill,
@@ -1432,16 +1437,18 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       onDoubleClick={onStartEdit}
       style={{ 
         width: `var(--field-width-${field.id}, ${cellWidth}px)`,
-        position: 'relative',
-        boxShadow: cellShadow,
-        backgroundColor: cellBg,
+        position: isPrimary ? 'sticky' : 'relative',
+        left: isPrimary ? `${rowDetailsWidth}px` : undefined,
+        boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : cellShadow,
+        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
+        backgroundColor: cellBg || 'var(--bg-secondary, #ffffff)',
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',
         height: 'var(--row-height, 32px)',
         overflow: 'hidden',
         userSelect: 'none',
-        zIndex: isEditing ? 100 : (isSelected || isInRange ? 10 : undefined)
+        zIndex: isEditing ? 100 : (isPrimary ? 14 : (isSelected || isInRange ? 10 : undefined))
       }}
       className={`grid-view__column ${isSelected || isInRange ? 'active' : ''}`}
     >
