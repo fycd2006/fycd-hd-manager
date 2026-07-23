@@ -28,7 +28,14 @@ export async function GET() {
             tables: {
               where: { deletedAt: null },
               orderBy: { order: 'asc' },
-              include: {
+              select: {
+                id: true,
+                name: true,
+                order: true,
+                databaseId: true,
+                createdAt: true,
+                updatedAt: true,
+                deletedAt: true,
                 _count: { select: { rows: true } }
               }
             }
@@ -85,7 +92,14 @@ export async function GET() {
               tables: {
                 where: { deletedAt: null },
                 orderBy: { order: 'asc' },
-                include: {
+                select: {
+                  id: true,
+                  name: true,
+                  order: true,
+                  databaseId: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  deletedAt: true,
                   _count: { select: { rows: true } }
                 }
               }
@@ -96,9 +110,10 @@ export async function GET() {
       })
     }
 
-    const defaultDb = workspaces[0].databases[0]
+    const defaultDb = workspaces[0]?.databases?.[0]
     const orphanTables = await prisma.databaseTable.findMany({
-      where: { databaseId: null }
+      where: { databaseId: null },
+      select: { id: true }
     })
 
     if (orphanTables.length > 0 && defaultDb) {
@@ -118,8 +133,16 @@ export async function GET() {
           databases: {
             include: {
               tables: {
+                where: { deletedAt: null },
                 orderBy: { order: 'asc' },
-                include: {
+                select: {
+                  id: true,
+                  name: true,
+                  order: true,
+                  databaseId: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  deletedAt: true,
                   _count: { select: { rows: true } }
                 }
               }
@@ -217,7 +240,18 @@ export async function POST(request: Request) {
             members: true,
             databases: {
               include: {
-                tables: true
+                tables: {
+                  select: {
+                    id: true,
+                    name: true,
+                    order: true,
+                    databaseId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                    _count: { select: { rows: true } }
+                  }
+                }
               }
             }
           }
@@ -238,7 +272,20 @@ export async function POST(request: Request) {
           name: name.trim(),
           workspaceId: wsId
         },
-        include: { tables: true }
+        include: {
+          tables: {
+            select: {
+              id: true,
+              name: true,
+              order: true,
+              databaseId: true,
+              createdAt: true,
+              updatedAt: true,
+              deletedAt: true,
+              _count: { select: { rows: true } }
+            }
+          }
+        }
       })
       return NextResponse.json(newDb, { status: 201 })
     }
@@ -266,7 +313,14 @@ export async function POST(request: Request) {
             ]
           }
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          order: true,
+          databaseId: true,
+          createdAt: true,
+          updatedAt: true,
+          deletedAt: true,
           fields: true,
           _count: { select: { rows: true } }
         }
