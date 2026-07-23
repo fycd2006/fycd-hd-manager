@@ -20,8 +20,10 @@ interface GridViewRowProps {
   selectedColumnIndex?: number | null;
   isCellEditing?: boolean;
   selectionBounds?: { minRow: number; maxRow: number; minCol: number; maxCol: number; isMulti: boolean } | null;
+  isRowSelectedDirectly?: boolean;
   onSelectCell: (colIndex: number, e?: React.MouseEvent) => void;
   onSelectRowHeader?: (rowIndex: number, e: React.MouseEvent) => void;
+  onToggleRowCheckbox?: (rowId: number, e: React.MouseEvent) => void;
   onMouseEnterRowHeader?: (rowIndex: number) => void;
   onMouseEnterCell?: (colIndex: number) => void;
   onStartAutofillCell?: (colIndex: number, e: React.MouseEvent) => void;
@@ -41,8 +43,10 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   selectedColumnIndex,
   isCellEditing,
   selectionBounds,
+  isRowSelectedDirectly = false,
   onSelectCell,
   onSelectRowHeader,
+  onToggleRowCheckbox,
   onMouseEnterRowHeader,
   onMouseEnterCell,
   onStartAutofillCell,
@@ -57,9 +61,10 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   const [isDragTarget, setIsDragTarget] = useState(false);
 
   const isRowSelected = Boolean(
-    selectionBounds &&
+    isRowSelectedDirectly ||
+    (selectionBounds &&
     rowIndex >= selectionBounds.minRow &&
-    rowIndex <= selectionBounds.maxRow
+    rowIndex <= selectionBounds.maxRow)
   );
 
   return (
@@ -141,9 +146,12 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
               checked={isRowSelected}
               onChange={(e) => {
                 e.stopPropagation();
-                onSelectRowHeader?.(rowIndex, e as any);
+                onToggleRowCheckbox?.(row.id, e as any);
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleRowCheckbox?.(row.id, e);
+              }}
               style={{ width: '14px', height: '14px', cursor: 'pointer' }}
             />
             <Maximize2 

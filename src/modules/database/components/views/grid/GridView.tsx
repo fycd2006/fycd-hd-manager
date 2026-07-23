@@ -63,6 +63,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onReorderRows,
 }) => {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -144,21 +145,24 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [selectionBounds, rows, fields, onUpdateCell, showToast]);
 
   const handleDeleteSelectedRows = useCallback(() => {
-    if (!selectionBounds) return;
-    const rowIdsToDelete = new Set<number>();
-    for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
-      const targetRow = rows[r];
-      if (targetRow) {
-        rowIdsToDelete.add(targetRow.id);
+    const rowIdsToDelete = new Set<number>(selectedRowIds);
+    if (selectionBounds) {
+      for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
+        const targetRow = rows[r];
+        if (targetRow) {
+          rowIdsToDelete.add(targetRow.id);
+        }
       }
     }
     const count = rowIdsToDelete.size;
+    if (count === 0) return;
     rowIdsToDelete.forEach(id => onDeleteRow?.(id));
+    setSelectedRowIds(new Set());
     setSelectedCell(null);
     setSelectionStart(null);
     setSelectionEnd(null);
-    showToast(`已刪除 ${count} 列資料`);
-  }, [selectionBounds, rows, onDeleteRow, showToast]);
+    showToast(`已成功刪除 ${count} 列資料`);
+  }, [selectedRowIds, selectionBounds, rows, onDeleteRow, showToast]);
 
   const handleCutSelection = useCallback(() => {
     handleCopySelection();
@@ -368,51 +372,82 @@ export const GridView: React.FC<GridViewProps> = ({
   }, []);
 
   const isAllRowsSelected = useMemo(() => {
-    if (!selectionBounds || rows.length === 0 || fields.length === 0) return false;
-    return (
-      selectionBounds.minRow === 0 &&
-      selectionBounds.maxRow === rows.length - 1 &&
-      selectionBounds.minCol === 0 &&
-      selectionBounds.maxCol === fields.length - 1
-    );
-  }, [selectionBounds, rows.length, fields.length]);
+    if (rows.length === 0) return false;
+    return rows.every(r => selectedRowIds.has(r.id));
+  }, [rows, selectedRowIds]);
 
   const isSomeRowsSelected = useMemo(() => {
-    return Boolean(selectionBounds);
-  }, [selectionBounds]);
+    return selectedRowIds.size > 0 || Boolean(selectionBounds);
+  }, [selectedRowIds.size, selectionBounds]);
 
   const handleToggleSelectAllRows = useCallback(() => {
     if (isAllRowsSelected) {
+      setSelectedRowIds(new Set());
       setSelectionStart(null);
       setSelectionEnd(null);
       setSelectedCell(null);
     } else {
+      const allIds = new Set(rows.map(r => r.id));
+      setSelectedRowIds(allIds);
       setSelectionStart([0, 0]);
       setSelectionEnd([Math.max(0, rows.length - 1), Math.max(0, fields.length - 1)]);
-      setSelectedCell([0, 0]);
     }
-  }, [isAllRowsSelected, rows.length, fields.length]);
+  }, [isAllRowsSelected, rows, fields.length]);
+
+  const handleToggleRowCheckbox = useCallback((rowId: number, e?: React.MouseEvent) => {
+    setSelectedRowIds(prev => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  }, []);
 
   const handleSelectRowHeader = useCallback((rIndex: number, e?: React.MouseEvent) => {
+    const targetRow = rows[rIndex];
+    if (targetRow && (e?.ctrlKey || e?.metaKey)) {
+      handleToggleRowCheckbox(targetRow.id, e);
+      return;
+    }
+
     if (e?.shiftKey && selectionStart) {
       const minR = Math.min(selectionStart[0], rIndex);
       const maxR = Math.max(selectionStart[0], rIndex);
       setSelectionStart([minR, 0]);
       setSelectionEnd([maxR, Math.max(0, fields.length - 1)]);
+      
+      const newSelectedIds = new Set(selectedRowIds);
+      for (let i = minR; i <= maxR; i++) {
+        if (rows[i]) newSelectedIds.add(rows[i].id);
+      }
+      setSelectedRowIds(newSelectedIds);
     } else {
       setSelectionStart([rIndex, 0]);
       setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
       setSelectedCell([rIndex, 0]);
       setIsDraggingSelection(true);
       setIsEditing(false);
+      if (targetRow) {
+        setSelectedRowIds(new Set([targetRow.id]));
+      }
     }
-  }, [selectionStart, fields.length]);
+  }, [selectionStart, fields.length, rows, selectedRowIds, handleToggleRowCheckbox]);
 
   const handleMouseEnterRowHeader = useCallback((rIndex: number) => {
-    if (isDraggingSelection) {
+    if (isDraggingSelection && selectionStart) {
       setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
+      const minR = Math.min(selectionStart[0], rIndex);
+      const maxR = Math.max(selectionStart[0], rIndex);
+      const newSelectedIds = new Set(selectedRowIds);
+      for (let i = minR; i <= maxR; i++) {
+        if (rows[i]) newSelectedIds.add(rows[i].id);
+      }
+      setSelectedRowIds(newSelectedIds);
     }
-  }, [isDraggingSelection, fields.length]);
+  }, [isDraggingSelection, selectionStart, rows, selectedRowIds, fields.length]);
 
   // Virtualizer for high-performance rendering of 10,000+ rows
   const rowVirtualizer = useVirtualizer({
@@ -696,6 +731,8 @@ export const GridView: React.FC<GridViewProps> = ({
                             selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
                             isCellEditing={selectedCell?.[0] === rIndex && isEditing}
                             selectionBounds={selectionBounds}
+                            isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                            onToggleRowCheckbox={handleToggleRowCheckbox}
                             onSelectRowHeader={handleSelectRowHeader}
                             onMouseEnterRowHeader={handleMouseEnterRowHeader}
                             onSelectCell={(cIndex, e) => {
@@ -776,6 +813,8 @@ export const GridView: React.FC<GridViewProps> = ({
                         selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
                         isCellEditing={selectedCell?.[0] === rIndex && isEditing}
                         selectionBounds={selectionBounds}
+                        isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                        onToggleRowCheckbox={handleToggleRowCheckbox}
                         onSelectRowHeader={handleSelectRowHeader}
                         onMouseEnterRowHeader={handleMouseEnterRowHeader}
                         onSelectCell={(cIndex, e) => {
@@ -900,6 +939,63 @@ export const GridView: React.FC<GridViewProps> = ({
           onClearValues={handleClearSelectionValues}
           onDeleteRows={handleDeleteSelectedRows}
         />
+      )}
+
+      {/* Floating Batch Action Bar when rows are multi-selected */}
+      {selectedRowIds.size > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '60px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#0f172a',
+            color: '#ffffff',
+            padding: '10px 20px',
+            borderRadius: '10px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            zIndex: 9999,
+            fontSize: '13px',
+            fontWeight: 500,
+            animation: 'fadeInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+          }}
+        >
+          <span>已逐一選取 <strong style={{ color: '#60a5fa' }}>{selectedRowIds.size}</strong> 列資料</span>
+          <button
+            type="button"
+            onClick={handleDeleteSelectedRows}
+            style={{
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              padding: '6px 14px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '12px'
+            }}
+          >
+            刪除選取列 ({selectedRowIds.size})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedRowIds(new Set())}
+            style={{
+              background: 'transparent',
+              color: '#94a3b8',
+              border: '1px solid #334155',
+              padding: '5px 10px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '12px'
+            }}
+          >
+            取消選取
+          </button>
+        </div>
       )}
 
       {/* Global Aggregation Menu Portal */}
