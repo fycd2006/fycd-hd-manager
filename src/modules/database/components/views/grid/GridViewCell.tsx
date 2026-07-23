@@ -6,19 +6,29 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
 
+const BASEROW_PALETTE = [
+  { bg: '#fef3c7', text: '#92400e' }, // Soft yellow (西西)
+  { bg: '#fca5a5', text: '#7f1d1d' }, // Soft red/coral (哈哈)
+  { bg: '#fef08a', text: '#854d0e' }, // Soft gold/amber (1211)
+  { bg: '#dcfce7', text: '#14532d' }, // Soft green
+  { bg: '#dbeafe', text: '#1e40af' }, // Soft blue
+  { bg: '#f3e8ff', text: '#581c87' }, // Soft purple
+  { bg: '#fce7f3', text: '#831843' }, // Soft pink
+  { bg: '#ffedd5', text: '#7c2d12' }, // Soft orange
+];
+
 const getOptionColor = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const hue = Math.abs(hash % 360);
-  const bg = `hsl(${hue}, 80%, 93%)`;
-  const text = `hsl(${hue}, 80%, 30%)`;
+  const idx = Math.abs(hash) % BASEROW_PALETTE.length;
+  const palette = BASEROW_PALETTE[idx];
   return {
-    backgroundColor: bg,
-    color: text,
-    bg,
-    text
+    backgroundColor: palette.bg,
+    color: palette.text,
+    bg: palette.bg,
+    text: palette.text
   };
 };
 
@@ -1225,8 +1235,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         } catch {}
       }
 
-      const visibleLinks = linkItems.slice(0, 3);
+      const visibleLinks = linkItems.slice(0, 4);
       const hiddenLinkCount = linkItems.length - visibleLinks.length;
+      const showControls = isCellHovered || isSelected || isEditing;
 
       return (
         <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
@@ -1234,32 +1245,55 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             <span 
               key={i} 
               style={{ 
-                background: '#eff6ff', 
-                color: '#1d4ed8', 
-                border: '1px solid #bfdbfe', 
+                background: '#f1f5f9', 
+                color: '#1e293b', 
                 padding: '2px 8px', 
                 borderRadius: '6px', 
-                fontSize: '12px', 
+                fontSize: '13px', 
                 fontWeight: 500,
                 whiteSpace: 'nowrap',
                 textOverflow: 'ellipsis',
                 overflow: 'hidden',
-                maxWidth: '120px',
-                display: 'inline-block'
+                maxWidth: '130px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
               }}
               title={item.value}
             >
-              {item.value}
+              <span>{item.value}</span>
+              {showControls && (
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const updated = linkItems.filter(x => x.id !== item.id).map(x => ({ id: x.id, value: x.value }));
+                    onUpdate(updated);
+                  }}
+                  style={{
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    padding: '0 1px'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
+                  title="移除關聯"
+                >
+                  ×
+                </span>
+              )}
             </span>
           ))}
 
           {hiddenLinkCount > 0 && (
-            <span style={{ background: '#dbeafe', color: '#1e40af', padding: '2px 6px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenLinkCount} 筆關聯`}>
+            <span style={{ background: '#e2e8f0', color: '#475569', padding: '2px 6px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenLinkCount} 筆關聯`}>
               +{hiddenLinkCount}
             </span>
           )}
 
-          {(isCellHovered || isSelected) && (
+          {showControls && (
             <span
               onClick={(e) => {
                 e.stopPropagation();
@@ -1269,18 +1303,19 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '2px 6px',
-                background: '#e0f2fe',
-                border: '1px solid #7dd3fc',
-                borderRadius: '4px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                color: '#0284c7',
+                padding: '2px 8px',
+                background: '#f1f5f9',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#475569',
                 cursor: 'pointer',
                 flexShrink: 0,
-                transition: 'background-color 0.15s'
+                transition: 'background-color 0.15s, color 0.15s'
               }}
-              title="新增/編輯關聯"
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#475569'; }}
+              title="新增關聯"
             >
               +
             </span>
