@@ -622,6 +622,12 @@ export const GridView: React.FC<GridViewProps> = ({
       <div
         ref={headerScrollRef}
         className="grid-view__head-container"
+        onWheel={(e) => {
+          if (bodyRef.current && (e.deltaX !== 0 || e.shiftKey)) {
+            const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+            bodyRef.current.scrollLeft += delta;
+          }
+        }}
         style={{
           width: '100%',
           overflowX: 'hidden',
@@ -896,6 +902,12 @@ export const GridView: React.FC<GridViewProps> = ({
       <div
         ref={footerScrollRef}
         className="grid-view__footer-container"
+        onWheel={(e) => {
+          if (bodyRef.current && (e.deltaX !== 0 || e.shiftKey)) {
+            const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+            bodyRef.current.scrollLeft += delta;
+          }
+        }}
         style={{
           flexShrink: 0,
           width: '100%',
@@ -916,16 +928,30 @@ export const GridView: React.FC<GridViewProps> = ({
             color: '#475569',
           }}
         >
-          <div style={{ width: `${rowDetailsWidth}px`, flexShrink: 0, padding: '6px 8px', textAlign: 'center', fontWeight: 600, borderRight: '1px solid #e2e8f0', background: '#f1f5f9', color: '#334155' }}>
+          <div style={{
+            width: `${rowDetailsWidth}px`,
+            position: 'sticky',
+            left: 0,
+            zIndex: 25,
+            flexShrink: 0,
+            padding: '6px 8px',
+            textAlign: 'center',
+            fontWeight: 600,
+            borderRight: '1px solid #e2e8f0',
+            background: '#f1f5f9',
+            color: '#334155'
+          }}>
             {rows.length} 筆
           </div>
-          {fields.map((field) => {
+          {fields.map((field, fieldIndex) => {
             const summary = fieldSummaries[field.id];
             const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
             return (
               <GridViewFieldFooter
                 key={field.id}
                 field={field}
+                fieldIndex={fieldIndex}
+                rowDetailsWidth={rowDetailsWidth}
                 summaryData={summary}
                 totalRowCount={rows.length}
                 aggregationMode={mode}

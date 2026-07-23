@@ -18,6 +18,8 @@ export interface FieldSummaryData {
 
 interface GridViewFieldFooterProps {
   field: TableField
+  fieldIndex?: number
+  rowDetailsWidth?: number
   summaryData: FieldSummaryData
   totalRowCount: number
   aggregationMode: string
@@ -57,6 +59,8 @@ export function isFieldCompatibleWithAggregation(field: TableField, aggKey: stri
 
 export default function GridViewFieldFooter({
   field,
+  fieldIndex = 0,
+  rowDetailsWidth = 56,
   summaryData,
   totalRowCount,
   aggregationMode,
@@ -67,6 +71,7 @@ export default function GridViewFieldFooter({
 
   const isNumeric = field.type === 'number' || field.type === 'rating'
   const currentMode = aggregationMode || (isNumeric ? 'sum' : 'count')
+  const isPrimary = fieldIndex === 0
 
   let displayText = ''
   if (currentMode === 'count') displayText = `${summaryData?.count || 0} 筆填寫`
@@ -86,17 +91,20 @@ export default function GridViewFieldFooter({
       className="grid-view__summary-cell"
       style={{
         width: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+        position: isPrimary ? 'sticky' : 'relative',
+        left: isPrimary ? `${rowDetailsWidth}px` : undefined,
+        zIndex: isPrimary ? 24 : 1,
         flexShrink: 0,
         padding: '5px 8px',
-        borderRight: '1px solid #e2e8f0',
+        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid #e2e8f0',
+        boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : undefined,
         whiteSpace: 'nowrap',
         overflow: 'visible',
-        position: 'relative',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         cursor: 'pointer',
-        background: isMenuOpen ? '#e0f2fe' : 'transparent',
+        background: isMenuOpen ? '#e0f2fe' : (isPrimary ? '#f8fafc' : '#f8fafc'),
       }}
       onClick={(e) => {
         e.stopPropagation()
