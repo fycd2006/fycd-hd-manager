@@ -110,7 +110,12 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
           show={wsState.showWorkspaceModal}
           onClose={() => wsActions.setShowWorkspaceModal(false)}
           onSubmit={async (name: string) => {
-            await wsActions.createWorkspace(name)
+            const res = await wsActions.createWorkspace(name)
+            if (res.ok) {
+              uiActions.addToast(`已成功建立工作區「${name}」`, 'success')
+            } else {
+              uiActions.addToast(res.error || '建立工作區失敗', 'error')
+            }
           }}
         />
       )}

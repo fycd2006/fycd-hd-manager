@@ -116,8 +116,18 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
 
   const createWorkspace = useCallback(async (name: string) => {
     const result = await workspaceService.createWorkspace(name)
-    if (result.ok) {
-      await fetchWorkspaces()
+    if (result.ok && result.workspace) {
+      const updatedList = await fetchWorkspaces()
+      const createdWsId = result.workspace.id
+      setActiveWorkspaceIdState(createdWsId)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('activeWorkspaceId', String(createdWsId))
+      }
+      const createdWsInList = updatedList.find(w => w.id === createdWsId) || result.workspace
+      const firstTable = createdWsInList.databases?.[0]?.tables?.[0]
+      if (firstTable) {
+        setActiveTableId(firstTable.id)
+      }
     }
     return { ok: result.ok, error: result.error }
   }, [fetchWorkspaces])

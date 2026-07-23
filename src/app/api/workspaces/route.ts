@@ -137,8 +137,45 @@ export async function POST(request: Request) {
 
     if (action === 'create_workspace') {
       const newWs = await prisma.workspace.create({
-        data: { name: name.trim() },
-        include: { databases: true }
+        data: {
+          name: name.trim(),
+          members: {
+            create: {
+              userId: activeUser.id,
+              role: 'admin',
+              twoFactor: false
+            }
+          },
+          databases: {
+            create: {
+              name: '預設資料庫',
+              tables: {
+                create: {
+                  name: '資料表 1',
+                  order: 0,
+                  fields: {
+                    create: [
+                      { name: '名稱', type: 'text', order: 0 }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        include: {
+          members: true,
+          databases: {
+            include: {
+              tables: {
+                include: {
+                  fields: true,
+                  _count: { select: { rows: true } }
+                }
+              }
+            }
+          }
+        }
       })
       return NextResponse.json(newWs, { status: 201 })
     }
