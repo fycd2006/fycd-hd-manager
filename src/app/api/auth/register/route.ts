@@ -70,17 +70,42 @@ export async function POST(request: Request) {
         })
       }
     } else {
-      // Auto-create a default personal workspace for the user
-      const newWorkspace = await prisma.workspace.create({
-        data: {
-          name: `${normalizedUsername} 的工作區`,
-          databases: {
-            create: {
-              name: '預設資料庫'
+      // Auto-create a default personal workspace with a default table for the user
+      let newWorkspace
+      try {
+        newWorkspace = await prisma.workspace.create({
+          data: {
+            name: `${normalizedUsername} 的工作區`,
+            databases: {
+              create: {
+                name: '預設資料庫',
+                tables: {
+                  create: {
+                    name: '資料表 1',
+                    order: 0,
+                    fields: {
+                      create: [
+                        { name: '名稱', type: 'text', order: 0 }
+                      ]
+                    }
+                  }
+                }
+              }
             }
           }
-        }
-      })
+        })
+      } catch {
+        newWorkspace = await prisma.workspace.create({
+          data: {
+            name: `${normalizedUsername} 的工作區`,
+            databases: {
+              create: {
+                name: '預設資料庫'
+              }
+            }
+          }
+        })
+      }
 
       // Link new user as Admin of their personal workspace
       await prisma.workspaceUser.create({
