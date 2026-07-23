@@ -19,7 +19,11 @@ import {
   Sun,
   Moon,
   LogOut,
-  Sliders
+  Sliders,
+  Search,
+  Check,
+  User as UserIcon,
+  FileText
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -37,6 +41,8 @@ interface SidebarProps {
   notificationCount?: number
   onShowMembersModal?: () => void
   onShowNotificationsModal?: () => void
+  onShowUserSettingsModal?: () => void
+  onShowSubscriptionModal?: () => void
   
   // Actions
   onToggleTheme: () => void
@@ -73,6 +79,8 @@ export default function Sidebar({
   notificationCount = 0,
   onShowMembersModal,
   onShowNotificationsModal,
+  onShowUserSettingsModal,
+  onShowSubscriptionModal,
   
   onToggleTheme,
   onLogout,
@@ -93,6 +101,7 @@ export default function Sidebar({
   userPermissions
 }: SidebarProps) {
   const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null)
+  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState('')
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0]
   const activeWorkspaceName = activeWorkspace ? activeWorkspace.name : '選擇工作區'
@@ -212,47 +221,145 @@ export default function Sidebar({
             )}
           </div>
 
-          {/* Workspace Switcher Dropdown */}
-          {activeMenuKey === 'workspace-selector' && (
-            <div style={{ position: 'absolute', top: '54px', left: '12px', right: '12px', zIndex: 100000, background: '#ffffff', boxShadow: '0 12px 30px rgba(15, 23, 42, 0.15)', borderRadius: '10px', border: '1px solid #e2e8f0', padding: '6px 0', animation: 'fadeIn 0.15s ease-out' }}>
-              <div style={{ padding: '6px 12px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                您的工作區
-              </div>
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '220px', overflowY: 'auto' }}>
-                {workspaces.map(ws => (
-                  <li key={ws.id}>
-                    <div 
-                      className={`sidebar-hover-item ${activeWorkspaceId === ws.id ? 'active' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onSetActiveWorkspaceId(ws.id)
-                        closeMenu()
-                      }}
-                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', fontSize: '13px', color: activeWorkspaceId === ws.id ? '#2563eb' : '#1e293b', fontWeight: activeWorkspaceId === ws.id ? 600 : 400, backgroundColor: activeWorkspaceId === ws.id ? '#eff6ff' : 'transparent' }}
-                    >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
-                      {activeWorkspaceId === ws.id && <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563eb' }} />}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {canManageStructure && (
-                <div style={{ borderTop: '1px solid #f1f5f9', marginTop: '4px', paddingTop: '4px', padding: '0 4px' }}>
-                  <div
-                    className="sidebar-hover-item"
-                    onClick={() => {
-                      closeMenu()
-                      onShowWorkspaceModal()
-                    }}
-                    style={{ padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#2563eb', fontWeight: 600, borderRadius: '6px' }}
-                  >
-                    <Plus size={14} />
-                    <span>新增工作區</span>
+          {/* Workspace Switcher Dropdown (Matching Reference SeaTable / Baserow UI) */}
+          {activeMenuKey === 'workspace-selector' && (() => {
+            const filteredWorkspaces = workspaces.filter(w =>
+              w.name.toLowerCase().includes(workspaceSearchQuery.toLowerCase())
+            )
+
+            return (
+              <div
+                style={{
+                  position: 'absolute', top: '54px', left: '12px', right: '12px', zIndex: 100000,
+                  background: '#ffffff', boxShadow: '0 15px 35px rgba(15, 23, 42, 0.18)', borderRadius: '12px',
+                  border: '1px solid #cbd5e1', padding: '6px 0', animation: 'fadeIn 0.15s ease-out'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Search Bar */}
+                <div style={{ padding: '6px 10px', borderBottom: '1px solid #f1f5f9' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                    <Search size={14} color="#94a3b8" />
+                    <input
+                      type="text"
+                      placeholder="Search"
+                      value={workspaceSearchQuery}
+                      onChange={(e) => setWorkspaceSearchQuery(e.target.value)}
+                      style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', width: '100%', color: '#0f172a' }}
+                    />
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* Filtered Workspace List */}
+                <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '4px 0' }}>
+                  {filteredWorkspaces.map(ws => {
+                    const isActive = activeWorkspaceId === ws.id
+                    const initials = ws.name.slice(0, 2).toUpperCase()
+                    return (
+                      <div
+                        key={ws.id}
+                        className="sidebar-hover-item"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onSetActiveWorkspaceId(ws.id)
+                          closeMenu()
+                        }}
+                        style={{
+                          padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          cursor: 'pointer', fontSize: '13px', backgroundColor: isActive ? '#f8fafc' : 'transparent',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                          <div style={{
+                            width: '26px', height: '26px', borderRadius: '6px',
+                            background: isActive ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' : '#64748b',
+                            color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '11px', fontWeight: 700, flexShrink: 0
+                          }}>
+                            {initials}
+                          </div>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isActive ? 600 : 400, color: isActive ? '#0f172a' : '#334155' }}>
+                            {ws.name}
+                          </span>
+                        </div>
+                        {isActive && <Check size={16} color="#0f172a" />}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Add New Workspace Button */}
+                {canManageStructure && (
+                  <div style={{ padding: '4px 10px 8px 10px', borderBottom: '1px solid #f1f5f9' }}>
+                    <div
+                      className="sidebar-hover-item"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        closeMenu()
+                        onShowWorkspaceModal()
+                      }}
+                      style={{
+                        padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '10px',
+                        cursor: 'pointer', fontSize: '13px', color: '#0f172a', fontWeight: 500,
+                        border: '1px solid #e2e8f0', borderRadius: '8px', backgroundColor: '#ffffff'
+                      }}
+                    >
+                      <div style={{ width: '22px', height: '22px', border: '1px solid #cbd5e1', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Plus size={14} color="#64748b" />
+                      </div>
+                      <span>Add new workspace</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* User Account Info Section */}
+                <div style={{ paddingTop: '6px' }}>
+                  <div style={{ padding: '4px 12px 6px 12px', fontSize: '12px', color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentUser?.email || 'user@example.com'}
+                  </div>
+
+                  <div
+                    className="sidebar-hover-item"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeMenu()
+                      onShowUserSettingsModal?.()
+                    }}
+                    style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}
+                  >
+                    <UserIcon size={16} color="#64748b" />
+                    <span>My settings</span>
+                  </div>
+
+                  <div
+                    className="sidebar-hover-item"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeMenu()
+                      onShowSubscriptionModal?.()
+                    }}
+                    style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}
+                  >
+                    <FileText size={16} color="#64748b" />
+                    <span>Subscriptions</span>
+                  </div>
+
+                  <div
+                    className="sidebar-hover-item"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeMenu()
+                      onLogout()
+                    }}
+                    style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#ef4444', fontWeight: 500 }}
+                  >
+                    <LogOut size={16} color="#ef4444" />
+                    <span>Log out</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Navigation & Database Tree Section */}
           {activeWorkspace && (

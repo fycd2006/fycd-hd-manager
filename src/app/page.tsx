@@ -13,6 +13,8 @@ import Sidebar from '@/modules/database/components/sidebar/Sidebar'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
 import MembersModal from '@/modules/database/components/modals/MembersModal'
 import NotificationsModal from '@/modules/database/components/modals/NotificationsModal'
+import UserSettingsModal from '@/modules/database/components/modals/UserSettingsModal'
+import SubscriptionModal from '@/modules/database/components/modals/SubscriptionModal'
 import { getRolePermissions } from '@/lib/permissions'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
@@ -141,6 +143,8 @@ export default function Home() {
   const [autoInherit, setAutoInherit] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
   const [showNotificationsModal, setShowNotificationsModal] = useState(false)
+  const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0)
   const [workspaceMemberCount, setWorkspaceMemberCount] = useState<number>(1)
   const [systemUsers, setSystemUsers] = useState<User[]>([])
@@ -964,7 +968,10 @@ export default function Home() {
         notificationCount={unreadNotificationsCount}
         onShowMembersModal={() => setShowMembersModal(true)}
         onShowNotificationsModal={() => setShowNotificationsModal(true)}
+        onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
+        onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
         onToggleTheme={themeActions.toggleTheme}
+        onToggleSidebarCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onLogout={authActions.logout}
         onToggleWorkspaceCollapse={wsActions.toggleWorkspaceCollapse}
         onToggleDatabaseCollapse={wsActions.toggleDatabaseCollapse}
@@ -979,7 +986,6 @@ export default function Home() {
           setModalDbIdForTable(dbId)
           setShowTableModal(true)
         }}
-        onToggleSidebarCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onSetRenameType={setRenameType}
         onSetRenameId={setRenameId}
         onSetRenameNameValue={setRenameNameValue}
@@ -1156,6 +1162,23 @@ export default function Home() {
         toggleSort={toggleSort}
         setGroupByField={setGroupByField}
         deleteField={deleteField}
+      />
+
+      {/* User Account & Subscription Modals */}
+      {authState.currentUser && (
+        <UserSettingsModal
+          show={showUserSettingsModal}
+          onClose={() => setShowUserSettingsModal(false)}
+          currentUser={authState.currentUser}
+          onToast={uiActions.addToast}
+        />
+      )}
+
+      <SubscriptionModal
+        show={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        workspace={wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId) || wsState.workspaces[0] || null}
+        onToast={uiActions.addToast}
       />
           </>
         )}
