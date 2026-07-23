@@ -127,3 +127,23 @@ export const duplicateRow = async (tableId: number, rowData: Record<string, Cell
     return { ok: false, error: '複製列失敗' }
   }
 }
+
+/**
+ * Reorder rows
+ */
+export const reorderRows = async (tableId: number, rowOrders: number[]): Promise<{ ok: boolean; error?: string }> => {
+  try {
+    const res = await fetch(`/api/tables/${tableId}/rows`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rowOrders }),
+    })
+    if (res.ok) {
+      return { ok: true }
+    }
+    const data = await res.json()
+    return { ok: false, error: data.error || '重排資料列失敗' }
+  } catch {
+    return { ok: false, error: '重排資料列失敗' }
+  }
+}

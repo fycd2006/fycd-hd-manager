@@ -416,15 +416,27 @@ export default function Home() {
     }
   }
 
-  // Reorder rows (Drag & Drop)
-  const handleReorderRows = (srcIdx: number, targetIdx: number) => {
-    setRows(prev => {
-      const next = [...prev]
-      const [moved] = next.splice(srcIdx, 1)
-      next.splice(targetIdx, 0, moved)
-      return next
-    })
-    uiActions.addToast('已調整列順序', 'success')
+  // Reorder rows (Drag & Drop with DB persistence)
+  const handleReorderRows = async (srcIdx: number, targetIdx: number) => {
+    if (!wsState.activeTableId || srcIdx === targetIdx) return
+    const reordered = [...rows]
+    const [moved] = reordered.splice(srcIdx, 1)
+    reordered.splice(targetIdx, 0, moved)
+
+    // Optimistically update UI state
+    setRows(reordered.map((r, idx) => ({ ...r, order: idx })))
+
+    const rowIds = reordered.map(r => r.id)
+    try {
+      const res = await rowService.reorderRows(wsState.activeTableId, rowIds)
+      if (res.ok) {
+        uiActions.addToast('已儲存資料列順序', 'success')
+      } else {
+        uiActions.addToast(res.error || '儲存資料列順序失敗', 'error')
+      }
+    } catch {
+      uiActions.addToast('儲存資料列順序失敗', 'error')
+    }
   }
 
   // Delete row using new service

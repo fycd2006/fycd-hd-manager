@@ -698,3 +698,35 @@ export async function DELETE(
   }
 }
 
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ tableId: string }> }
+) {
+  try {
+    const { tableId } = await params
+    const tid = parseInt(tableId)
+    if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
+    if (errorResponse) return errorResponse
+
+    const { rowOrders } = await request.json()
+    if (!Array.isArray(rowOrders)) {
+      return NextResponse.json({ error: '無效的排序資料' }, { status: 400 })
+    }
+
+    await prisma.$transaction(
+      rowOrders.map((rowId: number, index: number) =>
+        prisma.tableRow.update({
+          where: { id: rowId, tableId: tid },
+          data: { order: index },
+        })
+      )
+    )
+
+    return NextResponse.json({ message: '資料列順序已儲存' })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || '儲存資料列順序失敗' }, { status: 500 })
+  }
+}
+
