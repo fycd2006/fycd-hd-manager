@@ -786,176 +786,50 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       }
 
       if (field.type === 'long_text') {
-        const charCount = localVal ? localVal.length : 0;
-        const lineCount = localVal ? localVal.split('\n').length : 0;
-
-        const handleSaveLongText = () => {
-          onUpdate(localVal);
-          setIsLongTextModalOpen(false);
-          onCancelEdit();
-        };
-
         return (
-          <>
-            {/* Floating Popover Editor via Portal on document.body */}
-            {typeof document !== 'undefined' && createPortal(
-              <div
-                tabIndex={-1}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  position: 'fixed',
-                  top: popoverPos ? popoverPos.top : 0,
-                  left: popoverPos ? popoverPos.left : 0,
-                  width: popoverPos ? popoverPos.width : Math.max(380, cellWidth),
-                  height: '200px',
-                  background: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '8px',
-                  boxShadow: '0 16px 32px -5px rgba(0, 0, 0, 0.25), 0 8px 12px -6px rgba(0, 0, 0, 0.12)',
-                  zIndex: 999999,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden'
-                }}
-              >
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, color: '#334155' }}>
-                    <span>📝 多行文字編輯 ({field.name})</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      onClick={() => setIsLongTextModalOpen(true)}
-                      style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', color: '#2563eb', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-                      title="展開全螢幕彈窗編輯"
-                    >
-                      <Maximize2 size={13} />
-                      <span>全螢幕展開</span>
-                    </button>
-                    <button
-                      onClick={() => onCancelEdit()}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '14px', padding: '2px' }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                {/* Textarea */}
-                <textarea
-                  ref={inputRef as any}
-                  value={localVal}
-                  onChange={(e) => setLocalVal(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      onCancelEdit();
-                    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                      e.preventDefault();
-                      handleSaveLongText();
-                    }
-                  }}
-                  placeholder="在此輸入多行文字內容 (支援 Shift+Enter 換行，Ctrl+Enter 儲存)..."
-                  style={{
-                    flex: 1,
-                    width: '100%',
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    border: 'none',
-                    outline: 'none',
-                    resize: 'none',
-                    color: '#0f172a',
-                    lineHeight: 1.5,
-                    background: '#ffffff'
-                  }}
-                />
-
-                {/* Footer */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: '11px', color: '#64748b' }}>
-                  <span>{charCount} 字 | {lineCount} 行 (Ctrl+Enter 儲存)</span>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      onClick={() => onCancelEdit()}
-                      style={{ padding: '4px 10px', background: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      取消
-                    </button>
-                    <button
-                      onClick={handleSaveLongText}
-                      style={{ padding: '4px 12px', background: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      儲存
-                    </button>
-                  </div>
-                </div>
-              </div>,
-              document.body
-            )}
-
-            {/* Full Modal Dialog via Portal */}
-            {isLongTextModalOpen && typeof document !== 'undefined' && createPortal(
-              <div
-                style={{
-                  position: 'fixed',
-                  inset: 0,
-                  zIndex: 9999999,
-                  backgroundColor: 'rgba(0, 0, 0, 0.45)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onClick={() => setIsLongTextModalOpen(false)}
-              >
-                <div
-                  style={{
-                    width: '680px',
-                    maxWidth: '92vw',
-                    height: '460px',
-                    maxHeight: '85vh',
-                    backgroundColor: '#ffffff',
-                    borderRadius: '8px',
-                    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden'
-                  }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#1e293b' }}>
-                      完整多行文字編輯器 — {field.name}
-                    </h4>
-                    <button onClick={() => setIsLongTextModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: '#64748b' }}>✕</button>
-                  </div>
-                  <textarea
-                    value={localVal}
-                    onChange={e => setLocalVal(e.target.value)}
-                    placeholder="在此輸入或貼上長文字內容..."
-                    style={{ flex: 1, padding: '16px', fontSize: '14px', lineHeight: 1.6, fontFamily: 'inherit', border: 'none', outline: 'none', resize: 'none', color: '#0f172a' }}
-                  />
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                    <span style={{ fontSize: '12px', color: '#64748b' }}>{charCount} 個字元 | {lineCount} 行記錄</span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => setIsLongTextModalOpen(false)}
-                        style={{ padding: '6px 14px', background: '#e2e8f0', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
-                      >
-                        取消
-                      </button>
-                      <button
-                        onClick={handleSaveLongText}
-                        style={{ padding: '6px 16px', background: '#2563eb', border: 'none', borderRadius: '6px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                      >
-                        確認儲存
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>,
-              document.body
-            )}
-          </>
+          typeof document !== 'undefined' && createPortal(
+            <textarea
+              ref={inputRef as any}
+              value={localVal}
+              onChange={(e) => {
+                const nextVal = e.target.value;
+                setLocalVal(nextVal);
+                onUpdate(nextVal); // Auto save on change
+              }}
+              onBlur={() => {
+                onUpdate(localVal); // Auto save on blur
+                onCancelEdit();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  onCancelEdit();
+                }
+              }}
+              style={{
+                position: 'fixed',
+                top: popoverPos ? popoverPos.top - 1 : 0,
+                left: popoverPos ? popoverPos.left - 1 : 0,
+                minWidth: popoverPos ? popoverPos.width : Math.max(300, cellWidth),
+                minHeight: '110px',
+                width: popoverPos ? popoverPos.width : Math.max(300, cellWidth),
+                height: '120px',
+                background: '#ffffff',
+                border: '2px solid #2563eb',
+                borderRadius: '6px',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+                zIndex: 999999,
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                color: '#0f172a',
+                padding: '8px 10px',
+                outline: 'none',
+                resize: 'both', // Enables manual resize handle at bottom right
+                boxSizing: 'border-box',
+                lineHeight: 1.4
+              }}
+            />,
+            document.body
+          )
         );
       }
 
@@ -1159,39 +1033,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'long_text') {
       const textStr = value !== null && value !== undefined ? String(value) : '';
-      const firstLine = textStr.split('\n')[0];
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 8px', overflow: 'hidden' }}>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontSize: '13px', color: '#1e293b' }}>
-            {firstLine}
-          </span>
-          {(isCellHovered || isSelected) && (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartEdit();
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '1px 5px',
-                background: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '4px',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                color: '#64748b',
-                cursor: 'pointer',
-                flexShrink: 0,
-                marginLeft: '4px'
-              }}
-              title="開啟多行文字編輯器"
-            >
-              📄
-            </span>
-          )}
-        </div>
+        <span style={{ whiteSpace: 'pre-wrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b', maxHeight: '100%', lineHeight: '1.4' }}>
+          {textStr}
+        </span>
       );
     }
 
