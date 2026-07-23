@@ -630,7 +630,7 @@ export function ViewToolbar({
                       >
                         <GripVertical size={14} style={{ color: '#cbd5e1', flexShrink: 0, cursor: 'grab' }} />
                         <div
-                          className={`switch ${!isHidden ? 'active' : ''}`}
+                          className="field-toggle-switch"
                           style={{
                             width: '28px',
                             height: '16px',
