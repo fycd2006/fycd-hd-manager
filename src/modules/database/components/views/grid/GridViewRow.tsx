@@ -234,6 +234,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             isRowSelected={isRowSelected}
             rangeEdges={rangeEdges}
             isPrimary={cIndex === 0}
+            rowColorBg={matchedColorBg}
             rowDetailsWidth={rowDetailsWidth}
             onSelect={(e) => onSelectCell(cIndex, e)}
             onMouseEnterCell={() => onMouseEnterCell?.(cIndex)}

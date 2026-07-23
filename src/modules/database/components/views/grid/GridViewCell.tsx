@@ -68,6 +68,7 @@ interface GridViewCellProps {
   isRowSelected?: boolean;
   rangeEdges?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   isPrimary?: boolean;
+  rowColorBg?: string | null;
   rowDetailsWidth?: number;
   onSelect: (e?: React.MouseEvent) => void;
   onMouseEnterCell?: () => void;
@@ -88,6 +89,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   isRowSelected,
   rangeEdges,
   isPrimary = false,
+  rowColorBg,
   rowDetailsWidth = 56,
   onSelect,
   onMouseEnterCell,
@@ -1539,7 +1541,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
         boxShadow: finalBoxShadow,
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
-        background: cellBg ? `linear-gradient(${cellBg}, ${cellBg}), #ffffff` : '#ffffff',
+        background: cellBg ? `linear-gradient(${cellBg}, ${cellBg}), ${rowColorBg || '#ffffff'}` : (rowColorBg || '#ffffff'),
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',
