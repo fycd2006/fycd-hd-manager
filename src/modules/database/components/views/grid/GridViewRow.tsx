@@ -214,19 +214,6 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           />
         );
       })}
-
-      {/* 3. Add Field Spacer Cell */}
-      <div
-        className="grid-view__column"
-        style={{
-          width: '40px',
-          minWidth: '40px',
-          flexShrink: 0,
-          borderRight: '1px solid var(--border-color, #e2e8f0)',
-          boxSizing: 'border-box',
-          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : '#ffffff'
-        }}
-      />
     </div>
   );
 };

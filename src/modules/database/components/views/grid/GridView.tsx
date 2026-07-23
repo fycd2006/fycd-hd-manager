@@ -687,11 +687,11 @@ export const GridView: React.FC<GridViewProps> = ({
             setCellContextMenu({ x: e.clientX, y: e.clientY });
           }
         }}
-        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative' }}
+        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative', background: '#f4f5f8' }}
       >
         <div style={{ minWidth: '100%', width: 'max-content', display: 'flex', flexDirection: 'column' }}>
           {/* Rows Body */}
-          <div className="grid-view__body-inner" style={{ width: 'max-content', minWidth: '100%', display: 'flex', flexDirection: 'column' }}>
+          <div className="grid-view__body-inner" style={{ width: 'max-content', minWidth: '100%', display: 'flex', flexDirection: 'column', paddingRight: '48px', boxSizing: 'border-box' }}>
             {groupedSections ? (
               <div className="grid-view__grouped-body" style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
                 {groupedSections.map(([groupKey, groupData]) => {
@@ -980,6 +980,8 @@ export const GridView: React.FC<GridViewProps> = ({
             display: 'flex',
             width: 'max-content',
             minWidth: '100%',
+            paddingRight: '48px',
+            boxSizing: 'border-box',
             fontSize: '12px',
             color: '#475569',
           }}
@@ -1017,17 +1019,6 @@ export const GridView: React.FC<GridViewProps> = ({
               />
             );
           })}
-          {/* Footer Add Field Spacer */}
-          <div
-            style={{
-              width: '40px',
-              minWidth: '40px',
-              flexShrink: 0,
-              borderRight: '1px solid #e2e8f0',
-              boxSizing: 'border-box',
-              background: '#f8fafc'
-            }}
-          />
         </div>
       </div>
 

@@ -264,7 +264,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
 
       {/* 3. Add Field Column */}
       <div
-        className="grid-view__column"
+        className="grid-view__column grid-view__add-field"
         style={{
           width: '40px',
           minWidth: '40px',
@@ -273,15 +273,18 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          borderRight: '1px solid var(--border-color, #e2e8f0)',
+          borderRight: '1px solid var(--border-color, #cbd5e1)',
+          borderBottom: '1px solid var(--border-color, #cbd5e1)',
           boxSizing: 'border-box',
-          background: '#ffffff',
+          background: '#f8fafc',
           transition: 'background 0.15s ease'
         }}
         onClick={onAddField}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#f8fafc')}
         title="新增欄位 (Add field)"
       >
-        <Plus style={{ width: '16px', height: '16px', color: '#2563eb' }} />
+        <Plus style={{ width: '15px', height: '15px', color: '#64748b' }} />
       </div>
     </div>
   );
