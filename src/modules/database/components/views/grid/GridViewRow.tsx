@@ -61,7 +61,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       onDrop={(e) => {
         e.preventDefault();
         setIsDragTarget(false);
-        const sourceIdxStr = e.dataTransfer.getData('text/plain');
+        const sourceIdxStr = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
         if (sourceIdxStr !== '') {
           const sourceIdx = parseInt(sourceIdxStr, 10);
           if (!isNaN(sourceIdx) && sourceIdx !== rowIndex) {
@@ -83,7 +83,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       {/* 1. Row Index / Actions Column */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
-        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{ width: `${rowDetailsWidth}px`, padding: '0 4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'default' }}
         onClick={(e) => {
           onSelectCell(0, e);
         }}
@@ -93,14 +93,14 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             <span
               draggable={true}
               onDragStart={(e) => {
-                e.stopPropagation();
                 e.dataTransfer.setData('text/plain', String(rowIndex));
+                e.dataTransfer.setData('text', String(rowIndex));
                 e.dataTransfer.effectAllowed = 'move';
               }}
-              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab' }}
+              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab', padding: '2px', borderRadius: '4px' }}
               title="按住並拖曳即可移動此列"
             >
-              <GripVertical style={{ width: '14px', height: '14px' }} />
+              <GripVertical style={{ width: '14px', height: '14px', cursor: 'grab' }} />
             </span>
             <input
               type="checkbox"

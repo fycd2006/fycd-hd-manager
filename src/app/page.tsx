@@ -419,14 +419,22 @@ export default function Home() {
   // Reorder rows (Drag & Drop with DB persistence)
   const handleReorderRows = async (srcIdx: number, targetIdx: number) => {
     if (!wsState.activeTableId || srcIdx === targetIdx) return
+    const sourceRow = displayRows[srcIdx]
+    const targetRow = displayRows[targetIdx]
+    if (!sourceRow || !targetRow) return
+
+    const realSrcIdx = rows.findIndex(r => r.id === sourceRow.id)
+    const realTargetIdx = rows.findIndex(r => r.id === targetRow.id)
+    if (realSrcIdx === -1 || realTargetIdx === -1) return
+
     const reordered = [...rows]
-    const [moved] = reordered.splice(srcIdx, 1)
-    reordered.splice(targetIdx, 0, moved)
+    const [moved] = reordered.splice(realSrcIdx, 1)
+    reordered.splice(realTargetIdx, 0, moved)
 
-    // Optimistically update UI state
-    setRows(reordered.map((r, idx) => ({ ...r, order: idx })))
+    const updatedRows = reordered.map((r, idx) => ({ ...r, order: idx }))
+    setRows(updatedRows)
 
-    const rowIds = reordered.map(r => r.id)
+    const rowIds = updatedRows.map(r => r.id)
     try {
       const res = await rowService.reorderRows(wsState.activeTableId, rowIds)
       if (res.ok) {
