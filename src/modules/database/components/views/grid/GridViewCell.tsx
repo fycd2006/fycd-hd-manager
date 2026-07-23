@@ -1193,11 +1193,19 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         );
       }
 
-      return (
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 8px', fontSize: '13px', color: '#94a3b8', fontStyle: 'italic' }}>
-          —
-        </span>
-      );
+      if (collabItems.length > 0) {
+        return (
+          <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
+            {collabItems.map((item, i) => (
+              <span key={i} style={{ background: '#e0e7ff', color: '#4338ca', border: '1px solid #a5b4fc', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                {item.username}
+              </span>
+            ))}
+          </div>
+        );
+      }
+
+      return null;
     }
 
     if (field.type === 'link_row') {
@@ -1239,7 +1247,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
       const visibleLinks = linkItems.slice(0, 4);
       const hiddenLinkCount = linkItems.length - visibleLinks.length;
-      const showControls = isCellHovered || isEditing;
+      const showControls = isCellHovered && !isEditing;
 
       return (
         <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
@@ -1331,10 +1339,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const firstLine = textStr.split('\n')[0];
       return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 8px', overflow: 'hidden', gap: '4px' }}>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontSize: '13px', color: textStr ? '#1e293b' : '#94a3b8', lineHeight: '1.4' }}>
-            {firstLine || (isCellHovered ? '點擊編輯...' : '')}
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontSize: '13px', color: '#1e293b', lineHeight: '1.4' }}>
+            {firstLine}
           </span>
-          {isCellHovered && textStr && (
+          {isCellHovered && !isEditing && Boolean(textStr) && (
             <span
               onClick={(e) => {
                 e.stopPropagation();
@@ -1410,7 +1418,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       );
     }
 
-    if (field.type === 'phone' || field.type === 'phone_number') {
+    if (field.type === 'phone') {
       const phoneStr = value != null ? String(value).trim() : '';
       if (!phoneStr) return null;
       return (
@@ -1444,9 +1452,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'created_on' || field.type === 'last_modified_on') {
       const dStr = value ? formatDateValue(value) : '';
+      if (!dStr) return null;
       return (
         <span style={{ padding: '0 8px', fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          🕒 {dStr || '—'}
+          🕒 {dStr}
         </span>
       );
     }
@@ -1498,7 +1507,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%', background: 'rgba(248, 250, 252, 0.6)', height: '100%' }}>
           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>ƒ</span>
           <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px', color: '#334155' }}>
-            {value !== null && value !== undefined ? String(value) : '—'}
+            {value !== null && value !== undefined ? String(value) : ''}
           </span>
         </div>
       );
@@ -1517,21 +1526,23 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const uuidStr = value != null ? String(value) : '';
       return (
         <span style={{ padding: '0 8px', fontSize: '11px', color: '#64748b', fontFamily: 'monospace', background: '#f1f5f9', borderRadius: '4px', margin: '0 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {uuidStr || '—'}
+          {uuidStr}
         </span>
       );
     }
 
     if (field.type === 'duration') {
       const durVal = value != null ? String(value) : '';
+      if (!durVal) return null;
       return (
         <span style={{ padding: '0 8px', fontSize: '13px', color: '#334155', fontFamily: 'monospace' }}>
-          ⏱️ {durVal || '00:00:00'}
+          ⏱️ {durVal}
         </span>
       );
     }
 
     if (field.type === 'edit_row_link') {
+      if (!isCellHovered) return null;
       return (
         <div style={{ padding: '0 8px', display: 'flex', alignItems: 'center' }}>
           <span style={{ padding: '2px 8px', fontSize: '12px', color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
