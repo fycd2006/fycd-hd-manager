@@ -1152,7 +1152,7 @@ export default function Home() {
                   saveViewConfig(wsState.activeViewId, { filters: JSON.stringify(rules) })
                 }
               }}
-              rowColorRules={rowColorRules}
+              rowColorRules={Array.isArray(rowColorRules) ? rowColorRules : []}
               setRowColorRules={(rules) => {
                 setRowColorRules(rules)
                 if (wsState.activeViewId) {

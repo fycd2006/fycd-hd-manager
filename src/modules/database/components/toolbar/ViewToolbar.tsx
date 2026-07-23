@@ -93,6 +93,12 @@ export function ViewToolbar({
   csvInputRef,
   canManageStructure = true
 }: ViewToolbarProps) {
+  const safeRowColorRules = Array.isArray(rowColorRules) ? rowColorRules : [];
+  const safeFilterRules = Array.isArray(filterRules) ? filterRules : [];
+  const safeFields = Array.isArray(fields) ? fields : [];
+  const safeHiddenFieldKeys = Array.isArray(hiddenFieldKeys) ? hiddenFieldKeys : [];
+  const safeViews = Array.isArray(views) ? views : [];
+
   const [showViewContext, setShowViewContext] = useState(false)
   const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
   const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
@@ -506,23 +512,23 @@ export function ViewToolbar({
 
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${rowColorRules.length > 0 ? 'active' : activeHeaderMenu === 'color' ? 'active' : ''}`}
+            className={`header__filter-link ${safeRowColorRules.length > 0 ? 'active' : activeHeaderMenu === 'color' ? 'active' : ''}`}
             onClick={(e) => { e.stopPropagation(); setActiveHeaderMenu(activeHeaderMenu === 'color' ? null : 'color') }}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <Palette size={16} color={rowColorRules.length > 0 ? '#2563eb' : activeHeaderMenu === 'color' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
-            <span className="header__filter-name">{rowColorRules.length > 0 ? `${rowColorRules.length} colored` : 'Color'}</span>
+            <Palette size={16} color={safeRowColorRules.length > 0 ? '#2563eb' : activeHeaderMenu === 'color' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+            <span className="header__filter-name">{safeRowColorRules.length > 0 ? `${safeRowColorRules.length} colored` : 'Color'}</span>
           </a>
           {activeHeaderMenu === 'color' && (
             <div style={{ position: 'absolute', top: '100%', left: '0', minWidth: '420px', zIndex: 99999, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px rgba(15, 23, 42, 0.15)', borderRadius: '8px', padding: '12px' }} onClick={(e) => e.stopPropagation()}>
               <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>Row coloring rules</span>
-                {rowColorRules.length > 0 && (
-                  <span style={{ fontSize: '11px', color: '#2563eb' }}>{rowColorRules.length} rules active</span>
+                {safeRowColorRules.length > 0 && (
+                  <span style={{ fontSize: '11px', color: '#2563eb' }}>{safeRowColorRules.length} rules active</span>
                 )}
               </div>
 
-              {rowColorRules.length === 0 ? (
+              {safeRowColorRules.length === 0 ? (
                 <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '16px 0' }}>
                   此視圖尚未設定任何色彩塗色條件
                   <div style={{ marginTop: '12px' }}>
@@ -530,12 +536,12 @@ export function ViewToolbar({
                       className="button button--secondary button--small"
                       onClick={() => {
                         const newRule: RowColorRule = {
-                          fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '',
+                          fieldKey: safeFields.length > 0 ? `field_${safeFields[0].id}` : '',
                           operator: 'contains',
                           value: '',
                           color: 'blue'
                         };
-                        const updated = [...rowColorRules, newRule];
+                        const updated = [...safeRowColorRules, newRule];
                         setRowColorRules(updated);
                         if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
                       }}
@@ -546,25 +552,25 @@ export function ViewToolbar({
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {rowColorRules.map((rule, idx) => (
+                  {safeRowColorRules.map((rule, idx) => (
                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', color: '#64748b', width: '40px', fontWeight: 500 }}>{idx === 0 ? 'Where' : 'And'}</span>
                       <select 
                         value={rule.fieldKey} 
                         onChange={(e) => {
-                          const updated = [...rowColorRules];
+                          const updated = [...safeRowColorRules];
                           updated[idx].fieldKey = e.target.value;
                           setRowColorRules(updated);
                           if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
                         }}
                         style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1 }}
                       >
-                        {fields.map(f => <option key={f.id} value={`field_${f.id}`}>{f.name}</option>)}
+                        {safeFields.map(f => <option key={f.id} value={`field_${f.id}`}>{f.name}</option>)}
                       </select>
                       <select 
                         value={rule.operator} 
                         onChange={(e) => {
-                          const updated = [...rowColorRules];
+                          const updated = [...safeRowColorRules];
                           updated[idx].operator = e.target.value as any;
                           setRowColorRules(updated);
                           if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
@@ -579,7 +585,7 @@ export function ViewToolbar({
                         value={rule.value} 
                         placeholder="值 (Value)..."
                         onChange={(e) => {
-                          const updated = [...rowColorRules];
+                          const updated = [...safeRowColorRules];
                           updated[idx].value = e.target.value;
                           setRowColorRules(updated);
                           if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
@@ -589,7 +595,7 @@ export function ViewToolbar({
                       <select
                         value={rule.color}
                         onChange={(e) => {
-                          const updated = [...rowColorRules];
+                          const updated = [...safeRowColorRules];
                           updated[idx].color = e.target.value as any;
                           setRowColorRules(updated);
                           if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
@@ -605,7 +611,7 @@ export function ViewToolbar({
                       </select>
                       <button 
                         onClick={() => {
-                          const updated = rowColorRules.filter((_, i) => i !== idx);
+                          const updated = safeRowColorRules.filter((_, i) => i !== idx);
                           setRowColorRules(updated);
                           if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
                         }}
@@ -621,12 +627,12 @@ export function ViewToolbar({
                       className="button button--secondary button--small"
                       onClick={() => {
                         const newRule: RowColorRule = {
-                          fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '',
+                          fieldKey: safeFields.length > 0 ? `field_${safeFields[0].id}` : '',
                           operator: 'contains',
                           value: '',
                           color: 'blue'
                         };
-                        const updated = [...rowColorRules, newRule];
+                        const updated = [...safeRowColorRules, newRule];
                         setRowColorRules(updated);
                         if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
                       }}
