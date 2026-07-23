@@ -39,23 +39,39 @@ export async function GET() {
     })
 
     if (workspaces.length === 0) {
-      await prisma.workspace.create({
-        data: {
-          name: `${activeUser.username || '個人'} 的工作區`,
-          databases: {
-            create: {
-              name: '預設資料庫'
-            }
-          },
-          members: {
-            create: {
-              userId: activeUser.id,
-              role: 'admin',
-              twoFactor: false
+      try {
+        await prisma.workspace.create({
+          data: {
+            name: `${activeUser.username || '個人'} 的工作區`,
+            databases: {
+              create: {
+                name: '預設資料庫'
+              }
+            },
+            members: {
+              create: {
+                userId: activeUser.id,
+                role: 'admin',
+                twoFactor: false
+              }
             }
           }
-        }
-      })
+        })
+      } catch (autoErr) {
+        console.warn('Auto create default workspace failed, attempting simple create:', autoErr)
+        await prisma.workspace.create({
+          data: {
+            name: `${activeUser.username || '個人'} 的工作區`,
+            members: {
+              create: {
+                userId: activeUser.id,
+                role: 'admin',
+                twoFactor: false
+              }
+            }
+          }
+        })
+      }
       workspaces = await prisma.workspace.findMany({
         where: workspaceWhere,
         include: {
