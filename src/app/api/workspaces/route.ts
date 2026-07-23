@@ -136,48 +136,78 @@ export async function POST(request: Request) {
     }
 
     if (action === 'create_workspace') {
-      const newWs = await prisma.workspace.create({
-        data: {
-          name: name.trim(),
-          members: {
-            create: {
-              userId: activeUser.id,
-              role: 'admin',
-              twoFactor: false
+      try {
+        const newWs = await prisma.workspace.create({
+          data: {
+            name: name.trim(),
+            members: {
+              create: {
+                userId: activeUser.id,
+                role: 'admin',
+                twoFactor: false
+              }
+            },
+            databases: {
+              create: {
+                name: '預設資料庫',
+                tables: {
+                  create: {
+                    name: '資料表 1',
+                    order: 0,
+                    fields: {
+                      create: [
+                        { name: '名稱', type: 'text', order: 0 }
+                      ]
+                    }
+                  }
+                }
+              }
             }
           },
-          databases: {
-            create: {
-              name: '預設資料庫',
-              tables: {
-                create: {
-                  name: '資料表 1',
-                  order: 0,
-                  fields: {
-                    create: [
-                      { name: '名稱', type: 'text', order: 0 }
-                    ]
+          include: {
+            members: true,
+            databases: {
+              include: {
+                tables: {
+                  include: {
+                    fields: true,
+                    _count: { select: { rows: true } }
                   }
                 }
               }
             }
           }
-        },
-        include: {
-          members: true,
-          databases: {
-            include: {
-              tables: {
-                include: {
-                  fields: true,
-                  _count: { select: { rows: true } }
-                }
+        })
+        return NextResponse.json(newWs, { status: 201 })
+      } catch (nestedErr) {
+        console.warn('Nested table creation failed, falling back to simple workspace creation:', nestedErr)
+        const newWs = await prisma.workspace.create({
+          data: {
+            name: name.trim(),
+            members: {
+              create: {
+                userId: activeUser.id,
+                role: 'admin',
+                twoFactor: false
+              }
+            },
+            databases: {
+              create: {
+                name: '預設資料庫'
+              }
+            }
+          },
+          include: {
+            members: true,
+            databases: {
+              include: {
+                tables: true
               }
             }
           }
-        }
-      })
-      return NextResponse.json(newWs, { status: 201 })
+        })
+        return NextResponse.json(newWs, { status: 201 })
+      }
     }
 
     if (action === 'create_database') {
