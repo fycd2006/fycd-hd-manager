@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react'
-import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X } from 'lucide-react'
+import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, Trash2 } from 'lucide-react'
 import type { TableView, TableField, FilterRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
-import { Trash2 } from 'lucide-react'
+import { ViewContextMenu } from '@/modules/database/components/menu/ViewContextMenu'
 
 interface ViewToolbarProps {
   // Sidebar state
@@ -17,6 +17,9 @@ interface ViewToolbarProps {
   applyViewConfig: (view: TableView) => void
   setShowNewViewModal: (v: boolean) => void
   saveViewConfig: (viewId: number, config: any) => void
+  onDuplicateView?: (viewId: number) => void
+  onDeleteView?: (viewId: number) => void
+  onRenameView?: (viewId: number) => void
 
   // Search
   searchQuery: string
@@ -61,6 +64,9 @@ export function ViewToolbar({
   applyViewConfig,
   setShowNewViewModal,
   saveViewConfig,
+  onDuplicateView,
+  onDeleteView,
+  onRenameView,
   searchQuery,
   setSearchQuery,
   sortField,
@@ -82,6 +88,8 @@ export function ViewToolbar({
   canManageStructure = true
 }: ViewToolbarProps) {
   const [showViewContext, setShowViewContext] = useState(false)
+  const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
+  const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null)
 
   const headerToolbarRef = useRef<HTMLElement>(null)
@@ -133,7 +141,7 @@ export function ViewToolbar({
             </a>
           </li>
         )}
-        <li ref={viewContextRef} className="header__filter-item header__filter-item--grids">
+        <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
           <a 
             className="header__filter-link active" 
             data-highlight="views"
@@ -147,13 +155,42 @@ export function ViewToolbar({
             <ChevronDown size={14} color="#64748b" className="header__sub-icon" />
           </a>
 
+          {/* Active View Context Menu Button (⋮) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowViewContext(false)
+              const currentActiveView = views.find(v => v.id === activeViewId) || views[0]
+              setSelectedViewForMenu(showViewOptionsMenu ? null : currentActiveView)
+              setShowViewOptionsMenu(!showViewOptionsMenu)
+            }}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+              marginLeft: '2px',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            title="視圖選項 (View options)"
+          >
+            <MoreVertical size={16} />
+          </button>
+
           {/* Context Menu Dropdown */}
           {showViewContext && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: '0', minWidth: '220px', zIndex: 99999, background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.18)', borderRadius: '6px', border: '1px solid #e2e8f0', padding: '0', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: '0', minWidth: '240px', zIndex: 99999, background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.18)', borderRadius: '6px', border: '1px solid #e2e8f0', padding: '0', overflow: 'hidden' }}>
               <div className="select__items" style={{ padding: '4px 0', maxHeight: '300px', overflowY: 'auto' }}>
                 <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                   {views.map(view => (
-                    <li key={view.id}>
+                    <li key={view.id} style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
                       <a
                         className={`select__item ${activeViewId === view.id ? 'active' : ''}`}
                         onClick={() => {
@@ -161,16 +198,45 @@ export function ViewToolbar({
                           applyViewConfig(view)
                           setShowViewContext(false)
                         }}
-                        style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', textDecoration: 'none', color: '#1e293b', fontSize: '13px', transition: 'background-color 0.15s ease' }}
+                        style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', textDecoration: 'none', color: '#1e293b', fontSize: '13px', flex: 1, transition: 'background-color 0.15s ease' }}
                         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                       >
                         {getViewIcon(view.type || 'grid', { size: 14, color: activeViewId === view.id ? '#2563eb' : '#64748b', style: { marginRight: '8px', flexShrink: 0 } })}
                         <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? '#2563eb' : 'inherit', fontWeight: activeViewId === view.id ? 600 : 400 }}>{view.name}</span>
                         {activeViewId === view.id && (
-                          <Check size={16} color="#2563eb" style={{ flexShrink: 0, marginLeft: '8px' }} />
+                          <Check size={16} color="#2563eb" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
                         )}
                       </a>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowViewContext(false)
+                          setSelectedViewForMenu(view)
+                          setShowViewOptionsMenu(true)
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#94a3b8',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#e2e8f0'
+                          e.currentTarget.style.color = '#334155'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent'
+                          e.currentTarget.style.color = '#94a3b8'
+                        }}
+                        title="視圖選項 (View options)"
+                      >
+                        <MoreVertical size={14} />
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -193,6 +259,48 @@ export function ViewToolbar({
                 </div>
               )}
             </div>
+          )}
+
+          {/* View Options Context Menu */}
+          {showViewOptionsMenu && selectedViewForMenu && (
+            <ViewContextMenu
+              view={selectedViewForMenu}
+              onClose={() => {
+                setShowViewOptionsMenu(false)
+                setSelectedViewForMenu(null)
+              }}
+              onConfigureDateDependencies={() => {
+                alert(`Setting date dependencies for view ${selectedViewForMenu.name}`)
+              }}
+              onExportView={handleExportCSV}
+              onImportFile={() => csvInputRef.current?.click()}
+              onDuplicateView={() => {
+                if (onDuplicateView) {
+                  onDuplicateView(selectedViewForMenu.id)
+                } else {
+                  alert(`Duplicating view: ${selectedViewForMenu.name}`)
+                }
+              }}
+              onToPersonal={() => {
+                alert(`Toggled personal mode for view ${selectedViewForMenu.name}`)
+              }}
+              onWebhooks={() => {
+                alert(`Webhooks config for view ${selectedViewForMenu.name}`)
+              }}
+              onDefaultRowValues={() => {
+                alert(`Default row values config for view ${selectedViewForMenu.name}`)
+              }}
+              onRenameView={() => {
+                if (onRenameView) {
+                  onRenameView(selectedViewForMenu.id)
+                }
+              }}
+              onDeleteView={() => {
+                if (onDeleteView) {
+                  onDeleteView(selectedViewForMenu.id)
+                }
+              }}
+            />
           )}
         </li>
 

@@ -842,6 +842,59 @@ export default function Home() {
     }
   }
 
+  const handleDuplicateView = async (targetViewId: number) => {
+    const sourceView = views.find(v => v.id === targetViewId)
+    if (!sourceView || !wsState.activeTableId) return
+    const duplicateName = `${sourceView.name} (Copy)`
+    try {
+      const result = await viewService.createView(wsState.activeTableId, duplicateName, sourceView.type || 'grid')
+      if (result.ok && result.view) {
+        setViews(prev => [...prev, result.view!])
+        wsActions.setActiveViewId(result.view!.id)
+        applyViewConfig(result.view!)
+        uiActions.addToast(`已成功複製視圖「${duplicateName}」`, 'success')
+      } else {
+        uiActions.addToast(result.error || '複製視圖失敗', 'error')
+      }
+    } catch {
+      uiActions.addToast('複製視圖失敗', 'error')
+    }
+  }
+
+  const handleDeleteViewById = async (targetViewId: number) => {
+    if (!wsState.activeTableId) return
+    const targetView = views.find(v => v.id === targetViewId)
+    if (!targetView) return
+    if (!confirm(`確定要刪除視圖「${targetView.name}」？`)) return
+    try {
+      await viewService.deleteView(wsState.activeTableId, targetViewId)
+      const remaining = views.filter(v => v.id !== targetViewId)
+      setViews(remaining)
+      if (remaining.length > 0 && wsState.activeViewId === targetViewId) {
+        wsActions.setActiveViewId(remaining[0].id)
+        applyViewConfig(remaining[0])
+      }
+      uiActions.addToast('視圖已刪除', 'success')
+    } catch {
+      uiActions.addToast('刪除視圖失敗', 'error')
+    }
+  }
+
+  const handleRenameViewById = async (targetViewId: number) => {
+    const targetView = views.find(v => v.id === targetViewId)
+    if (!targetView || !wsState.activeTableId) return
+    const newName = prompt('請輸入新的視圖名稱：', targetView.name)
+    if (newName && newName.trim() && newName.trim() !== targetView.name) {
+      try {
+        await viewService.updateViewConfig(wsState.activeTableId, targetViewId, { name: newName.trim() } as any)
+        setViews(prev => prev.map(v => v.id === targetViewId ? { ...v, name: newName.trim() } : v))
+        uiActions.addToast('視圖名稱已更新', 'success')
+      } catch {
+        uiActions.addToast('更新視圖名稱失敗', 'error')
+      }
+    }
+  }
+
   // Rename handler using new service
   const handleRenameSubmit = async (newName?: string) => {
     const nameToUse = newName?.trim() || renameNameValue.trim()
@@ -1059,6 +1112,9 @@ export default function Home() {
               applyViewConfig={applyViewConfig}
               setShowNewViewModal={setShowNewViewModal}
               saveViewConfig={saveViewConfig}
+              onDuplicateView={handleDuplicateView}
+              onDeleteView={handleDeleteViewById}
+              onRenameView={handleRenameViewById}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               sortField={sortField}
