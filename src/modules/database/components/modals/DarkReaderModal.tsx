@@ -108,7 +108,7 @@ export default function DarkReaderModal({
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Eye size={15} color="#2563eb" /> 視覺與對比微調 (Filters)
+                <Eye size={15} color="#2563eb" /> 視覺與對比微調 (Filters - {theme === 'dark' ? '夜間模式' : '明亮模式'})
               </span>
               <button
                 type="button"
@@ -116,7 +116,7 @@ export default function DarkReaderModal({
                 style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 500 }}
               >
                 <RotateCcw size={12} />
-                <span>重設預設值</span>
+                <span>重設{theme === 'dark' ? '夜間' : '明亮'}預設值</span>
               </button>
             </div>
 
