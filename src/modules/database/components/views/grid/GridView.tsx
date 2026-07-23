@@ -3,7 +3,7 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
@@ -893,21 +893,63 @@ export const GridView: React.FC<GridViewProps> = ({
               </div>
             )}
 
-            {/* Add Row Button at bottom of list */}
-            <div style={{ padding: '12px 16px 80px 16px', background: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
-              <button
-                onClick={onAddRow}
+            {/* Baserow Add Row Bar (Full width table row entry) */}
+            <div
+              className="grid-view__add-row-bar"
+              onClick={onAddRow}
+              style={{
+                display: 'flex',
+                width: 'max-content',
+                minWidth: '100%',
+                height: 'var(--row-height, 33px)',
+                borderBottom: '1px solid var(--border-color, #e2e8f0)',
+                background: '#ffffff',
+                cursor: 'pointer',
+                userSelect: 'none',
+                transition: 'background 0.15s ease',
+                boxSizing: 'border-box',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+            >
+              {/* Sticky Column 0 for Add Row */}
+              <div
                 style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '6px',
-                  padding: '6px 12px', borderRadius: '6px',
-                  background: '#f8fafc', border: '1px solid #cbd5e1', cursor: 'pointer',
-                  fontSize: '13px', color: '#2563eb', fontWeight: 500,
+                  width: `${rowDetailsWidth}px`,
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 15,
+                  background: 'inherit',
+                  borderRight: '1px solid var(--border-color, #e2e8f0)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#2563eb',
+                  boxSizing: 'border-box',
                 }}
               >
-                <span style={{ fontSize: '14px', fontWeight: 'bold' }}>+</span>
+                <Plus style={{ width: '14px', height: '14px' }} />
+              </div>
+
+              {/* Add row text spanning remaining width */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  paddingLeft: '12px',
+                  fontSize: '13px',
+                  color: '#2563eb',
+                  fontWeight: 500,
+                  flex: 1,
+                  boxSizing: 'border-box',
+                }}
+              >
                 新增資料列
-              </button>
+              </div>
             </div>
+
+            {/* Scroll padding area below table */}
+            <div style={{ height: '80px', width: '100%' }} />
           </div>
         </div>
       </div>
@@ -981,7 +1023,8 @@ export const GridView: React.FC<GridViewProps> = ({
               width: '40px',
               minWidth: '40px',
               flexShrink: 0,
-              borderLeft: '1px solid #e2e8f0',
+              borderRight: '1px solid #e2e8f0',
+              boxSizing: 'border-box',
               background: '#f8fafc'
             }}
           />

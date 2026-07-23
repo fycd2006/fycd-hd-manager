@@ -273,7 +273,8 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          borderLeft: '1px solid var(--border-color, #e2e8f0)',
+          borderRight: '1px solid var(--border-color, #e2e8f0)',
+          boxSizing: 'border-box',
           background: '#ffffff',
           transition: 'background 0.15s ease'
         }}
