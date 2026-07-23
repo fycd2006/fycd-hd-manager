@@ -58,6 +58,9 @@ interface GridViewHeadProps {
   rowDetailsWidth?: number;
   sortField?: string | null;
   sortOrder?: 'asc' | 'desc';
+  isAllRowsSelected?: boolean;
+  isSomeRowsSelected?: boolean;
+  onToggleSelectAllRows?: () => void;
   onAddField?: () => void;
   onFieldClick?: (field: TableField, e: React.MouseEvent) => void;
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
@@ -71,6 +74,9 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   rowDetailsWidth = 56,
   sortField,
   sortOrder,
+  isAllRowsSelected = false,
+  isSomeRowsSelected = false,
+  onToggleSelectAllRows,
   onAddField,
   onFieldClick,
   onOpenFieldContextMenu,
@@ -86,6 +92,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
       {/* 1. Row Identifier / Number Header Column (Sticky Frozen Left: 0) */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
+        onClick={onToggleSelectAllRows}
         style={{
           width: `${rowDetailsWidth}px`,
           position: 'sticky',
@@ -96,12 +103,29 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          gap: '4px',
           fontFamily: 'monospace',
           fontSize: '11px',
-          color: '#94a3b8'
+          color: '#94a3b8',
+          cursor: 'pointer',
+          userSelect: 'none',
         }}
+        title="全選 / 取消全選所有列"
       >
-        #
+        <input
+          type="checkbox"
+          checked={Boolean(isAllRowsSelected)}
+          ref={(el) => {
+            if (el) el.indeterminate = Boolean(isSomeRowsSelected && !isAllRowsSelected);
+          }}
+          onChange={(e) => {
+            e.stopPropagation();
+            onToggleSelectAllRows?.();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          style={{ width: '13px', height: '13px', cursor: 'pointer' }}
+        />
+        <span>#</span>
       </div>
 
       {/* 2. Field Column Headers */}

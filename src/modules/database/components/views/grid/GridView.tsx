@@ -360,6 +360,60 @@ export const GridView: React.FC<GridViewProps> = ({
     return Array.from(map.entries());
   }, [rows, groupByField]);
 
+  // Ensure Row 1 (index 0) is visible at top on initial mount
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = 0;
+    }
+  }, []);
+
+  const isAllRowsSelected = useMemo(() => {
+    if (!selectionBounds || rows.length === 0 || fields.length === 0) return false;
+    return (
+      selectionBounds.minRow === 0 &&
+      selectionBounds.maxRow === rows.length - 1 &&
+      selectionBounds.minCol === 0 &&
+      selectionBounds.maxCol === fields.length - 1
+    );
+  }, [selectionBounds, rows.length, fields.length]);
+
+  const isSomeRowsSelected = useMemo(() => {
+    return Boolean(selectionBounds);
+  }, [selectionBounds]);
+
+  const handleToggleSelectAllRows = useCallback(() => {
+    if (isAllRowsSelected) {
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      setSelectedCell(null);
+    } else {
+      setSelectionStart([0, 0]);
+      setSelectionEnd([Math.max(0, rows.length - 1), Math.max(0, fields.length - 1)]);
+      setSelectedCell([0, 0]);
+    }
+  }, [isAllRowsSelected, rows.length, fields.length]);
+
+  const handleSelectRowHeader = useCallback((rIndex: number, e?: React.MouseEvent) => {
+    if (e?.shiftKey && selectionStart) {
+      const minR = Math.min(selectionStart[0], rIndex);
+      const maxR = Math.max(selectionStart[0], rIndex);
+      setSelectionStart([minR, 0]);
+      setSelectionEnd([maxR, Math.max(0, fields.length - 1)]);
+    } else {
+      setSelectionStart([rIndex, 0]);
+      setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
+      setSelectedCell([rIndex, 0]);
+      setIsDraggingSelection(true);
+      setIsEditing(false);
+    }
+  }, [selectionStart, fields.length]);
+
+  const handleMouseEnterRowHeader = useCallback((rIndex: number) => {
+    if (isDraggingSelection) {
+      setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
+    }
+  }, [isDraggingSelection, fields.length]);
+
   // Virtualizer for high-performance rendering of 10,000+ rows
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -538,6 +592,9 @@ export const GridView: React.FC<GridViewProps> = ({
           rowDetailsWidth={rowDetailsWidth}
           sortField={sortField}
           sortOrder={sortOrder}
+          isAllRowsSelected={isAllRowsSelected}
+          isSomeRowsSelected={isSomeRowsSelected}
+          onToggleSelectAllRows={handleToggleSelectAllRows}
           onAddField={onAddField}
           onResizeColumn={handleResizeColumnLocal}
           onResizeColumnEnd={onResizeColumnEnd}
@@ -639,6 +696,8 @@ export const GridView: React.FC<GridViewProps> = ({
                             selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
                             isCellEditing={selectedCell?.[0] === rIndex && isEditing}
                             selectionBounds={selectionBounds}
+                            onSelectRowHeader={handleSelectRowHeader}
+                            onMouseEnterRowHeader={handleMouseEnterRowHeader}
                             onSelectCell={(cIndex, e) => {
                               if (e?.shiftKey && selectionStart) {
                                 setSelectionEnd([rIndex, cIndex]);
@@ -717,6 +776,8 @@ export const GridView: React.FC<GridViewProps> = ({
                         selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
                         isCellEditing={selectedCell?.[0] === rIndex && isEditing}
                         selectionBounds={selectionBounds}
+                        onSelectRowHeader={handleSelectRowHeader}
+                        onMouseEnterRowHeader={handleMouseEnterRowHeader}
                         onSelectCell={(cIndex, e) => {
                           if (e?.shiftKey && selectionStart) {
                             setSelectionEnd([rIndex, cIndex]);

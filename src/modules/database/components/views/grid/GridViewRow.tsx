@@ -5,19 +5,24 @@ import { TableField } from '@/modules/database/types';
 import { GridViewCell } from './GridViewCell';
 import { GripVertical, Maximize2 } from 'lucide-react';
 
+interface RowData {
+  id: number;
+  order?: number;
+  values: Record<number, any>;
+  [key: string]: any;
+}
+
 interface GridViewRowProps {
-  row: {
-    id: number;
-    order?: number;
-    values: Record<number, any>;
-  };
+  row: RowData;
   rowIndex: number;
   fields: TableField[];
   rowDetailsWidth?: number;
-  selectedColumnIndex: number | null;
-  isCellEditing: boolean;
+  selectedColumnIndex?: number | null;
+  isCellEditing?: boolean;
   selectionBounds?: { minRow: number; maxRow: number; minCol: number; maxCol: number; isMulti: boolean } | null;
   onSelectCell: (colIndex: number, e?: React.MouseEvent) => void;
+  onSelectRowHeader?: (rowIndex: number, e: React.MouseEvent) => void;
+  onMouseEnterRowHeader?: (rowIndex: number) => void;
   onMouseEnterCell?: (colIndex: number) => void;
   onStartAutofillCell?: (colIndex: number, e: React.MouseEvent) => void;
   onStartEditCell: (colIndex: number) => void;
@@ -37,6 +42,8 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   isCellEditing,
   selectionBounds,
   onSelectCell,
+  onSelectRowHeader,
+  onMouseEnterRowHeader,
   onMouseEnterCell,
   onStartAutofillCell,
   onStartEditCell,
@@ -48,6 +55,12 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragTarget, setIsDragTarget] = useState(false);
+
+  const isRowSelected = Boolean(
+    selectionBounds &&
+    rowIndex >= selectionBounds.minRow &&
+    rowIndex <= selectionBounds.maxRow
+  );
 
   return (
     <div 
@@ -88,19 +101,28 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           position: 'sticky',
           left: 0,
           zIndex: 15,
-          backgroundColor: 'var(--bg-secondary, #ffffff)',
+          backgroundColor: isRowSelected ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-secondary, #ffffff)',
           borderRight: '1px solid var(--border-color, #e2e8f0)',
+          borderLeft: isRowSelected ? '3px solid #2563eb' : 'none',
           padding: '0 4px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'default'
+          cursor: 'pointer',
+          userSelect: 'none',
         }}
-        onClick={(e) => {
-          onSelectCell(0, e);
+        onMouseDown={(e) => {
+          if (e.button === 0) {
+            onSelectRowHeader?.(rowIndex, e);
+          }
         }}
+        onMouseEnter={() => {
+          setIsHovered(true);
+          onMouseEnterRowHeader?.(rowIndex);
+        }}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        {isHovered ? (
+        {isHovered || isRowSelected ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', color: '#64748b' }}>
             <span
               draggable={true}
@@ -116,10 +138,10 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             </span>
             <input
               type="checkbox"
-              checked={Boolean(selectionBounds && selectionBounds.minRow <= rowIndex && selectionBounds.maxRow >= rowIndex)}
+              checked={isRowSelected}
               onChange={(e) => {
                 e.stopPropagation();
-                onSelectCell(0);
+                onSelectRowHeader?.(rowIndex, e as any);
               }}
               onClick={(e) => e.stopPropagation()}
               style={{ width: '14px', height: '14px', cursor: 'pointer' }}
@@ -133,7 +155,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             />
           </div>
         ) : (
-          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94a3b8' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: isRowSelected ? '#2563eb' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
             {rowIndex + 1}
           </span>
         )}
@@ -165,8 +187,8 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             rowId={row.id}
             field={field}
             value={cellValue}
-            isSelected={isSelected}
-            isEditing={isSelected && isCellEditing}
+            isSelected={Boolean(isSelected)}
+            isEditing={Boolean(isSelected && isCellEditing)}
             isInRange={isInRange}
             rangeEdges={rangeEdges}
             isPrimary={cIndex === 0}
