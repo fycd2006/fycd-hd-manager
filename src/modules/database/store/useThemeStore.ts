@@ -29,12 +29,12 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
 
   const [darkReaderSettings, setDarkReaderSettingsState] = useState<DarkReaderSettings>(() => {
     if (typeof window === 'undefined') {
-      return { brightness: 100, contrast: 100, sepia: 15, grayscale: 0 }
+      return { brightness: 100, contrast: 100, sepia: 0, grayscale: 0 }
     }
     return {
       brightness: Number(localStorage.getItem('darkreader-brightness')) || 100,
       contrast: Number(localStorage.getItem('darkreader-contrast')) || 100,
-      sepia: Number(localStorage.getItem('darkreader-sepia')) || 15,
+      sepia: Number(localStorage.getItem('darkreader-sepia')) || 0,
       grayscale: Number(localStorage.getItem('darkreader-grayscale')) || 0,
     }
   })

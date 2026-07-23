@@ -15,6 +15,7 @@ import MembersModal from '@/modules/database/components/modals/MembersModal'
 import NotificationsModal from '@/modules/database/components/modals/NotificationsModal'
 import UserSettingsModal from '@/modules/database/components/modals/UserSettingsModal'
 import SubscriptionModal from '@/modules/database/components/modals/SubscriptionModal'
+import DarkReaderModal from '@/modules/database/components/modals/DarkReaderModal'
 import { getRolePermissions } from '@/lib/permissions'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
@@ -1178,6 +1179,16 @@ export default function Home() {
         show={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
         workspace={wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId) || wsState.workspaces[0] || null}
+        onToast={uiActions.addToast}
+      />
+
+      <DarkReaderModal
+        show={themeState.showDarkReaderPanel}
+        onClose={() => themeActions.setShowDarkReaderPanel(false)}
+        theme={themeState.theme}
+        onToggleTheme={themeActions.toggleTheme}
+        darkReaderSettings={themeState.darkReaderSettings}
+        onUpdateDarkReaderSettings={themeActions.updateDarkReaderSettings}
         onToast={uiActions.addToast}
       />
           </>
