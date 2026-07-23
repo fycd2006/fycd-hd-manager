@@ -577,7 +577,6 @@ export const GridView: React.FC<GridViewProps> = ({
                             }}
                             onUpdateCell={(fieldId, val) => {
                               onUpdateCell?.(row.id, fieldId, val);
-                              setIsEditing(false);
                             }}
                             onUpdateField={onUpdateField}
                             onCancelEditCell={() => setIsEditing(false)}
@@ -656,7 +655,6 @@ export const GridView: React.FC<GridViewProps> = ({
                         }}
                         onUpdateCell={(fieldId, val) => {
                           onUpdateCell?.(row.id, fieldId, val);
-                          setIsEditing(false);
                         }}
                         onUpdateField={onUpdateField}
                         onCancelEditCell={() => setIsEditing(false)}
