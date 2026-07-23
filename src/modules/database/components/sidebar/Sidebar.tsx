@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import type { User, Workspace } from '@/modules/database/types'
 import { 
   ChevronsUpDown, 
@@ -16,9 +16,9 @@ import {
   Users,
   UserPlus,
   Bell,
-  Sun,
-  Moon,
-  LogOut,
+  Sun, 
+  Moon, 
+  LogOut, 
   Sliders,
   Search,
   Check,
@@ -102,6 +102,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null)
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState('')
+  const popoverRef = useRef<HTMLDivElement>(null)
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0]
   const activeWorkspaceName = activeWorkspace ? activeWorkspace.name : '選擇工作區'
@@ -120,8 +121,10 @@ export default function Sidebar({
   React.useEffect(() => {
     if (!activeMenuKey) return
 
-    const handleOutsideClick = () => {
-      setActiveMenuKey(null)
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setActiveMenuKey(null)
+      }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -229,6 +232,7 @@ export default function Sidebar({
 
             return (
               <div
+                ref={popoverRef}
                 style={{
                   position: 'absolute', top: '54px', left: '12px', right: '12px', zIndex: 100000,
                   background: '#ffffff', boxShadow: '0 15px 35px rgba(15, 23, 42, 0.18)', borderRadius: '12px',
