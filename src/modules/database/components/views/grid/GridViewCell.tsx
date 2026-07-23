@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2 } from 'lucide-react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
 
@@ -164,20 +164,64 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
   // Hover state for showing + button on empty link_row cells
   const [isCellHovered, setIsCellHovered] = useState(false);
-  const [isLongTextModalOpen, setIsLongTextModalOpen] = useState(false);
+  const [isLongTextExpanded, setIsLongTextExpanded] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
+  const longTextRef = useRef<HTMLTextAreaElement>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     if (isEditing && field.type === 'long_text' && cellRef.current) {
       const rect = cellRef.current.getBoundingClientRect();
-      setPopoverPos({
-        top: rect.top,
-        left: rect.left,
-        width: Math.max(380, rect.width)
-      });
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
+      const editorW = Math.max(400, rect.width);
+      const editorH = 200;
+      // Ensure editor doesn't overflow viewport
+      let top = rect.top;
+      let left = rect.left;
+      if (top + editorH > viewportH - 16) top = Math.max(8, viewportH - editorH - 16);
+      if (left + editorW > viewportW - 16) left = Math.max(8, viewportW - editorW - 16);
+      setPopoverPos({ top, left, width: editorW });
+    }
+    if (!isEditing) {
+      setIsLongTextExpanded(false);
     }
   }, [isEditing, field.type]);
+
+  // Auto-focus long_text textarea with cursor at end
+  useEffect(() => {
+    if (isEditing && field.type === 'long_text' && longTextRef.current) {
+      const ta = longTextRef.current;
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+  }, [isEditing, field.type, isLongTextExpanded]);
+
+  const handleLongTextKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Tab inserts a tab character instead of moving focus
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const ta = e.currentTarget;
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      const val = ta.value;
+      const nextVal = val.substring(0, start) + '\t' + val.substring(end);
+      setLocalVal(nextVal);
+      onUpdate(nextVal);
+      // Restore cursor position after React re-render
+      requestAnimationFrame(() => {
+        ta.setSelectionRange(start + 1, start + 1);
+      });
+    }
+    // Escape closes editor
+    if (e.key === 'Escape') {
+      onUpdate(localVal);
+      setIsLongTextExpanded(false);
+      onCancelEdit();
+    }
+    // Stop propagation so grid-level keyboard handlers don't interfere
+    e.stopPropagation();
+  }, [localVal, onUpdate, onCancelEdit]);
 
   // link_row relation modal state when cell is editing
   const [relationSearch, setRelationSearch] = useState('');
@@ -786,50 +830,201 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       }
 
       if (field.type === 'long_text') {
-        return (
-          typeof document !== 'undefined' && createPortal(
-            <textarea
-              ref={inputRef as any}
-              value={localVal}
-              onChange={(e) => {
-                const nextVal = e.target.value;
-                setLocalVal(nextVal);
-                onUpdate(nextVal); // Auto save on change
+        const charCount = localVal.length;
+        const wordCount = localVal.trim() ? localVal.trim().split(/\s+/).length : 0;
+
+        if (isLongTextExpanded) {
+          // Fullscreen modal overlay
+          return typeof document !== 'undefined' && createPortal(
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 999998,
+                background: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
-              onBlur={() => {
-                onUpdate(localVal); // Auto save on blur
-                onCancelEdit();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) {
+                  onUpdate(localVal);
+                  setIsLongTextExpanded(false);
                   onCancelEdit();
                 }
               }}
+            >
+              <div
+                style={{
+                  width: 'min(720px, 90vw)',
+                  height: 'min(520px, 80vh)',
+                  background: '#fff',
+                  borderRadius: '10px',
+                  boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Header */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 16px',
+                  borderBottom: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{field.name}</span>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button
+                      onClick={() => setIsLongTextExpanded(false)}
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: '28px', height: '28px', border: '1px solid #cbd5e1', borderRadius: '6px',
+                        background: '#fff', cursor: 'pointer', color: '#475569',
+                      }}
+                      title="縮小"
+                    >
+                      <Minimize2 size={14} />
+                    </button>
+                  </div>
+                </div>
+                {/* Textarea body */}
+                <textarea
+                  ref={longTextRef}
+                  value={localVal}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLocalVal(v);
+                    onUpdate(v);
+                  }}
+                  onKeyDown={handleLongTextKeyDown}
+                  style={{
+                    flex: 1,
+                    padding: '14px 18px',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    color: '#0f172a',
+                    lineHeight: 1.6,
+                    border: 'none',
+                    outline: 'none',
+                    resize: 'none',
+                    background: '#fff',
+                  }}
+                  placeholder="輸入多行文字..."
+                />
+                {/* Footer */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 16px',
+                  borderTop: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                    {charCount} 字元 · {wordCount} 詞
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>自動儲存</span>
+                </div>
+              </div>
+            </div>,
+            document.body
+          );
+        }
+
+        // Inline expanded editor (portal over cell)
+        return typeof document !== 'undefined' && createPortal(
+          <>
+            {/* Invisible backdrop to catch click-outside */}
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
+              onMouseDown={() => {
+                onUpdate(localVal);
+                onCancelEdit();
+              }}
+            />
+            {/* Editor container */}
+            <div
               style={{
                 position: 'fixed',
                 top: popoverPos ? popoverPos.top - 1 : 0,
                 left: popoverPos ? popoverPos.left - 1 : 0,
-                minWidth: popoverPos ? popoverPos.width : Math.max(300, cellWidth),
-                minHeight: '110px',
-                width: popoverPos ? popoverPos.width : Math.max(300, cellWidth),
-                height: '120px',
+                width: popoverPos ? popoverPos.width : Math.max(400, cellWidth),
+                minHeight: '140px',
                 background: '#ffffff',
                 border: '2px solid #2563eb',
                 borderRadius: '6px',
                 boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
                 zIndex: 999999,
-                fontSize: '13px',
-                fontFamily: 'inherit',
-                color: '#0f172a',
-                padding: '8px 10px',
-                outline: 'none',
-                resize: 'both', // Enables manual resize handle at bottom right
+                display: 'flex',
+                flexDirection: 'column',
                 boxSizing: 'border-box',
-                lineHeight: 1.4
+                resize: 'both',
+                overflow: 'auto',
               }}
-            />,
-            document.body
-          )
+            >
+              <textarea
+                ref={longTextRef}
+                value={localVal}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setLocalVal(v);
+                  onUpdate(v);
+                }}
+                onKeyDown={handleLongTextKeyDown}
+                style={{
+                  flex: 1,
+                  minHeight: '100px',
+                  fontSize: '13px',
+                  fontFamily: 'inherit',
+                  color: '#0f172a',
+                  padding: '8px 10px',
+                  outline: 'none',
+                  border: 'none',
+                  resize: 'none',
+                  lineHeight: 1.5,
+                  background: 'transparent',
+                }}
+                placeholder="輸入多行文字..."
+              />
+              {/* Bottom bar: char count + expand button */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '4px 8px',
+                borderTop: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                borderRadius: '0 0 4px 4px',
+                flexShrink: 0,
+              }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  {charCount} 字元
+                </span>
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsLongTextExpanded(true);
+                  }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
+                    padding: '2px 6px', border: '1px solid #cbd5e1', borderRadius: '4px',
+                    background: '#fff', cursor: 'pointer', fontSize: '11px', color: '#475569',
+                  }}
+                  title="展開全螢幕"
+                >
+                  <Maximize2 size={12} />
+                  展開
+                </button>
+              </div>
+            </div>
+          </>,
+          document.body
         );
       }
 
@@ -1033,10 +1228,30 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'long_text') {
       const textStr = value !== null && value !== undefined ? String(value) : '';
+      const firstLine = textStr.split('\n')[0];
       return (
-        <span style={{ whiteSpace: 'pre-wrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b', maxHeight: '100%', lineHeight: '1.4' }}>
-          {textStr}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 8px', overflow: 'hidden', gap: '4px' }}>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontSize: '13px', color: textStr ? '#1e293b' : '#94a3b8', lineHeight: '1.4' }}>
+            {firstLine || (isCellHovered ? '點擊編輯...' : '')}
+          </span>
+          {(isCellHovered || isSelected) && textStr && (
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartEdit();
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: '20px', height: '20px',
+                background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px',
+                cursor: 'pointer', flexShrink: 0, color: '#64748b',
+              }}
+              title="展開編輯"
+            >
+              <Maximize2 size={12} />
+            </span>
+          )}
+        </div>
       );
     }
 
