@@ -467,6 +467,20 @@ export const GridView: React.FC<GridViewProps> = ({
     overscan: 10,
   });
 
+  // Auto scroll to selected cell row when selectedCell changes
+  useEffect(() => {
+    if (selectedCell && rowVirtualizer) {
+      rowVirtualizer.scrollToIndex(selectedCell[0], { align: 'auto' });
+    }
+  }, [selectedCell, rowVirtualizer]);
+
+  // Reset scroll position to top when sort/filter/fields change
+  useEffect(() => {
+    if (bodyRef.current && !selectedCell) {
+      bodyRef.current.scrollTop = 0;
+    }
+  }, [sortField, sortOrder, groupByField]);
+
   const handleResizeColumnLocal = useCallback((fieldId: number, newWidth: number) => {
     if (containerRef.current) {
       containerRef.current.style.setProperty(`--field-width-${fieldId}`, `${newWidth}px`);
