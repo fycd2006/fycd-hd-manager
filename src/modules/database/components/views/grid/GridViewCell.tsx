@@ -55,6 +55,7 @@ interface GridViewCellProps {
   isSelected: boolean;
   isEditing: boolean;
   isInRange?: boolean;
+  isRowSelected?: boolean;
   rangeEdges?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   isPrimary?: boolean;
   rowDetailsWidth?: number;
@@ -74,6 +75,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   isSelected,
   isEditing,
   isInRange,
+  isRowSelected,
   rangeEdges,
   isPrimary = false,
   rowDetailsWidth = 56,
@@ -1401,7 +1403,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   let cellBg: string | undefined = undefined;
 
   if (isInRange) {
-    cellBg = 'rgba(37, 99, 235, 0.08)';
+    cellBg = 'rgba(37, 99, 235, 0.12)';
+  } else if (isRowSelected) {
+    cellBg = isCellHovered ? 'rgba(37, 99, 235, 0.12)' : 'rgba(37, 99, 235, 0.08)';
   } else if (isSelected) {
     cellBg = 'rgba(37, 99, 235, 0.04)';
   }

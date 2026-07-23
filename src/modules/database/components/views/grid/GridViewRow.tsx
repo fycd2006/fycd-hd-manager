@@ -198,6 +198,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             isSelected={Boolean(isSelected)}
             isEditing={Boolean(isSelected && isCellEditing)}
             isInRange={isInRange}
+            isRowSelected={isRowSelected}
             rangeEdges={rangeEdges}
             isPrimary={cIndex === 0}
             rowDetailsWidth={rowDetailsWidth}
