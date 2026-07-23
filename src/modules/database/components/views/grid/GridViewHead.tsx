@@ -88,7 +88,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   const [dragOverFieldId, setDragOverFieldId] = React.useState<number | null>(null);
 
   return (
-    <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', minHeight: '33px' }}>
+    <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', minHeight: '33px', position: 'relative' }}>
       {/* 1. Row Identifier / Number Header Column (Sticky Frozen Left: 0) */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
