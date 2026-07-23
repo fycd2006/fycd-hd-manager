@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { TableField } from '@/modules/database/types';
+import { TableField, RowColorRule } from '@/modules/database/types';
 import { GridViewCell } from './GridViewCell';
 import { GripVertical, Maximize2 } from 'lucide-react';
 
@@ -16,6 +16,7 @@ interface GridViewRowProps {
   row: RowData;
   rowIndex: number;
   fields: TableField[];
+  rowColorRules?: RowColorRule[];
   rowDetailsWidth?: number;
   selectedColumnIndex?: number | null;
   isCellEditing?: boolean;
@@ -39,6 +40,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   row,
   rowIndex,
   fields,
+  rowColorRules,
   rowDetailsWidth = 56,
   selectedColumnIndex,
   isCellEditing,
@@ -69,6 +71,34 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
     rowIndex <= selectionBounds.maxRow)
   );
 
+  const matchedColorBg = React.useMemo(() => {
+    if (!rowColorRules || rowColorRules.length === 0) return null;
+    const COLOR_MAP: Record<string, string> = {
+      red: '#fef2f2',
+      green: '#f0fdf4',
+      blue: '#eff6ff',
+      yellow: '#fefce8',
+      purple: '#faf5ff',
+      orange: '#fff7ed'
+    };
+    for (const rule of rowColorRules) {
+      if (!rule.fieldKey || !rule.value) continue;
+      const fieldIdStr = rule.fieldKey.replace('field_', '');
+      const fieldId = Number(fieldIdStr);
+      const val = row.values?.[fieldId] ?? (row as any).data?.[rule.fieldKey] ?? (row as any).data?.[fieldId] ?? '';
+      const strVal = String(val ?? '').toLowerCase();
+      const targetVal = rule.value.toLowerCase();
+
+      if (rule.operator === 'equals' && strVal === targetVal) {
+        return COLOR_MAP[rule.color] || '#eff6ff';
+      }
+      if (rule.operator === 'contains' && strVal.includes(targetVal)) {
+        return COLOR_MAP[rule.color] || '#eff6ff';
+      }
+    }
+    return null;
+  }, [row, rowColorRules]);
+
   return (
     <div 
       className={`grid-view__row ${isHovered ? 'hover' : ''}`} 
@@ -96,6 +126,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         minHeight: 'var(--row-height, 33px)',
         borderTop: isDragTarget ? '2px solid #2563eb' : undefined,
         boxSizing: 'border-box',
+        background: matchedColorBg || undefined,
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -108,7 +139,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           position: 'sticky',
           left: 0,
           zIndex: 15,
-          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : '#ffffff',
+          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : (matchedColorBg || '#ffffff'),
           borderRight: '1px solid var(--border-color, #e2e8f0)',
           borderLeft: isRowSelected ? '3px solid #2563eb' : 'none',
           padding: '0 4px',
@@ -224,7 +255,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           flexShrink: 0,
           borderRight: '1px solid var(--border-color, #e2e8f0)',
           boxSizing: 'border-box',
-          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : '#ffffff'
+          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : (matchedColorBg || '#ffffff')
         }}
       />
     </div>

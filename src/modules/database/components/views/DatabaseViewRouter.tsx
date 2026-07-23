@@ -5,7 +5,7 @@ import KanbanView from './kanban/KanbanView'
 import CalendarView from './calendar/CalendarView'
 import TimelineView from './timeline/TimelineView'
 import FormView from './form/FormView'
-import type { TableView, TableField, TableRow, ViewType, FilterRule } from '../../types'
+import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule } from '../../types'
 import { formatDateValue } from '../../utils'
 
 interface DatabaseViewRouterProps {
@@ -20,6 +20,7 @@ interface DatabaseViewRouterProps {
   sortField: string | null
   sortOrder: 'asc' | 'desc'
   groupByField: string | null
+  rowColorRules?: RowColorRule[]
   editingFieldId: number | null
   editingFieldName: string
   editingCell: { rowId: number; fieldKey: string } | null
@@ -65,6 +66,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   sortField,
   sortOrder,
   groupByField,
+  rowColorRules,
   editingFieldId,
   editingFieldName,
   editingCell,
@@ -111,6 +113,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           sortField={sortField}
           sortOrder={sortOrder}
           groupByField={groupByField}
+          rowColorRules={rowColorRules}
           editingFieldId={editingFieldId}
           editingFieldName={editingFieldName}
           editingCell={editingCell}

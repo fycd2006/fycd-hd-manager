@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2 } from 'lucide-react'
-import type { TableView, TableField, FilterRule } from '@/modules/database/types'
+import type { TableView, TableField, FilterRule, RowColorRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import { ViewContextMenu } from '@/modules/database/components/menu/ViewContextMenu'
@@ -34,6 +34,10 @@ interface ViewToolbarProps {
   // Filter
   filterRules: FilterRule[]
   setFilterRules: (v: FilterRule[]) => void
+
+  // Color rules
+  rowColorRules: RowColorRule[]
+  setRowColorRules: (v: RowColorRule[]) => void
 
   // Group
   groupByField: string | null
@@ -75,6 +79,8 @@ export function ViewToolbar({
   setSortOrder,
   filterRules,
   setFilterRules,
+  rowColorRules,
+  setRowColorRules,
   groupByField,
   setGroupByField,
   fields,
@@ -500,13 +506,148 @@ export function ViewToolbar({
 
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${activeHeaderMenu === 'color' ? 'active' : ''}`}
+            className={`header__filter-link ${rowColorRules.length > 0 ? 'active' : activeHeaderMenu === 'color' ? 'active' : ''}`}
             onClick={(e) => { e.stopPropagation(); setActiveHeaderMenu(activeHeaderMenu === 'color' ? null : 'color') }}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <Palette size={16} color={activeHeaderMenu === 'color' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
-            <span className="header__filter-name">Color</span>
+            <Palette size={16} color={rowColorRules.length > 0 ? '#2563eb' : activeHeaderMenu === 'color' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+            <span className="header__filter-name">{rowColorRules.length > 0 ? `${rowColorRules.length} colored` : 'Color'}</span>
           </a>
+          {activeHeaderMenu === 'color' && (
+            <div style={{ position: 'absolute', top: '100%', left: '0', minWidth: '420px', zIndex: 99999, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px rgba(15, 23, 42, 0.15)', borderRadius: '8px', padding: '12px' }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Row coloring rules</span>
+                {rowColorRules.length > 0 && (
+                  <span style={{ fontSize: '11px', color: '#2563eb' }}>{rowColorRules.length} rules active</span>
+                )}
+              </div>
+
+              {rowColorRules.length === 0 ? (
+                <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '16px 0' }}>
+                  此視圖尚未設定任何色彩塗色條件
+                  <div style={{ marginTop: '12px' }}>
+                    <button 
+                      className="button button--secondary button--small"
+                      onClick={() => {
+                        const newRule: RowColorRule = {
+                          fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '',
+                          operator: 'contains',
+                          value: '',
+                          color: 'blue'
+                        };
+                        const updated = [...rowColorRules, newRule];
+                        setRowColorRules(updated);
+                        if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
+                      }}
+                    >
+                      + 新增塗色條件 (Add color rule)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {rowColorRules.map((rule, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b', width: '40px', fontWeight: 500 }}>{idx === 0 ? 'Where' : 'And'}</span>
+                      <select 
+                        value={rule.fieldKey} 
+                        onChange={(e) => {
+                          const updated = [...rowColorRules];
+                          updated[idx].fieldKey = e.target.value;
+                          setRowColorRules(updated);
+                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
+                        }}
+                        style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1 }}
+                      >
+                        {fields.map(f => <option key={f.id} value={`field_${f.id}`}>{f.name}</option>)}
+                      </select>
+                      <select 
+                        value={rule.operator} 
+                        onChange={(e) => {
+                          const updated = [...rowColorRules];
+                          updated[idx].operator = e.target.value as any;
+                          setRowColorRules(updated);
+                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
+                        }}
+                        style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', width: '110px' }}
+                      >
+                        <option value="contains">包含 (contains)</option>
+                        <option value="equals">等於 (equals)</option>
+                      </select>
+                      <input 
+                        type="text" 
+                        value={rule.value} 
+                        placeholder="值 (Value)..."
+                        onChange={(e) => {
+                          const updated = [...rowColorRules];
+                          updated[idx].value = e.target.value;
+                          setRowColorRules(updated);
+                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
+                        }}
+                        style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1 }}
+                      />
+                      <select
+                        value={rule.color}
+                        onChange={(e) => {
+                          const updated = [...rowColorRules];
+                          updated[idx].color = e.target.value as any;
+                          setRowColorRules(updated);
+                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
+                        }}
+                        style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', width: '90px' }}
+                      >
+                        <option value="red">🔴 紅色</option>
+                        <option value="green">🟢 綠色</option>
+                        <option value="blue">🔵 藍色</option>
+                        <option value="yellow">🟡 黃色</option>
+                        <option value="purple">🟣 紫色</option>
+                        <option value="orange">🟠 橘色</option>
+                      </select>
+                      <button 
+                        onClick={() => {
+                          const updated = rowColorRules.filter((_, i) => i !== idx);
+                          setRowColorRules(updated);
+                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
+                        }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px' }}
+                        title="刪除條件"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <button 
+                      className="button button--secondary button--small"
+                      onClick={() => {
+                        const newRule: RowColorRule = {
+                          fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '',
+                          operator: 'contains',
+                          value: '',
+                          color: 'blue'
+                        };
+                        const updated = [...rowColorRules, newRule];
+                        setRowColorRules(updated);
+                        if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
+                      }}
+                    >
+                      + 新增塗色條件
+                    </button>
+                    <button
+                      className="button button--ghost button--small"
+                      onClick={() => {
+                        setRowColorRules([]);
+                        if (activeViewId) saveViewConfig(activeViewId, { rowColors: '[]' });
+                      }}
+                      style={{ color: '#ef4444', fontSize: '12px' }}
+                    >
+                      清除全部
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </li>
 
         <li className="header__filter-item" style={{ position: 'relative' }}>

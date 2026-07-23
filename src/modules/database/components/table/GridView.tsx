@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { TableField, TableRow, FilterRule } from '@/modules/database/types'
+import type { TableField, TableRow, FilterRule, RowColorRule } from '@/modules/database/types'
 import { GridView as GridViewContent, RowData } from '../views/grid/GridView'
 
 interface GridViewProps {
@@ -13,6 +13,7 @@ interface GridViewProps {
   sortField?: string | null
   sortOrder?: 'asc' | 'desc'
   groupByField?: string | null
+  rowColorRules?: RowColorRule[]
   editingFieldId?: number | null
   editingFieldName?: string
   editingCell?: { rowId: number; fieldKey: string } | null
@@ -57,6 +58,7 @@ export default function GridView({
   sortField,
   sortOrder,
   groupByField,
+  rowColorRules,
   readOnly = false,
   onAddRow,
   onShowNewFieldModal,
@@ -134,6 +136,7 @@ export default function GridView({
         sortField={sortField}
         sortOrder={sortOrder}
         groupByField={groupByField}
+        rowColorRules={rowColorRules}
         onUpdateCell={handleUpdateCell}
         onAddRow={readOnly ? () => {} : onAddRow}
         onAddField={readOnly ? () => {} : onShowNewFieldModal}

@@ -1128,6 +1128,13 @@ export default function Home() {
                   saveViewConfig(wsState.activeViewId, { filters: JSON.stringify(rules) })
                 }
               }}
+              rowColorRules={rowColorRules}
+              setRowColorRules={(rules) => {
+                setRowColorRules(rules)
+                if (wsState.activeViewId) {
+                  saveViewConfig(wsState.activeViewId, { rowColors: JSON.stringify(rules) })
+                }
+              }}
               groupByField={groupByField}
               setGroupByField={setGroupByField}
               fields={fields}
@@ -1159,6 +1166,7 @@ export default function Home() {
                 sortField={sortField}
                 sortOrder={sortOrder}
                 groupByField={groupByField}
+                rowColorRules={rowColorRules}
                 editingFieldId={editingFieldId}
                 editingFieldName={editingFieldName}
                 editingCell={editingCell}

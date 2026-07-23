@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
-import { TableField } from '@/modules/database/types';
+import { TableField, RowColorRule } from '@/modules/database/types';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -23,6 +23,7 @@ interface GridViewProps {
   sortField?: string | null;
   sortOrder?: 'asc' | 'desc';
   groupByField?: string | null;
+  rowColorRules?: RowColorRule[];
   rowDetailsWidth?: number;
   onUpdateCell?: (rowId: number, fieldId: number, value: any) => void;
   onAddRow?: () => void;
@@ -46,6 +47,7 @@ export const GridView: React.FC<GridViewProps> = ({
   sortField,
   sortOrder,
   groupByField,
+  rowColorRules,
   rowDetailsWidth = 56,
   onUpdateCell,
   onAddRow,
@@ -739,6 +741,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                 row={row}
                                 rowIndex={rIndex >= 0 ? rIndex : 0}
                                 fields={fields}
+                                rowColorRules={rowColorRules}
                                 rowDetailsWidth={rowDetailsWidth}
                                 selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
                                 isCellEditing={selectedCell?.[0] === rIndex && isEditing}
@@ -822,6 +825,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         row={row}
                         rowIndex={rIndex}
                         fields={fields}
+                        rowColorRules={rowColorRules}
                         rowDetailsWidth={rowDetailsWidth}
                         selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
                         isCellEditing={selectedCell?.[0] === rIndex && isEditing}
