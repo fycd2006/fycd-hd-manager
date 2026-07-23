@@ -11,6 +11,7 @@ import {
   Sparkles, Search, ChevronDown, X
 } from 'lucide-react'
 import { TableField } from '@/modules/database/types'
+import { parseFormula } from '@/lib/formula'
 
 // ============================================
 // Workspace Modal
@@ -353,8 +354,18 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   const [targetFieldId, setTargetFieldId] = useState<number | null>(null)
   const [rollupFunction, setRollupFunction] = useState('sum')
   const [formula, setFormula] = useState('')
+  const [formulaTab, setFormulaTab] = useState<'fields' | 'functions' | 'operators'>('fields')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+
+  let formulaSyntaxError = ''
+  if (formula && formula.trim()) {
+    try {
+      parseFormula(formula)
+    } catch (err: any) {
+      formulaSyntaxError = err.message || '語法錯誤'
+    }
+  }
 
   useEffect(() => {
     if (show) {
@@ -759,17 +770,221 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             )}
 
             {type === 'formula' && (
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>
-                  Formula
-                </label>
-                <input
-                  type="text"
+              <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
+                    公式表達式 (Formula Expression)
+                  </label>
+                  {formula.trim() && (
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontWeight: 600,
+                      background: formulaSyntaxError ? '#fee2e2' : '#dcfce7',
+                      color: formulaSyntaxError ? '#991b1b' : '#166534',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      {formulaSyntaxError ? `⚠️ 語法錯誤: ${formulaSyntaxError}` : '✓ 語法正確 (Valid)'}
+                    </span>
+                  )}
+                </div>
+
+                <textarea
                   value={formula}
                   onChange={(e) => setFormula(e.target.value)}
-                  placeholder="e.g. field_1 + field_2"
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
+                  placeholder="輸入公式，例如: field_1 + field_2 或 CONCAT(field_1, ' ', field_2)"
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: formulaSyntaxError ? '1.5px solid #ef4444' : '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    background: '#f8fafc',
+                    color: '#0f172a',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
                 />
+
+                {/* Formula Explorer & Library Panel */}
+                <div style={{ border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden', background: '#ffffff' }}>
+                  {/* Explorer Tabs Header */}
+                  <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontSize: '12px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setFormulaTab('fields')}
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        background: formulaTab === 'fields' ? '#ffffff' : 'transparent',
+                        fontWeight: formulaTab === 'fields' ? 600 : 400,
+                        color: formulaTab === 'fields' ? '#2563eb' : '#64748b',
+                        borderBottom: formulaTab === 'fields' ? '2px solid #2563eb' : 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      可用欄位 (Fields)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormulaTab('functions')}
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        background: formulaTab === 'functions' ? '#ffffff' : 'transparent',
+                        fontWeight: formulaTab === 'functions' ? 600 : 400,
+                        color: formulaTab === 'functions' ? '#2563eb' : '#64748b',
+                        borderBottom: formulaTab === 'functions' ? '2px solid #2563eb' : 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      公式庫 (Functions)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormulaTab('operators')}
+                      style={{
+                        padding: '6px 12px',
+                        border: 'none',
+                        background: formulaTab === 'operators' ? '#ffffff' : 'transparent',
+                        fontWeight: formulaTab === 'operators' ? 600 : 400,
+                        color: formulaTab === 'operators' ? '#2563eb' : '#64748b',
+                        borderBottom: formulaTab === 'operators' ? '2px solid #2563eb' : 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      運算子 (Operators)
+                    </button>
+                  </div>
+
+                  {/* Explorer Tab Content */}
+                  <div style={{ padding: '8px 12px', maxHeight: '160px', overflowY: 'auto', fontSize: '12px' }}>
+                    {formulaTab === 'fields' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {fields && fields.length > 0 ? (
+                          fields.map(f => (
+                            <div
+                              key={f.id}
+                              onClick={() => setFormula(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + `field_${f.id}`)}
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                background: '#f1f5f9',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                color: '#334155'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#e2e8f0'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                            >
+                              <span>{f.name}</span>
+                              <span style={{ fontFamily: 'monospace', color: '#2563eb', fontSize: '11px', fontWeight: 600 }}>field_{f.id}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ color: '#94a3b8', fontStyle: 'italic', padding: '8px 0' }}>尚無可用欄位</div>
+                        )}
+                      </div>
+                    )}
+
+                    {formulaTab === 'functions' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {[
+                          { category: '文字 (Text)', funcs: [
+                            { name: 'CONCAT', doc: 'CONCAT(a, b) - 連接字串', snippet: 'CONCAT(field_1, field_2)' },
+                            { name: 'UPPER', doc: 'UPPER(text) - 轉大寫', snippet: 'UPPER(field_1)' },
+                            { name: 'LOWER', doc: 'LOWER(text) - 轉小寫', snippet: 'LOWER(field_1)' },
+                            { name: 'CONTAINS', doc: 'CONTAINS(text, search) - 判斷包含', snippet: 'CONTAINS(field_1, "abc")' },
+                          ]},
+                          { category: '數值 (Math)', funcs: [
+                            { name: 'ROUND', doc: 'ROUND(val, decimals) - 四捨五入', snippet: 'ROUND(field_1, 2)' },
+                            { name: 'ABS', doc: 'ABS(val) - 絕對值', snippet: 'ABS(field_1)' },
+                            { name: 'CEIL', doc: 'CEIL(val) - 無條件進位', snippet: 'CEIL(field_1)' },
+                            { name: 'FLOOR', doc: 'FLOOR(val) - 無條件捨去', snippet: 'FLOOR(field_1)' },
+                            { name: 'MOD', doc: 'MOD(a, b) - 取餘數', snippet: 'MOD(field_1, 2)' },
+                          ]},
+                          { category: '邏輯 (Logic)', funcs: [
+                            { name: 'IF', doc: 'IF(cond, val1, val2) - 條件判斷', snippet: 'IF(field_1 > 10, "Yes", "No")' },
+                            { name: 'AND', doc: 'AND(a, b) - 邏輯及', snippet: 'AND(field_1, field_2)' },
+                            { name: 'OR', doc: 'OR(a, b) - 邏輯或', snippet: 'OR(field_1, field_2)' },
+                            { name: 'NOT', doc: 'NOT(x) - 邏輯非', snippet: 'NOT(field_1)' },
+                            { name: 'ISBLANK', doc: 'ISBLANK(val) - 判斷空白', snippet: 'ISBLANK(field_1)' },
+                          ]},
+                          { category: '日期 (Date)', funcs: [
+                            { name: 'TODAY', doc: 'TODAY() - 今日日期', snippet: 'TODAY()' },
+                            { name: 'YEAR', doc: 'YEAR(date) - 取得年份', snippet: 'YEAR(field_1)' },
+                            { name: 'MONTH', doc: 'MONTH(date) - 取得月份', snippet: 'MONTH(field_1)' },
+                            { name: 'DAY', doc: 'DAY(date) - 取得日期', snippet: 'DAY(field_1)' },
+                            { name: 'DATE_DIFF', doc: 'DATE_DIFF(d1, d2) - 計算天數差', snippet: 'DATE_DIFF(field_1, field_2)' },
+                          ]}
+                        ].map((cat, idx) => (
+                          <div key={idx}>
+                            <div style={{ fontWeight: 600, color: '#64748b', fontSize: '11px', marginBottom: '4px' }}>{cat.category}</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
+                              {cat.funcs.map((fn, fIdx) => (
+                                <button
+                                  key={fIdx}
+                                  type="button"
+                                  title={fn.doc}
+                                  onClick={() => setFormula(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + fn.snippet)}
+                                  style={{
+                                    padding: '3px 8px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #cbd5e1',
+                                    background: '#f8fafc',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    fontFamily: 'monospace',
+                                    color: '#2563eb',
+                                    fontWeight: 500
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = '#dbeafe'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = '#f8fafc'}
+                                >
+                                  {fn.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {formulaTab === 'operators' && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '4px 0' }}>
+                        {['+', '-', '*', '/', '(', ')', ',', '""', 'field_1'].map((op, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setFormula(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + op)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '4px',
+                              border: '1px solid #cbd5e1',
+                              background: '#f1f5f9',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              fontFamily: 'monospace',
+                              fontWeight: 600,
+                              color: '#0f172a'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#e2e8f0'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                          >
+                            {op}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

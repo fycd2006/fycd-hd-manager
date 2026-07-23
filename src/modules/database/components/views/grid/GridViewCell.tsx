@@ -1765,7 +1765,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         if (field.type === 'boolean') {
           const isChecked = Boolean(value === true || value === 'true' || value === 1 || value === '1');
           onUpdate(!isChecked);
-        } else if (!['formula', 'lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber'].includes(field.type)) {
+        } else if (field.type === 'formula') {
+          onUpdateField?.(field.id, {});
+        } else if (!['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber'].includes(field.type)) {
           onStartEdit();
         }
       }}
