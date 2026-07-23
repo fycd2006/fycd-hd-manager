@@ -1539,7 +1539,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
         boxShadow: finalBoxShadow,
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
-        backgroundColor: cellBg || 'var(--bg-secondary, #ffffff)',
+        background: cellBg ? `linear-gradient(${cellBg}, ${cellBg}), #ffffff` : '#ffffff',
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',

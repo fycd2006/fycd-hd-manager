@@ -108,7 +108,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           position: 'sticky',
           left: 0,
           zIndex: 15,
-          backgroundColor: isRowSelected ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-secondary, #ffffff)',
+          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : '#ffffff',
           borderRight: '1px solid var(--border-color, #e2e8f0)',
           borderLeft: isRowSelected ? '3px solid #2563eb' : 'none',
           padding: '0 4px',
