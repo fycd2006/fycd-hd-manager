@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, Trash2 } from 'lucide-react'
+import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2 } from 'lucide-react'
 import type { TableView, TableField, FilterRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -91,6 +91,23 @@ export function ViewToolbar({
   const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
   const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null)
+  const [fieldSearchQuery, setFieldSearchQuery] = useState('')
+
+  const actualHiddenCount = React.useMemo(() => {
+    return fields.filter(f => hiddenFieldKeys.includes(`field_${f.id}`) || hiddenFieldKeys.includes(String(f.id))).length
+  }, [fields, hiddenFieldKeys])
+
+  const filteredFieldsForHide = fields.filter(f =>
+    f.name.toLowerCase().includes(fieldSearchQuery.toLowerCase())
+  )
+
+  const getFieldIcon = (type: string) => {
+    const IconFunc = FIELD_TYPE_ICONS[type]
+    if (IconFunc) {
+      return IconFunc()
+    }
+    return <LayoutGrid size={14} />
+  }
 
   const headerToolbarRef = useRef<HTMLElement>(null)
   const viewContextRef = useRef<HTMLLIElement>(null)
@@ -567,63 +584,129 @@ export function ViewToolbar({
       <ul className="header__filter header__filter--full-width">
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${hiddenFieldKeys.length > 0 ? 'active active--error' : activeHeaderMenu === 'hide' ? 'active' : ''}`}
+            className={`header__filter-link ${actualHiddenCount > 0 ? 'active active--error' : activeHeaderMenu === 'hide' ? 'active' : ''}`}
             onClick={(e) => { e.stopPropagation(); setActiveHeaderMenu(activeHeaderMenu === 'hide' ? null : 'hide') }}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <EyeOff size={16} color={hiddenFieldKeys.length > 0 ? '#ef4444' : activeHeaderMenu === 'hide' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+            <EyeOff size={16} color={actualHiddenCount > 0 ? '#ef4444' : activeHeaderMenu === 'hide' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
             <span className="header__filter-name">
-              {hiddenFieldKeys.length > 0 ? `${hiddenFieldKeys.length} hidden` : 'Hide fields'}
+              {actualHiddenCount > 0 ? `${actualHiddenCount} hidden` : 'Hide fields'}
             </span>
           </a>
           {activeHeaderMenu === 'hide' && (
-            <div className="hidings" style={{ position: 'absolute', top: '100%', left: '0', width: '280px', zIndex: 99999, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', borderRadius: '6px' }} onClick={(e) => e.stopPropagation()}>
-              <div className="hidings__head" style={{ padding: '12px 12px 8px 12px', borderBottom: '1px solid #e2e8f0' }}>
-                <div className="hidings__search" style={{ position: 'relative' }}>
-                  <Search size={14} className="hidings__search-icon" style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+            <div className="hidings" style={{ position: 'absolute', top: '100%', left: '0', width: '280px', zIndex: 99999, background: '#fff', border: '1px solid #e2e8f0', boxShadow: '0 10px 25px rgba(15, 23, 42, 0.15)', borderRadius: '8px', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+              <div className="hidings__head" style={{ padding: '10px 12px 6px 12px', borderBottom: '1px solid #f1f5f9' }}>
+                <div className="hidings__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Search size={14} className="hidings__search-icon" style={{ position: 'absolute', left: '8px', color: '#94a3b8' }} />
                   <input
                     type="text"
-                    placeholder="Find a field"
+                    placeholder="Search fields"
+                    value={fieldSearchQuery}
+                    onChange={(e) => setFieldSearchQuery(e.target.value)}
                     className="hidings__search-input"
-                    style={{ width: '100%', padding: '6px 8px 6px 32px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '6px 8px 6px 30px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
                   />
                 </div>
               </div>
-              <div className="hidings__body" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+              <div className="hidings__body" style={{ maxHeight: '250px', overflowY: 'auto', padding: '4px 0' }}>
                 <ul className="hidings__list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                  {fields.map(field => {
+                  {filteredFieldsForHide.map(field => {
                     const key = `field_${field.id}`
-                    const isHidden = hiddenFieldKeys.includes(key)
+                    const isHidden = hiddenFieldKeys.includes(key) || hiddenFieldKeys.includes(String(field.id))
                     return (
-                      <li key={field.id} className="hidings__item" style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => {
-                        const newHidden = isHidden ? hiddenFieldKeys.filter(k => k !== key) : [...hiddenFieldKeys, key];
-                        setHiddenFieldKeys(newHidden);
-                        if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify(newHidden) });
-                      }}>
-                        <div className={`switch ${!isHidden ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div className="switch__toggle" style={{ width: '28px', height: '16px', background: !isHidden ? '#2563eb' : '#cbd5e1', borderRadius: '8px', position: 'relative', transition: 'background 0.2s' }}>
-                            <div style={{ width: '12px', height: '12px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '2px', left: !isHidden ? '14px' : '2px', transition: 'left 0.2s' }} />
-                          </div>
-                          <i className={`switch__icon ${(FIELD_TYPE_ICONS as any)[field.type] ? 'has-icon' : ''}`} style={{ color: '#64748b' }}></i>
-                          <span style={{ fontSize: '13px', color: '#1e293b' }}>{field.name}</span>
+                      <li
+                        key={field.id}
+                        className="hidings__item"
+                        style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', transition: 'background-color 0.15s ease' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        onClick={() => {
+                          const newHidden = isHidden
+                            ? hiddenFieldKeys.filter(k => k !== key && k !== String(field.id))
+                            : [...hiddenFieldKeys, key]
+                          setHiddenFieldKeys(newHidden)
+                          if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify(newHidden) })
+                        }}
+                      >
+                        <GripVertical size={14} style={{ color: '#cbd5e1', flexShrink: 0, cursor: 'grab' }} />
+                        <div
+                          className={`switch ${!isHidden ? 'active' : ''}`}
+                          style={{
+                            width: '28px',
+                            height: '16px',
+                            background: !isHidden ? '#22c55e' : '#cbd5e1',
+                            borderRadius: '8px',
+                            position: 'relative',
+                            transition: 'background 0.2s ease',
+                            flexShrink: 0
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: '12px',
+                              height: '12px',
+                              background: '#ffffff',
+                              borderRadius: '50%',
+                              position: 'absolute',
+                              top: '2px',
+                              left: !isHidden ? '14px' : '2px',
+                              transition: 'left 0.2s ease'
+                            }}
+                          />
                         </div>
+                        <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                          {getFieldIcon(field.type)}
+                        </span>
+                        <span style={{ fontSize: '13px', color: '#1e293b', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {field.name}
+                        </span>
                       </li>
                     )
                   })}
                 </ul>
               </div>
-              <div className="hidings__footer" style={{ padding: '8px 12px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between' }}>
-                <button className="button button--secondary button--small" onClick={() => {
-                  const allKeys = fields.map(f => `field_${f.id}`);
-                  setHiddenFieldKeys(allKeys);
-                  if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify(allKeys) });
-                }}>
+              <div className="hidings__footer" style={{ padding: '8px 12px', borderTop: '1px solid #f1f5f9', display: 'flex', gap: '8px', justifyContent: 'flex-start' }}>
+                <button
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  onClick={() => {
+                    const allKeys = fields.map(f => `field_${f.id}`)
+                    setHiddenFieldKeys(allKeys)
+                    if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify(allKeys) })
+                  }}
+                >
                   Hide all
                 </button>
-                <button className="button button--secondary button--small" onClick={() => {
-                  setHiddenFieldKeys([]);
-                  if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: '[]' });
-                }}>
+                <button
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                  onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+                  onClick={() => {
+                    setHiddenFieldKeys([])
+                    if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: '[]' })
+                  }}
+                >
                   Show all
                 </button>
               </div>
