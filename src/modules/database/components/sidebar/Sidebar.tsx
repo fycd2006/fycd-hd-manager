@@ -185,7 +185,7 @@ export default function Sidebar({
         <div className="sidebar" style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: '250px' }}>
           
           {/* Workspace Header Selector Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)' }}>
             <div 
               className="sidebar-hover-item"
               onClick={(e) => {
@@ -202,14 +202,14 @@ export default function Sidebar({
                 {activeWorkspaceName.charAt(0).toUpperCase()}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
                   {activeWorkspaceName}
                 </span>
-                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
                   工作區
                 </span>
               </div>
-              <ChevronsUpDown size={14} color="#64748b" style={{ flexShrink: 0 }} />
+              <ChevronsUpDown size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
             </div>
 
             {onToggleSidebarCollapse && (
@@ -634,16 +634,16 @@ export default function Sidebar({
           )}
 
           {/* Sidebar Footer */}
-          <div style={{ marginTop: 'auto', borderTop: '1px solid #e2e8f0', padding: '10px 12px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-color)', padding: '10px 12px', backgroundColor: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
               <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#3b82f6', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
                 {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {currentUser?.username || 'User'}
                 </span>
-                <span style={{ fontSize: '10px', color: '#64748b', textTransform: 'capitalize' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
                   {currentUser?.role || 'Member'}
                 </span>
               </div>
