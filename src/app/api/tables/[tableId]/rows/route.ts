@@ -51,42 +51,15 @@ export async function GET(
     })
     const userMap = new Map<number, string>(allUsers.map(u => [u.id, u.username]))
 
-    // 2. Fetch rows (with server-side multi-field DB search across all table fields)
+    // 2. Fetch rows (with server-side DB search across table fields)
     let whereCondition: any = { tableId: id, deletedAt: null }
     if (searchQuery) {
-      const searchPattern = `%${searchQuery}%`
-      
-      const orClauses = fields.map(f => {
-        if (f.id === 1) {
-          // Field 1 uses the Generated Column index (idx_table_field_1)
-          return Prisma.sql`idx_field_1 LIKE ${searchPattern}`
-        } else {
-          // Other fields evaluate JSON_EXTRACT(data, '$.field_X')
-          const fieldPath = `$.field_${f.id}`
-          return Prisma.sql`JSON_UNQUOTE(JSON_EXTRACT(data, ${fieldPath})) LIKE ${searchPattern}`
-        }
-      })
-
-      const whereSql = orClauses.length > 0
-        ? Prisma.sql`
-            SELECT id FROM TableRow 
-            WHERE tableId = ${id} 
-              AND deletedAt IS NULL 
-              AND (${Prisma.join(orClauses, ' OR ')})
-          `
-        : Prisma.sql`
-            SELECT id FROM TableRow 
-            WHERE tableId = ${id} 
-              AND deletedAt IS NULL 
-              AND idx_field_1 LIKE ${searchPattern}
-          `
-
-      const matchingRows: any[] = await prisma.$queryRaw(whereSql)
-      const matchingIds = matchingRows.map((r: any) => Number(r.id))
       whereCondition = {
         tableId: id,
         deletedAt: null,
-        id: { in: matchingIds.length > 0 ? matchingIds : [-1] }
+        data: {
+          contains: searchQuery
+        }
       }
     }
 
