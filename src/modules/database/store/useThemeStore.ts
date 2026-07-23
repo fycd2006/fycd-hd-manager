@@ -69,12 +69,12 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
                             activeSettings.sepia > 0 ||
                             activeSettings.grayscale > 0
 
-    // Safely load DarkReader on client-side to guarantee 100% visible dark/light transformation
+    // Safely load DarkReader on client-side: enable ONLY when theme === 'dark'
     import('darkreader').then(DarkReader => {
       if (typeof window !== 'undefined' && window.fetch) {
         DarkReader.setFetchMethod(window.fetch)
       }
-      if (theme === 'dark' || hasCustomFilter) {
+      if (theme === 'dark') {
         DarkReader.enable({
           brightness: activeSettings.brightness,
           contrast: activeSettings.contrast,
