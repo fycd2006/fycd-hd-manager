@@ -4,8 +4,9 @@ import React from 'react'
 
 interface ButtonProps {
   children?: React.ReactNode
-  onClick?: () => void
+  onClick?: (e?: any) => void
   type?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'upload'
+  buttonType?: 'button' | 'submit' | 'reset'
   size?: 'tiny' | 'small' | 'regular' | 'large' | 'xlarge'
   disabled?: boolean
   loading?: boolean
@@ -23,6 +24,7 @@ export default function Button({
   children,
   onClick,
   type = 'primary',
+  buttonType,
   size = 'regular',
   disabled = false,
   loading = false,
@@ -87,8 +89,11 @@ export default function Button({
     )
   }
 
+  const computedButtonType = buttonType || (type === 'primary' ? 'submit' : 'button')
+
   return (
     <button
+      type={computedButtonType}
       className={classes}
       onClick={onClick}
       disabled={disabled || loading}
