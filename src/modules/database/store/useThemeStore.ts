@@ -4,7 +4,6 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import * as DarkReader from 'darkreader'
 import { Theme, DarkReaderSettings } from '../types'
 
 export interface ThemeState {
@@ -52,17 +51,22 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
                             darkReaderSettings.sepia > 0 ||
                             darkReaderSettings.grayscale > 0
 
-    // Only invoke DarkReader engine if user explicitly customizes display filters
-    if (hasCustomFilter) {
-      DarkReader.enable({
-        brightness: darkReaderSettings.brightness,
-        contrast: darkReaderSettings.contrast,
-        sepia: darkReaderSettings.sepia,
-        grayscale: darkReaderSettings.grayscale,
-      })
-    } else {
-      DarkReader.disable()
-    }
+    // Safely load DarkReader on client-side only to prevent Next.js SSR "window is not defined" error
+    import('darkreader').then(DarkReader => {
+      if (typeof window !== 'undefined' && window.fetch) {
+        DarkReader.setFetchMethod(window.fetch)
+      }
+      if (hasCustomFilter) {
+        DarkReader.enable({
+          brightness: darkReaderSettings.brightness,
+          contrast: darkReaderSettings.contrast,
+          sepia: darkReaderSettings.sepia,
+          grayscale: darkReaderSettings.grayscale,
+        })
+      } else {
+        DarkReader.disable()
+      }
+    }).catch(err => console.error('Failed to load DarkReader dynamically', err))
 
     document.documentElement.style.setProperty('--darkreader-brightness', `${darkReaderSettings.brightness}%`)
     document.documentElement.style.setProperty('--darkreader-contrast', `${darkReaderSettings.contrast}%`)
