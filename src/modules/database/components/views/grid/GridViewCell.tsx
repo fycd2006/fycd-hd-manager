@@ -1399,27 +1399,24 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const cellWidth = field.width || 180;
 
   let cellBg: string | undefined = undefined;
+  let cellBorderColor: string | undefined = undefined;
+
   if (isInRange) {
-    cellBg = 'rgba(37, 99, 235, 0.08)';
+    cellBg = 'rgba(37, 99, 235, 0.12)';
+    cellBorderColor = 'rgba(37, 99, 235, 0.22)';
   } else if (isSelected) {
-    cellBg = 'rgba(37, 99, 235, 0.04)';
+    cellBg = 'rgba(37, 99, 235, 0.05)';
   }
 
   let cellShadow: string | undefined = undefined;
   if (isEditing) {
     cellShadow = undefined;
-  } else if (isInRange && rangeEdges) {
-    const shadows: string[] = [];
-    if (rangeEdges.top) shadows.push('inset 0 2px 0 0 #2563eb');
-    if (rangeEdges.bottom) shadows.push('inset 0 -2px 0 0 #2563eb');
-    if (rangeEdges.left) shadows.push('inset 2px 0 0 0 #2563eb');
-    if (rangeEdges.right) shadows.push('inset -2px 0 0 0 #2563eb');
-    cellShadow = shadows.join(', ') || undefined;
-  } else if (isSelected) {
+  } else if (isSelected && !isInRange) {
+    // Single selected cell focus outline
     cellShadow = 'inset 0 0 0 2px #2563eb';
   }
 
-  // Combine selection outer border shadow with primary column shadow if isPrimary
+  // Combine selection shadow with primary column shadow if isPrimary
   let finalBoxShadow = cellShadow;
   if (isPrimary) {
     const primaryShadow = '2px 0 5px -2px rgba(0, 0, 0, 0.12)';
@@ -1453,7 +1450,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         position: isPrimary ? 'sticky' : 'relative',
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
         boxShadow: finalBoxShadow,
-        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
+        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : (cellBorderColor ? `1px solid ${cellBorderColor}` : undefined),
+        borderBottom: cellBorderColor ? `1px solid ${cellBorderColor}` : undefined,
         backgroundColor: cellBg || 'var(--bg-secondary, #ffffff)',
         boxSizing: 'border-box',
         display: 'flex',
