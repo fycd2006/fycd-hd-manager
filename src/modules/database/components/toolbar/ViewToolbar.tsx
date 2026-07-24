@@ -151,12 +151,7 @@ export function ViewToolbar({
   }
 
   useOnClickOutside(viewContextRef, () => {
-    if (isMobile) return
     setShowViewContext(false)
-  })
-  useOnClickOutside(headerToolbarRef, () => {
-    if (isMobile) return
-    setActiveHeaderMenu(null)
   })
 
   React.useEffect(() => {
@@ -491,8 +486,8 @@ export function ViewToolbar({
         />
       </ul>
 
-      {/* Desktop Top-Layer Floating Portal for Toolbar Menus (Prevents any overflow clipping) */}
-      {!isMobile && activeHeaderMenu && menuAnchorRect && createPortal(
+      {/* Top-Layer Floating Portal for Toolbar Menus (Prevents any overflow clipping across all viewports) */}
+      {activeHeaderMenu && menuAnchorRect && createPortal(
         <div
           style={{
             position: 'fixed',
@@ -507,15 +502,15 @@ export function ViewToolbar({
             style={{
               position: 'fixed',
               top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`,
-              left: `${Math.max(12, Math.min(menuAnchorRect.left, window.innerWidth - 440))}px`,
+              left: `${Math.max(8, Math.min(menuAnchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 800) - (activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? 380 : activeHeaderMenu === 'sort' ? 320 : 220)))}px`,
               zIndex: 99999999,
               backgroundColor: '#ffffff',
               borderRadius: '10px',
               boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
               border: '1px solid #e2e8f0',
               padding: activeHeaderMenu === 'hide' || activeHeaderMenu === 'rowHeight' ? '6px' : '12px',
-              minWidth: activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? '380px' : activeHeaderMenu === 'sort' ? '320px' : '220px',
-              maxWidth: '440px',
+              minWidth: activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? '340px' : activeHeaderMenu === 'sort' ? '300px' : '200px',
+              maxWidth: '92vw',
               maxHeight: 'calc(100vh - 100px)',
               overflowY: 'auto'
             }}
