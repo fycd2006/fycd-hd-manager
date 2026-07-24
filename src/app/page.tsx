@@ -1276,6 +1276,10 @@ export default function Home() {
                 wsActions.setModalWsId(wsId)
                 wsActions.setShowDatabaseModal(true)
               }}
+              onShowCreateTableModal={(dbId) => {
+                setModalDbIdForTable(dbId)
+                setShowTableModal(true)
+              }}
             />
           ) : (
             <>
