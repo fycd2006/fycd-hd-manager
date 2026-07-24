@@ -541,29 +541,7 @@ export default function MobileBottomNav({
                   </span>
                 ) : null}
 
-                {/* Sub-Bubble Label Tooltip Pill with Dark/Light Support */}
-                {isBubbleMenuOpen && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      whiteSpace: 'nowrap',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: isDark ? '#ffffff' : '#0f172a',
-                      backgroundColor: isDark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255, 255, 255, 0.96)',
-                      backdropFilter: 'blur(10px)',
-                      padding: '3px 8px',
-                      borderRadius: '8px',
-                      border: isDark ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid #cbd5e1',
-                      boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 14px rgba(15,23,42,0.12)',
-                      pointerEvents: 'none',
-                      top: offsetY < 0 ? '-26px' : '48px',
-                      left: offsetX < 0 ? '-10px' : '10px'
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                )}
+
               </div>
             )
           })}
