@@ -186,6 +186,18 @@ export default function Sidebar({
       >
         <div className="sidebar" style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: '250px' }}>
           
+          {/* Brand Header */}
+          <div style={{ height: '48px', minHeight: '48px', display: 'flex', alignItems: 'center', padding: '0 14px', gap: '10px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
+            <img 
+              src="/logo.jpg" 
+              alt="FYCD HD Manager Logo" 
+              style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }} 
+            />
+            <span style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
+              FYCD HD Manager
+            </span>
+          </div>
+
           {/* Workspace Header Selector Bar */}
           <div style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box' }}>
             <div 
@@ -200,14 +212,14 @@ export default function Sidebar({
               title="切換工作區"
               style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, padding: '4px 6px', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden' }}
             >
-              <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0, boxShadow: '0 2px 6px rgba(37,99,235,0.25)' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
                 {activeWorkspaceName.charAt(0).toUpperCase()}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
+                <span style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
                   {activeWorkspaceName}
                 </span>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>
+                <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 500 }}>
                   工作區
                 </span>
               </div>

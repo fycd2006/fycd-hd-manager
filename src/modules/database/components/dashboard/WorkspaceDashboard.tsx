@@ -90,6 +90,29 @@ export default function WorkspaceDashboard({
           paddingBottom: '28px'
         }}>
           <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <img 
+                src="/logo.jpg" 
+                alt="FYCD HD Manager Logo" 
+                style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #e4e4e7', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }} 
+              />
+              <div>
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2563eb' }}>
+                  FYCD HD Manager
+                </span>
+                <h1 style={{
+                  fontSize: '26px',
+                  fontWeight: 800,
+                  letterSpacing: '-0.03em',
+                  margin: 0,
+                  color: '#09090b',
+                  lineHeight: 1.2
+                }}>
+                  {activeWorkspace?.name || '雲端工作區'} 概覽
+                </h1>
+              </div>
+            </div>
+
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -100,7 +123,7 @@ export default function WorkspaceDashboard({
               backgroundColor: '#f4f4f5',
               padding: '4px 10px',
               borderRadius: '6px',
-              marginBottom: '12px',
+              marginBottom: '8px',
               border: '1px solid #e4e4e7'
             }}>
               <span style={{
@@ -110,19 +133,8 @@ export default function WorkspaceDashboard({
                 backgroundColor: '#10b981',
                 display: 'inline-block'
               }} />
-              工作區首頁 · {currentUser.username} ({currentUser.role === 'admin' ? '管理者' : '成員'})
+              歡迎回來，{currentUser.username} ({currentUser.role === 'admin' ? '管理者' : '成員'})
             </div>
-            
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              margin: '0 0 6px 0',
-              color: '#09090b',
-              lineHeight: 1.2
-            }}>
-              {activeWorkspace?.name || '雲端工作區'} 概覽
-            </h1>
             
             <p style={{
               fontSize: '14px',
