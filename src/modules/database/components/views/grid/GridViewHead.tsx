@@ -86,6 +86,8 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
 }) => {
   const [draggedFieldId, setDraggedFieldId] = React.useState<number | null>(null);
   const [dragOverFieldId, setDragOverFieldId] = React.useState<number | null>(null);
+  const [resizingFieldId, setResizingFieldId] = React.useState<number | null>(null);
+  const [hoveringResizeFieldId, setHoveringResizeFieldId] = React.useState<number | null>(null);
 
   return (
     <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', minHeight: '33px', position: 'relative' }}>
@@ -136,13 +138,19 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
         const isDraggingThis = draggedFieldId === field.id;
         const isDragTarget = dragOverFieldId === field.id && draggedFieldId !== field.id;
         const isPrimary = fieldIndex === 0;
+        const isHoveringResize = hoveringResizeFieldId === field.id;
+        const isResizingThis = resizingFieldId === field.id;
 
         return (
           <div
             key={field.id}
             className="grid-view__column grid-view__column--field"
-            draggable={true}
+            draggable={!isHoveringResize && !isResizingThis}
             onDragStart={(e) => {
+              if (isHoveringResize || isResizingThis) {
+                e.preventDefault();
+                return;
+              }
               e.dataTransfer.setData('text/plain', String(field.id));
               e.dataTransfer.effectAllowed = 'move';
               setDraggedFieldId(field.id);
@@ -180,7 +188,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '0 10px',
-              cursor: 'grab',
+              cursor: isHoveringResize || isResizingThis ? 'col-resize' : 'grab',
               backgroundColor: isDraggingThis ? '#e0f2fe' : 'var(--bg-secondary, #ffffff)',
               opacity: isDraggingThis ? 0.6 : 1,
               boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 #2563eb' : undefined),
@@ -219,23 +227,36 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               />
             </div>
 
-            {/* Column Resize Handle with both Mouse Drag & Mobile Touch Drag */}
+            {/* Baserow Style Column Resize Handle with Blue Accent Pill */}
             <div
               className="grid-view__column-resize-handle"
               style={{
                 position: 'absolute',
-                right: '-6px',
+                right: '-8px',
                 top: 0,
                 bottom: 0,
                 width: '16px',
                 cursor: 'col-resize',
-                zIndex: 30,
+                zIndex: 35,
                 touchAction: 'none',
                 userSelect: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onMouseEnter={() => setHoveringResizeFieldId(field.id)}
+              onMouseLeave={() => {
+                if (resizingFieldId !== field.id) {
+                  setHoveringResizeFieldId(null);
+                }
               }}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                setResizingFieldId(field.id);
+                setHoveringResizeFieldId(field.id);
+
                 const startX = e.clientX;
                 const startWidth = columnWidth;
 
@@ -243,6 +264,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
                 document.body.style.userSelect = 'none';
 
                 const onMouseMove = (moveEvent: MouseEvent) => {
+                  moveEvent.preventDefault();
                   const delta = moveEvent.clientX - startX;
                   const newWidth = Math.max(70, startWidth + delta);
                   onResizeColumn?.(field.id, newWidth);
@@ -255,6 +277,9 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
                   const finalWidth = Math.max(70, startWidth + (upEvent.clientX - startX));
                   onResizeColumnEnd?.(field.id, finalWidth);
 
+                  setResizingFieldId(null);
+                  setHoveringResizeFieldId(null);
+
                   document.body.style.cursor = '';
                   document.body.style.userSelect = '';
                 };
@@ -265,6 +290,9 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               onTouchStart={(e) => {
                 e.stopPropagation();
                 if (!e.touches || e.touches.length === 0) return;
+                setResizingFieldId(field.id);
+                setHoveringResizeFieldId(field.id);
+
                 const startX = e.touches[0].clientX;
                 const startWidth = columnWidth;
 
@@ -284,12 +312,28 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
                   const finalX = lastTouch ? lastTouch.clientX : startX;
                   const finalWidth = Math.max(70, startWidth + (finalX - startX));
                   onResizeColumnEnd?.(field.id, finalWidth);
+
+                  setResizingFieldId(null);
+                  setHoveringResizeFieldId(null);
                 };
 
                 window.addEventListener('touchmove', onTouchMove, { passive: false });
                 window.addEventListener('touchend', onTouchEnd);
               }}
-            />
+            >
+              {/* Baserow Blue Accent Pill Indicator on Hover/Drag */}
+              <div
+                style={{
+                  width: (isHoveringResize || isResizingThis) ? '4px' : '2px',
+                  height: (isHoveringResize || isResizingThis) ? '24px' : '100%',
+                  borderRadius: (isHoveringResize || isResizingThis) ? '4px' : '0px',
+                  backgroundColor: (isHoveringResize || isResizingThis) ? '#2563eb' : 'transparent',
+                  boxShadow: (isHoveringResize || isResizingThis) ? '0 0 8px rgba(37, 99, 235, 0.6)' : 'none',
+                  transition: 'all 0.15s ease',
+                  pointerEvents: 'none'
+                }}
+              />
+            </div>
           </div>
         );
       })}
