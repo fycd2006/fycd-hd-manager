@@ -1,89 +1,70 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { X, Search, Plus, UserPlus, Shield, Trash2, Mail, Users, ChevronDown, Check, MoreVertical, HelpCircle, Copy, Lock } from 'lucide-react'
-import type { Workspace } from '@/modules/database/types'
+import { X, Search, UserPlus, Shield, Trash2, MoreVertical, Copy, Plus, Check, ChevronDown, Lock } from 'lucide-react'
+import type { Workspace, User } from '@/modules/database/types'
 
-export interface WorkspaceMember {
+interface WorkspaceMember {
   id: number
   userId: number
   name: string
   email: string
-  role: string // 'admin' | 'builder' | 'editor' | 'commenter' | 'viewer'
-  twoFactor: boolean
-  createdAt: string
+  role: string
+  joinedAt: string
+  twoFactor?: boolean
 }
 
-export interface WorkspaceInvite {
+interface WorkspaceInvite {
   id: number
   email: string
   role: string
   createdAt: string
 }
 
-export interface WorkspaceTeam {
+interface WorkspaceTeam {
   id: number
   name: string
-  description: string
+  description?: string
   memberCount: number
-  members: { id: number; name: string; email: string }[]
 }
-
-export interface RoleDefinition {
-  uid: string
-  name: string
-  description: string
-  badgeColor: string
-}
-
-export const WORKSPACE_ROLES: RoleDefinition[] = [
-  {
-    uid: 'admin',
-    name: 'Admin (系統管理員)',
-    description: '可完整配置工作區、建立與修改資料庫、資料表、欄位，並管理成員與權限設定。',
-    badgeColor: '#2563eb'
-  },
-  {
-    uid: 'builder',
-    name: 'Builder (建立者)',
-    description: '可建立與修改資料庫、資料表、欄位、檢視表及資料列，但無法管理工作區成員。',
-    badgeColor: '#0284c7'
-  },
-  {
-    uid: 'editor',
-    name: 'Editor (編輯者)',
-    description: '可新增、編輯與刪除資料列的數值，但無法修改資料表結構或欄位型態。',
-    badgeColor: '#16a34a'
-  },
-  {
-    uid: 'commenter',
-    name: 'Commenter (評論者)',
-    description: '可檢視資料表內容並在資料列留言討論，但無法修改資料內容或結構。',
-    badgeColor: '#d97706'
-  },
-  {
-    uid: 'viewer',
-    name: 'Viewer (檢視者)',
-    description: '唯讀權限。僅能瀏覽資料表、欄位與檢視表，無法進行任何修改或留言。',
-    badgeColor: '#64748b'
-  }
-]
 
 interface MembersModalProps {
-  show: boolean
-  onClose: () => void
+  show?: boolean
   workspace: Workspace | null
+  currentUser?: User | null
+  onClose: () => void
   onToast: (msg: string, type: 'success' | 'error' | 'info') => void
   onUpdateWorkspaceMemberCount?: (count: number) => void
 }
 
-export default function MembersModal({
-  show,
-  onClose,
-  workspace,
-  onToast,
-  onUpdateWorkspaceMemberCount
-}: MembersModalProps) {
+const WORKSPACE_ROLES = [
+  {
+    uid: 'admin',
+    name: 'Admin (建立者 / 系統管理員)',
+    description: '可完整配置工作區、建立與修改資料庫、資料表、欄位，並管理成員與權限設定。',
+    badgeColor: '#2563eb'
+  },
+  {
+    uid: 'editor',
+    name: 'Editor (編輯者)',
+    description: '可建立與修改資料庫、資料表、欄位、檢視表及資料列，但無法管理工作區成員。',
+    badgeColor: '#059669'
+  },
+  {
+    uid: 'commenter',
+    name: 'Commenter (評論者)',
+    description: '可檢視所有資料庫內容並新增備註或評論，但無法修改欄位結構或編輯資料列。',
+    badgeColor: '#d97706'
+  },
+  {
+    uid: 'viewer',
+    name: 'Viewer (僅檢視者)',
+    description: '僅可瀏覽與搜尋資料庫與檢視表內容，無法進行任何編輯、刪除或評論動作。',
+    badgeColor: '#475569'
+  }
+]
+
+export default function MembersModal({ workspace, currentUser, onClose, onToast, onUpdateWorkspaceMemberCount }: MembersModalProps) {
   const [activeTab, setActiveTab] = useState<'members' | 'invites' | 'teams'>('members')
   const [members, setMembers] = useState<WorkspaceMember[]>([])
   const [invites, setInvites] = useState<WorkspaceInvite[]>([])
@@ -91,28 +72,43 @@ export default function MembersModal({
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Modal for Inviting
+  // Invite Modal State
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<string>('admin')
+  const [inviteRole, setInviteRole] = useState('editor')
+  const [showInviteRoleDropdown, setShowInviteRoleDropdown] = useState(false)
   const [inviteEmailError, setInviteEmailError] = useState('')
   const [inviting, setInviting] = useState(false)
-  const [showInviteRoleDropdown, setShowInviteRoleDropdown] = useState(false)
 
-  // Modal for Creating Team
+  // Team Modal State
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [teamName, setTeamName] = useState('')
   const [teamDesc, setTeamDesc] = useState('')
   const [creatingTeam, setCreatingTeam] = useState(false)
 
-  // Role Edit Context Floating Popover State
+  // Member Role Dropdown Context State
   const [activeRoleContextMember, setActiveRoleContextMember] = useState<WorkspaceMember | null>(null)
   const [activeRoleContextPos, setActiveRoleContextPos] = useState<{ top: number; left: number } | null>(null)
+  const roleMenuRef = useRef<HTMLDivElement>(null)
 
-  // Actions Dropdown Menu State
+  // Action Menu Dropdown State
   const [activeActionMenuMemberId, setActiveActionMenuMemberId] = useState<number | null>(null)
 
-  const roleMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!workspace) return
+    fetchMembersData()
+  }, [workspace])
+
+  // Close floating dropdowns when clicking outside
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      if (roleMenuRef.current && !roleMenuRef.current.contains(e.target as Node)) {
+        setActiveRoleContextMember(null)
+      }
+    }
+    document.addEventListener('mousedown', handleGlobalClick)
+    return () => document.removeEventListener('mousedown', handleGlobalClick)
+  }, [])
 
   const fetchMembersData = async () => {
     if (!workspace) return
@@ -121,49 +117,22 @@ export default function MembersModal({
       const res = await fetch(`/api/workspaces/${workspace.id}/members`)
       if (res.ok) {
         const data = await res.json()
-        setMembers(data.members || [])
-        setInvites(data.invitations || [])
+        const fetchedMembers = data.members || []
+        setMembers(fetchedMembers)
+        setInvites(data.invites || [])
         setTeams(data.teams || [])
-        if (onUpdateWorkspaceMemberCount) {
-          onUpdateWorkspaceMemberCount((data.members || []).length)
+        if (onUpdateWorkspaceMemberCount && fetchedMembers.length > 0) {
+          onUpdateWorkspaceMemberCount(fetchedMembers.length)
         }
       }
     } catch (err) {
-      console.error('Failed to load workspace members:', err)
+      console.error('Failed to fetch workspace members:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    if (show && workspace) {
-      fetchMembersData()
-    }
-  }, [show, workspace?.id])
-
-  // Close floating menus on click outside or Escape key
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (roleMenuRef.current && !roleMenuRef.current.contains(e.target as Node)) {
-        setActiveRoleContextMember(null)
-      }
-      setActiveActionMenuMemberId(null)
-    }
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setActiveRoleContextMember(null)
-        setActiveActionMenuMemberId(null)
-      }
-    }
-    window.addEventListener('mousedown', handleClickOutside)
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('mousedown', handleClickOutside)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [])
-
-  if (!show || !workspace) return null
+  if (!workspace) return null
 
   // Filter members by search query
   const filteredMembers = members.filter(m =>
@@ -171,82 +140,74 @@ export default function MembersModal({
     m.email.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Validate email format
-  const validateEmail = (emailStr: string) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return re.test(emailStr)
-  }
-
-  // Send invitation handler
+  // Send Email Invite
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault()
-    setInviteEmailError('')
-    if (!inviteEmail.trim()) {
-      setInviteEmailError('此欄位為必填')
+    if (!inviteEmail.trim() || inviting) return
+
+    // Simple email format check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) {
+      setInviteEmailError('請輸入有效的 Email 電子郵件地址')
       return
     }
-    if (!validateEmail(inviteEmail.trim())) {
-      setInviteEmailError('請輸入有效的電子郵件格式')
-      return
-    }
-    if (inviting) return
 
     setInviting(true)
+    setInviteEmailError('')
+
     try {
       const res = await fetch(`/api/workspaces/${workspace.id}/members`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole })
+        body: JSON.stringify({ action: 'invite', email: inviteEmail.trim(), role: inviteRole })
       })
+
       const data = await res.json()
+
       if (res.ok) {
-        onToast(data.message || '邀請已成功發送並推送站內通知！', 'success')
+        onToast(`已成功傳送邀請至 ${inviteEmail}`, 'success')
         setInviteEmail('')
         setShowInviteModal(false)
         await fetchMembersData()
       } else {
-        setInviteEmailError(data.error || '邀請發送失敗')
-        onToast(data.error || '邀請發送失敗', 'error')
+        setInviteEmailError(data.error || '傳送邀請失敗')
       }
     } catch {
-      onToast('發送失敗，請稍後再試', 'error')
+      setInviteEmailError('網路連線失敗，請稍後再試')
     } finally {
       setInviting(false)
     }
   }
 
-  // Copy invitation link helper
+  // Copy Workspace Invite Link
   const handleCopyInviteLink = () => {
-    const inviteUrl = `${window.location.origin}/workspace-invitation?workspaceId=${workspace.id}`
+    const inviteUrl = `${window.location.origin}/workspace-invitation?wsId=${workspace.id}`
     navigator.clipboard.writeText(inviteUrl)
-    onToast('已複製邀請連結至剪貼簿！', 'success')
+    onToast('已複製工作區邀請連結至剪貼簿！', 'success')
   }
 
-  // Update member role
-  const handleUpdateRole = async (userId: number, newRole: string) => {
-    setActiveRoleContextMember(null)
-    setActiveActionMenuMemberId(null)
+  // Update Member Role
+  const handleUpdateRole = async (targetUserId: number, newRole: string) => {
     try {
       const res = await fetch(`/api/workspaces/${workspace.id}/members`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role: newRole })
+        body: JSON.stringify({ userId: targetUserId, role: newRole })
       })
+
       if (res.ok) {
-        setMembers(prev => prev.map(m => m.userId === userId ? { ...m, role: newRole } : m))
-        const roleObj = WORKSPACE_ROLES.find(r => r.uid === newRole)
-        onToast(`成員角色權限已更新為「${roleObj?.name || newRole}」`, 'success')
+        setMembers(prev => prev.map(m => m.userId === targetUserId ? { ...m, role: newRole } : m))
+        onToast('已更新成員角色權限', 'success')
+        setActiveRoleContextMember(null)
       } else {
-        onToast('更新角色權限失敗', 'error')
+        onToast('變更權限失敗', 'error')
       }
     } catch {
-      onToast('更新角色權限失敗', 'error')
+      onToast('變更權限失敗', 'error')
     }
   }
 
   // Remove member from workspace
   const handleRemoveMember = async (userId: number, memberName: string) => {
-    setActiveActionMenuMemberId(null)
     if (!confirm(`確定要將「${memberName}」從工作區中移除？此動作無法復原。`)) return
     try {
       const res = await fetch(`/api/workspaces/${workspace.id}/members?userId=${userId}`, {
@@ -307,82 +268,218 @@ export default function MembersModal({
   const selectedInviteRoleObj = WORKSPACE_ROLES.find(r => r.uid === inviteRole) || WORKSPACE_ROLES[0]
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ width: '92vw', maxWidth: '1120px', height: '86vh', backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)', padding: '12px' }}
+    >
+      <style>{`
+        .members-modal-card {
+          width: 95vw;
+          max-width: 1120px;
+          height: 88vh;
+          max-height: 800px;
+          background-color: #ffffff;
+          border-radius: 20px;
+          box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          border: 1px solid #e2e8f0;
+        }
+        .members-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 20px;
+          border-bottom: 1px solid #e2e8f0;
+          background-color: #f8fafc;
+        }
+        .members-modal-tabs {
+          display: flex;
+          gap: 20px;
+          overflow-x: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .members-modal-tabs::-webkit-scrollbar {
+          display: none;
+        }
+        .members-modal-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px;
+          gap: 16px;
+        }
+        .members-modal-title {
+          font-size: 20px;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0;
+          line-height: 1.3;
+        }
+        .members-modal-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .members-modal-search-wrapper {
+          position: relative;
+          width: 220px;
+        }
+        .members-modal-invite-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 9px 18px;
+          background-color: #2563eb;
+          color: #ffffff;
+          border: none;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          box-shadow: 0 2px 6px rgba(37,99,235,0.2);
+        }
+
+        @media (max-width: 640px) {
+          .members-modal-header {
+            padding: 12px 14px;
+          }
+          .members-modal-tabs {
+            gap: 12px;
+          }
+          .members-modal-toolbar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .members-modal-actions {
+            flex-direction: column;
+            width: 100%;
+            gap: 8px;
+          }
+          .members-modal-search-wrapper {
+            width: 100% !important;
+          }
+          .members-modal-invite-btn {
+            width: 100% !important;
+            justify-content: center;
+          }
+        }
+      `}</style>
+
+      <div className="members-modal-card" onClick={(e) => e.stopPropagation()}>
         
         {/* Top Header Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 28px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-          <div style={{ display: 'flex', gap: '32px' }}>
+        <div className="members-modal-header">
+          <div className="members-modal-tabs">
             <button
               onClick={() => setActiveTab('members')}
-              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'members' ? 600 : 500, color: activeTab === 'members' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'members' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
+              style={{
+                paddingBottom: '8px',
+                fontSize: '14px',
+                fontWeight: activeTab === 'members' ? 700 : 500,
+                color: activeTab === 'members' ? '#2563eb' : '#64748b',
+                borderBottom: activeTab === 'members' ? '2px solid #2563eb' : '2px solid transparent',
+                background: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
             >
               Members ({members.length})
             </button>
             <button
               onClick={() => setActiveTab('invites')}
-              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'invites' ? 600 : 500, color: activeTab === 'invites' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'invites' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
+              style={{
+                paddingBottom: '8px',
+                fontSize: '14px',
+                fontWeight: activeTab === 'invites' ? 700 : 500,
+                color: activeTab === 'invites' ? '#2563eb' : '#64748b',
+                borderBottom: activeTab === 'invites' ? '2px solid #2563eb' : '2px solid transparent',
+                background: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
             >
               Invites ({invites.length})
             </button>
             <button
               onClick={() => setActiveTab('teams')}
-              style={{ paddingBottom: '8px', fontSize: '15px', fontWeight: activeTab === 'teams' ? 600 : 500, color: activeTab === 'teams' ? '#2563eb' : '#64748b', borderBottom: activeTab === 'teams' ? '2px solid #2563eb' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', cursor: 'pointer' }}
+              style={{
+                paddingBottom: '8px',
+                fontSize: '14px',
+                fontWeight: activeTab === 'teams' ? 700 : 500,
+                color: activeTab === 'teams' ? '#2563eb' : '#64748b',
+                borderBottom: activeTab === 'teams' ? '2px solid #2563eb' : '2px solid transparent',
+                background: 'none',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
             >
               Teams ({teams.length})
             </button>
           </div>
 
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px', borderRadius: '8px' }}>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px', borderRadius: '8px', flexShrink: 0 }}>
             <X size={20} />
           </button>
         </div>
 
         {/* Content Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '28px', position: 'relative' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px', position: 'relative' }}>
           
           {/* Members Tab */}
           {activeTab === 'members' && (
             <div>
-              {/* Toolbar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              {/* Responsive Toolbar */}
+              <div className="members-modal-toolbar">
+                <h2 className="members-modal-title">
                   {members.length} Members in {workspace.name}
                 </h2>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="members-modal-actions">
                   {/* Search Bar */}
-                  <div style={{ position: 'relative' }}>
+                  <div className="members-modal-search-wrapper">
                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                     <input
                       type="text"
                       placeholder="Search..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      style={{ padding: '8px 12px 8px 36px', width: '220px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }}
+                      style={{ padding: '8px 12px 8px 36px', width: '100%', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
 
                   {/* Invite Member Button */}
                   <button
                     onClick={() => setShowInviteModal(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 6px rgba(37,99,235,0.2)' }}
+                    className="members-modal-invite-btn"
                   >
                     <UserPlus size={16} /> Invite member
                   </button>
                 </div>
               </div>
 
-              {/* Members Table */}
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'visible' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
+              {/* Members Table with Horizontal Scroll Container */}
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', backgroundColor: '#ffffff' }}>
+                <table style={{ width: '100%', minWidth: '560px', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
-                      <th style={{ padding: '14px 20px' }}>Name</th>
-                      <th style={{ padding: '14px 20px' }}>Email</th>
-                      <th style={{ padding: '14px 20px' }}>Highest Role 🛈</th>
-                      <th style={{ padding: '14px 20px' }}>2FA</th>
-                      <th style={{ padding: '14px 20px', width: '60px' }}></th>
+                      <th style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>Name</th>
+                      <th style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>Email</th>
+                      <th style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>Highest Role 🛈</th>
+                      <th style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>2FA</th>
+                      <th style={{ padding: '14px 18px', width: '60px', whiteSpace: 'nowrap' }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -404,29 +501,27 @@ export default function MembersModal({
                         return (
                           <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             {/* Name */}
-                            <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isCreator ? '#1d4ed8' : '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px' }}>
+                            <td style={{ padding: '14px 18px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isCreator ? '#1d4ed8' : '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
                                   {m.name.charAt(0).toUpperCase()}
                                 </div>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span>{m.name}</span>
-                                    {isCreator && (
-                                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#1d4ed8', backgroundColor: '#dbeafe', padding: '1px 6px', borderRadius: '4px' }}>
-                                        建立者
-                                      </span>
-                                    )}
-                                  </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                                  <span>{m.name}</span>
+                                  {isCreator && (
+                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#1d4ed8', backgroundColor: '#dbeafe', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap', display: 'inline-block', flexShrink: 0 }}>
+                                      建立者
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                             </td>
 
                             {/* Email */}
-                            <td style={{ padding: '16px 20px', color: '#475569' }}>{m.email}</td>
+                            <td style={{ padding: '14px 18px', color: '#475569', whiteSpace: 'nowrap' }}>{m.email}</td>
 
                             {/* Highest Role with Floating Role Context Trigger */}
-                            <td style={{ padding: '16px 20px', position: 'relative' }}>
+                            <td style={{ padding: '14px 18px', position: 'relative', whiteSpace: 'nowrap' }}>
                               <div
                                 onClick={(e) => {
                                   if (isCreator) {
@@ -434,7 +529,7 @@ export default function MembersModal({
                                     return
                                   }
                                   const rect = e.currentTarget.getBoundingClientRect()
-                                  setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX })
+                                  setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: Math.min(rect.left + window.scrollX, window.innerWidth - 350) })
                                   setActiveRoleContextMember(activeRoleContextMember?.id === m.id ? null : m)
                                 }}
                                 title={isCreator ? '工作區建立者之權限固定為系統管理員' : '點擊變更角色權限'}
@@ -444,13 +539,14 @@ export default function MembersModal({
                                   gap: '8px',
                                   cursor: isCreator ? 'not-allowed' : 'pointer',
                                   padding: '4px 10px',
-                                  borderRadius: '6px',
+                                  borderRadius: '8px',
                                   backgroundColor: isCreator ? '#eff6ff' : '#f8fafc',
                                   border: isCreator ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
-                                  opacity: isCreator ? 0.9 : 1
+                                  opacity: isCreator ? 0.9 : 1,
+                                  whiteSpace: 'nowrap'
                                 }}
                               >
-                                <span style={{ fontWeight: 600, color: isCreator ? '#1d4ed8' : '#0f172a', fontSize: '13px' }}>
+                                <span style={{ fontWeight: 600, color: isCreator ? '#1d4ed8' : '#0f172a', fontSize: '13px', whiteSpace: 'nowrap' }}>
                                   {currentRoleObj.name}
                                 </span>
                                 {isCreator ? <Lock size={13} color="#2563eb" /> : <ChevronDown size={14} color="#64748b" />}
@@ -458,14 +554,14 @@ export default function MembersModal({
                             </td>
 
                             {/* 2FA */}
-                            <td style={{ padding: '16px 20px' }}>
-                              <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 500, backgroundColor: m.twoFactor ? '#dcfce7' : '#f1f5f9', color: m.twoFactor ? '#166534' : '#64748b' }}>
+                            <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
+                              <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 500, backgroundColor: m.twoFactor ? '#dcfce7' : '#f1f5f9', color: m.twoFactor ? '#166534' : '#64748b', whiteSpace: 'nowrap' }}>
                                 {m.twoFactor ? 'Enabled' : 'Disabled'}
                               </span>
                             </td>
 
                             {/* Actions Dropdown */}
-                            <td style={{ padding: '16px 20px', position: 'relative' }}>
+                            <td style={{ padding: '14px 18px', position: 'relative', whiteSpace: 'nowrap' }}>
                               <button
                                 onClick={() => setActiveActionMenuMemberId(activeActionMenuMemberId === m.id ? null : m.id)}
                                 style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '6px', borderRadius: '6px' }}
@@ -479,7 +575,7 @@ export default function MembersModal({
                                     <button
                                       onClick={(e) => {
                                         const rect = e.currentTarget.getBoundingClientRect()
-                                        setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX })
+                                        setActiveRoleContextPos({ top: rect.bottom + window.scrollY, left: Math.min(rect.left + window.scrollX, window.innerWidth - 350) })
                                         setActiveRoleContextMember(m)
                                         setActiveActionMenuMemberId(null)
                                       }}
@@ -516,34 +612,34 @@ export default function MembersModal({
           {/* Invites Tab */}
           {activeTab === 'invites' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              <div className="members-modal-toolbar">
+                <h2 className="members-modal-title">
                   Pending Invitations ({invites.length})
                 </h2>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="members-modal-actions">
                   <button
                     onClick={handleCopyInviteLink}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 16px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '9px 16px', backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '10px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                   >
                     <Copy size={15} /> 複製邀請連結
                   </button>
                   <button
                     onClick={() => setShowInviteModal(true)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                    className="members-modal-invite-btn"
                   >
                     <UserPlus size={16} /> Invite member
                   </button>
                 </div>
               </div>
 
-              <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '14px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', backgroundColor: '#ffffff' }}>
+                <table style={{ width: '100%', minWidth: '500px', borderCollapse: 'collapse', fontSize: '14px', textAlign: 'left' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
-                      <th style={{ padding: '14px 20px' }}>Email</th>
-                      <th style={{ padding: '14px 20px' }}>Assigned Role</th>
-                      <th style={{ padding: '14px 20px' }}>Sent Date</th>
-                      <th style={{ padding: '14px 20px', width: '140px' }}>Actions</th>
+                      <th style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>Email</th>
+                      <th style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>Assigned Role</th>
+                      <th style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>Sent Date</th>
+                      <th style={{ padding: '14px 18px', width: '140px', whiteSpace: 'nowrap' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -556,12 +652,12 @@ export default function MembersModal({
                         const rObj = WORKSPACE_ROLES.find(r => r.uid === inv.role) || { name: inv.role.toUpperCase() }
                         return (
                           <tr key={inv.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                            <td style={{ padding: '16px 20px', fontWeight: 600, color: '#0f172a' }}>{inv.email}</td>
-                            <td style={{ padding: '16px 20px' }}>
+                            <td style={{ padding: '14px 18px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>{inv.email}</td>
+                            <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
                               <span style={{ fontWeight: 600, color: '#334155' }}>{rObj.name}</span>
                             </td>
-                            <td style={{ padding: '16px 20px', color: '#64748b', fontSize: '13px' }}>{new Date(inv.createdAt).toLocaleDateString()}</td>
-                            <td style={{ padding: '16px 20px' }}>
+                            <td style={{ padding: '14px 18px', color: '#64748b', fontSize: '13px', whiteSpace: 'nowrap' }}>{new Date(inv.createdAt).toLocaleDateString()}</td>
+                            <td style={{ padding: '14px 18px', whiteSpace: 'nowrap' }}>
                               <button
                                 onClick={() => handleRevokeInvite(inv.id, inv.email)}
                                 style={{ padding: '6px 12px', backgroundColor: '#fff1f2', color: '#e11d48', border: '1px solid #fecdd3', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}
@@ -582,29 +678,29 @@ export default function MembersModal({
           {/* Teams Tab */}
           {activeTab === 'teams' && (
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              <div className="members-modal-toolbar">
+                <h2 className="members-modal-title">
                   Workspace Teams ({teams.length})
                 </h2>
                 <button
                   onClick={() => setShowTeamModal(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '9px 18px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  className="members-modal-invite-btn"
                 >
                   <Plus size={16} /> Create team
                 </button>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
                 {teams.length === 0 ? (
                   <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: '#94a3b8', border: '1px dashed #cbd5e1', borderRadius: '12px' }}>
                     尚未建立任何團隊。點擊「Create team」整合團隊成員。
                   </div>
                 ) : (
                   teams.map((t) => (
-                    <div key={t.id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div key={t.id} style={{ border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{t.name}</h3>
-                        <span style={{ padding: '2px 8px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', fontSize: '12px', fontWeight: 600 }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {t.memberCount} members
                         </span>
                       </div>
@@ -624,7 +720,7 @@ export default function MembersModal({
       {activeRoleContextMember && (
         <div
           ref={roleMenuRef}
-          style={{ position: 'fixed', top: activeRoleContextPos ? Math.min(activeRoleContextPos.top, window.innerHeight - 340) : '30%', left: activeRoleContextPos ? Math.min(activeRoleContextPos.left, window.innerWidth - 360) : '40%', zIndex: 1200, width: '340px', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 20px 40px rgba(0,0,0,0.22)', border: '1px solid #e2e8f0', padding: '14px', animation: 'fadeIn 0.15s ease-out' }}
+          style={{ position: 'fixed', top: activeRoleContextPos ? Math.min(activeRoleContextPos.top, window.innerHeight - 340) : '30%', left: activeRoleContextPos ? Math.max(16, Math.min(activeRoleContextPos.left, window.innerWidth - 350)) : '5%', zIndex: 1200, width: 'calc(100vw - 32px)', maxWidth: '340px', backgroundColor: '#ffffff', borderRadius: '14px', boxShadow: '0 20px 40px rgba(0,0,0,0.22)', border: '1px solid #e2e8f0', padding: '14px' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px', marginBottom: '10px' }}>
             <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
@@ -659,10 +755,10 @@ export default function MembersModal({
 
       {/* Invite Workspace Members Modal */}
       {showInviteModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)' }}>
-          <div style={{ width: '520px', backgroundColor: '#ffffff', borderRadius: '16px', padding: '28px', boxShadow: '0 25px 60px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0' }}>
+        <div onClick={() => setShowInviteModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(3px)', padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '520px', backgroundColor: '#ffffff', borderRadius: '20px', padding: '24px', boxShadow: '0 25px 60px rgba(0,0,0,0.25)', border: '1px solid #e2e8f0', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
                 Invite workspace members
               </h3>
               <button onClick={() => setShowInviteModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
@@ -681,7 +777,7 @@ export default function MembersModal({
                     setInviteEmail(e.target.value)
                     setInviteEmailError('')
                   }}
-                  style={{ padding: '10px 14px', border: inviteEmailError ? '1px solid #ef4444' : '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+                  style={{ padding: '10px 14px', border: inviteEmailError ? '1px solid #ef4444' : '1px solid #cbd5e1', borderRadius: '10px', fontSize: '14px', outline: 'none' }}
                 />
                 {inviteEmailError && (
                   <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 500 }}>{inviteEmailError}</span>
@@ -696,7 +792,7 @@ export default function MembersModal({
 
                 <div
                   onClick={() => setShowInviteRoleDropdown(!showInviteRoleDropdown)}
-                  style={{ padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+                  style={{ padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '10px', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
                 >
                   <span style={{ fontWeight: 700, fontSize: '14px', color: '#0f172a' }}>{selectedInviteRoleObj.name}</span>
                   <ChevronDown size={16} color="#64748b" />
@@ -722,11 +818,11 @@ export default function MembersModal({
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '12px', gap: '12px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={handleCopyInviteLink}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#2563eb', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#2563eb', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                 >
                   <Copy size={14} /> 複製邀請連結
                 </button>
@@ -734,7 +830,7 @@ export default function MembersModal({
                 <button
                   type="submit"
                   disabled={inviting}
-                  style={{ padding: '10px 24px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.25)' }}
+                  style={{ padding: '10px 24px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.25)', whiteSpace: 'nowrap' }}
                 >
                   {inviting ? 'Sending invite...' : 'Send invite'}
                 </button>
@@ -746,8 +842,8 @@ export default function MembersModal({
 
       {/* Create Team Modal */}
       {showTeamModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.4)' }}>
-          <div style={{ width: '460px', backgroundColor: '#ffffff', borderRadius: '16px', padding: '28px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', border: '1px solid #e2e8f0' }}>
+        <div onClick={() => setShowTeamModal(false)} style={{ position: 'fixed', inset: 0, zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15,23,42,0.4)', padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: '460px', backgroundColor: '#ffffff', borderRadius: '20px', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)', border: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Create new team</h3>
               <button onClick={() => setShowTeamModal(false)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
@@ -763,7 +859,7 @@ export default function MembersModal({
                   placeholder="e.g. Engineering, Marketing"
                   value={teamName}
                   onChange={e => setTeamName(e.target.value)}
-                  style={{ padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+                  style={{ padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '10px', fontSize: '14px', outline: 'none' }}
                   required
                 />
               </div>
@@ -774,7 +870,7 @@ export default function MembersModal({
                   placeholder="Team description..."
                   value={teamDesc}
                   onChange={e => setTeamDesc(e.target.value)}
-                  style={{ padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none', minHeight: '70px', resize: 'vertical' }}
+                  style={{ padding: '10px 12px', border: '1px solid #cbd5e1', borderRadius: '10px', fontSize: '14px', outline: 'none', minHeight: '70px', resize: 'vertical' }}
                 />
               </div>
 
@@ -782,7 +878,7 @@ export default function MembersModal({
                 <button
                   type="submit"
                   disabled={creatingTeam}
-                  style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                 >
                   {creatingTeam ? 'Creating...' : 'Create team'}
                 </button>

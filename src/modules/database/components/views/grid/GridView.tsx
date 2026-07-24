@@ -437,13 +437,20 @@ export const GridView: React.FC<GridViewProps> = ({
       }
       setSelectedRowIds(newSelectedIds);
     } else {
-      setSelectionStart([rIndex, 0]);
-      setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
-      setSelectedCell([rIndex, 0]);
-      setIsDraggingSelection(true);
-      setIsEditing(false);
       if (targetRow) {
-        setSelectedRowIds(new Set([targetRow.id]));
+        if (selectedRowIds.has(targetRow.id) && selectedRowIds.size === 1) {
+          setSelectedRowIds(new Set());
+          setSelectionStart(null);
+          setSelectionEnd(null);
+          setSelectedCell(null);
+        } else {
+          setSelectionStart([rIndex, 0]);
+          setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
+          setSelectedCell([rIndex, 0]);
+          setIsDraggingSelection(true);
+          setIsEditing(false);
+          setSelectedRowIds(new Set([targetRow.id]));
+        }
       }
     }
   }, [selectionStart, fields.length, rows, selectedRowIds, handleToggleRowCheckbox]);

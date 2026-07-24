@@ -181,10 +181,8 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
                 e.stopPropagation();
                 onToggleRowCheckbox?.(row.id, e as any);
               }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleRowCheckbox?.(row.id, e);
-              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
               style={{ width: '14px', height: '14px', cursor: 'pointer' }}
             />
             <Maximize2 

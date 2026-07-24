@@ -1402,6 +1402,9 @@ export default function Home() {
             onSetActiveTableId={wsActions.setActiveTableId}
             onShowNotificationsModal={() => setShowNotificationsModal(true)}
             onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
+            onToggleTheme={themeActions.toggleTheme}
+            onToggleDarkReaderPanel={() => themeActions.setShowDarkReaderPanel(!themeState.showDarkReaderPanel)}
+            onLogout={authActions.logout}
             onSelectRow={(row) => {
               setSelectedRow(row)
               setShowDetailModal(true)
@@ -1465,6 +1468,9 @@ export default function Home() {
           onClose={() => setShowUserSettingsModal(false)}
           currentUser={authState.currentUser}
           onToast={uiActions.addToast}
+          onToggleTheme={themeActions.toggleTheme}
+          onToggleDarkReaderPanel={() => themeActions.setShowDarkReaderPanel(!themeState.showDarkReaderPanel)}
+          onLogout={authActions.logout}
         />
       )}
 
