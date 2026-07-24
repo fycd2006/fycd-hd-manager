@@ -187,7 +187,10 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
               transition: 'background-color 0.15s, box-shadow 0.15s',
             }}
-            onClick={(e) => onFieldClick?.(field, e)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFieldContextMenu?.(field, e.clientX, e.clientY);
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               onOpenFieldContextMenu?.(field, e.clientX, e.clientY);
@@ -216,10 +219,20 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               />
             </div>
 
-            {/* Resize Handle */}
+            {/* Column Resize Handle with both Mouse Drag & Mobile Touch Drag */}
             <div
-              className="grid-view__description-icon"
-              style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '6px', cursor: 'col-resize', zIndex: 10 }}
+              className="grid-view__column-resize-handle"
+              style={{
+                position: 'absolute',
+                right: '-6px',
+                top: 0,
+                bottom: 0,
+                width: '16px',
+                cursor: 'col-resize',
+                zIndex: 30,
+                touchAction: 'none',
+                userSelect: 'none',
+              }}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => {
                 e.stopPropagation();
@@ -231,7 +244,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
 
                 const onMouseMove = (moveEvent: MouseEvent) => {
                   const delta = moveEvent.clientX - startX;
-                  const newWidth = Math.max(80, startWidth + delta);
+                  const newWidth = Math.max(70, startWidth + delta);
                   onResizeColumn?.(field.id, newWidth);
                 };
 
@@ -239,23 +252,42 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
                   window.removeEventListener('mousemove', onMouseMove);
                   window.removeEventListener('mouseup', onMouseUp);
                   
-                  const finalWidth = Math.max(80, startWidth + (upEvent.clientX - startX));
+                  const finalWidth = Math.max(70, startWidth + (upEvent.clientX - startX));
                   onResizeColumnEnd?.(field.id, finalWidth);
 
                   document.body.style.cursor = '';
                   document.body.style.userSelect = '';
-
-                  const preventClick = (clickEvent: MouseEvent) => {
-                    clickEvent.stopPropagation();
-                    clickEvent.preventDefault();
-                    window.removeEventListener('click', preventClick, true);
-                  };
-                  window.addEventListener('click', preventClick, true);
-                  setTimeout(() => window.removeEventListener('click', preventClick, true), 10);
                 };
 
                 window.addEventListener('mousemove', onMouseMove);
                 window.addEventListener('mouseup', onMouseUp);
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                if (!e.touches || e.touches.length === 0) return;
+                const startX = e.touches[0].clientX;
+                const startWidth = columnWidth;
+
+                const onTouchMove = (moveEvent: TouchEvent) => {
+                  if (!moveEvent.touches || moveEvent.touches.length === 0) return;
+                  const moveX = moveEvent.touches[0].clientX;
+                  const delta = moveX - startX;
+                  const newWidth = Math.max(70, startWidth + delta);
+                  onResizeColumn?.(field.id, newWidth);
+                };
+
+                const onTouchEnd = (endEvent: TouchEvent) => {
+                  window.removeEventListener('touchmove', onTouchMove);
+                  window.removeEventListener('touchend', onTouchEnd);
+                  
+                  const lastTouch = endEvent.changedTouches?.[0];
+                  const finalX = lastTouch ? lastTouch.clientX : startX;
+                  const finalWidth = Math.max(70, startWidth + (finalX - startX));
+                  onResizeColumnEnd?.(field.id, finalWidth);
+                };
+
+                window.addEventListener('touchmove', onTouchMove, { passive: false });
+                window.addEventListener('touchend', onTouchEnd);
               }}
             />
           </div>
