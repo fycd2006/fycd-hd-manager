@@ -7,7 +7,12 @@ import { Building2, UserCheck, ShieldCheck, ArrowRight, LogIn, UserPlus, CheckCi
 function WorkspaceInvitationContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const workspaceIdStr = searchParams.get('workspaceId') || searchParams.get('id')
+  const workspaceIdStr =
+    searchParams.get('workspaceId') ||
+    searchParams.get('wsId') ||
+    searchParams.get('id') ||
+    searchParams.get('workspace_id') ||
+    searchParams.get('ws_id')
   
   const [workspaceInfo, setWorkspaceInfo] = useState<{ id: number; name: string; inviterName: string } | null>(null)
   const [currentUser, setCurrentUser] = useState<{ id: number; username: string; email: string } | null>(null)

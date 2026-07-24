@@ -178,9 +178,12 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
     }
   }
 
-  // Copy Workspace Invite Link
   const handleCopyInviteLink = () => {
-    const inviteUrl = `${window.location.origin}/workspace-invitation?wsId=${workspace.id}`
+    if (!workspace?.id) {
+      onToast('無法取得工作區資訊', 'error')
+      return
+    }
+    const inviteUrl = `${window.location.origin}/workspace-invitation?workspaceId=${workspace.id}&wsId=${workspace.id}`
     navigator.clipboard.writeText(inviteUrl)
     onToast('已複製工作區邀請連結至剪貼簿！', 'success')
   }
