@@ -65,6 +65,7 @@ interface SidebarProps {
   onDeleteDarkReaderSettings?: (settings: Partial<{ brightness: number; contrast: number; sepia: number; grayscale: number }>) => void
   onDeleteTable?: (tableId: number, tableName: string) => void
   userPermissions?: any
+  onSelectDashboard?: () => void
 }
 
 export default function Sidebar({
@@ -98,7 +99,8 @@ export default function Sidebar({
   onDeleteWorkspaceOrDb,
   onToggleDarkReaderPanel,
   onDeleteTable,
-  userPermissions
+  userPermissions,
+  onSelectDashboard
 }: SidebarProps) {
   const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null)
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState('')
@@ -371,6 +373,25 @@ export default function Sidebar({
               
               {/* Workspace Quick Actions */}
               <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '2px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
+                <div
+                  onClick={() => onSelectDashboard ? onSelectDashboard() : onSetActiveTableId(0)}
+                  className="sidebar-hover-item"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: activeTableId === null || activeTableId === 0 ? 700 : 500,
+                    backgroundColor: activeTableId === null || activeTableId === 0 ? '#eff6ff' : 'transparent',
+                    color: activeTableId === null || activeTableId === 0 ? '#2563eb' : '#334155'
+                  }}
+                >
+                  <TableIcon size={16} color={activeTableId === null || activeTableId === 0 ? '#2563eb' : '#64748b'} />
+                  <span>首頁儀表板 (Dashboard)</span>
+                </div>
                 <div
                   onClick={() => onShowNotificationsModal?.()}
                   className="sidebar-hover-item"
