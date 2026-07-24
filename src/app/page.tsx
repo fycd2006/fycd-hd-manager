@@ -21,7 +21,7 @@ import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
 const getViewIcon = (type: string, props: any) => {
-  switch(type) {
+  switch (type) {
     case 'kanban': return <Kanban {...props} />;
     case 'gallery': return <LayoutTemplate {...props} />;
     case 'calendar': return <Calendar {...props} />;
@@ -35,11 +35,12 @@ const getViewIcon = (type: string, props: any) => {
 // New Architecture Imports
 // ============================================
 import WorkspaceDashboard from '@/modules/database/components/dashboard/WorkspaceDashboard'
-import { 
-  useAuthStore, 
-  useThemeStore, 
-  useWorkspaceStore, 
-  useUIStore 
+import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
+import {
+  useAuthStore,
+  useThemeStore,
+  useWorkspaceStore,
+  useUIStore
 } from '@/modules/database/store'
 import * as workspaceService from '@/modules/database/services/workspace'
 import * as fieldService from '@/modules/database/services/field'
@@ -48,22 +49,22 @@ import * as viewService from '@/modules/database/services/view'
 import * as userService from '@/modules/database/services/user'
 import * as trashService from '@/modules/database/services/trash'
 import { exportToCSV, parseCSVFile, csvRowToTableRow } from '@/modules/database/utils/csv'
-import type { 
-  User, 
-  Workspace, 
-  Database, 
-  DynamicTable, 
-  TableField, 
-  TableRow, 
-  CellValue, 
-  ViewType, 
-  SortOrder, 
-  ViewConfigPatch, 
-  TableView, 
-  Toast, 
-  ContextMenu, 
-  FilterRule, 
-  RowColorRule 
+import type {
+  User,
+  Workspace,
+  Database,
+  DynamicTable,
+  TableField,
+  TableRow,
+  CellValue,
+  ViewType,
+  SortOrder,
+  ViewConfigPatch,
+  TableView,
+  Toast,
+  ContextMenu,
+  FilterRule,
+  RowColorRule
 } from '@/modules/database/types'
 
 export default function Home() {
@@ -82,27 +83,27 @@ export default function Home() {
   const [rows, setRows] = useState<TableRow[]>([])
   const [loading, setLoading] = useState(true)
   const [gridLoading, setGridLoading] = useState(false)
-  
+
   // View configuration
   const [views, setViews] = useState<TableView[]>([])
   const [currentView, setCurrentView] = useState<ViewType>('grid')
   const [showNewViewModal, setShowNewViewModal] = useState(false)
   const [newViewName, setNewViewName] = useState('')
   const [newViewType, setNewViewType] = useState<ViewType>('grid')
-  
+
   // Editing states
   const [editingCell, setEditingCell] = useState<{ rowId: number; fieldKey: string } | null>(null)
   const [editingCellValue, setEditingCellValue] = useState('')
   const [editingFieldId, setEditingFieldId] = useState<number | null>(null)
   const [editingFieldName, setEditingFieldName] = useState('')
-  
+
   // Sort & Filter
   const [sortField, setSortField] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [filterRules, setFilterRules] = useState<FilterRule[]>([])
-  
+
   // Hidden Fields & Row Colors Config
   const [hiddenFieldKeys, setHiddenFieldKeys] = useState<string[]>([])
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
@@ -111,35 +112,35 @@ export default function Home() {
   const [showRowColorsPanel, setShowRowColorsPanel] = useState(false)
   const [showGroupByPanel, setShowGroupByPanel] = useState(false)
   const [groupByField, setGroupByField] = useState<string | null>(null)
-  
+
   // Modals
   const [showNewFieldModal, setShowNewFieldModal] = useState(false)
   const [newFieldName, setNewFieldName] = useState('')
   const [newFieldType, setNewFieldType] = useState('text')
   const [newFieldOptions, setNewFieldOptions] = useState('')
   const [newFieldTargetTableId, setNewFieldTargetTableId] = useState<number | null>(null)
-  
+
   // Lookup / Rollup options
   const [newFieldRelationFieldId, setNewFieldRelationFieldId] = useState<number | null>(null)
   const [newFieldTargetFieldId, setNewFieldTargetFieldId] = useState<number | null>(null)
   const [newFieldRollupFunction, setNewFieldRollupFunction] = useState('sum')
   const [targetTableFields, setTargetTableFields] = useState<TableField[]>([])
-  
+
   // Expand detail view modal
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedRow, setSelectedRow] = useState<TableRow | null>(null)
-  
+
   // Context menu
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const [fieldContextMenu, setFieldContextMenu] = useState<{ field: TableField; x: number; y: number } | null>(null)
   const [editingFieldForModal, setEditingFieldForModal] = useState<TableField | null>(null)
-  
+
   const [authError, setAuthError] = useState<string | null>(null)
   const [draggedFieldId, setDraggedFieldId] = useState<number | null>(null)
-  
+
   // Edit Input Ref
   const editInputRef = useRef<HTMLInputElement>(null)
-  
+
   // Other UI state
   const [frozenColumnsCount, setFrozenColumnsCount] = useState<number>(1)
   const [autoInherit, setAutoInherit] = useState(false)
@@ -159,10 +160,10 @@ export default function Home() {
           const unread = (data.notifications || []).filter((n: any) => !n.read).length
           setUnreadNotificationsCount(unread)
         })
-        .catch(() => {})
+        .catch(() => { })
     }
   }, [authState.currentUser, showNotificationsModal])
-  
+
   // Rename modal states
   const [renameType, setRenameType] = useState<'workspace' | 'database' | 'table' | null>(null)
   const [renameId, setRenameId] = useState<number | null>(null)
@@ -221,7 +222,7 @@ export default function Home() {
   }, [authState.currentUser, wsActions])
 
   // Undo / Redo Hook
-  const updateCellRef = useRef<(rowId: number, fieldKey: string, value: CellValue, skipPushHistory?: boolean) => Promise<void>>(async () => {})
+  const updateCellRef = useRef<(rowId: number, fieldKey: string, value: CellValue, skipPushHistory?: boolean) => Promise<void>>(async () => { })
 
   const { pushEdit, undo, redo, canUndo, canRedo } = useUndoRedo(
     async (rowId, fieldKey, val) => {
@@ -240,7 +241,7 @@ export default function Home() {
       setFields(fieldsData)
       setRows(rowsData)
       console.log('Table data loaded:', { fields: fieldsData.length, rows: rowsData.length })
-      
+
       // Load views
       fetchViews(tableId)
     } catch (error) {
@@ -332,7 +333,7 @@ export default function Home() {
     try {
       const fieldId = parseInt(fieldKey.replace('field_', ''))
       const field = fields.find(f => f.id === fieldId)
-      
+
       let payloadValue = value
       if ((field?.type === 'link_row' || field?.type === 'collaborator') && Array.isArray(value)) {
         payloadValue = value.map(item => {
@@ -350,7 +351,7 @@ export default function Home() {
       setRows(prev => prev.map(r => r.id === rowId ? { ...r, data: { ...r.data, [fieldKey]: value } } : r))
 
       const result = await rowService.updateCell(wsState.activeTableId, rowId, fieldKey, payloadValue)
-      
+
       if (result.ok) {
         if (!skipPushHistory) {
           pushEdit({
@@ -382,7 +383,7 @@ export default function Home() {
       if (autoInherit && rows.length > 0) {
         const lastRow = rows[rows.length - 1]
         baseData = { ...lastRow.data }
-        
+
         fields.forEach(f => {
           const key = `field_${f.id}`
           if (['created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'lookup', 'rollup', 'formula'].includes(f.type)) {
@@ -405,7 +406,7 @@ export default function Home() {
       const result = await rowService.createRow(wsState.activeTableId, baseData)
       if (result.ok && result.row) {
         setRows(prev => [...prev, result.row!])
-        
+
         if (fields.length > 0) {
           const firstKey = `field_${fields[0].id}`
           setEditingCell({ rowId: result.row!.id, fieldKey: firstKey })
@@ -542,7 +543,7 @@ export default function Home() {
               return String(item)
             }).join(', ')
           }
-          
+
           const ruleVal = rule.value.toLowerCase()
           const cellVal = textVal.toLowerCase()
 
@@ -824,7 +825,7 @@ export default function Home() {
       }
 
       await viewService.updateViewConfig(wsState.activeTableId, updatedViewId, serializedChanges)
-    } catch {}
+    } catch { }
   }
 
   const createView = async (name: string, type: ViewType) => {
@@ -982,7 +983,7 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <AuthScreen 
+        <AuthScreen
           authMode={authState.authMode}
           authUsername={authState.authUsername}
           authEmail={authState.authEmail}
@@ -1285,107 +1286,129 @@ export default function Home() {
             <>
               {/* View selector and header toolbar */}
               <ViewToolbar
-              canManageStructure={currentUserRolePermissions.canManageStructure}
-              isSidebarCollapsed={isSidebarCollapsed}
-              setIsSidebarCollapsed={setIsSidebarCollapsed}
-              views={views}
-              activeViewId={wsState.activeViewId}
-              setActiveViewId={wsActions.setActiveViewId}
-              applyViewConfig={applyViewConfig}
-              setShowNewViewModal={setShowNewViewModal}
-              saveViewConfig={saveViewConfig}
-              onDuplicateView={handleDuplicateView}
-              onDeleteView={handleDeleteViewById}
-              onRenameView={handleRenameViewById}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              sortField={sortField}
-              setSortField={setSortField}
-              sortOrder={sortOrder}
-              setSortOrder={setSortOrder}
-              filterRules={filterRules}
-              setFilterRules={(rules) => {
-                setFilterRules(rules)
-                if (wsState.activeViewId) {
-                  saveViewConfig(wsState.activeViewId, { filters: JSON.stringify(rules) })
-                }
-              }}
-              rowColorRules={Array.isArray(rowColorRules) ? rowColorRules : []}
-              setRowColorRules={(rules) => {
-                setRowColorRules(rules)
-                if (wsState.activeViewId) {
-                  saveViewConfig(wsState.activeViewId, { rowColors: JSON.stringify(rules) })
-                }
-              }}
-              groupByField={groupByField}
-              setGroupByField={setGroupByField}
-              fields={fields}
-              hiddenFieldKeys={hiddenFieldKeys}
-              setHiddenFieldKeys={setHiddenFieldKeys}
-              rowHeightSize={rowHeightSize}
-              setRowHeightSize={setRowHeightSize}
-              handleExportCSV={handleExportCSV}
-              handleCSVImport={handleCSVImport}
-              csvInputRef={csvInputRef}
-            />
-
-            {/* View content */}
-            <div
-              className="layout__col-2-2 content"
-              style={{
-                '--row-height': rowHeightSize === 'medium' ? '44px' : rowHeightSize === 'large' ? '60px' : rowHeightSize === 'extra' ? '80px' : '32px'
-              } as any}
-            >
-              <DatabaseViewRouter
-                currentView={currentView}
+                canManageStructure={currentUserRolePermissions.canManageStructure}
+                isSidebarCollapsed={isSidebarCollapsed}
+                setIsSidebarCollapsed={setIsSidebarCollapsed}
+                views={views}
+                activeViewId={wsState.activeViewId}
+                setActiveViewId={wsActions.setActiveViewId}
+                applyViewConfig={applyViewConfig}
+                setShowNewViewModal={setShowNewViewModal}
+                saveViewConfig={saveViewConfig}
+                onDuplicateView={handleDuplicateView}
+                onDeleteView={handleDeleteViewById}
+                onRenameView={handleRenameViewById}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                sortField={sortField}
+                setSortField={setSortField}
+                sortOrder={sortOrder}
+                setSortOrder={setSortOrder}
+                filterRules={filterRules}
+                setFilterRules={(rules) => {
+                  setFilterRules(rules)
+                  if (wsState.activeViewId) {
+                    saveViewConfig(wsState.activeViewId, { filters: JSON.stringify(rules) })
+                  }
+                }}
+                rowColorRules={Array.isArray(rowColorRules) ? rowColorRules : []}
+                setRowColorRules={(rules) => {
+                  setRowColorRules(rules)
+                  if (wsState.activeViewId) {
+                    saveViewConfig(wsState.activeViewId, { rowColors: JSON.stringify(rules) })
+                  }
+                }}
+                groupByField={groupByField}
+                setGroupByField={setGroupByField}
                 fields={fields}
                 hiddenFieldKeys={hiddenFieldKeys}
-                displayRows={displayRows}
-                gridLoading={gridLoading}
-                readOnly={!currentUserRolePermissions.canEditData}
-                frozenColumnsCount={frozenColumnsCount}
-                columnWidths={columnWidths}
-                sortField={sortField}
-                sortOrder={sortOrder}
-                groupByField={groupByField}
-                rowColorRules={rowColorRules}
-                editingFieldId={editingFieldId}
-                editingFieldName={editingFieldName}
-                editingCell={editingCell}
-                editInputRef={editInputRef}
-                searchQuery={searchQuery}
-                filterRules={filterRules}
-                groupedRows={groupedRows}
-                getRowBgColorClass={getRowBgColorClass}
-                updateCell={updateCell}
-                toggleSort={toggleSort}
-                setEditingFieldId={setEditingFieldId}
-                setEditingFieldName={setEditingFieldName}
-                handleColumnDragStart={handleColumnDragStart}
-                handleColumnDragOver={handleColumnDragOver}
-                handleColumnDrop={handleColumnDrop}
-                setColumnWidths={setColumnWidths}
-                activeTableId={wsState.activeTableId}
-                activeViewId={wsState.activeViewId}
-                updateViewConfig={viewService.updateViewConfig}
-                setContextMenu={setContextMenu}
-                setSelectedRow={setSelectedRow}
-                setShowDetailModal={setShowDetailModal}
-                duplicateRow={duplicateRow}
-                deleteRow={deleteRow}
-                addRow={addRow}
-                setShowNewFieldModal={setShowNewFieldModal}
-                handleUpdateField={handleUpdateField}
-                setFieldContextMenu={setFieldContextMenu}
-                onUndo={undo}
-                onRedo={redo}
-                onReorderRows={handleReorderRows}
+                setHiddenFieldKeys={setHiddenFieldKeys}
+                rowHeightSize={rowHeightSize}
+                setRowHeightSize={setRowHeightSize}
+                handleExportCSV={handleExportCSV}
+                handleCSVImport={handleCSVImport}
+                csvInputRef={csvInputRef}
               />
-            </div>
-          </>
-        )}
+
+              {/* View content */}
+              <div
+                className="layout__col-2-2 content"
+                style={{
+                  '--row-height': rowHeightSize === 'medium' ? '44px' : rowHeightSize === 'large' ? '60px' : rowHeightSize === 'extra' ? '80px' : '32px'
+                } as any}
+              >
+                <DatabaseViewRouter
+                  currentView={currentView}
+                  fields={fields}
+                  hiddenFieldKeys={hiddenFieldKeys}
+                  displayRows={displayRows}
+                  gridLoading={gridLoading}
+                  readOnly={!currentUserRolePermissions.canEditData}
+                  frozenColumnsCount={frozenColumnsCount}
+                  columnWidths={columnWidths}
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  groupByField={groupByField}
+                  rowColorRules={rowColorRules}
+                  editingFieldId={editingFieldId}
+                  editingFieldName={editingFieldName}
+                  editingCell={editingCell}
+                  editInputRef={editInputRef}
+                  searchQuery={searchQuery}
+                  filterRules={filterRules}
+                  groupedRows={groupedRows}
+                  getRowBgColorClass={getRowBgColorClass}
+                  updateCell={updateCell}
+                  toggleSort={toggleSort}
+                  setEditingFieldId={setEditingFieldId}
+                  setEditingFieldName={setEditingFieldName}
+                  handleColumnDragStart={handleColumnDragStart}
+                  handleColumnDragOver={handleColumnDragOver}
+                  handleColumnDrop={handleColumnDrop}
+                  setColumnWidths={setColumnWidths}
+                  activeTableId={wsState.activeTableId}
+                  activeViewId={wsState.activeViewId}
+                  updateViewConfig={viewService.updateViewConfig}
+                  setContextMenu={setContextMenu}
+                  setSelectedRow={setSelectedRow}
+                  setShowDetailModal={setShowDetailModal}
+                  duplicateRow={duplicateRow}
+                  deleteRow={deleteRow}
+                  addRow={addRow}
+                  setShowNewFieldModal={setShowNewFieldModal}
+                  handleUpdateField={handleUpdateField}
+                  setFieldContextMenu={setFieldContextMenu}
+                  onUndo={undo}
+                  onRedo={redo}
+                  onReorderRows={handleReorderRows}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Mobile Bottom Navigation Bar (Inside layout__col-2) */}
+          <MobileBottomNav
+            workspaces={wsState.workspaces}
+            activeWorkspaceId={wsState.activeWorkspaceId}
+            activeTableId={wsState.activeTableId}
+            currentUser={authState.currentUser}
+            notificationCount={unreadNotificationsCount}
+            fields={fields}
+            rows={rows}
+            onSelectDashboard={() => {
+              wsActions.setActiveTableId(0)
+            }}
+            onSetActiveWorkspaceId={wsActions.setActiveWorkspaceId}
+            onSetActiveTableId={wsActions.setActiveTableId}
+            onShowNotificationsModal={() => setShowNotificationsModal(true)}
+            onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
+            onSelectRow={(row) => {
+              setSelectedRow(row)
+              setShowDetailModal(true)
+            }}
+          />
+        </div>
       </div>
-    </div>
 
       {/* Global Modals Container - Always Mounted */}
       <GlobalModalsContainer

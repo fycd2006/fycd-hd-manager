@@ -2790,3 +2790,69 @@ select option {
   height: 100%;
 }
 
+/* ===== Mobile / Tablet Responsive Styles (< 1024px) ===== */
+@media (max-width: 1023px) {
+  /* Hide Desktop Left Sidebar */
+  .layout__col-1 {
+    display: none !important;
+  }
+
+  /* Main Container Full Width */
+  .layout__col-2 {
+    left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Leave Bottom Clearance for Mobile Bottom Nav Bar */
+  .layout__col-2-2 {
+    bottom: 64px !important;
+  }
+
+  /* Grid Table Touch Scroll Smoothness */
+  .grid-view-container,
+  .table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Mobile Top Toolbar: Hide Text Labels, Keep Icons Only */
+  .header__filter-name {
+    display: none !important;
+  }
+
+  .header__filter-link {
+    padding: 6px 10px !important;
+    gap: 4px !important;
+  }
+
+  /* Smooth Horizontal Scroll for Mobile Top Toolbar */
+  .layout__col-2-1.header {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+    z-index: 50 !important;
+  }
+
+  .layout__col-2-1.header::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .header__filter {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    flex-wrap: nowrap !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+
+

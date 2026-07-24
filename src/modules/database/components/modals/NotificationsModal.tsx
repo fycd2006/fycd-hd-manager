@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { X, Bell, CheckCircle, XCircle, Mail, ShieldAlert } from 'lucide-react'
+import { X, Bell, Mail } from 'lucide-react'
 
 export interface NotificationItem {
   id: number
@@ -82,74 +82,151 @@ export default function NotificationsModal({
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(3px)' }}>
-      <div style={{ width: '500px', maxHeight: '80vh', backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 50px rgba(0,0,0,0.22)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1050,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(4px)',
+        pointerEvents: 'auto',
+        touchAction: 'manipulation'
+      }}
+      onClick={onClose}
+    >
+      {/* Soft Borderless Elevated Card */}
+      <div
+        style={{
+          width: '500px',
+          maxWidth: '92vw',
+          maxHeight: '80vh',
+          backgroundColor: '#ffffff',
+          borderRadius: '24px',
+          boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.22)',
+          border: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header - Borderless Clean Spacing */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '20px 24px 16px 24px',
+            backgroundColor: '#ffffff'
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Bell size={20} color="#2563eb" />
-            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-              站內通知與邀請 {unreadCount > 0 && <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '10px', backgroundColor: '#ef4444', color: '#fff', fontWeight: 700, marginLeft: '6px' }}>{unreadCount}</span>}
+            <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bell size={18} color="#2563eb" />
+            </div>
+            <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
+              站內通知與邀請 {unreadCount > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', backgroundColor: '#ef4444', color: '#fff', fontWeight: 800, marginLeft: '6px' }}>{unreadCount}</span>}
             </h3>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', borderRadius: '6px' }}>
-            <X size={18} />
+          <button
+            onClick={onClose}
+            style={{
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f1f5f9',
+              border: 'none',
+              color: '#64748b',
+              cursor: 'pointer',
+              borderRadius: '9999px',
+              transition: 'transform 0.15s ease'
+            }}
+          >
+            <X size={16} />
           </button>
         </div>
 
         {/* List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 24px 24px 24px' }}>
           {loading ? (
-            <div style={{ padding: '36px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+            <div style={{ padding: '36px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>
               載入通知中...
             </div>
           ) : notifications.length === 0 ? (
             <div style={{ padding: '48px 20px', textAlign: 'center', color: '#94a3b8' }}>
               <Mail size={36} color="#cbd5e1" style={{ marginBottom: '10px' }} />
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>目前沒有未讀的邀請或通知</p>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 500 }}>目前沒有未讀的邀請或通知</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {notifications.map((n) => {
-                const inviteData = n.data ? JSON.parse(n.data) : null
-
-                return (
-                  <div key={n.id} style={{ border: n.read ? '1px solid #f1f5f9' : '1px solid #bfdbfe', borderRadius: '12px', padding: '16px', backgroundColor: n.read ? '#fafafa' : '#eff6ff', transition: 'all 0.15s ease' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                        {n.title}
-                      </h4>
-                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                        {new Date(n.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    <p style={{ fontSize: '13px', color: '#475569', margin: '0 0 14px 0', lineHeight: 1.5 }}>
-                      {n.message}
-                    </p>
-
-                    {n.type === 'workspace_invite' && !n.read && (
-                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => handleAction(n.id, 'decline')}
-                          disabled={processingId === n.id}
-                          style={{ padding: '7px 14px', backgroundColor: '#ffffff', color: '#64748b', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          拒絕 (Decline)
-                        </button>
-                        <button
-                          onClick={() => handleAction(n.id, 'accept')}
-                          disabled={processingId === n.id}
-                          style={{ padding: '7px 16px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 2px 6px rgba(37,99,235,0.2)' }}
-                        >
-                          {processingId === n.id ? '處理中...' : '接受邀請 (Accept)'}
-                        </button>
-                      </div>
-                    )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {notifications.map((n) => (
+                <div
+                  key={n.id}
+                  style={{
+                    borderRadius: '16px',
+                    padding: '16px',
+                    backgroundColor: n.read ? '#f8fafc' : '#eff6ff',
+                    border: 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                      {n.title}
+                    </h4>
+                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                      {new Date(n.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
-                )
-              })}
+
+                  <p style={{ fontSize: '13px', color: '#475569', margin: '0 0 12px 0', lineHeight: 1.5 }}>
+                    {n.message}
+                  </p>
+
+                  {n.type === 'workspace_invite' && !n.read && (
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={() => handleAction(n.id, 'decline')}
+                        disabled={processingId === n.id}
+                        style={{
+                          padding: '7px 14px',
+                          backgroundColor: '#f1f5f9',
+                          color: '#475569',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        拒絕
+                      </button>
+                      <button
+                        onClick={() => handleAction(n.id, 'accept')}
+                        disabled={processingId === n.id}
+                        style={{
+                          padding: '7px 16px',
+                          backgroundColor: '#2563eb',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
+                        }}
+                      >
+                        {processingId === n.id ? '處理中...' : '接受邀請'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

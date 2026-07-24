@@ -168,6 +168,19 @@ export default function Sidebar({
           border-radius: 0 4px 4px 0;
         }
       `}</style>
+      {/* Mobile Drawer Overlay Backdrop */}
+      {!isSidebarCollapsed && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            zIndex: 999
+          }}
+          className="md:hidden"
+          onClick={onToggleSidebarCollapse}
+        />
+      )}
       <div 
         className={`layout__col-1 ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`}
         style={{ 

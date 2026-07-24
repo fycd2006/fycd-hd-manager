@@ -199,7 +199,7 @@ export default function RowEditModal({
         </div>
 
         {/* Two-Column Body Content */}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div className="row-edit-modal-body" style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {/* LEFT COLUMN: Fields List (60%) */}
           <div style={{ flex: '0 0 60%', padding: '24px', overflowY: 'auto' }}>
             <ul className="row-modal__field-list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
