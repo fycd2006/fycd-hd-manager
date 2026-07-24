@@ -3,14 +3,19 @@ import "./globals.css";
 import "@/styles/baserow/default.scss";
 
 export const metadata: Metadata = {
-  title: "FYCD HD Manager | 高效能雲端資料庫與工作區管理系統",
-  description: "全功能 Baserow 風格雲端資料庫管理平台，提供動態資料表、多維檢視表（Grid / Kanban / Form）、Formula 公式庫、無障礙與高對比權限控管系統。",
-  keywords: ["Baserow", "Database", "NoCode", "Formula", "Workspace", "Grid View", "Kanban"],
+  title: "FYCD HD Manager",
+  description: "全功能雲端資料庫管理平台，提供動態資料表、多維檢視表（Grid / Kanban / Form）、Formula 公式庫、無障礙與高對比權限控管系統。",
+  keywords: ["FYCD HD Manager", "Database", "NoCode", "Formula", "Workspace", "Grid View", "Kanban"],
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/logo.jpg",
+  },
   openGraph: {
-    title: "FYCD HD Manager - 雲端資料庫管理系統",
-    description: "高效能團隊協作與動態資料表管理平台",
+    title: "FYCD HD Manager",
+    description: "FYCD HD Manager - 高效能團隊協作與動態資料表管理平台",
     type: "website",
     locale: "zh_TW",
+    images: [{ url: "/logo.jpg", width: 800, height: 800, alt: "FYCD HD Manager Logo" }],
   },
 };
 
