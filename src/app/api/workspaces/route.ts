@@ -343,7 +343,8 @@ export async function PATCH(request: Request) {
     }
 
     const body = await request.json()
-    const { action, id, name } = body
+    const { action, type, id, name } = body
+    const targetAction = action || (type === 'workspace' ? 'rename_workspace' : type === 'database' ? 'rename_database' : null)
 
     if (!id || !name || !name.trim()) {
       return NextResponse.json({ error: '缺少必要參數或名稱為空' }, { status: 400 })
@@ -352,7 +353,7 @@ export async function PATCH(request: Request) {
     const targetId = parseInt(id)
     if (isNaN(targetId)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    if (action === 'rename_workspace') {
+    if (targetAction === 'rename_workspace') {
       const { errorResponse } = await authorizeAction({ workspaceId: targetId, action: 'canManageWorkspace' })
       if (errorResponse) return errorResponse
 
@@ -363,7 +364,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json(updated)
     }
 
-    if (action === 'rename_database') {
+    if (targetAction === 'rename_database') {
       const { errorResponse } = await authorizeAction({ databaseId: targetId, action: 'canManageStructure' })
       if (errorResponse) return errorResponse
 

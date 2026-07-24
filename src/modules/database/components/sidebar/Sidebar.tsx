@@ -642,6 +642,15 @@ export default function Sidebar({
                       >
                         <div 
                           onClick={() => onToggleDatabaseCollapse(db.id)}
+                          onDoubleClick={() => {
+                            if (canManageStructure) {
+                              onSetRenameType('database')
+                              onSetRenameId(db.id)
+                              onSetRenameNameValue(db.name)
+                              onShowRenameModal()
+                            }
+                          }}
+                          title={`${db.name} (雙擊可重新命名)`}
                           style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden' }}
                         >
                           <ChevronRight

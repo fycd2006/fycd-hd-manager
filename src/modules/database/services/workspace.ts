@@ -107,24 +107,29 @@ export const deleteWorkspaceOrDatabase = async (
  */
 export const rename = async (type: 'workspace' | 'database' | 'table', id: number, name: string): Promise<{ ok: boolean; error?: string }> => {
   try {
-    let url = ''
     if (type === 'table') {
-      url = `/api/tables/${id}`
+      const res = await fetch(`/api/tables/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      if (res.ok) return { ok: true }
+      const data = await res.json()
+      return { ok: false, error: data.error || '重新命名資料表失敗' }
     } else {
-      url = '/api/workspaces'
-    }
+      const action = type === 'workspace' ? 'rename_workspace' : 'rename_database'
+      const res = await fetch('/api/workspaces', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, type, id, name }),
+      })
 
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, id, name }),
-    })
-
-    if (res.ok) {
-      return { ok: true }
+      if (res.ok) {
+        return { ok: true }
+      }
+      const data = await res.json()
+      return { ok: false, error: data.error || '重新命名失敗' }
     }
-    const data = await res.json()
-    return { ok: false, error: data.error || '重新命名失敗' }
   } catch {
     return { ok: false, error: '重新命名失敗' }
   }
