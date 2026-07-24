@@ -12,6 +12,8 @@ import {
   Trash2, 
   PanelLeftClose,
   PanelLeft,
+  PanelLeftOpen,
+  Home,
   Table as TableIcon,
   Users,
   UserPlus,
@@ -169,22 +171,183 @@ export default function Sidebar({
       <div 
         className={`layout__col-1 ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`}
         style={{ 
-          width: isSidebarCollapsed ? '0px' : '250px', 
-          opacity: isSidebarCollapsed ? 0 : 1,
-          visibility: isSidebarCollapsed ? 'hidden' : 'visible',
+          width: isSidebarCollapsed ? '56px' : '250px', 
+          minWidth: isSidebarCollapsed ? '56px' : '250px',
+          maxWidth: isSidebarCollapsed ? '56px' : '250px',
+          opacity: 1,
+          visibility: 'visible',
           overflow: 'hidden',
-          transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease', 
+          transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)', 
           position: 'relative', 
           display: 'flex', 
           flexDirection: 'column', 
           backgroundColor: '#f8fafc', 
-          borderRight: isSidebarCollapsed ? 'none' : '1px solid #e2e8f0', 
+          borderRight: '1px solid #e2e8f0', 
           zIndex: 50,
           userSelect: 'none'
         }}
         onClick={closeMenu}
       >
-        <div className="sidebar" style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: '250px' }}>
+        {isSidebarCollapsed ? (
+          /* Mini Collapsed Sidebar Strip (width: 56px) */
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', boxSizing: 'border-box' }}>
+            {/* Top Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', width: '100%' }}>
+              {/* Top Expand Button & Logo */}
+              <button
+                onClick={onToggleSidebarCollapse}
+                title="展開側邊欄"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'transform 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              >
+                <img 
+                  src="/logo.jpg" 
+                  alt="FYCD HD Manager Logo" 
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #2563eb', boxShadow: '0 2px 6px rgba(37,99,235,0.2)' }} 
+                />
+              </button>
+
+              <button
+                onClick={onToggleSidebarCollapse}
+                title="展開側邊欄"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  color: '#2563eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#dbeafe'
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#eff6ff'
+                  e.currentTarget.style.transform = 'scale(1)'
+                }}
+              >
+                <PanelLeftOpen size={18} />
+              </button>
+
+              <div style={{ width: '28px', height: '1px', backgroundColor: '#e2e8f0' }} />
+
+              {/* Home Dashboard Shortcut */}
+              {onSelectDashboard && (
+                <button
+                  onClick={onSelectDashboard}
+                  title="首頁儀表板"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    backgroundColor: activeTableId === 0 ? '#eff6ff' : 'transparent',
+                    border: activeTableId === 0 ? '1px solid #bfdbfe' : '1px solid transparent',
+                    color: activeTableId === 0 ? '#2563eb' : '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (activeTableId !== 0) e.currentTarget.style.backgroundColor = '#f1f5f9'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (activeTableId !== 0) e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                >
+                  <Home size={18} />
+                </button>
+              )}
+
+              {/* Workspace Badge Icon */}
+              <div 
+                title={`工作區: ${activeWorkspaceName}`}
+                onClick={onToggleSidebarCollapse}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  backgroundColor: '#09090b',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                {activeWorkspaceName.charAt(0).toUpperCase()}
+              </div>
+            </div>
+
+            {/* Bottom Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
+              <button
+                onClick={onToggleTheme}
+                title={theme === 'dark' ? '切換亮色模式' : '切換暗色模式'}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#64748b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+
+              <button
+                onClick={onLogout}
+                title="登出"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="sidebar" style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: '250px' }}>
           
           {/* Brand Header */}
           <div style={{ height: '48px', minHeight: '48px', display: 'flex', alignItems: 'center', padding: '0 14px', gap: '10px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff' }}>
@@ -712,6 +875,7 @@ export default function Sidebar({
             </div>
           </div>
         </div>
+        )}
       </div>
     </>
   )

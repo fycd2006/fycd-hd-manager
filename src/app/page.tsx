@@ -1264,7 +1264,7 @@ export default function Home() {
           onUpdateDarkReaderSettings={(settings) => themeActions.updateDarkReaderSettings(settings)}
         />
 
-        <div className="layout__col-2" style={{ left: isSidebarCollapsed ? '0px' : '240px', transition: 'left 0.2s ease' }}>
+        <div className="layout__col-2" style={{ left: isSidebarCollapsed ? '56px' : '250px', transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {!wsState.activeTableId || wsState.activeTableId === 0 ? (
             <WorkspaceDashboard
               currentUser={authState.currentUser}

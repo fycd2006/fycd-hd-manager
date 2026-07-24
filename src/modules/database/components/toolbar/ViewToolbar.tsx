@@ -158,18 +158,6 @@ export function ViewToolbar({
   return (
     <header className="layout__col-2-1 header" ref={headerToolbarRef} style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', zIndex: 1000, overflow: 'visible' }}>
       <ul className="header__filter">
-        {isSidebarCollapsed && (
-          <li className="header__filter-item">
-            <a
-              className="header__filter-link"
-              onClick={() => setIsSidebarCollapsed(false)}
-              title="展開側邊欄"
-              style={{ cursor: 'pointer', padding: '0 10px', display: 'flex', alignItems: 'center', color: '#2563eb' }}
-            >
-              <PanelLeft size={18} />
-            </a>
-          </li>
-        )}
         <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
           <a 
             className="header__filter-link active" 
