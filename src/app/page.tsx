@@ -1271,7 +1271,6 @@ export default function Home() {
               activeWorkspace={activeWorkspaceObj || null}
               workspaces={wsState.workspaces}
               onSelectTable={(tableId) => wsActions.setActiveTableId(tableId)}
-              onCreateDatabaseFromTemplate={handleCreateDatabaseFromTemplate}
               onShowMembersModal={() => setShowMembersModal(true)}
               onShowDatabaseModal={(wsId) => {
                 wsActions.setModalWsId(wsId)
