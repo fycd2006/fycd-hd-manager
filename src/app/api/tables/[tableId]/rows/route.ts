@@ -1,21 +1,13 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
-import { cookies } from 'next/headers'
+import { getSessionUser } from '@/lib/auth'
 import { parseFormula, evaluateFormula, detectCircularDependency } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 
 async function getSessionUsername() {
-  try {
-    const cookieStore = await cookies()
-    const session = cookieStore.get('session')
-    if (!session?.value) return '系統 (System)'
-    const decoded = Buffer.from(session.value, 'base64').toString('utf-8')
-    const user = JSON.parse(decoded)
-    return user.username || '系統 (System)'
-  } catch {
-    return '系統 (System)'
-  }
+  const user = await getSessionUser()
+  return user?.username || '系統 (System)'
 }
 
 export async function GET(
@@ -54,11 +46,14 @@ export async function GET(
     // 2. Fetch rows (with server-side DB search across table fields)
     let whereCondition: any = { tableId: id, deletedAt: null }
     if (searchQuery) {
-      whereCondition = {
-        tableId: id,
-        deletedAt: null,
-        data: {
-          contains: searchQuery
+      const sanitized = searchQuery.slice(0, 100).trim()
+      if (sanitized) {
+        whereCondition = {
+          tableId: id,
+          deletedAt: null,
+          data: {
+            contains: sanitized
+          }
         }
       }
     }
@@ -449,53 +444,55 @@ export async function POST(
       }
     })
 
-    // Compute Autonumbers for the table atomically
-    const autonumberFields = fields.filter(f => f.type === 'autonumber')
-    if (autonumberFields.length > 0) {
-      const dbTable = await prisma.databaseTable.findUnique({ where: { id } })
-      if (dbTable && dbTable.autonumberCounter === 0) {
-        const existingRows = await prisma.tableRow.findMany({
-          where: { tableId: id },
-          select: { data: true }
+    const row = await prisma.$transaction(async (tx) => {
+      const autonumberFields = fields.filter(f => f.type === 'autonumber')
+      if (autonumberFields.length > 0) {
+        const dbTable = await tx.databaseTable.findUnique({ where: { id } })
+        if (dbTable && dbTable.autonumberCounter === 0) {
+          const existingRows = await tx.tableRow.findMany({
+            where: { tableId: id },
+            select: { data: true }
+          })
+          let maxVal = 0
+          autonumberFields.forEach(f => {
+            const key = `field_${f.id}`
+            existingRows.forEach(r => {
+              try {
+                const parsedData = JSON.parse(r.data || '{}')
+                const val = Number(parsedData[key])
+                if (!isNaN(val) && val > maxVal) {
+                  maxVal = val
+                }
+              } catch {}
+            })
+          })
+          if (maxVal > 0) {
+            await tx.databaseTable.update({ where: { id }, data: { autonumberCounter: maxVal } })
+          }
+        }
+
+        const updatedTable = await tx.databaseTable.update({
+          where: { id },
+          data: { autonumberCounter: { increment: 1 } }
         })
-        let maxVal = 0
+        const nextVal = updatedTable.autonumberCounter
+
         autonumberFields.forEach(f => {
           const key = `field_${f.id}`
-          existingRows.forEach(r => {
-            try {
-              const parsedData = JSON.parse(r.data || '{}')
-              const val = Number(parsedData[key])
-              if (!isNaN(val) && val > maxVal) {
-                maxVal = val
-              }
-            } catch {}
-          })
+          rowData[key] = nextVal
         })
-        if (maxVal > 0) {
-          await prisma.databaseTable.update({ where: { id }, data: { autonumberCounter: maxVal } })
-        }
       }
 
-      const updatedTable = await prisma.databaseTable.update({
-        where: { id },
-        data: { autonumberCounter: { increment: 1 } }
+      const maxOrder = await tx.tableRow.aggregate({ where: { tableId: id }, _max: { order: true } })
+      return tx.tableRow.create({
+        data: {
+          tableId: id,
+          data: JSON.stringify(rowData),
+          order: (maxOrder._max.order ?? 0) + 1,
+        },
       })
-      const nextVal = updatedTable.autonumberCounter
-
-      autonumberFields.forEach(f => {
-        const key = `field_${f.id}`
-        rowData[key] = nextVal
-      })
-    }
-
-    const maxOrder = await prisma.tableRow.aggregate({ where: { tableId: id }, _max: { order: true } })
-    const row = await prisma.tableRow.create({
-      data: {
-        tableId: id,
-        data: JSON.stringify(rowData),
-        order: (maxOrder._max.order ?? 0) + 1,
-      },
     })
+
     return NextResponse.json({ ...row, data: JSON.parse(row.data || '{}') }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '新增資料列失敗' }, { status: 500 })
@@ -538,7 +535,8 @@ export async function PATCH(
       }
     })
 
-    const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k))
+    const validFieldKeys = new Set(fields.map(f => `field_${f.id}`))
+    const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k) && validFieldKeys.has(k))
     if (entries.length > 0) {
       const setPairs = entries.map(([k]) => `'$.${k}', CAST(? AS JSON)`).join(', ')
       const queryParams = entries.map(([, val]) => JSON.stringify(val ?? null))
@@ -594,7 +592,10 @@ async function cascadeRecomputeSingleLevel(updatedTableId: number, updatedRowId:
   const candidateRows = await prisma.tableRow.findMany({
     where: {
       tableId: { in: Array.from(dependentTableIds) },
-      deletedAt: null
+      deletedAt: null,
+      data: {
+        contains: String(updatedRowId)
+      }
     }
   })
 

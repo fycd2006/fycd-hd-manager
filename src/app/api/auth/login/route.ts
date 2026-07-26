@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import crypto from 'crypto'
 import { cookies } from 'next/headers'
+import { createSessionToken } from '@/lib/auth'
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 })
     }
 
-    // 3. Create simple session payload
+    // 3. Create session payload with HMAC signature
     const sessionData = {
       id: user.id,
       username: user.username,
@@ -43,8 +44,7 @@ export async function POST(request: Request) {
       role: user.role
     }
 
-    // Encrypt or just base64 format for simple cookie session
-    const sessionString = Buffer.from(JSON.stringify(sessionData)).toString('base64')
+    const sessionString = createSessionToken(sessionData)
 
     // 4. Set Session Cookie (Cookie expires in 7 days)
     const cookieStore = await cookies()
