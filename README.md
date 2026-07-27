@@ -42,3 +42,4 @@ If you add attachments or imported files, provide an object storage service as w
 
 - The UI is being tuned toward Baserow's light workspace, grid-first layout, and common table actions.
 - The repo already contains table, form, kanban, gallery, calendar, and timeline surfaces that can be refined further.
+- Last updated: 2026-07-27
