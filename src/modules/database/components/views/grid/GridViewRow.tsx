@@ -125,7 +125,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         minWidth: '100%',
         height: 'var(--row-height, 32px)',
         maxHeight: 'var(--row-height, 32px)',
-        overflow: 'hidden',
+        overflow: 'visible',
         borderTop: isDragTarget ? '2px solid #2563eb' : undefined,
         boxSizing: 'border-box',
         background: matchedColorBg || undefined,
