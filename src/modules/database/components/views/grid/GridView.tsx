@@ -80,7 +80,7 @@ export const GridView: React.FC<GridViewProps> = ({
   const [autofillEnd, setAutofillEnd] = useState<[number, number] | null>(null);
   const [cellContextMenu, setCellContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const toastTimeoutRef = useRef<any>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -468,13 +468,55 @@ export const GridView: React.FC<GridViewProps> = ({
     }
   }, [isDraggingSelection, selectionStart, rows, selectedRowIds, fields.length]);
 
+  const getRowHeightPx = useCallback(() => {
+    if (typeof window !== 'undefined' && containerRef.current) {
+      const val = getComputedStyle(containerRef.current).getPropertyValue('--row-height').trim();
+      if (val) {
+        const parsed = parseInt(val, 10);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    }
+    return 32;
+  }, []);
+
   // Virtualizer for high-performance rendering of 10,000+ rows
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => bodyRef.current,
-    estimateSize: () => 33,
+    estimateSize: getRowHeightPx,
     overscan: 10,
   });
+
+  // Watch for --row-height CSS variable mutations and force virtualizer remeasure
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const remeasureVirtualizer = () => {
+      rowVirtualizer.measure();
+    };
+
+    // Initial remeasure
+    remeasureVirtualizer();
+
+    const targetNodes = [
+      containerRef.current,
+      containerRef.current?.parentElement,
+      document.documentElement,
+      document.body,
+    ].filter(Boolean) as HTMLElement[];
+
+    const observer = new MutationObserver(() => {
+      remeasureVirtualizer();
+    });
+
+    targetNodes.forEach(node => {
+      observer.observe(node, { attributes: true, attributeFilter: ['style', 'class'] });
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [rowVirtualizer]);
 
   // Auto scroll to selected cell row when selectedCell changes
   useEffect(() => {
@@ -958,17 +1000,21 @@ export const GridView: React.FC<GridViewProps> = ({
         style={{
           flexShrink: 0,
           width: '100%',
+          height: '44px',
+          minHeight: '44px',
+          maxHeight: '44px',
           overflowX: 'hidden',
-          borderTop: '1.5px solid #cbd5e1',
-          background: '#f8fafc',
+          borderTop: '1px solid #e2e8f0',
+          background: '#ffffff',
           zIndex: 35,
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.08)',
+          boxShadow: '0 -2px 10px rgba(15, 23, 42, 0.04)',
         }}
       >
         <div
           className="grid-view__summary-bar"
           style={{
             display: 'flex',
+            height: '44px',
             width: `${totalTableWidth}px`,
             boxSizing: 'border-box',
             fontSize: '12px',
@@ -977,19 +1023,24 @@ export const GridView: React.FC<GridViewProps> = ({
         >
           <div style={{
             width: `${rowDetailsWidth}px`,
+            height: '44px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             position: 'sticky',
             left: 0,
             zIndex: 25,
             flexShrink: 0,
-            padding: '6px 8px',
+            padding: '0 8px',
             textAlign: 'center',
             fontWeight: 600,
-            borderRight: '1px solid #e2e8f0',
-            background: '#f1f5f9',
-            color: '#334155'
+            borderRight: '2px solid #cbd5e1',
+            background: '#f8fafc',
+            color: '#4f46e5'
           }}>
             {rows.length} 筆
           </div>
+
           {fields.map((field, fieldIndex) => {
             const summary = fieldSummaries[field.id];
             const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');

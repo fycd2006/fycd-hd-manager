@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server'
-
+import crypto from 'crypto'
 import prisma from '@/lib/prisma'
-
 import * as argon2 from 'argon2'
-
 import { cookies } from 'next/headers'
-
 import { createSessionToken } from '@/lib/auth'
-
-
-
 import { LoginSchema } from '@/lib/schemas/auth'
 import { applyRateLimit } from '@/lib/rate-limiter'
 
@@ -61,12 +55,38 @@ export async function POST(request: Request) {
 
 
 
-    // 2. Compare password using argon2
-    const passwordMatch = await argon2.verify(user.password, password)
+    // 2. Compare password (Argon2, SHA-256 legacy hash, or plain text)
+    let passwordMatch = false
+    if (user.password.startsWith('$')) {
+      try {
+        passwordMatch = await argon2.verify(user.password, password)
+      } catch {
+        passwordMatch = false
+      }
+    } else if (user.password.length === 64) {
+      // Legacy SHA-256 hex hash fallback
+      const sha256Hash = crypto.createHash('sha256').update(password).digest('hex')
+      passwordMatch = user.password.toLowerCase() === sha256Hash.toLowerCase()
+    } else {
+      // Legacy plain-text password fallback
+      passwordMatch = user.password === password
+    }
+
+    if (passwordMatch && !user.password.startsWith('$argon2')) {
+      // Upgrade legacy password hash/plain-text to Argon2 automatically
+      try {
+        const newHash = await argon2.hash(password)
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { password: newHash }
+        })
+      } catch (e) {
+        console.warn('Failed to upgrade user password hash:', e)
+      }
+    }
+
     if (!passwordMatch) {
-
       return NextResponse.json({ error: '帳號或密碼錯誤' }, { status: 401 })
-
     }
 
 

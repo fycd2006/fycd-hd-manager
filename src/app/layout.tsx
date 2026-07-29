@@ -20,6 +20,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { I18nProvider } from "@/lib/i18n/i18nContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -45,7 +47,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <I18nProvider>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

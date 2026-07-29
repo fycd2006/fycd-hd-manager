@@ -1,0 +1,49 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "search": "Search...",
+    "loading": "Loading...",
+    "success": "Success",
+    "error": "Error",
+    "language": "Language",
+    "settings": "Settings",
+    "close": "Close"
+  },
+  "lang": {
+    "zh-TW": "Traditional Chinese",
+    "en": "English"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "workspaces": "Workspaces",
+    "members": "Members",
+    "notifications": "Notifications",
+    "accountSettings": "Account Settings",
+    "logout": "Log Out",
+    "createWorkspace": "Create Workspace",
+    "createDatabase": "Add Database",
+    "createTable": "Add Table",
+    "toggleLightMode": "Switch to Light Mode",
+    "toggleDarkMode": "Switch to Dark Mode",
+    "filterSettings": "Display & Filter Settings"
+  },
+  "userSettings": {
+    "title": "Account Settings",
+    "systemOptions": "System & Display Options",
+    "emailLabel": "Email Address",
+    "usernameLabel": "Username",
+    "languageLabel": "Interface Language",
+    "changePassword": "Change Password (Optional)",
+    "oldPassword": "Current Password",
+    "newPassword": "New Password (min 6 chars)",
+    "confirmPassword": "Confirm New Password",
+    "submitButton": "Save Changes",
+    "changedTitle": "Settings Updated",
+    "changedDescription": "Your account settings and language preference have been saved.",
+    "logoutButton": "Log Out"
+  }
+}

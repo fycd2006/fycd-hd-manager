@@ -123,7 +123,9 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         display: 'flex',
         width: 'max-content',
         minWidth: '100%',
-        minHeight: 'var(--row-height, 33px)',
+        height: 'var(--row-height, 32px)',
+        maxHeight: 'var(--row-height, 32px)',
+        overflow: 'hidden',
         borderTop: isDragTarget ? '2px solid #2563eb' : undefined,
         boxSizing: 'border-box',
         background: matchedColorBg || undefined,
@@ -136,6 +138,9 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         className="grid-view__column grid-view__column--no-border-right"
         style={{
           width: `${rowDetailsWidth}px`,
+          height: 'var(--row-height, 32px)',
+          maxHeight: 'var(--row-height, 32px)',
+          overflow: 'hidden',
           position: 'sticky',
           left: 0,
           zIndex: 15,

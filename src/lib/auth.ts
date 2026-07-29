@@ -6,6 +6,7 @@ export interface SessionUser {
   username: string
   email: string
   role: string
+  language?: string
 }
 
 const SESSION_SECRET = process.env.SESSION_SECRET

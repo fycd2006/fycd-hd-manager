@@ -59,6 +59,7 @@ export default function Button({
     baseClasses,
     typeClasses[type],
     sizeClasses[size],
+    'transition-all duration-200 cubic-bezier(0.16,1,0.3,1) active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40',
     fullWidth && 'button--full-width',
     loading && 'button--loading',
     active && 'button--active',
@@ -70,7 +71,11 @@ export default function Button({
     <>
       {icon && iconPosition === 'left' && <span className="button__icon button__icon--left">{icon}</span>}
       {children && <span className="button__label">{children}</span>}
-      {icon && iconPosition === 'right' && <span className="button__icon button__icon--right">{icon}</span>}
+      {icon && iconPosition === 'right' && (
+        <span className="button__icon button__icon--right flex items-center justify-center rounded-full w-5 h-5 bg-black/5 dark:bg-white/10 ml-1.5">
+          {icon}
+        </span>
+      )}
       {loading && <span className="button__spinner" />}
     </>
   )

@@ -100,7 +100,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   onReorderRows,
 }) => {
   return (
-    <>
+    <div key={currentView} className="w-full h-full animate-in fade-in duration-200 ease-out">
       {currentView === 'grid' && (
         <GridView
           visibleFields={fields.filter(f => !hiddenFieldKeys.includes(`field_${f.id}`))}
@@ -229,7 +229,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           fields={fields as any}
         />
       )}
-    </>
+    </div>
   )
 }
 export default DatabaseViewRouter

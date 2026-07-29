@@ -90,18 +90,21 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   const [hoveringResizeFieldId, setHoveringResizeFieldId] = React.useState<number | null>(null);
 
   return (
-    <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', minHeight: '33px', position: 'relative' }}>
+    <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', height: '36px', minHeight: '36px', maxHeight: '36px', position: 'relative', boxSizing: 'border-box' }}>
       {/* 1. Row Identifier / Number Header Column (Sticky Frozen Left: 0) */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
         onClick={onToggleSelectAllRows}
         style={{
           width: `${rowDetailsWidth}px`,
+          height: '36px',
           position: 'sticky',
           left: 0,
           zIndex: 25,
-          backgroundColor: 'var(--bg-secondary, #ffffff)',
-          borderRight: '1px solid var(--border-color, #e2e8f0)',
+          backgroundColor: '#f8fafc',
+          borderRight: '1px solid #e2e8f0',
+          borderBottom: '1px solid #e2e8f0',
+          boxSizing: 'border-box',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -114,6 +117,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
         }}
         title="全選 / 取消全選所有列"
       >
+
         <input
           type="checkbox"
           checked={Boolean(isAllRowsSelected)}
@@ -181,6 +185,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             }}
             style={{
               width: `var(--field-width-${field.id}, ${columnWidth}px)`,
+              height: '36px',
               position: isPrimary ? 'sticky' : 'relative',
               left: isPrimary ? `${rowDetailsWidth}px` : undefined,
               zIndex: isPrimary ? 24 : 1,
@@ -192,9 +197,12 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               backgroundColor: isDraggingThis ? '#e0f2fe' : 'var(--bg-secondary, #ffffff)',
               opacity: isDraggingThis ? 0.6 : 1,
               boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 #2563eb' : undefined),
-              borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
+              borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid #e2e8f0',
+              borderBottom: '1px solid #e2e8f0',
+              boxSizing: 'border-box',
               transition: 'background-color 0.15s, box-shadow 0.15s',
             }}
+
             onClick={(e) => {
               e.stopPropagation();
               onOpenFieldContextMenu?.(field, e.clientX, e.clientY);

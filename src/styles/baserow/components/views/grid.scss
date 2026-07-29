@@ -405,7 +405,7 @@
 // Because the width of a column can be adjusted it is specified in the html file.
 .grid-view__column {
   position: relative;
-  height: $grid-view-row-height-small;
+  height: var(--row-height, #{$grid-view-row-height-small});
   border-right: 1px solid $palette-neutral-200;
   border-bottom: 1px solid $palette-neutral-200;
 

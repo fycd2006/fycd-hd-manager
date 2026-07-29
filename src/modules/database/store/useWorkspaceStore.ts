@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react'
-import { Workspace, DynamicTable } from '../types'
+import { Workspace } from '../types'
 import * as workspaceService from '../services/workspace'
 
 export interface WorkspaceState {

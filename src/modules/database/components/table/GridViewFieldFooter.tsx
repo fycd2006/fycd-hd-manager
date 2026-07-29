@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, Check, ChevronDown } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
@@ -95,16 +95,19 @@ export default function GridViewFieldFooter({
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
         zIndex: isPrimary ? 24 : 1,
         flexShrink: 0,
-        padding: '5px 8px',
+        height: '44px',
+        padding: '0 10px',
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid #e2e8f0',
-        boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : undefined,
+
+        boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.08)' : undefined,
         whiteSpace: 'nowrap',
         overflow: 'visible',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         cursor: 'pointer',
-        background: isMenuOpen ? '#e0f2fe' : (isPrimary ? '#f8fafc' : '#f8fafc'),
+        background: isMenuOpen ? '#eff6ff' : '#f8fafc',
+        transition: 'background 0.15s ease',
       }}
       onClick={(e) => {
         e.stopPropagation()
@@ -115,67 +118,72 @@ export default function GridViewFieldFooter({
           setPopoverPos({ x: rect.left, y: rect.top })
         }
       }}
-      title="點擊切換欄位統計方式 (Baserow Style)"
+      title="點擊切換欄位統計方式"
     >
       {currentMode !== 'none' && displayText ? (
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 500, color: '#334155' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 600, color: '#4f46e5' }}>
           {displayText}
         </span>
       ) : (
         <span style={{ fontSize: '12px', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <Plus size={12} />
-          統計 (Summarize)
+          統計
         </span>
       )}
-      <span style={{ fontSize: '10px', color: '#94a3b8', marginLeft: '4px' }}>▼</span>
+      <ChevronDown size={12} color="#64748b" style={{ marginLeft: '4px', flexShrink: 0 }} />
 
-      {/* React Portal Popover Menu */}
+      {/* React Portal Popover Menu with Backdrop Dismiss */}
       {isMenuOpen && createPortal(
         <div
-          data-grid-portal="true"
-          style={{
-            position: 'fixed',
-            left: `${popoverPos.x}px`,
-            bottom: `${window.innerHeight - popoverPos.y + 4}px`,
-            width: '190px',
-            background: '#ffffff',
-            border: '1px solid #cbd5e1',
-            borderRadius: '8px',
-            boxShadow: '0 12px 30px rgba(0,0,0,0.18)',
-            zIndex: 999999,
-            padding: '6px 0',
-            fontSize: '12px',
-            color: '#334155',
-          }}
-          onClick={(e) => e.stopPropagation()}
+          style={{ position: 'fixed', inset: 0, zIndex: 999998, backgroundColor: 'transparent', pointerEvents: 'auto' }}
+          onClick={() => setPopoverPos(null)}
         >
-          <div style={{ padding: '4px 12px 6px 12px', fontSize: '11px', fontWeight: 600, color: '#64748b', borderBottom: '1px solid #f1f5f9', marginBottom: '4px' }}>
-            【{field.name}】統計方式
-          </div>
-          {availableOptions.map((item) => (
-            <div
-              key={item.key}
-              onClick={() => {
-                onSelectAggregationMode(field.id, item.key)
-                setPopoverPos(null)
-              }}
-              style={{
-                padding: '6px 12px',
-                cursor: 'pointer',
-                background: currentMode === item.key ? '#f1f5f9' : 'transparent',
-                fontWeight: currentMode === item.key ? 600 : 400,
-                color: currentMode === item.key ? '#2563eb' : '#334155',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-              onMouseEnter={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = '#f8fafc' }}
-              onMouseLeave={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = 'transparent' }}
-            >
-              <span>{item.label}</span>
-              {currentMode === item.key && <Check size={14} color="#2563eb" />}
+          <div
+            data-grid-portal="true"
+            style={{
+              position: 'fixed',
+              left: `${popoverPos.x}px`,
+              bottom: `${window.innerHeight - popoverPos.y + 4}px`,
+              width: '200px',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              boxShadow: '0 16px 36px -8px rgba(15, 23, 42, 0.16)',
+              zIndex: 999999,
+              padding: '6px 0',
+              fontSize: '12px',
+              color: '#334155',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '6px 12px 6px 12px', fontSize: '11px', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', marginBottom: '4px' }}>
+              【{field.name}】統計方式
             </div>
-          ))}
+            {availableOptions.map((item) => (
+              <div
+                key={item.key}
+                onClick={() => {
+                  onSelectAggregationMode(field.id, item.key)
+                  setPopoverPos(null)
+                }}
+                style={{
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  background: currentMode === item.key ? '#eff6ff' : 'transparent',
+                  fontWeight: currentMode === item.key ? 600 : 400,
+                  color: currentMode === item.key ? '#4f46e5' : '#334155',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+                onMouseEnter={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = '#f8fafc' }}
+                onMouseLeave={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = 'transparent' }}
+              >
+                <span>{item.label}</span>
+                {currentMode === item.key && <Check size={14} color="#4f46e5" />}
+              </div>
+            ))}
+          </div>
         </div>,
         document.body
       )}

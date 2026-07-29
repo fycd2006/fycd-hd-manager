@@ -1,0 +1,49 @@
+{
+  "common": {
+    "save": "儲存",
+    "cancel": "取消",
+    "delete": "刪除",
+    "edit": "編輯",
+    "confirm": "確認",
+    "search": "搜尋...",
+    "loading": "載入中...",
+    "success": "成功",
+    "error": "錯誤",
+    "language": "介面語言",
+    "settings": "設定",
+    "close": "關閉"
+  },
+  "lang": {
+    "zh-TW": "繁體中文",
+    "en": "English"
+  },
+  "nav": {
+    "dashboard": "儀表板",
+    "workspaces": "工作區",
+    "members": "成員管理",
+    "notifications": "通知中心",
+    "accountSettings": "個人帳號設定",
+    "logout": "登出系統",
+    "createWorkspace": "建立新工作區",
+    "createDatabase": "新增資料庫",
+    "createTable": "新增資料表",
+    "toggleLightMode": "切換為明亮模式",
+    "toggleDarkMode": "切換為深色模式",
+    "filterSettings": "調整色彩與濾鏡設定"
+  },
+  "userSettings": {
+    "title": "個人帳號設定",
+    "systemOptions": "系統與顯示選項",
+    "emailLabel": "電子郵件 (Email)",
+    "usernameLabel": "使用名稱 (Username)",
+    "languageLabel": "介面語言 (Interface Language)",
+    "changePassword": "變更密碼 (選填)",
+    "oldPassword": "目前舊密碼",
+    "newPassword": "新密碼 (至少 6 位數)",
+    "confirmPassword": "再次確認新密碼",
+    "submitButton": "儲存變更",
+    "changedTitle": "設定已更新",
+    "changedDescription": "您的個人偏好語言與帳號設定已成功儲存。",
+    "logoutButton": "登出系統 (Logout)"
+  }
+}

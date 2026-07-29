@@ -6,7 +6,7 @@
  * Format any date input (ISO string, YYYY-MM-DD, timestamp, slash date) into clean YYYY-MM-DD string
  * Safe against UTC timezone shifts and compatible with HTML <input type="date">
  */
-export function formatDateValue(val: any): string {
+export function formatDateValue(val: unknown): string {
   if (val === null || val === undefined || val === '') return ''
   const str = String(val).trim()
   if (!str) return ''

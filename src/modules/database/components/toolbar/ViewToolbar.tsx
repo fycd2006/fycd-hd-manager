@@ -5,6 +5,11 @@ import type { TableView, TableField, FilterRule, RowColorRule } from '@/modules/
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import { ViewContextMenu } from '@/modules/database/components/menu/ViewContextMenu'
+import { AirtableImportModal } from '@/modules/database/components/import/AirtableImportModal'
+import { FilterMenu } from './menu/FilterMenu'
+import { SortMenu } from './menu/SortMenu'
+import { ColorMenu } from './menu/ColorMenu'
+
 
 interface ViewToolbarProps {
   // Sidebar state
@@ -105,6 +110,7 @@ export function ViewToolbar({
   const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
   const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null)
+  const [showAirtableModal, setShowAirtableModal] = useState(false)
   const [fieldSearchQuery, setFieldSearchQuery] = useState('')
 
   useEffect(() => {
@@ -133,6 +139,7 @@ export function ViewToolbar({
   const headerToolbarRef = useRef<HTMLElement>(null)
   const viewContextRef = useRef<HTMLLIElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const popoverMenuRef = useRef<HTMLDivElement>(null)
 
   const [menuAnchorRect, setMenuAnchorRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null)
 
@@ -150,9 +157,7 @@ export function ViewToolbar({
     setShowViewContext(!showViewContext)
   }
 
-  useOnClickOutside(viewContextRef, () => {
-    setShowViewContext(false)
-  })
+
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -163,11 +168,34 @@ export function ViewToolbar({
       if (e.key === 'Escape') {
         setShowViewContext(false)
         setActiveHeaderMenu(null)
+        setShowViewOptionsMenu(false)
       }
     }
+    const handleScrollOrResize = (e: Event) => {
+      // Do not close popup menu if scrolling inside popover menu itself
+      if (
+        e.type === 'scroll' &&
+        popoverMenuRef.current &&
+        e.target &&
+        popoverMenuRef.current.contains(e.target as Node)
+      ) {
+        return
+      }
+      setActiveHeaderMenu(null)
+      setShowViewContext(false)
+      setShowViewOptionsMenu(false)
+    }
+
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('scroll', handleScrollOrResize, true)
+    window.addEventListener('resize', handleScrollOrResize)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('scroll', handleScrollOrResize, true)
+      window.removeEventListener('resize', handleScrollOrResize)
+    }
   }, [])
+
 
   const getViewIcon = (type: string, props: any) => {
     switch (type) {
@@ -195,179 +223,185 @@ export function ViewToolbar({
             <span className="header__filter-name header__filter-name--forced">
               {views.find(v => v.id === activeViewId)?.name || '未命名視圖'}
             </span>
-            <ChevronDown size={14} color="#64748b" className="header__sub-icon" />
+            <ChevronDown size={14} color="#64748b" className="header__sub-icon" style={{ marginLeft: '4px' }} />
           </a>
 
-          {/* Active View Context Menu Button (⋮) */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setShowViewContext(false)
-              const currentActiveView = views.find(v => v.id === activeViewId) || views[0]
-              setSelectedViewForMenu(showViewOptionsMenu ? null : currentActiveView)
-              setShowViewOptionsMenu(!showViewOptionsMenu)
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#64748b',
-              marginLeft: '2px',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-            title="視圖選項 (View options)"
-          >
-            <MoreVertical size={16} />
-          </button>
-
-          {/* Context Menu Dropdown */}
-          {!isMobile && showViewContext && (
-            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: '0', minWidth: '240px', zIndex: 99999, background: '#fff', boxShadow: '0 4px 16px rgba(0,0,0,0.18)', borderRadius: '6px', border: '1px solid #e2e8f0', padding: '0', overflow: 'hidden' }}>
-              <div className="select__items" style={{ padding: '4px 0', maxHeight: '300px', overflowY: 'auto' }}>
-                <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                  {views.map(view => (
-                    <li key={view.id} style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
-                      <a
-                        className={`select__item ${activeViewId === view.id ? 'active' : ''}`}
-                        onClick={() => {
-                          setActiveViewId(view.id)
-                          applyViewConfig(view)
-                          setShowViewContext(false)
-                        }}
-                        style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', textDecoration: 'none', color: '#1e293b', fontSize: '13px', flex: 1, transition: 'background-color 0.15s ease' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                      >
-                        {getViewIcon(view.type || 'grid', { size: 14, color: activeViewId === view.id ? '#2563eb' : '#64748b', style: { marginRight: '8px', flexShrink: 0 } })}
-                        <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? '#2563eb' : 'inherit', fontWeight: activeViewId === view.id ? 600 : 400 }}>{view.name}</span>
-                        {activeViewId === view.id && (
-                          <Check size={16} color="#2563eb" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
-                        )}
-                      </a>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setShowViewContext(false)
-                          setSelectedViewForMenu(view)
-                          setShowViewOptionsMenu(true)
-                        }}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '4px',
-                          borderRadius: '4px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          color: '#94a3b8',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#e2e8f0'
-                          e.currentTarget.style.color = '#334155'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 'transparent'
-                          e.currentTarget.style.color = '#94a3b8'
-                        }}
-                        title="視圖選項 (View options)"
-                      >
-                        <MoreVertical size={14} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              {canManageStructure && (
-                <div className="select__footer" style={{ borderTop: '1px solid #e2e8f0', padding: '4px 0' }}>
-                  <a 
-                    className="select__footer-button" 
-                    onClick={() => {
-                      setShowViewContext(false)
-                      setShowNewViewModal(true)
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', color: '#64748b', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#2563eb' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b' }}
-                  >
-                    <Plus size={14} style={{ marginRight: '8px' }} />
-                    新增視圖
-                  </a>
+          {!isMobile && showViewContext && menuAnchorRect && createPortal(
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 99999998,
+                backgroundColor: 'transparent',
+                pointerEvents: 'auto'
+              }}
+              onClick={() => setShowViewContext(false)}
+            >
+              <div 
+                style={{ 
+                  position: 'fixed', 
+                  top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`, 
+                  left: `${Math.max(8, Math.min(menuAnchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 800) - 250))}px`, 
+                  minWidth: '240px', 
+                  zIndex: 99999999, 
+                  background: '#fff', 
+                  boxShadow: '0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(0,0,0,0.04)', 
+                  borderRadius: '12px', 
+                  border: '1px solid #e2e8f0', 
+                  padding: '0', 
+                  overflow: 'hidden' 
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="select__items" style={{ padding: '6px 0', maxHeight: '300px', overflowY: 'auto' }}>
+                  <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                    {views.map(view => (
+                      <li key={view.id} style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
+                        <a
+                          className={`select__item ${activeViewId === view.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setActiveViewId(view.id)
+                            applyViewConfig(view)
+                            setShowViewContext(false)
+                          }}
+                          style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', textDecoration: 'none', color: '#1e293b', fontSize: '13px', flex: 1, transition: 'background-color 0.15s ease' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                        >
+                          {getViewIcon(view.type || 'grid', { size: 14, color: activeViewId === view.id ? '#4f46e5' : '#64748b', style: { marginRight: '8px', flexShrink: 0 } })}
+                          <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? '#4f46e5' : 'inherit', fontWeight: activeViewId === view.id ? 600 : 400 }}>{view.name}</span>
+                          {activeViewId === view.id && (
+                            <Check size={16} color="#4f46e5" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
+                          )}
+                        </a>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setMenuAnchorRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+                            setShowViewContext(false)
+                            setSelectedViewForMenu(view)
+                            setShowViewOptionsMenu(true)
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: '#94a3b8',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#e2e8f0'
+                            e.currentTarget.style.color = '#334155'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent'
+                            e.currentTarget.style.color = '#94a3b8'
+                          }}
+                          title="視圖選項 (View options)"
+                        >
+                          <MoreVertical size={14} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              )}
-            </div>
+                {canManageStructure && (
+                  <div className="select__footer" style={{ borderTop: '1px solid #e2e8f0', padding: '4px 0' }}>
+                    <a 
+                      className="select__footer-button" 
+                      onClick={() => {
+                        setShowViewContext(false)
+                        setShowNewViewModal(true)
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', color: '#64748b', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#4f46e5' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b' }}
+                    >
+                      <Plus size={14} style={{ marginRight: '8px' }} />
+                      新增視圖
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>,
+            document.body
           )}
 
           {/* View Options Context Menu */}
           {showViewOptionsMenu && selectedViewForMenu && (
             <ViewContextMenu
               view={selectedViewForMenu}
+              x={menuAnchorRect ? Math.min(menuAnchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 800) - 220) : 16}
+              y={menuAnchorRect ? menuAnchorRect.top + menuAnchorRect.height + 4 : 60}
               onClose={() => {
                 setShowViewOptionsMenu(false)
                 setSelectedViewForMenu(null)
               }}
-              onConfigureDateDependencies={() => {
-                alert(`Setting date dependencies for view ${selectedViewForMenu.name}`)
-              }}
               onExportView={handleExportCSV}
               onImportFile={() => csvInputRef.current?.click()}
-              onDuplicateView={() => {
-                if (onDuplicateView) {
-                  onDuplicateView(selectedViewForMenu.id)
-                } else {
-                  alert(`Duplicating view: ${selectedViewForMenu.name}`)
-                }
-              }}
-              onToPersonal={() => {
-                alert(`Toggled personal mode for view ${selectedViewForMenu.name}`)
-              }}
-              onWebhooks={() => {
-                alert(`Webhooks config for view ${selectedViewForMenu.name}`)
-              }}
-              onDefaultRowValues={() => {
-                alert(`Default row values config for view ${selectedViewForMenu.name}`)
-              }}
-              onRenameView={() => {
-                if (onRenameView) {
-                  onRenameView(selectedViewForMenu.id)
-                }
-              }}
-              onDeleteView={() => {
-                if (onDeleteView) {
-                  onDeleteView(selectedViewForMenu.id)
-                }
-              }}
+              onImportAirtable={() => setShowAirtableModal(true)}
+              onDuplicateView={onDuplicateView ? () => onDuplicateView(selectedViewForMenu.id) : undefined}
+              onRenameView={onRenameView ? () => onRenameView(selectedViewForMenu.id) : undefined}
+              onDeleteView={onDeleteView ? () => onDeleteView(selectedViewForMenu.id) : undefined}
             />
           )}
+
+          <AirtableImportModal
+            isOpen={showAirtableModal}
+            onClose={() => setShowAirtableModal(false)}
+          />
         </li>
 
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${filterRules.length > 0 ? 'active active--error' : activeHeaderMenu === 'filter' ? 'active' : ''}`}
+            className={`header__filter-link ${filterRules.length > 0 ? 'active' : activeHeaderMenu === 'filter' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('filter', e)}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              backgroundColor: filterRules.length > 0 ? '#eff6ff' : 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '5px 12px',
+              transition: 'background-color 0.15s ease',
+            }}
           >
-            <Filter size={16} color={filterRules.length > 0 ? '#ef4444' : activeHeaderMenu === 'filter' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
-            <span className="header__filter-name">{filterRules.length > 0 ? `${filterRules.length} filter${filterRules.length > 1 ? 's' : ''}` : 'Filter'}</span>
+            <Filter size={16} color={filterRules.length > 0 ? '#4f46e5' : activeHeaderMenu === 'filter' ? '#4f46e5' : '#64748b'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: filterRules.length > 0 ? '#4f46e5' : '#475569', fontWeight: filterRules.length > 0 ? 600 : 500 }}>
+              {filterRules.length > 0 ? `${filterRules.length} filter${filterRules.length > 1 ? 's' : ''}` : 'Filter'}
+            </span>
           </a>
         </li>
 
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${sortField ? 'active active--error' : activeHeaderMenu === 'sort' ? 'active' : ''}`}
+            className={`header__filter-link ${sortField ? 'active' : activeHeaderMenu === 'sort' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('sort', e)}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              backgroundColor: sortField ? '#eff6ff' : 'transparent',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '5px 12px',
+              transition: 'background-color 0.15s ease',
+            }}
           >
-            <ArrowDownAZ size={16} color={sortField ? '#ef4444' : activeHeaderMenu === 'sort' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
-            <span className="header__filter-name">{sortField ? '1 sort' : 'Sort'}</span>
+            <ArrowDownAZ size={16} color={sortField ? '#4f46e5' : activeHeaderMenu === 'sort' ? '#4f46e5' : '#64748b'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: sortField ? '#4f46e5' : '#475569', fontWeight: sortField ? 600 : 500 }}>
+              {sortField ? '1 sort' : 'Sort'}
+            </span>
           </a>
         </li>
+
 
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
@@ -375,7 +409,7 @@ export function ViewToolbar({
             onClick={(e) => openMenuWithAnchor('color', e)}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <Palette size={16} color={safeRowColorRules.length > 0 ? '#2563eb' : activeHeaderMenu === 'color' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+            <Palette size={16} color={safeRowColorRules.length > 0 ? '#4f46e5' : activeHeaderMenu === 'color' ? '#4f46e5' : '#64748b'} className="header__filter-icon" />
             <span className="header__filter-name">{safeRowColorRules.length > 0 ? `${safeRowColorRules.length} colored` : 'Color'}</span>
           </a>
         </li>
@@ -386,7 +420,7 @@ export function ViewToolbar({
             onClick={(e) => openMenuWithAnchor('group', e)}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <Layers size={16} color={groupByField || activeHeaderMenu === 'group' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+            <Layers size={16} color={groupByField || activeHeaderMenu === 'group' ? '#4f46e5' : '#64748b'} className="header__filter-icon" />
             <span className="header__filter-name">Group</span>
           </a>
         </li>
@@ -395,11 +429,11 @@ export function ViewToolbar({
       <ul className="header__filter header__filter--full-width">
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${actualHiddenCount > 0 ? 'active active--error' : activeHeaderMenu === 'hide' ? 'active' : ''}`}
+            className={`header__filter-link ${actualHiddenCount > 0 ? 'active' : activeHeaderMenu === 'hide' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('hide', e)}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <EyeOff size={16} color={actualHiddenCount > 0 ? '#ef4444' : activeHeaderMenu === 'hide' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+            <EyeOff size={16} color={actualHiddenCount > 0 ? '#4f46e5' : activeHeaderMenu === 'hide' ? '#4f46e5' : '#64748b'} className="header__filter-icon" />
             <span className="header__filter-name">
               {actualHiddenCount > 0 ? `${actualHiddenCount} hidden` : 'Hide fields'}
             </span>
@@ -412,39 +446,41 @@ export function ViewToolbar({
             onClick={(e) => openMenuWithAnchor('rowHeight', e)}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <AlignJustify size={16} color={rowHeightSize !== 'small' ? '#2563eb' : activeHeaderMenu === 'rowHeight' ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+            <AlignJustify size={16} color={rowHeightSize !== 'small' ? '#4f46e5' : activeHeaderMenu === 'rowHeight' ? '#4f46e5' : '#64748b'} className="header__filter-icon" />
             <span className="header__filter-name">Row height</span>
           </a>
         </li>
 
         <li className="header__filter-item header__filter-item--right">
           <div className="header__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b', pointerEvents: 'none' }} />
+            <Search size={14} style={{ position: 'absolute', left: '12px', color: '#64748b', pointerEvents: 'none' }} />
             <input
               ref={searchInputRef}
               type="text"
+              className="soft-input"
               placeholder="搜尋記錄 (Ctrl+K)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ 
                 width: searchQuery ? '240px' : '200px', 
-                padding: '6px 28px 6px 30px', 
-                borderRadius: '6px', 
+                padding: '7px 28px 7px 32px', 
+                borderRadius: '10px', 
                 border: '1px solid #cbd5e1', 
                 fontSize: '13px', 
                 backgroundColor: '#ffffff',
                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                 outline: 'none',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                boxShadow: '0 1px 3px rgba(15,23,42,0.05)'
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#2563eb';
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.12)';
+                e.currentTarget.style.borderColor = '#6366f1';
+                e.currentTarget.style.boxShadow = '0 0 0 3.5px rgba(99,102,241,0.14)';
                 e.currentTarget.style.width = '240px';
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = '#cbd5e1';
-                e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15,23,42,0.05)';
+
                 if (!searchQuery) e.currentTarget.style.width = '200px';
               }}
             />
@@ -499,6 +535,7 @@ export function ViewToolbar({
           onClick={() => setActiveHeaderMenu(null)}
         >
           <div
+            ref={popoverMenuRef}
             style={{
               position: 'fixed',
               top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`,
@@ -518,294 +555,37 @@ export function ViewToolbar({
           >
             {/* Filter Content */}
             {activeHeaderMenu === 'filter' && (
-              filterRules.length === 0 ? (
-                <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '16px 0' }}>
-                  此視圖尚未設定任何篩選條件
-                  <div style={{ marginTop: '12px' }}>
-                    <button 
-                      className="button button--secondary button--small"
-                      onClick={() => {
-                        const newRule = { fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '', operator: 'contains' as const, value: '' };
-                        setFilterRules([newRule]);
-                      }}
-                    >
-                      + 新增篩選條件
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {filterRules.map((rule, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '13px', color: '#64748b', width: '40px' }}>{idx === 0 ? 'Where' : 'And'}</span>
-                      <select 
-                        value={rule.fieldKey} 
-                        onChange={(e) => {
-                          const newRules = [...filterRules];
-                          newRules[idx].fieldKey = e.target.value;
-                          setFilterRules(newRules);
-                        }}
-                        style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1 }}
-                      >
-                        {fields.map(f => <option key={f.id} value={`field_${f.id}`}>{f.name}</option>)}
-                      </select>
-                      <select 
-                        value={rule.operator} 
-                        onChange={(e) => {
-                          const newRules = [...filterRules];
-                          newRules[idx].operator = e.target.value as any;
-                          setFilterRules(newRules);
-                        }}
-                        style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', width: '110px' }}
-                      >
-                        <option value="contains">包含 (contains)</option>
-                        <option value="not_contains">不包含 (not contains)</option>
-                        <option value="equals">等於 (equals)</option>
-                        <option value="not_equals">不等於 (not equals)</option>
-                        <option value="empty">為空 (is empty)</option>
-                        <option value="not_empty">不為空 (is not empty)</option>
-                      </select>
-                      {rule.operator !== 'empty' && rule.operator !== 'not_empty' && (
-                        <input 
-                          type="text" 
-                          value={rule.value} 
-                          onChange={(e) => {
-                            const newRules = [...filterRules];
-                            newRules[idx].value = e.target.value;
-                            setFilterRules(newRules);
-                          }}
-                          placeholder="Value"
-                          style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1, minWidth: '80px' }}
-                        />
-                      )}
-                      <button 
-                        onClick={() => {
-                          const newRules = filterRules.filter((_, i) => i !== idx);
-                          setFilterRules(newRules);
-                        }}
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8' }}
-                        title="刪除條件"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  <div style={{ marginTop: '8px' }}>
-                    <button 
-                      className="button button--secondary button--small"
-                      onClick={() => {
-                        const newRule = { fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '', operator: 'contains' as const, value: '' };
-                        setFilterRules([...filterRules, newRule]);
-                      }}
-                      style={{ fontSize: '13px', padding: '4px 8px' }}
-                    >
-                      + 新增篩選條件
-                    </button>
-                  </div>
-                </div>
-              )
+              <FilterMenu
+                fields={fields}
+                filterRules={filterRules}
+                setFilterRules={setFilterRules}
+              />
             )}
 
             {/* Sort Content */}
             {activeHeaderMenu === 'sort' && (
-              <div className="sortings">
-                <div className="sortings__empty" style={{ padding: '4px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-                  <div style={{ marginBottom: '8px', textAlign: 'left', fontWeight: 600 }}>在此視圖中的記錄將不會被排序</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px', maxHeight: '180px', overflowY: 'auto' }}>
-                    {fields.map(f => {
-                      const key = `field_${f.id}`;
-                      const isSelected = sortField === key;
-                      return (
-                        <div
-                          key={f.id}
-                          onClick={() => {
-                            setSortField(isSelected ? null : key);
-                            if (activeViewId) saveViewConfig(activeViewId, { sortField: isSelected ? null : key });
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                            color: isSelected ? '#2563eb' : '#1e293b',
-                            fontWeight: isSelected ? 600 : 400,
-                            fontSize: '13px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between'
-                          }}
-                          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
-                          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
-                        >
-                          <span>{f.name}</span>
-                          {isSelected && <Check size={14} />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {sortField && (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <button
-                        className={`button button--small ${sortOrder === 'asc' ? 'button--primary' : 'button--secondary'}`}
-                        onClick={() => {
-                          setSortOrder('asc');
-                          if (activeViewId) saveViewConfig(activeViewId, { sortOrder: 'asc' });
-                        }}
-                        style={{ flex: 1, padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
-                      >
-                        A-Z
-                      </button>
-                      <button
-                        className={`button button--small ${sortOrder === 'desc' ? 'button--primary' : 'button--secondary'}`}
-                        onClick={() => {
-                          setSortOrder('desc');
-                          if (activeViewId) saveViewConfig(activeViewId, { sortOrder: 'desc' });
-                        }}
-                        style={{ flex: 1, padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
-                      >
-                        Z-A
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <SortMenu
+                fields={fields}
+                sortField={sortField}
+                setSortField={setSortField}
+                sortOrder={sortOrder}
+                setSortOrder={setSortOrder}
+                activeViewId={activeViewId}
+                saveViewConfig={saveViewConfig}
+              />
             )}
 
             {/* Color Content */}
             {activeHeaderMenu === 'color' && (
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Row coloring rules</span>
-                  {safeRowColorRules.length > 0 && (
-                    <span style={{ fontSize: '11px', color: '#2563eb' }}>{safeRowColorRules.length} rules active</span>
-                  )}
-                </div>
-                {safeRowColorRules.length === 0 ? (
-                  <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '16px 0' }}>
-                    此視圖尚未設定任何色彩塗色條件
-                    <div style={{ marginTop: '12px' }}>
-                      <button 
-                        className="button button--secondary button--small"
-                        onClick={() => {
-                          const newRule: RowColorRule = {
-                            fieldKey: safeFields.length > 0 ? `field_${safeFields[0].id}` : '',
-                            operator: 'contains',
-                            value: '',
-                            color: 'blue'
-                          };
-                          const updated = [...safeRowColorRules, newRule];
-                          setRowColorRules(updated);
-                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                        }}
-                      >
-                        + 新增塗色條件 (Add color rule)
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {safeRowColorRules.map((rule, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '12px', color: '#64748b', width: '40px', fontWeight: 500 }}>{idx === 0 ? 'Where' : 'And'}</span>
-                        <select 
-                          value={rule.fieldKey} 
-                          onChange={(e) => {
-                            const updated = [...safeRowColorRules];
-                            updated[idx].fieldKey = e.target.value;
-                            setRowColorRules(updated);
-                            if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                          }}
-                          style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1 }}
-                        >
-                          {safeFields.map(f => <option key={f.id} value={`field_${f.id}`}>{f.name}</option>)}
-                        </select>
-                        <select 
-                          value={rule.operator} 
-                          onChange={(e) => {
-                            const updated = [...safeRowColorRules];
-                            updated[idx].operator = e.target.value as any;
-                            setRowColorRules(updated);
-                            if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                          }}
-                          style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', width: '110px' }}
-                        >
-                          <option value="contains">包含 (contains)</option>
-                          <option value="equals">等於 (equals)</option>
-                        </select>
-                        <input 
-                          type="text" 
-                          value={rule.value} 
-                          placeholder="值 (Value)..."
-                          onChange={(e) => {
-                            const updated = [...safeRowColorRules];
-                            updated[idx].value = e.target.value;
-                            setRowColorRules(updated);
-                            if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                          }}
-                          style={{ padding: '6px 8px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1 }}
-                        />
-                        <select
-                          value={rule.color}
-                          onChange={(e) => {
-                            const updated = [...safeRowColorRules];
-                            updated[idx].color = e.target.value as any;
-                            setRowColorRules(updated);
-                            if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                          }}
-                          style={{ padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1', fontSize: '13px', width: '90px' }}
-                        >
-                          <option value="red">🔴 紅色</option>
-                          <option value="green">🟢 綠色</option>
-                          <option value="blue">🔵 藍色</option>
-                          <option value="yellow">🟡 黃色</option>
-                          <option value="purple">🟣 紫色</option>
-                          <option value="orange">🟠 橘色</option>
-                        </select>
-                        <button 
-                          onClick={() => {
-                            const updated = safeRowColorRules.filter((_, i) => i !== idx);
-                            setRowColorRules(updated);
-                            if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                          }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px' }}
-                          title="刪除條件"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    ))}
-                    <div style={{ marginTop: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <button 
-                        className="button button--secondary button--small"
-                        onClick={() => {
-                          const newRule: RowColorRule = {
-                            fieldKey: safeFields.length > 0 ? `field_${safeFields[0].id}` : '',
-                            operator: 'contains',
-                            value: '',
-                            color: 'blue'
-                          };
-                          const updated = [...safeRowColorRules, newRule];
-                          setRowColorRules(updated);
-                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                        }}
-                      >
-                        + 新增塗色條件
-                      </button>
-                      <button
-                        className="button button--ghost button--small"
-                        onClick={() => {
-                          setRowColorRules([]);
-                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: '[]' });
-                        }}
-                        style={{ color: '#ef4444', fontSize: '12px' }}
-                      >
-                        清除全部
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ColorMenu
+                fields={fields}
+                rowColorRules={rowColorRules}
+                setRowColorRules={setRowColorRules}
+                activeViewId={activeViewId}
+                saveViewConfig={saveViewConfig}
+              />
             )}
+
 
             {/* Group Content */}
             {activeHeaderMenu === 'group' && (

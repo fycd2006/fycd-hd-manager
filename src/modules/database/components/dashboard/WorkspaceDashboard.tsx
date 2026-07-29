@@ -182,30 +182,10 @@ export default function WorkspaceDashboard({
             {activeWorkspace && onShowDatabaseModal && (
               <button
                 onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-                style={{
-                  height: '40px',
-                  padding: '0 18px',
-                  borderRadius: '8px',
-                  backgroundColor: '#09090b',
-                  color: '#ffffff',
-                  border: '1px solid #09090b',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#27272a'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#09090b'
-                }}
+                className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-indigo-500/25 flex items-center gap-2 cursor-pointer border-none"
               >
-                <Plus size={16} /> 新增資料庫
+                <Plus className="w-4 h-4" />
+                <span>新增資料庫</span>
               </button>
             )}
           </div>
@@ -492,33 +472,10 @@ export default function WorkspaceDashboard({
                     {onShowCreateTableModal && (
                       <button
                         onClick={() => onShowCreateTableModal(db.id)}
-                        style={{
-                          height: '28px',
-                          padding: '0 10px',
-                          borderRadius: '6px',
-                          backgroundColor: '#f4f4f5',
-                          border: '1px solid #e4e4e7',
-                          color: '#27272a',
-                          fontSize: '11.5px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          flexShrink: 0
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#eff6ff'
-                          e.currentTarget.style.color = '#2563eb'
-                          e.currentTarget.style.borderColor = '#bfdbfe'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#f4f4f5'
-                          e.currentTarget.style.color = '#27272a'
-                          e.currentTarget.style.borderColor = '#e4e4e7'
-                        }}
+                        className="h-7 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700/80 hover:border-blue-200 dark:hover:border-blue-800 text-xs font-semibold transition-all active:scale-[0.98] flex items-center gap-1.5 cursor-pointer flex-shrink-0"
                       >
-                        <Plus size={13} /> 新增表
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>新增資料表</span>
                       </button>
                     )}
                   </div>

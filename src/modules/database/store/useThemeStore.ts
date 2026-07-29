@@ -3,7 +3,7 @@
  * Manages theme and dark reader settings
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Theme, DarkReaderSettings } from '../types'
 
 export interface ThemeState {
@@ -64,11 +64,6 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
 
-    const hasCustomFilter = activeSettings.brightness !== 100 ||
-                            activeSettings.contrast !== 100 ||
-                            activeSettings.sepia > 0 ||
-                            activeSettings.grayscale > 0
-
     // Safely load DarkReader on client-side: enable ONLY when theme === 'dark'
     import('darkreader').then(DarkReader => {
       if (typeof window !== 'undefined' && window.fetch) {
@@ -92,15 +87,15 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     document.documentElement.style.setProperty('--darkreader-grayscale', `${activeSettings.grayscale}%`)
   }, [theme, activeSettings])
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'))
-  }
+  }, [])
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
-  }
+  }, [])
 
-  const updateDarkReaderSettings = (newSettings: Partial<DarkReaderSettings>) => {
+  const updateDarkReaderSettings = useCallback((newSettings: Partial<DarkReaderSettings>) => {
     if (theme === 'dark') {
       const updated = { ...darkReaderSettings, ...newSettings }
       setDarkReaderSettingsState(updated)
@@ -116,7 +111,7 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
       localStorage.setItem('lightreader-sepia', String(updated.sepia))
       localStorage.setItem('lightreader-grayscale', String(updated.grayscale))
     }
-  }
+  }, [theme, darkReaderSettings, lightReaderSettings])
 
   const state: ThemeState = {
     theme,

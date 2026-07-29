@@ -80,7 +80,6 @@ export const CollaboratorSelector: React.FC<CollaboratorSelectorProps> = ({
       ? selectedIds.filter(id => id !== userId)
       : [...selectedIds, userId]
 
-    // Formatted value matching backend expectation (list of { id, username } or IDs)
     const nextFormatted = nextIds.map(id => {
       const u = users.find(user => user.id === id)
       return { id, username: u?.username || `用戶 ID: ${id}` }
@@ -90,9 +89,9 @@ export const CollaboratorSelector: React.FC<CollaboratorSelectorProps> = ({
   }
 
   return (
-    <div style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '10px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '12px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>選擇指派協作者 ({fieldName})：</span>
+        <span style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>指派協作者：</span>
         {loading && <span style={{ fontSize: '11px', color: '#94a3b8' }}>載入成員中...</span>}
       </div>
 
@@ -102,6 +101,7 @@ export const CollaboratorSelector: React.FC<CollaboratorSelectorProps> = ({
         ) : (
           users.map(user => {
             const isSelected = selectedIds.includes(user.id)
+            const initial = user.username ? user.username.charAt(0).toUpperCase() : 'U'
             return (
               <label
                 key={user.id}
@@ -112,19 +112,36 @@ export const CollaboratorSelector: React.FC<CollaboratorSelectorProps> = ({
                   gap: '6px',
                   fontSize: '12px',
                   cursor: readOnly ? 'default' : 'pointer',
-                  background: isSelected ? '#e0e7ff' : '#ffffff',
-                  border: `1px solid ${isSelected ? '#6366f1' : '#cbd5e1'}`,
-                  padding: '4px 10px',
-                  borderRadius: '16px',
+                  background: isSelected ? '#eff6ff' : '#f8fafc',
+                  border: `1px solid ${isSelected ? '#818cf8' : '#e2e8f0'}`,
+                  padding: '5px 12px',
+                  borderRadius: '20px',
                   userSelect: 'none',
-                  color: isSelected ? '#4338ca' : '#475569',
-                  fontWeight: isSelected ? 600 : 400,
+                  color: isSelected ? '#4f46e5' : '#475569',
+                  fontWeight: isSelected ? 600 : 500,
                   transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 2px 6px rgba(79,70,229,0.1)' : 'none',
                 }}
               >
+                <span
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    borderRadius: '50%',
+                    backgroundColor: isSelected ? '#4f46e5' : '#cbd5e1',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {initial}
+                </span>
                 <span>{user.username}</span>
                 {isSelected && (
-                  <span style={{ fontSize: '10px', marginLeft: '2px', color: '#4338ca' }}>✓</span>
+                  <span style={{ fontSize: '11px', marginLeft: '2px', color: '#4f46e5', fontWeight: 700 }}>✓</span>
                 )}
               </label>
             )

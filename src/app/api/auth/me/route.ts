@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { getSessionUser } from '@/lib/auth'
+
 
 export async function GET() {
   try {
-    const cookieStore = await cookies()
-    const session = cookieStore.get('session')
-    if (!session?.value) {
+    const user = await getSessionUser()
+    if (!user) {
       return NextResponse.json({ authenticated: false }, { status: 401 })
     }
-
-    // Decode session payload
-    const decoded = Buffer.from(session.value, 'base64').toString('utf-8')
-    const user = JSON.parse(decoded)
 
     return NextResponse.json({
       authenticated: true,
@@ -21,6 +18,7 @@ export async function GET() {
     return NextResponse.json({ authenticated: false }, { status: 401 })
   }
 }
+
 
 export async function POST() {
   try {

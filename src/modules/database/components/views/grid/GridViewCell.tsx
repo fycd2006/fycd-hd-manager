@@ -1,10 +1,9 @@
-'use client';
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Star } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
+
 
 const BASEROW_PALETTE = [
   { bg: '#fee2e2', text: '#991b1b' }, // Soft Red
@@ -1203,7 +1202,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const hiddenCount = items.length - visibleItems.length;
 
       return (
-        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
+        <div style={{ display: 'flex', gap: '4px', padding: '4px 6px', overflow: 'hidden', alignItems: 'center', alignContent: 'center', height: '100%', flexWrap: 'wrap', width: '100%' }}>
           {visibleItems.map((itemStr, i) => {
             const { bg, text } = getOptionColor(itemStr, allOptions);
             return (
@@ -1216,10 +1215,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   borderRadius: '12px', 
                   fontSize: '12px', 
                   fontWeight: 500,
-                  whiteSpace: 'nowrap', 
-                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'pre-wrap', 
+                  wordBreak: 'break-all',
+                  overflowWrap: 'anywhere',
                   overflow: 'hidden',
-                  maxWidth: '120px',
+                  maxWidth: '100%',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px'
@@ -1374,7 +1374,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const showControls = isCellHovered && !isEditing;
 
       return (
-        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
+        <div style={{ display: 'flex', gap: '4px', padding: '4px 6px', overflow: 'hidden', alignItems: 'center', alignContent: 'center', height: '100%', width: '100%', flexWrap: 'wrap' }}>
           {visibleLinks.map((item, i) => (
             <span 
               key={i} 
@@ -1385,10 +1385,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 borderRadius: '6px', 
                 fontSize: '13px', 
                 fontWeight: 500,
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                overflowWrap: 'anywhere',
                 overflow: 'hidden',
-                maxWidth: '130px',
+                maxWidth: '100%',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '4px'
@@ -1460,11 +1461,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'long_text') {
       const textStr = value !== null && value !== undefined ? String(value) : '';
-      const firstLine = textStr.split('\n')[0];
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '0 8px', overflow: 'hidden', gap: '4px' }}>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, fontSize: '13px', color: '#1e293b', lineHeight: '1.4' }}>
-            {firstLine}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', padding: '4px 8px', overflow: 'hidden', gap: '4px', height: '100%', maxHeight: '100%' }}>
+          <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', flex: 1, fontSize: '13px', color: '#1e293b', lineHeight: '1.35', maxHeight: '100%' }}>
+            {textStr}
           </span>
           {isCellHovered && !isEditing && Boolean(textStr) && (
             <span
@@ -1476,7 +1476,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 width: '20px', height: '20px',
                 background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px',
-                cursor: 'pointer', flexShrink: 0, color: '#64748b',
+                cursor: 'pointer', flexShrink: 0, color: '#64748b', alignSelf: 'flex-start'
               }}
               title="展開編輯"
             >
@@ -1490,7 +1490,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (field.type === 'rating') {
       const ratingVal = Math.min(5, Math.max(0, parseInt(String(value || 0)) || 0));
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', padding: '0 8px', width: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', padding: '0 8px', width: '100%' }}>
           {[1, 2, 3, 4, 5].map((starNum) => (
             <span
               key={starNum}
@@ -1498,14 +1498,19 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 e.stopPropagation();
                 onUpdate(starNum === ratingVal ? 0 : starNum);
               }}
-              style={{ cursor: 'pointer', color: starNum <= ratingVal ? '#f59e0b' : '#cbd5e1', fontSize: '15px' }}
+              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', transition: 'transform 0.1s ease' }}
             >
-              ★
+              <Star
+                size={14}
+                fill={starNum <= ratingVal ? '#f59e0b' : '#e2e8f0'}
+                color={starNum <= ratingVal ? '#d97706' : '#cbd5e1'}
+              />
             </span>
           ))}
         </div>
       );
     }
+
 
     if (field.type === 'url') {
       const urlStr = value != null ? String(value).trim() : '';
@@ -1518,7 +1523,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            style={{ color: '#2563eb', textDecoration: 'underline', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px' }}
+            style={{ color: '#2563eb', textDecoration: 'underline', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', maxHeight: '100%' }}
           >
             🔗 {urlStr}
           </a>
@@ -1534,7 +1539,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           <a
             href={`mailto:${emailStr}`}
             onClick={(e) => e.stopPropagation()}
-            style={{ color: '#2563eb', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px' }}
+            style={{ color: '#2563eb', textDecoration: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', maxHeight: '100%' }}
           >
             ✉️ {emailStr}
           </a>
@@ -1550,7 +1555,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           <a
             href={`tel:${phoneStr}`}
             onClick={(e) => e.stopPropagation()}
-            style={{ color: '#0f172a', textDecoration: 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px' }}
+            style={{ color: '#0f172a', textDecoration: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', maxHeight: '100%' }}
           >
             📞 {phoneStr}
           </a>
@@ -1578,7 +1583,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const dStr = value ? formatDateValue(value) : '';
       if (!dStr) return null;
       return (
-        <span style={{ padding: '0 8px', fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ padding: '0 8px', fontSize: '12px', color: '#64748b', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', maxHeight: '100%' }}>
           🕒 {dStr}
         </span>
       );
@@ -1586,7 +1591,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'created_by' || field.type === 'last_modified_by') {
       return (
-        <span style={{ padding: '0 8px', fontSize: '12px', color: '#475569', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ padding: '0 8px', fontSize: '12px', color: '#475569', fontWeight: 500, whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', maxHeight: '100%' }}>
           👤 {value ? String(value) : '系統'}
         </span>
       );
@@ -1629,8 +1634,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (field.type === 'formula' || field.type === 'lookup' || field.type === 'rollup') {
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%', background: 'rgba(248, 250, 252, 0.6)', height: '100%' }}>
-          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>ƒ</span>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px', color: '#334155' }}>
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>ƒ</span>
+          <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', color: '#334155', maxHeight: '100%', lineHeight: '1.35' }}>
             {value !== null && value !== undefined ? String(value) : ''}
           </span>
         </div>
@@ -1649,7 +1654,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (field.type === 'uuid') {
       const uuidStr = value != null ? String(value) : '';
       return (
-        <span style={{ padding: '0 8px', fontSize: '11px', color: '#64748b', fontFamily: 'monospace', background: '#f1f5f9', borderRadius: '4px', margin: '0 4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <span style={{ padding: '0 8px', fontSize: '11px', color: '#64748b', fontFamily: 'monospace', background: '#f1f5f9', borderRadius: '4px', margin: '0 4px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', maxHeight: '100%' }}>
           {uuidStr}
         </span>
       );
@@ -1679,9 +1684,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (field.type === 'ai_prompt') {
       const aiStr = value != null ? String(value) : '';
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%' }}>
-          <span style={{ fontSize: '12px', color: '#8b5cf6' }}>✨</span>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '13px', color: '#4c1d95' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%', height: '100%' }}>
+          <span style={{ fontSize: '12px', color: '#8b5cf6', flexShrink: 0 }}>✨</span>
+          <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', color: '#4c1d95', maxHeight: '100%', lineHeight: '1.35' }}>
             {aiStr || 'Generative AI Prompt'}
           </span>
         </div>
@@ -1691,14 +1696,14 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (field.type === 'date') {
       const dateDisplay = formatDateValue(value);
       return (
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b' }}>
+        <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b', maxHeight: '100%', lineHeight: '1.35' }}>
           {dateDisplay}
         </span>
       );
     }
 
     return (
-      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b' }}>
+      <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b', maxHeight: '100%', lineHeight: '1.35' }}>
         {value !== null && value !== undefined ? String(value) : ''}
       </span>
     );
@@ -1782,6 +1787,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         display: 'flex',
         alignItems: 'center',
         height: 'var(--row-height, 32px)',
+        maxHeight: 'var(--row-height, 32px)',
         overflow: 'hidden',
         userSelect: 'none',
         zIndex: isEditing ? 100 : (isPrimary ? 14 : (isSelected || isInRange ? 10 : undefined))

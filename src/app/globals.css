@@ -1,23 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Baserow-like light workspace theme */
+  /* High-End Soft Workspace Theme */
+  --font-sans: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --bg-primary: #f8fafc;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f1f5f9;
-  --bg-card: rgba(255, 255, 255, 0.96);
-  --bg-cell: rgba(255, 255, 255, 0.72);
-  --bg-cell-hover: rgba(37, 99, 235, 0.04);
-  --bg-cell-active: rgba(37, 99, 235, 0.1);
+  --bg-card: rgba(255, 255, 255, 0.98);
+  --bg-cell: rgba(255, 255, 255, 0.8);
+  --bg-cell-hover: rgba(99, 102, 241, 0.04);
+  --bg-cell-active: rgba(99, 102, 241, 0.1);
   --bg-header: #ffffff;
-  --border-color: #dbe3ee;
-  --border-active: #2563eb;
+  --border-color: #e2e8f0;
+  --border-active: #6366f1;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --accent-primary: #2563eb;
-  --accent-secondary: #3b82f6;
-  --accent-gradient: linear-gradient(135deg, #2563eb, #3b82f6, #60a5fa);
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --accent-primary: #4f46e5;
+  --accent-secondary: #6366f1;
+  --accent-gradient: linear-gradient(135deg, #4f46e5, #6366f1, #818cf8);
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -28,6 +29,114 @@
   --bg-toolbar: #ffffff;
   --bg-input: #f8fafc;
 }
+
+body {
+  font-family: var(--font-sans) !important;
+}
+
+/* High-End Soft Utility Classes & Double-Bezel Architecture */
+.bezel-container {
+  background: var(--bg-tertiary);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 20px;
+  padding: 6px;
+  box-shadow: 0 4px 24px -4px rgba(15, 23, 42, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme='dark'] .bezel-container,
+.theme-dark .bezel-container {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.bezel-inner {
+  background: var(--bg-secondary);
+  border-radius: calc(20px - 6px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+.soft-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.soft-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px -4px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.soft-input {
+  border-radius: 12px !important;
+  border: 1px solid #cbd5e1 !important;
+  font-family: var(--font-sans) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.soft-input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.14), 0 2px 8px rgba(99, 102, 241, 0.08) !important;
+  outline: none !important;
+}
+
+/* High-End Taste Skill Custom Select Dropdown Styling */
+select, .soft-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 14px 14px !important;
+  padding-right: 30px !important;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif !important;
+  border-radius: 10px !important;
+  border: 1px solid #cbd5e1 !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  outline: none !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  cursor: pointer !important;
+}
+
+select:hover, .soft-select:hover {
+  background-color: #ffffff !important;
+  border-color: #94a3b8 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+}
+
+select:focus, .soft-select:focus {
+  background-color: #ffffff !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3.5px rgba(99, 102, 241, 0.15) !important;
+}
+
+select option, .soft-select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  padding: 10px !important;
+  font-size: 13px !important;
+}
+
+
+.sidebar-active-table {
+  background-color: #eff6ff !important;
+  color: #4f46e5 !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.18) !important;
+}
+
+.sidebar-active-table span {
+  color: #4f46e5 !important;
+  font-weight: 600 !important;
+}
+
+
 
 [data-theme='dark'],
 .theme-dark {
@@ -2177,15 +2286,14 @@ select option {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  opacity: 0;
-  animation: fadeInModal 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 1;
 }
 
 .modal-overlay.visible {

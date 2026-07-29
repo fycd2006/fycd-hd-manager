@@ -52,7 +52,8 @@ export const exportToCSV = (
         if (Array.isArray(val)) {
           valStr = val.map(item => {
             if (item && typeof item === 'object' && !Array.isArray(item)) {
-              return (item as any).value || (item as any).name || ''
+              const obj = item as Record<string, unknown>
+              return String(obj.value || obj.name || '')
             }
             return String(item)
           }).join('; ')

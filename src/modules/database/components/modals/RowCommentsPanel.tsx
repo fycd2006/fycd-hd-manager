@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { MessageSquare, History, Send, Edit2, Check, X } from 'lucide-react'
 
 export interface RowComment {
   id: number
@@ -112,50 +113,69 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        background: '#f8fafc',
+        background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
         borderLeft: '1px solid #e2e8f0',
-        padding: '16px',
+        padding: '22px 20px',
         minWidth: 0,
       }}
     >
-      {/* Tab Switcher */}
+      {/* Tab Switcher (Segmented Pill) */}
       <div
         style={{
           display: 'flex',
-          gap: '8px',
-          borderBottom: '1px solid #e2e8f0',
-          paddingBottom: '8px',
-          marginBottom: '12px',
+          background: '#e2e8f0',
+          padding: '4px',
+          borderRadius: '14px',
+          marginBottom: '18px',
+          border: '1px solid rgba(203, 213, 225, 0.6)',
         }}
       >
         <button
           onClick={() => setActiveTab('comments')}
           style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            fontSize: '12px',
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '8px 14px',
+            borderRadius: '10px',
+            fontSize: '13px',
             fontWeight: 600,
             border: 'none',
             cursor: 'pointer',
-            background: activeTab === 'comments' ? '#6366f1' : 'transparent',
-            color: activeTab === 'comments' ? '#fff' : '#64748b',
+            background: activeTab === 'comments' ? '#ffffff' : 'transparent',
+            color: activeTab === 'comments' ? '#4f46e5' : '#64748b',
+            boxShadow: activeTab === 'comments' ? '0 2px 8px rgba(15, 23, 42, 0.08)' : 'none',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
+          className="active:scale-[0.97]"
         >
+          <MessageSquare size={15} />
           協作留言 ({comments.length})
         </button>
         <button
           onClick={() => setActiveTab('activity')}
           style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            fontSize: '12px',
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '8px 14px',
+            borderRadius: '10px',
+            fontSize: '13px',
             fontWeight: 600,
             border: 'none',
             cursor: 'pointer',
-            background: activeTab === 'activity' ? '#6366f1' : 'transparent',
-            color: activeTab === 'activity' ? '#fff' : '#64748b',
+            background: activeTab === 'activity' ? '#ffffff' : 'transparent',
+            color: activeTab === 'activity' ? '#4f46e5' : '#64748b',
+            boxShadow: activeTab === 'activity' ? '0 2px 8px rgba(15, 23, 42, 0.08)' : 'none',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
+          className="active:scale-[0.97]"
         >
+          <History size={15} />
           活動歷程 ({activityLog.length})
         </button>
       </div>
@@ -167,23 +187,43 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
             style={{
               flex: 1,
               overflowY: 'auto',
-              border: '1px solid #cbd5e1',
-              borderRadius: '6px',
-              padding: '12px',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
+              borderRadius: '16px',
+              padding: '16px',
               background: '#ffffff',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px',
-              marginBottom: '12px',
+              gap: '12px',
+              marginBottom: '16px',
+              boxShadow: 'inset 0 1px 3px rgba(15, 23, 42, 0.03)',
             }}
           >
             {commentsLoading ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', padding: '20px' }}>
+              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '40px' }}>
                 載入留言中...
               </div>
             ) : comments.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', padding: '20px', fontStyle: 'italic' }}>
-                尚無協作留言。在下方輸入內容開啟討論！
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  minHeight: '220px',
+                  color: '#94a3b8',
+                  gap: '12px',
+                  padding: '24px',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ width: '52px', height: '52px', borderRadius: '16px', backgroundColor: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.15)' }}>
+                  <MessageSquare size={24} />
+                </div>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>尚無協作留言</span>
+                <span style={{ fontSize: '12px', color: '#64748b', maxWidth: '220px', lineHeight: '1.5' }}>
+                  在下方輸入框輸入內容，與團隊成員開啟即時討論與備註！
+                </span>
               </div>
             ) : (
               comments.map(c => (
@@ -192,25 +232,26 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '4px',
-                    background: '#f1f5f9',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
+                    gap: '6px',
+                    background: '#f8fafc',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
                     border: '1px solid #e2e8f0',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#1e293b' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a' }}>
                       {c.user?.username || '未知用戶'}{' '}
-                      <span style={{ fontSize: '10px', fontWeight: 'normal', color: '#64748b' }}>
-                        ({c.user?.role === 'admin' ? '管理員' : '成員'})
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#4f46e5', background: '#e0e7ff', padding: '1px 6px', borderRadius: '6px', marginLeft: '4px' }}>
+                        {c.user?.role === 'admin' ? '管理員' : '成員'}
                       </span>
                     </span>
-                    <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                    <span style={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace' }}>
                       {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#334155', wordBreak: 'break-all', lineHeight: 1.4 }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#334155', wordBreak: 'break-word', lineHeight: '1.5' }}>
                     {c.content}
                   </p>
                 </div>
@@ -228,27 +269,37 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                 onChange={e => setCommentInput(e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '8px 12px',
-                  fontSize: '12px',
+                  padding: '12px 16px',
+                  fontSize: '13px',
                   border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
+                  borderRadius: '14px',
                   outline: 'none',
+                  backgroundColor: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
+                  transition: 'all 0.15s ease',
                 }}
               />
               <button
                 type="submit"
                 style={{
-                  padding: '8px 14px',
-                  background: '#6366f1',
+                  padding: '12px 18px',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
                   border: 'none',
                   color: 'white',
-                  borderRadius: '6px',
-                  fontSize: '12px',
+                  borderRadius: '14px',
+                  fontSize: '13px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.3)',
+                  transition: 'all 0.15s ease',
                 }}
+                className="active:scale-[0.96]"
               >
+                <Send size={14} />
                 傳送
               </button>
             </form>
@@ -261,8 +312,24 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
             {activityLog.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '12px', padding: '20px', fontStyle: 'italic' }}>
-                尚無歷史變更記錄。
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                  minHeight: '200px',
+                  color: '#94a3b8',
+                  gap: '10px',
+                  padding: '20px',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                  <History size={22} />
+                </div>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: '#475569' }}>尚無變更歷程紀錄</span>
               </div>
             ) : (
               activityLog.map((log, index) => {
@@ -276,8 +343,8 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                   <div
                     key={logId}
                     style={{
-                      padding: '8px 10px',
-                      borderRadius: '6px',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
                       background: '#ffffff',
                       border: '1px solid #e2e8f0',
                       fontSize: '12px',
@@ -298,14 +365,16 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                         />
                         <button
                           onClick={() => handleSaveLogEdit(logId)}
-                          style={{ padding: '2px 8px', background: '#10b981', border: 'none', color: '#fff', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ padding: '2px 8px', background: '#10b981', border: 'none', color: '#fff', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}
                         >
+                          <Check size={12} />
                           儲存
                         </button>
                         <button
                           onClick={() => setEditingLogId(null)}
-                          style={{ padding: '2px 8px', background: '#94a3b8', border: 'none', color: '#fff', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ padding: '2px 8px', background: '#94a3b8', border: 'none', color: '#fff', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}
                         >
+                          <X size={12} />
                           取消
                         </button>
                       </div>
@@ -318,8 +387,9 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                               setEditingLogId(logId)
                               setEditingLogContent(logContent)
                             }}
-                            style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '11px', cursor: 'pointer' }}
+                            style={{ background: 'none', border: 'none', color: '#4f46e5', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}
                           >
+                            <Edit2 size={12} />
                             編輯
                           </button>
                         )}

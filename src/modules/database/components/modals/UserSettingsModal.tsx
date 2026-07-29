@@ -4,6 +4,8 @@ import React, { useState } from 'react'
 import { X, User, Mail, Key, Check, Sun, Moon, Sliders, LogOut, Palette } from 'lucide-react'
 import type { User as UserType } from '@/modules/database/types'
 import { useThemeStore } from '@/modules/database/store/useThemeStore'
+import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface UserSettingsModalProps {
   show: boolean
@@ -24,6 +26,7 @@ export default function UserSettingsModal({
   onToggleDarkReaderPanel,
   onLogout
 }: UserSettingsModalProps) {
+  const { t } = useI18n()
   const [username, setUsername] = useState(currentUser?.username || '')
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -103,7 +106,7 @@ export default function UserSettingsModal({
               <User size={18} color="#2563eb" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
-              設定與系統選項 (Settings)
+              {t('userSettings.title')}
             </h3>
           </div>
           <button
@@ -133,7 +136,7 @@ export default function UserSettingsModal({
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
               <Palette size={13} color="#2563eb" />
-              <span>系統與顯示選項 (System & Display)</span>
+              <span>{t('userSettings.systemOptions')}</span>
             </label>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -202,7 +205,7 @@ export default function UserSettingsModal({
             
             {/* User Email Readonly Box */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#cbd5e1' : '#64748b' }}>電子郵件 (Email Address)</label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#cbd5e1' : '#64748b' }}>{t('userSettings.emailLabel')}</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 14px', backgroundColor: isDark ? '#1e293b' : '#f8fafc', border: 'none', borderRadius: '12px', color: isDark ? '#cbd5e1' : '#64748b', fontSize: '13px', fontWeight: 500 }}>
                 <Mail size={16} color="#94a3b8" />
                 <span>{currentUser?.email || 'user@example.com'}</span>
@@ -211,7 +214,7 @@ export default function UserSettingsModal({
 
             {/* Edit Username Input */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a' }}>使用名稱 (Username)</label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a' }}>{t('userSettings.usernameLabel')}</label>
               <input
                 type="text"
                 value={username}
@@ -230,17 +233,24 @@ export default function UserSettingsModal({
                 required
               />
             </div>
+            {/* Language Preference Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a' }}>{t('userSettings.languageLabel')}</label>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <LangPicker align="left" />
+              </div>
+            </div>
 
             {/* Password Section */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Key size={14} color="#2563eb" />
-                <span>變更密碼 (選填)</span>
+                <span>{t('userSettings.changePassword')}</span>
               </label>
 
               <input
                 type="password"
-                placeholder="目前舊密碼"
+                placeholder={t('userSettings.oldPassword')}
                 value={oldPassword}
                 onChange={e => setOldPassword(e.target.value)}
                 style={{
@@ -256,7 +266,7 @@ export default function UserSettingsModal({
               />
               <input
                 type="password"
-                placeholder="新密碼 (至少 6 位數)"
+                placeholder={t('userSettings.newPassword')}
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 style={{
@@ -272,7 +282,7 @@ export default function UserSettingsModal({
               />
               <input
                 type="password"
-                placeholder="再次確認新密碼"
+                placeholder={t('userSettings.confirmPassword')}
                 value={confirmPassword}
                 onChange={e => setConfirmPassword(e.target.value)}
                 style={{
@@ -315,7 +325,7 @@ export default function UserSettingsModal({
                   }}
                 >
                   <LogOut size={16} />
-                  <span>登出系統 (Logout)</span>
+                  <span>{t('userSettings.logoutButton')}</span>
                 </button>
               </div>
             )}
@@ -336,7 +346,7 @@ export default function UserSettingsModal({
                   cursor: 'pointer'
                 }}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
@@ -357,7 +367,7 @@ export default function UserSettingsModal({
                 }}
               >
                 <Check size={14} />
-                <span>{saving ? '儲存中...' : '儲存變更'}</span>
+                <span>{saving ? t('common.loading') : t('userSettings.submitButton')}</span>
               </button>
             </div>
           </form>

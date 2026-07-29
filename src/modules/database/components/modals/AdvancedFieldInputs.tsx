@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
+import { Plus, X, Search, Check, Link as LinkIcon } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
 
 export interface AttachmentFile {
@@ -18,12 +19,12 @@ interface AdvancedFieldInputsProps {
 
 const getTagStyle = (idx: number) => {
   const colors = [
-    { bg: '#dbeafe', border: '#93c5fd', text: '#1d4ed8' },
-    { bg: '#d1fae5', border: '#6ee7b7', text: '#047857' },
-    { bg: '#fef3c7', border: '#fcd34d', text: '#b45309' },
-    { bg: '#fee2e2', border: '#fca5a5', text: '#b91c1c' },
-    { bg: '#ede9fe', border: '#c4b5fd', text: '#6d28d9' },
-    { bg: '#fce7f3', border: '#f9a8d4', text: '#be185d' },
+    { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
+    { bg: '#ecfdf5', border: '#a7f3d0', text: '#047857' },
+    { bg: '#fffbeb', border: '#fde68a', text: '#b45309' },
+    { bg: '#fef2f2', border: '#fecaca', text: '#b91c1c' },
+    { bg: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9' },
+    { bg: '#fdf2f8', border: '#fbcfe8', text: '#be185d' },
   ]
   return colors[idx % colors.length]
 }
@@ -42,6 +43,20 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
   const [relationRows, setRelationRows] = useState<any[]>([])
   const [targetFields, setTargetFields] = useState<TableField[]>([])
   const [relationLoading, setRelationLoading] = useState(false)
+  const [allTables, setAllTables] = useState<any[]>([])
+  const [selectedTargetTableId, setSelectedTargetTableId] = useState<number | null>(null)
+
+  // Fetch all workspace tables as fallback if field targetTableId is missing
+  useEffect(() => {
+    if (field.type === 'link_row') {
+      fetch('/api/tables')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setAllTables(data)
+        })
+        .catch(() => {})
+    }
+  }, [field.type])
 
   // Parse field options JSON
   let fieldOptions: any = {}
@@ -51,32 +66,85 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
     }
   } catch {}
 
+  const effectiveTargetTableId = selectedTargetTableId || Number(
+    fieldOptions?.targetTableId ??
+    fieldOptions?.relationTableId ??
+    fieldOptions?.link_table_id ??
+    fieldOptions?.target_table_id ??
+    fieldOptions?.table_id ??
+    (field as any)?.targetTableId ??
+    (allTables.length > 0 ? allTables[0].id : 0)
+  ) || (allTables.length > 0 ? allTables[0].id : null)
+
+  const cleanChoice = (item: any): string[] => {
+    if (item === null || item === undefined || item === '') return []
+    if (typeof item === 'object') {
+      if (Array.isArray(item.choices)) return item.choices.flatMap(cleanChoice)
+      if (Array.isArray(item.select_options)) return item.select_options.flatMap(cleanChoice)
+      if (Array.isArray(item.options)) return item.options.flatMap(cleanChoice)
+      if (item.value || item.name || item.id) return [String(item.value || item.name || item.id)]
+      return [String(item)]
+    }
+    if (typeof item === 'string') {
+      const trimmed = item.trim()
+      if (!trimmed) return []
+      if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('"{\\') || trimmed.startsWith('"{')) {
+        try {
+          let parsed = JSON.parse(trimmed)
+          if (typeof parsed === 'string') {
+            try { parsed = JSON.parse(parsed) } catch {}
+          }
+          return cleanChoice(parsed)
+        } catch {}
+      }
+      return [trimmed]
+    }
+    return [String(item)]
+  }
+
   // Parse options list for select fields
   const getSelectChoices = (): string[] => {
-    if (Array.isArray(fieldOptions)) return fieldOptions.map(String)
-    if (Array.isArray(fieldOptions?.choices)) return fieldOptions.choices.map(String)
-    if (Array.isArray(fieldOptions?.select_options)) return fieldOptions.select_options.map(String)
-    if (typeof field.options === 'string' && !field.options.startsWith('{')) {
-      return field.options.split(',').map(s => s.trim()).filter(Boolean)
+    let rawItems: any[] = []
+    let opts: any = field.options
+    if (typeof opts === 'string') {
+      try {
+        let parsed = JSON.parse(opts)
+        if (typeof parsed === 'string') {
+          try { parsed = JSON.parse(parsed) } catch {}
+        }
+        opts = parsed
+      } catch {}
     }
-    return []
+    if (Array.isArray(opts)) {
+      rawItems = opts
+    } else if (opts && typeof opts === 'object') {
+      if (Array.isArray(opts.choices)) rawItems = opts.choices
+      else if (Array.isArray(opts.select_options)) rawItems = opts.select_options
+      else if (Array.isArray(opts.options)) rawItems = opts.options
+    }
+
+    if (rawItems.length === 0 && typeof field.options === 'string' && field.options.trim()) {
+      rawItems = field.options.split(',')
+    }
+    const cleaned = rawItems.flatMap(cleanChoice)
+    const selected = parseSelectValues(value)
+    const combined = Array.from(new Set([...cleaned, ...selected]))
+    return combined.filter(Boolean)
   }
 
   // Parse current select values
   const parseSelectValues = (val: any): string[] => {
     if (val == null || val === '') return []
-    if (Array.isArray(val)) return val.map(String)
+    if (Array.isArray(val)) return val.flatMap(cleanChoice)
     if (typeof val === 'string') {
       try {
         const parsed = JSON.parse(val)
-        if (Array.isArray(parsed)) return parsed.map(String)
+        if (Array.isArray(parsed)) return parsed.flatMap(cleanChoice)
       } catch {}
-      return val.split(',').map(s => s.trim()).filter(Boolean)
+      return val.split(',').flatMap(cleanChoice)
     }
     return [String(val)]
   }
-
-
 
   // Parse current link_row target row items
   const parseLinkRowItems = (val: any): Array<{ id: number; value: string }> => {
@@ -131,14 +199,10 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
     return []
   }
 
-  // Parse current link_row target row IDs
   const parseLinkRowIds = (val: any): number[] => {
     return parseLinkRowItems(val).map(item => item.id)
   }
 
-  // -------------------------------------------------------------
-  // Fetch target table fields & server-side search rows
-  // -------------------------------------------------------------
   const fetchTargetFields = async (targetTableId: number) => {
     try {
       const res = await fetch(`/api/tables/${targetTableId}/fields`)
@@ -174,35 +238,31 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
     }
   }
 
-  // Open modal and fetch target table fields & rows
   const handleOpenRelationModal = () => {
-    if (readOnly || !fieldOptions.targetTableId) return
+    if (readOnly) return
     setIsRelationOpen(true)
     setRelationSearch('')
-    fetchTargetFields(fieldOptions.targetTableId)
-    fetchRelationRowsServerSide(fieldOptions.targetTableId, '')
+    if (effectiveTargetTableId) {
+      fetchTargetFields(effectiveTargetTableId)
+      fetchRelationRowsServerSide(effectiveTargetTableId, '')
+    }
   }
 
-  // Pre-fetch target table metadata so raw IDs like [25, 27] can immediately resolve to Primary Field names
   useEffect(() => {
-    if (field.type === 'link_row' && fieldOptions.targetTableId) {
-      fetchTargetFields(fieldOptions.targetTableId)
-      fetchRelationRowsServerSide(fieldOptions.targetTableId, '')
+    if (field.type === 'link_row' && effectiveTargetTableId) {
+      fetchTargetFields(effectiveTargetTableId)
+      fetchRelationRowsServerSide(effectiveTargetTableId, '')
     }
-  }, [field.type, fieldOptions.targetTableId])
+  }, [field.type, effectiveTargetTableId])
 
-  // Fetch when search input changes (debounced)
   useEffect(() => {
-    if (!isRelationOpen || !fieldOptions.targetTableId) return
+    if (!isRelationOpen || !effectiveTargetTableId) return
     const timer = setTimeout(() => {
-      fetchRelationRowsServerSide(fieldOptions.targetTableId, relationSearch)
+      fetchRelationRowsServerSide(effectiveTargetTableId, relationSearch)
     }, 300)
     return () => clearTimeout(timer)
-  }, [relationSearch, isRelationOpen, fieldOptions.targetTableId])
+  }, [relationSearch, isRelationOpen, effectiveTargetTableId])
 
-
-
-  // Toggle single/multi select
   const toggleSelectOption = (choice: string, isMulti: boolean) => {
     if (readOnly) return
     const selected = parseSelectValues(value)
@@ -215,7 +275,6 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
     }
   }
 
-  // Toggle link_row target row
   const toggleLinkRow = (targetRow: any) => {
     if (readOnly) return
     const currentItems = parseLinkRowItems(value)
@@ -226,7 +285,6 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
       const nextItems = currentItems.filter(i => i.id !== targetId)
       onChange(fieldKey, nextItems)
     } else {
-      // Determine primary field (field with min order in targetFields)
       const primaryField = targetFields[0]
       const primaryKey = primaryField ? `field_${primaryField.id}` : Object.keys(targetRow.data || {})[0]
       const primaryVal = String(targetRow.data?.[primaryKey] ?? `列 ID: ${targetId}`)
@@ -243,70 +301,164 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
     onChange(fieldKey, nextItems)
   }
 
-  // RENDER: Single & Multiple Select
+  const [newTagInput, setNewTagInput] = useState('')
+  const [isAddingTag, setIsAddingTag] = useState(false)
+
+  const handleAddNewTag = (isMulti: boolean) => {
+    if (!newTagInput.trim() || readOnly) return
+    const tagVal = newTagInput.trim()
+    toggleSelectOption(tagVal, isMulti)
+    setNewTagInput('')
+    setIsAddingTag(false)
+  }
+
+  // RENDER: Single & Multiple Select (Soft Rounded Pills)
   if (field.type === 'single_select' || field.type === 'multiple_select') {
     const isMulti = field.type === 'multiple_select'
     const choices = getSelectChoices()
     const selectedList = parseSelectValues(value)
 
     return (
-      <div style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px', background: '#f8fafc' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {choices.length === 0 ? (
-            <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>無可選標籤選項</span>
-          ) : (
-            choices.map((choice, idx) => {
-              const isSelected = selectedList.includes(choice)
-              const tagStyle = getTagStyle(idx)
+      <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#ffffff' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          {choices.map((choice, idx) => {
+            const isSelected = selectedList.includes(choice)
+            const tagStyle = getTagStyle(idx)
 
-              return (
-                <span
-                  key={choice}
-                  onClick={() => toggleSelectOption(choice, isMulti)}
+            return (
+              <span
+                key={choice}
+                onClick={() => toggleSelectOption(choice, isMulti)}
+                style={{
+                  cursor: readOnly ? 'default' : 'pointer',
+                  fontSize: '12px',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  userSelect: 'none',
+                  background: isSelected ? tagStyle.bg : '#f8fafc',
+                  border: `1px solid ${isSelected ? tagStyle.border : '#e2e8f0'}`,
+                  color: isSelected ? tagStyle.text : '#475569',
+                  fontWeight: isSelected ? 600 : 500,
+                  transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 2px 6px rgba(0,0,0,0.04)' : 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                {choice}
+                {isSelected && <Check size={12} />}
+              </span>
+            )
+          })}
+
+          {!readOnly && (
+            isAddingTag ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="輸入新選項..."
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddNewTag(isMulti)
+                    } else if (e.key === 'Escape') {
+                      setIsAddingTag(false)
+                      setNewTagInput('')
+                    }
+                  }}
                   style={{
-                    cursor: readOnly ? 'default' : 'pointer',
-                    fontSize: '12px',
                     padding: '4px 10px',
-                    borderRadius: '4px',
-                    userSelect: 'none',
-                    background: isSelected ? tagStyle.bg : '#ffffff',
-                    border: `1px solid ${isSelected ? tagStyle.border : '#cbd5e1'}`,
-                    color: isSelected ? tagStyle.text : '#64748b',
-                    fontWeight: isSelected ? 600 : 400,
-                    transition: 'all 0.1s ease',
+                    fontSize: '12px',
+                    border: '1px solid #6366f1',
+                    borderRadius: '16px',
+                    outline: 'none',
+                    width: '120px',
+                    background: '#ffffff'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAddNewTag(isMulti)}
+                  style={{
+                    background: '#4f46e5',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '4px 8px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
                   }}
                 >
-                  {choice}
-                </span>
-              )
-            })
+                  新增
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsAddingTag(false); setNewTagInput(''); }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '2px'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAddingTag(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '5px 12px',
+                  background: '#f8fafc',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                className="hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50"
+              >
+                <Plus size={12} />
+                <span>新增選項</span>
+              </button>
+            )
           )}
         </div>
       </div>
     )
   }
 
-
-
-  // RENDER: Link Row (Relation Picker with Baserow Tag Pills + Table-Style Grid Modal)
+  // RENDER: Link Row
   if (field.type === 'link_row') {
     const linkedItems = parseLinkRowItems(value)
     const targetTableId = fieldOptions.targetTableId
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {/* Linked Row Tag Container (Baserow Style) */}
+        {/* Linked Row Tag Container */}
         <div
           style={{
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
-            gap: '6px',
-            padding: '6px 10px',
-            border: '1px solid #cbd5e1',
-            borderRadius: '6px',
+            gap: '8px',
+            padding: '8px 12px',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
             background: '#ffffff',
-            minHeight: '42px',
+            minHeight: '44px',
           }}
         >
           {linkedItems.length === 0 ? (
@@ -321,15 +473,17 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '3px 10px',
-                  background: '#f1f5f9',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#1e293b',
-                  fontWeight: 500,
+                  padding: '5px 12px',
+                  background: '#eff6ff',
+                  border: 'none',
+                  borderRadius: '20px',
+                  fontSize: '12px',
+                  color: '#4f46e5',
+                  fontWeight: 600,
                 }}
+
               >
+                <LinkIcon size={12} />
                 <span>{item.value}</span>
                 {!readOnly && (
                   <button
@@ -340,68 +494,74 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                     style={{
                       border: 'none',
                       background: 'none',
-                      color: '#64748b',
+                      color: '#3b82f6',
                       cursor: 'pointer',
-                      padding: '0 2px',
-                      fontSize: '13px',
-                      lineHeight: 1,
+                      padding: '0',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                     title="移除關聯"
                   >
-                    ×
+                    <X size={12} />
                   </button>
                 )}
               </span>
             ))
           )}
 
-          {!readOnly && targetTableId && (
+          {!readOnly && (
             <button
               onClick={handleOpenRelationModal}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2px 8px',
-                background: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '4px',
-                fontSize: '13px',
-                fontWeight: 'bold',
-                color: '#475569',
+                gap: '6px',
+                padding: '6px 14px',
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#2563eb',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              title="開啟關聯表選取器 Modal"
+              className="hover:bg-blue-100 hover:border-blue-300 active:scale-[0.96]"
+              title="選擇關聯項目"
             >
-              +
+              <Plus size={13} />
+              <span>選擇關聯項目</span>
             </button>
           )}
         </div>
 
-        {/* Spacious Baserow Table-Style Relation Picker Modal */}
-        {isRelationOpen && targetTableId && (
+        {/* Relation Picker Modal */}
+        {isRelationOpen && (
           <div
             style={{
               position: 'fixed',
               inset: 0,
-              zIndex: 2000,
-              backgroundColor: 'rgba(0, 0, 0, 0.45)',
+              zIndex: 9999999,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(4px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              padding: '16px',
             }}
             onClick={() => setIsRelationOpen(false)}
           >
             <div
               style={{
-                width: '780px',
-                maxWidth: '92vw',
-                height: '560px',
-                maxHeight: '85vh',
+                width: '820px',
+                maxWidth: '95vw',
+                height: '600px',
+                maxHeight: '90vh',
                 backgroundColor: '#ffffff',
-                borderRadius: '8px',
-                boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.08)',
+                borderRadius: '20px',
+                boxShadow: '0 30px 60px -12px rgba(15,23,42,0.3)',
+                border: '1px solid #e2e8f0',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
@@ -409,26 +569,42 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
               onClick={e => e.stopPropagation()}
             >
               {/* Modal Top Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '400px' }}>
-                  <span style={{ fontSize: '14px', color: '#64748b' }}>🔍</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e2e8f0', background: 'linear-gradient(135deg, #f8fafc 0%, #ffffff 100%)', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                  <Search size={16} color="#64748b" />
                   <input
                     type="text"
-                    placeholder="Search rows (支援全欄位比對)..."
+                    placeholder="搜尋關聯列 (支援全欄位比對)..."
                     value={relationSearch}
                     onChange={e => setRelationSearch(e.target.value)}
-                    style={{ flex: 1, padding: '6px 12px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+                    style={{ flex: 1, padding: '8px 14px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '10px', outline: 'none', background: '#ffffff' }}
                   />
+                  {allTables.length > 1 && (
+                    <select
+                      value={effectiveTargetTableId || ''}
+                      onChange={(e) => {
+                        const newId = Number(e.target.value)
+                        setSelectedTargetTableId(newId)
+                        fetchTargetFields(newId)
+                        fetchRelationRowsServerSide(newId, relationSearch)
+                      }}
+                      style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none', background: '#ffffff', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      {allTables.map(t => (
+                        <option key={t.id} value={t.id}>關聯表: {t.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#4f46e5', background: '#eff6ff', padding: '4px 10px', borderRadius: '12px' }}>
                     已選擇 {parseLinkRowIds(value).length} 項
                   </span>
                   <button
                     onClick={() => setIsRelationOpen(false)}
-                    style={{ padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
-                    ✕ 完成關閉
+                    <X size={18} />
                   </button>
                 </div>
               </div>
@@ -441,22 +617,20 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   </div>
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-                    {/* Header Row */}
                     <thead>
-                      <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
-                        <th style={{ width: '44px', padding: '10px 12px', textAlign: 'center' }}>選取</th>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ width: '48px', padding: '12px', textAlign: 'center' }}>選取</th>
                         {targetFields.map(f => (
-                          <th key={f.id} style={{ padding: '10px 12px', fontWeight: 600, color: '#334155', borderRight: '1px solid #e2e8f0' }}>
+                          <th key={f.id} style={{ padding: '12px 14px', fontWeight: 600, color: '#334155', borderRight: '1px solid #f1f5f9' }}>
                             {f.name}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    {/* Rows Body */}
                     <tbody>
                       {relationRows.length === 0 ? (
                         <tr>
-                          <td colSpan={targetFields.length + 1} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontStyle: 'italic' }}>
+                          <td colSpan={targetFields.length + 1} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontStyle: 'italic' }}>
                             找不到符合條件的關聯列
                           </td>
                         </tr>
@@ -470,30 +644,27 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                               key={r.id}
                               onClick={() => toggleLinkRow(r)}
                               style={{
-                                borderBottom: '1px solid #e2e8f0',
-                                background: isLinked ? '#f0fdf4' : 'transparent',
+                                borderBottom: '1px solid #f1f5f9',
+                                background: isLinked ? '#eff6ff' : 'transparent',
                                 cursor: 'pointer',
-                                transition: 'background 0.1s ease',
+                                transition: 'background 0.15s ease',
                               }}
                             >
-                              {/* Checkbox column */}
-                              <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                              <td style={{ padding: '12px', textAlign: 'center' }}>
                                 <input
                                   type="checkbox"
                                   checked={isLinked}
-                                  onChange={() => {}} // handled by tr onClick
-                                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                  onChange={() => {}}
+                                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#4f46e5' }}
                                 />
                               </td>
-
-                              {/* Multi-column Values */}
                               {targetFields.map(f => {
                                 const fKey = `field_${f.id}`
                                 const cellVal = r.data?.[fKey]
                                 const displayCell = cellVal == null || cellVal === '' ? '' : (typeof cellVal === 'boolean' ? (cellVal ? '✓' : '') : String(cellVal))
 
                                 return (
-                                  <td key={f.id} style={{ padding: '10px 12px', color: '#1e293b', borderRight: '1px solid #f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                                  <td key={f.id} style={{ padding: '12px 14px', color: '#1e293b', borderRight: '1px solid #f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }}>
                                     {displayCell}
                                   </td>
                                 )
@@ -508,10 +679,10 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
               </div>
 
               {/* Modal Footer */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
                 <button
                   onClick={() => setIsRelationOpen(false)}
-                  style={{ padding: '6px 16px', background: '#6366f1', border: 'none', borderRadius: '6px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '8px 20px', background: '#4f46e5', border: 'none', borderRadius: '10px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   確認
                 </button>
