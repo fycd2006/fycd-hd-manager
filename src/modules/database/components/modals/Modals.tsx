@@ -280,23 +280,58 @@ interface ViewModalProps {
   onSubmit: (name: string, type: 'grid' | 'kanban' | 'gallery' | 'calendar' | 'timeline' | 'form') => Promise<void>
 }
 
+const DEFAULT_VIEW_NAMES: Record<string, string> = {
+  grid: '表格視圖',
+  kanban: '看板視圖',
+  gallery: '畫廊視圖',
+  calendar: '日曆視圖',
+  timeline: '時間軸視圖',
+  form: '表單視圖'
+}
+
 export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
-  const [name, setName] = useState('')
   const [type, setType] = useState<'grid' | 'kanban' | 'gallery' | 'calendar' | 'timeline' | 'form'>('grid')
+  const [name, setName] = useState<string>('表格視圖')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (show) {
+      setType('grid')
+      setName('表格視圖')
+    }
+  }, [show])
+
+  const handleSelectType = (selectedType: 'grid' | 'kanban' | 'gallery' | 'calendar' | 'timeline' | 'form') => {
+    // Auto-update name if empty or still matching a default type name
+    if (!name || Object.values(DEFAULT_VIEW_NAMES).includes(name)) {
+      setName(DEFAULT_VIEW_NAMES[selectedType] || '新視圖')
+    }
+    setType(selectedType)
+  }
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (!name.trim()) return
+    const finalName = name.trim() || DEFAULT_VIEW_NAMES[type] || '新視圖'
     
     setLoading(true)
     try {
-      await onSubmit(name.trim(), type)
-      setName('')
+      await onSubmit(finalName, type)
+      setName('表格視圖')
       setType('grid')
       onClose()
     } finally {
       setLoading(false)
+    }
+  }
+
+  const renderCurrentIcon = () => {
+    switch (type) {
+      case 'kanban': return <Kanban size={16} />
+      case 'gallery': return <LayoutTemplate size={16} />
+      case 'calendar': return <Calendar size={16} />
+      case 'timeline': return <Clock size={16} />
+      case 'form': return <FormInput size={16} />
+      default: return <LayoutGrid size={16} />
     }
   }
 
@@ -309,7 +344,7 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
           </label>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: '#94a3b8', zIndex: 2 }}>
-              <LayoutGrid size={16} />
+              {renderCurrentIcon()}
             </div>
             <input
               type="text"
@@ -354,7 +389,7 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
                 <button
                   type="button"
                   key={v.id}
-                  onClick={() => setType(v.id as any)}
+                  onClick={() => handleSelectType(v.id as any)}
                   style={{
                     display: 'flex',
                     flexDirection: 'row',

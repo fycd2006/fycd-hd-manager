@@ -932,12 +932,24 @@ export default function Home() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: nameToUse })
         })
-        if (res.ok) uiActions.addToast('更新表名成功', 'success')
+        if (res.ok) {
+          uiActions.addToast('更新表名成功', 'success')
+        } else {
+          const errData = await res.json().catch(() => ({}))
+          uiActions.addToast(errData.error || '更新表名失敗', 'error')
+        }
       } else {
         const result = await workspaceService.rename(renameType as 'workspace' | 'database', renameId, nameToUse)
-        if (result.ok) uiActions.addToast('重新命名成功', 'success')
+        if (result.ok) {
+          uiActions.addToast('重新命名成功', 'success')
+        } else {
+          uiActions.addToast(result.error || '更新名稱失敗', 'error')
+        }
       }
       setShowRenameModal(false)
+      setRenameType(null)
+      setRenameId(null)
+      setRenameNameValue('')
       await wsActions.fetchWorkspaces()
     } catch {
       uiActions.addToast('更新名稱失敗', 'error')

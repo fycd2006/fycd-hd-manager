@@ -181,6 +181,15 @@ export function ViewToolbar({
       ) {
         return
       }
+
+      // Ignore resize events when user is typing in an input/textarea (e.g. mobile soft keyboard popup)
+      if (e.type === 'resize') {
+        const activeEl = document.activeElement
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+          return
+        }
+      }
+
       setActiveHeaderMenu(null)
       setShowViewContext(false)
       setShowViewOptionsMenu(false)
@@ -226,7 +235,7 @@ export function ViewToolbar({
             <ChevronDown size={14} color="#64748b" className="header__sub-icon" style={{ marginLeft: '4px' }} />
           </a>
 
-          {!isMobile && showViewContext && menuAnchorRect && createPortal(
+          {showViewContext && menuAnchorRect && createPortal(
             <div
               style={{
                 position: 'fixed',
