@@ -408,8 +408,8 @@ export default function WorkspaceDashboard({
                   }}
                 >
                   {/* Database Card Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
                       <div style={{
                         width: '38px',
                         height: '38px',
@@ -421,15 +421,16 @@ export default function WorkspaceDashboard({
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        <DatabaseIcon size={18} />
+                        <DatabaseIcon size={18} color="#2563eb" />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                        <div
+                      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                        <h3
                           style={{
                             fontSize: '15px',
                             fontWeight: 700,
-                            color: '#09090b',
-                            lineHeight: 1.3,
+                            color: '#0f172a',
+                            margin: 0,
+                            lineHeight: 1.2,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
@@ -437,19 +438,45 @@ export default function WorkspaceDashboard({
                           title={db.name}
                         >
                           {db.name}
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: '#71717a', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                        </h3>
+                        <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 500, marginTop: '2px', whiteSpace: 'nowrap' }}>
                           {db.tables?.length || 0} 張資料表
-                        </div>
+                        </span>
                       </div>
                     </div>
 
                     {onShowCreateTableModal && (
                       <button
+                        type="button"
                         onClick={() => onShowCreateTableModal(db.id)}
-                        className="h-8 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700/80 hover:border-blue-200 dark:hover:border-blue-800 text-xs font-semibold transition-all active:scale-[0.98] flex items-center gap-1.5 cursor-pointer flex-shrink-0 whitespace-nowrap"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          backgroundColor: '#f1f5f9',
+                          border: '1px solid #e2e8f0',
+                          color: '#334155',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0,
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#eff6ff'
+                          e.currentTarget.style.borderColor = '#bfdbfe'
+                          e.currentTarget.style.color = '#2563eb'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#f1f5f9'
+                          e.currentTarget.style.borderColor = '#e2e8f0'
+                          e.currentTarget.style.color = '#334155'
+                        }}
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus size={14} />
                         <span>新增資料表</span>
                       </button>
                     )}
