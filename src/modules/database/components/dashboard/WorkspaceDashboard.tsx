@@ -6,7 +6,7 @@ import {
   Database as DatabaseIcon, Table as TableIcon, Users, Plus, 
   Sparkles, FolderPlus, Layers, ChevronRight, Search,
   ArrowUpRight, ShieldCheck, Activity, Filter, Command,
-  ArrowRight, Clock, Zap
+  ArrowRight, Clock, Zap, Pencil, Trash2
 } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 
@@ -18,6 +18,12 @@ interface WorkspaceDashboardProps {
   onShowMembersModal?: () => void
   onShowDatabaseModal?: (wsId: number) => void
   onShowCreateTableModal?: (dbId: number) => void
+  onSetRenameType?: (type: 'workspace' | 'database' | 'table') => void
+  onSetRenameId?: (id: number) => void
+  onSetRenameNameValue?: (val: string) => void
+  onShowRenameModal?: () => void
+  onDeleteWorkspaceOrDb?: (action: 'delete_workspace' | 'delete_database', id: number, label: string) => void
+  onDeleteTable?: (tableId: number, tableName: string) => void
 }
 
 /**
@@ -34,7 +40,13 @@ export default function WorkspaceDashboard({
   onSelectTable,
   onShowMembersModal,
   onShowDatabaseModal,
-  onShowCreateTableModal
+  onShowCreateTableModal,
+  onSetRenameType,
+  onSetRenameId,
+  onSetRenameNameValue,
+  onShowRenameModal,
+  onDeleteWorkspaceOrDb,
+  onDeleteTable
 }: WorkspaceDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -423,22 +435,63 @@ export default function WorkspaceDashboard({
                       }}>
                         <DatabaseIcon size={18} color="#2563eb" />
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                        <h3
-                          style={{
-                            fontSize: '15px',
-                            fontWeight: 700,
-                            color: '#0f172a',
-                            margin: 0,
-                            lineHeight: 1.2,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                          title={db.name}
-                        >
-                          {db.name}
-                        </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <h3
+                            style={{
+                              fontSize: '15px',
+                              fontWeight: 700,
+                              color: '#0f172a',
+                              margin: 0,
+                              lineHeight: 1.2,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              cursor: 'pointer'
+                            }}
+                            title={`${db.name} (雙擊或點擊圖示可重新命名)`}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation()
+                              if (onSetRenameType && onSetRenameId && onSetRenameNameValue && onShowRenameModal) {
+                                onSetRenameType('database')
+                                onSetRenameId(db.id)
+                                onSetRenameNameValue(db.name)
+                                onShowRenameModal()
+                              }
+                            }}
+                          >
+                            {db.name}
+                          </h3>
+                          {onShowRenameModal && (
+                            <button
+                              type="button"
+                              title="重新命名資料庫"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onSetRenameType?.('database')
+                                onSetRenameId?.(db.id)
+                                onSetRenameNameValue?.(db.name)
+                                onShowRenameModal?.()
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: '2px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                color: '#94a3b8',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#2563eb')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                        </div>
                         <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 500, marginTop: '2px', whiteSpace: 'nowrap' }}>
                           {db.tables?.length || 0} 張資料表
                         </span>
@@ -492,9 +545,18 @@ export default function WorkspaceDashboard({
                   }}>
                     {db.tables && db.tables.length > 0 ? (
                       db.tables.map(table => (
-                        <button
+                        <div
                           key={table.id}
                           onClick={() => onSelectTable(table.id)}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation()
+                            if (onSetRenameType && onSetRenameId && onSetRenameNameValue && onShowRenameModal) {
+                              onSetRenameType('table')
+                              onSetRenameId(table.id)
+                              onSetRenameNameValue(table.name)
+                              onShowRenameModal()
+                            }
+                          }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -520,15 +582,46 @@ export default function WorkspaceDashboard({
                             e.currentTarget.style.borderColor = '#f4f4f5'
                             e.currentTarget.style.color = '#27272a'
                           }}
+                          title={`${table.name} (雙擊或點擊圖示可重新命名)`}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                            <TableIcon size={14} color="#3b82f6" />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
+                            <TableIcon size={14} color="#3b82f6" style={{ flexShrink: 0 }} />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {table.name}
                             </span>
                           </div>
-                          <ChevronRight size={14} color="#a1a1aa" />
-                        </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {onShowRenameModal && (
+                              <button
+                                type="button"
+                                title="重新命名資料表"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onSetRenameType?.('table')
+                                  onSetRenameId?.(table.id)
+                                  onSetRenameNameValue?.(table.name)
+                                  onShowRenameModal?.()
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  padding: '4px',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  color: '#94a3b8',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.color = '#2563eb')}
+                                onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
+                              >
+                                <Pencil size={13} />
+                              </button>
+                            )}
+                            <ChevronRight size={14} color="#a1a1aa" style={{ flexShrink: 0 }} />
+                          </div>
+                        </div>
                       ))
                     ) : (
                       <div style={{

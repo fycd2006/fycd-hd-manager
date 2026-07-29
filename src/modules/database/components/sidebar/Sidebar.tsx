@@ -758,7 +758,8 @@ export default function Sidebar({
                                 <li>
                                   <div
                                     className="sidebar-hover-item"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       closeMenu()
                                       onSetRenameType('database')
                                       onSetRenameId(db.id)
@@ -774,7 +775,8 @@ export default function Sidebar({
                                 <li>
                                   <div
                                     className="sidebar-hover-item"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       closeMenu()
                                       onDeleteWorkspaceOrDb('delete_database', db.id, db.name)
                                     }}
@@ -811,7 +813,8 @@ export default function Sidebar({
                                     cursor: 'pointer'
                                   }}
                                   onClick={() => onSetActiveTableId(table.id)}
-                                  onDoubleClick={() => {
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation()
                                     if (canManageStructure) {
                                       onSetRenameType('table')
                                       onSetRenameId(table.id)
@@ -858,7 +861,8 @@ export default function Sidebar({
                                         <li>
                                           <div
                                             className="sidebar-hover-item"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                              e.stopPropagation()
                                               closeMenu()
                                               onSetRenameType('table')
                                               onSetRenameId(table.id)
@@ -875,7 +879,8 @@ export default function Sidebar({
                                           <li>
                                             <div
                                               className="sidebar-hover-item"
-                                              onClick={() => {
+                                              onClick={(e) => {
+                                                e.stopPropagation()
                                                 closeMenu()
                                                 onDeleteTable(table.id, table.name)
                                               }}

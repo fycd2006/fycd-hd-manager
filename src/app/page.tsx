@@ -1293,6 +1293,34 @@ export default function Home() {
                 setModalDbIdForTable(dbId)
                 setShowTableModal(true)
               }}
+              onSetRenameType={setRenameType}
+              onSetRenameId={setRenameId}
+              onSetRenameNameValue={setRenameNameValue}
+              onShowRenameModal={() => setShowRenameModal(true)}
+              onDeleteWorkspaceOrDb={(action, id, label) => {
+                if (confirm(`確定要刪除「${label}」？`)) {
+                  wsActions.deleteWorkspaceOrDb(action, id)
+                }
+              }}
+              onDeleteTable={async (tableId, tableName) => {
+                if (confirm(`確定要刪除資料表「${tableName}」？`)) {
+                  try {
+                    const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
+                    if (res.ok) {
+                      uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
+                      if (wsState.activeTableId === tableId) {
+                        wsActions.setActiveTableId(0)
+                      }
+                      await wsActions.fetchWorkspaces()
+                    } else {
+                      uiActions.addToast('刪除資料表失敗', 'error')
+                    }
+                  } catch (err) {
+                    console.error('Failed to delete table', err)
+                    uiActions.addToast('刪除資料表失敗', 'error')
+                  }
+                }
+              }}
             />
           ) : (
             <>
