@@ -62,7 +62,7 @@ class Tokenizer {
           str += this.input[this.pos]
           this.pos++
         }
-        this.pos++ // consume closing quote
+        if (this.pos < this.input.length) this.pos++ // consume closing quote
         tokens.push({ type: 'STRING', value: str })
         continue
       }

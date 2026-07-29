@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSessionUser, SessionUser } from '@/lib/auth'
 import { getRolePermissions, RolePermissions } from '@/lib/permissions'
+import { getCache, setCache } from '@/lib/redis'
 
 export interface AuthorizationResult {
   user: SessionUser
@@ -58,27 +59,34 @@ export async function authorizeAction(
     }
   }
 
-  // Fetch user role in workspace
-  const workspaceUser = await prisma.workspaceUser.findUnique({
-    where: {
-      workspaceId_userId: {
-        workspaceId: resolvedWorkspaceId,
-        userId: user.id
+  // Fetch user role in workspace with Redis cache
+  const cacheKey = `ws_role:${resolvedWorkspaceId}:${user.id}`
+  let roleStr = await getCache<string>(cacheKey)
+
+  if (!roleStr) {
+    const workspaceUser = await prisma.workspaceUser.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: resolvedWorkspaceId,
+          userId: user.id
+        }
+      }
+    })
+
+    if (!workspaceUser && user.role !== 'admin') {
+      return {
+        errorResponse: NextResponse.json(
+          { error: '權限不足：您未加入此工作區，無法存取或執行操作' },
+          { status: 403 }
+        )
       }
     }
-  })
 
-  if (!workspaceUser && user.role !== 'admin') {
-    return {
-      errorResponse: NextResponse.json(
-        { error: '權限不足：您未加入此工作區，無法存取或執行操作' },
-        { status: 403 }
-      )
-    }
+    roleStr = workspaceUser?.role || (user.role === 'admin' ? 'admin' : 'viewer')
+    await setCache(cacheKey, roleStr, 60)
   }
 
-  // System admin defaults to 'admin' role if no explicit WorkspaceUser record exists
-  const role = workspaceUser?.role || (user.role === 'admin' ? 'admin' : 'viewer')
+  const role = roleStr!
   const permissions = getRolePermissions(role)
 
   const hasPermission = Boolean(permissions[options.action])
@@ -100,3 +108,14 @@ export async function authorizeAction(
     }
   }
 }
+
+/**
+ * Invalidates the cached workspace role for a specific user.
+ * Call this when a user's role is updated or user is removed from a workspace.
+ */
+export async function invalidateWorkspaceRoleCache(workspaceId: number, userId: number): Promise<void> {
+  const { delCache } = await import('@/lib/redis')
+  const cacheKey = `ws_role:${workspaceId}:${userId}`
+  await delCache(cacheKey)
+}
+

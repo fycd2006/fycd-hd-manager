@@ -209,17 +209,14 @@ export default function Home() {
     }
   }, [])
 
-  // Initialize authentication using new store
+  // Initialize authentication and automatically load workspaces on page mount
   useEffect(() => {
-    authActions.checkAuth()
-  }, [authActions])
-
-  // Load workspaces when authenticated using new store
-  useEffect(() => {
-    if (authState.currentUser) {
-      wsActions.fetchWorkspaces()
-    }
-  }, [authState.currentUser, wsActions])
+    authActions.checkAuth().then((authenticated) => {
+      if (authenticated) {
+        wsActions.fetchWorkspaces()
+      }
+    })
+  }, [])
 
   // Undo / Redo Hook
   const updateCellRef = useRef<(rowId: number, fieldKey: string, value: CellValue, skipPushHistory?: boolean) => Promise<void>>(async () => { })

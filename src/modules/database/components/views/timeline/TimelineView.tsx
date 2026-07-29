@@ -35,10 +35,13 @@ export default function TimelineView({
   onUpdateCell,
   onAddRow
 }: TimelineViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 3, 1)) // Default to April 2025 as in screenshot
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 3, 1))
+  const [startFieldId, setStartFieldId] = useState<number | null>(null)
+  const [endFieldId, setEndFieldId] = useState<number | null>(null)
+  const [timescale, setTimescale] = useState<'days' | 'weeks' | 'months'>('days')
+
   const dateField = fields.find(f => f.type === 'date')
   const firstTextField = fields.find(f => f.type === 'text')
-  
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Navigate months
@@ -107,11 +110,6 @@ export default function TimelineView({
     { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.4)', text: 'var(--warning)' }, // Yellow
     { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.4)', text: 'var(--danger)' }, // Red
   ]
-
-  const [startFieldId, setStartFieldId] = useState<number | null>(dateField.id)
-  const [endFieldId, setEndFieldId] = useState<number | null>(null)
-  const [timescale, setTimescale] = useState<'days' | 'weeks' | 'months'>('days')
-
   const dateFields = fields.filter(f => f.type === 'date')
   const startField = fields.find(f => f.id === startFieldId) || dateField
   const endField = fields.find(f => f.id === endFieldId)

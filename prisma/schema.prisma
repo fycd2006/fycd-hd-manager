@@ -68,7 +68,7 @@ model TableField {
   createdAt DateTime      @default(now())
   deletedAt DateTime?
 
-  @@index([tableId])
+  @@index([tableId, deletedAt])
 }
 
 model TableRow {
@@ -82,7 +82,7 @@ model TableRow {
   updatedAt DateTime      @updatedAt
   deletedAt DateTime?
 
-  @@index([tableId])
+  @@index([tableId, deletedAt])
 }
 
 model TableView {

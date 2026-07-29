@@ -491,6 +491,9 @@ export async function POST(
           order: (maxOrder._max.order ?? 0) + 1,
         },
       })
+    }, {
+      maxWait: 5000,
+      timeout: 10000
     })
 
     return NextResponse.json({ ...row, data: JSON.parse(row.data || '{}') }, { status: 201 })
@@ -538,11 +541,30 @@ export async function PATCH(
     const validFieldKeys = new Set(fields.map(f => `field_${f.id}`))
     const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k) && validFieldKeys.has(k))
     if (entries.length > 0) {
-      const setPairs = entries.map(([k]) => `'$.${k}', CAST(? AS JSON)`).join(', ')
-      const queryParams = entries.map(([, val]) => JSON.stringify(val ?? null))
-
-      const sqlQuery = `UPDATE TableRow SET data = JSON_SET(COALESCE(NULLIF(data, ''), '{}'), ${setPairs}), updatedAt = NOW() WHERE id = ? AND tableId = ? AND deletedAt IS NULL`
-      await prisma.$executeRawUnsafe(sqlQuery, ...queryParams, rid, tid)
+      const currentRow = await prisma.tableRow.findFirst({
+        where: { id: rid, tableId: tid, deletedAt: null },
+        select: { data: true }
+      })
+      if (currentRow) {
+        let currentData: Record<string, any> = {}
+        if (currentRow.data) {
+          try {
+            currentData = typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data
+          } catch {
+            currentData = {}
+          }
+        }
+        entries.forEach(([k, val]) => {
+          currentData[k] = val ?? null
+        })
+        await prisma.tableRow.update({
+          where: { id: rid },
+          data: {
+            data: JSON.stringify(currentData),
+            updatedAt: new Date()
+          }
+        })
+      }
     }
 
     // Task 3: Single-Level Cascade Recomputation (300 Rows Threshold)
@@ -621,8 +643,23 @@ async function cascadeRecomputeSingleLevel(updatedTableId: number, updatedRowId:
     return
   }
 
-  for (const depRow of affectedRows) {
-    const depFields = await prisma.tableField.findMany({ where: { tableId: depRow.tableId, deletedAt: null } })
+  // Pre-fetch all fields for affected dependent tables in a single query (fixes N+1 DB query)
+  const allDepFields = await prisma.tableField.findMany({
+    where: {
+      tableId: { in: Array.from(new Set(affectedRows.map(r => r.tableId))) },
+      deletedAt: null,
+    }
+  })
+
+  const fieldsByTableId = new Map<number, typeof allDepFields>()
+  allDepFields.forEach(f => {
+    const list = fieldsByTableId.get(f.tableId) || []
+    list.push(f)
+    fieldsByTableId.set(f.tableId, list)
+  })
+
+  const updateOperations = affectedRows.map(depRow => {
+    const depFields = fieldsByTableId.get(depRow.tableId) || []
     const depData = { ...depRow.data }
     
     const formulaMap: Record<string, string> = {}
@@ -647,10 +684,15 @@ async function cascadeRecomputeSingleLevel(updatedTableId: number, updatedRowId:
       }
     })
 
-    await prisma.tableRow.update({
+    return prisma.tableRow.update({
       where: { id: depRow.id },
       data: { data: JSON.stringify(depData) }
     })
+  })
+
+  // Execute all updates in a single batch transaction
+  if (updateOperations.length > 0) {
+    await prisma.$transaction(updateOperations)
   }
 }
 
@@ -701,14 +743,18 @@ export async function PUT(
       return NextResponse.json({ error: '無效的排序資料' }, { status: 400 })
     }
 
-    await prisma.$transaction(
-      rowOrders.map((rowId: number, index: number) =>
-        prisma.tableRow.update({
+    await prisma.$transaction(async (tx) => {
+      for (let index = 0; index < rowOrders.length; index++) {
+        const rowId = rowOrders[index]
+        await tx.tableRow.update({
           where: { id: rowId, tableId: tid },
           data: { order: index },
         })
-      )
-    )
+      }
+    }, {
+      maxWait: 5000,
+      timeout: 10000
+    })
 
     return NextResponse.json({ message: '資料列順序已儲存' })
   } catch (error: any) {

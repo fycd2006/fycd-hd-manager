@@ -3,10 +3,19 @@ import prisma from '@/lib/prisma'
 
 export async function GET(request: Request) {
   try {
-    // Basic auth check for Vercel Cron Header
+    // Basic auth check for Vercel Cron Header & Timestamp Replay Protection
     const authHeader = request.headers.get('authorization')
+    const timestamp = request.headers.get('x-cron-timestamp')
+
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized cron execution' }, { status: 401 })
+    }
+
+    if (timestamp) {
+      const timeNum = Number(timestamp)
+      if (isNaN(timeNum) || Math.abs(Date.now() - timeNum) > 300000) {
+        return NextResponse.json({ error: 'Invalid or expired cron timestamp' }, { status: 401 })
+      }
     }
 
     const RETENTION_DAYS = 30

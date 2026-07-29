@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
+import { invalidateWorkspaceRoleCache } from '@/lib/authorize'
 
 // GET /api/notifications - Fetch active user notifications
 export async function GET() {
@@ -64,6 +65,8 @@ export async function POST(request: Request) {
             role: role || 'member'
           }
         })
+
+        await invalidateWorkspaceRoleCache(parseInt(workspaceId), activeUser.id)
 
         // Delete workspace invitation record if exists
         if (inviteId) {

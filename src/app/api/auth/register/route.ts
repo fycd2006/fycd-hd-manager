@@ -1,23 +1,28 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import crypto from 'crypto'
+import * as argon2 from 'argon2'
 import { cookies } from 'next/headers'
+import { createSessionToken } from '@/lib/auth'
+import { RegisterSchema } from '@/lib/schemas/auth'
+import { applyRateLimit } from '@/lib/rate-limiter'
 
 export async function POST(request: Request) {
   try {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1'
+    const rateLimitError = await applyRateLimit(`register:${ip}`, 5, 60)
+    if (rateLimitError) return rateLimitError
+
     const body = await request.json()
-    const { username, email, password } = body
+    const parseResult = RegisterSchema.safeParse(body)
 
-    if (!username || !email || !password) {
-      return NextResponse.json({ error: '所有欄位均為必填' }, { status: 400 })
+    if (!parseResult.success) {
+      const firstError = parseResult.error.issues[0]?.message || '輸入資料無效'
+      return NextResponse.json({ error: firstError }, { status: 400 })
     }
 
-    const normalizedUsername = username.trim()
-    const normalizedEmail = email.trim().toLowerCase()
-
-    if (password.length < 6) {
-      return NextResponse.json({ error: '密碼長度至少需要 6 個字元' }, { status: 400 })
-    }
+    const { username, email, password } = parseResult.data
+    const normalizedUsername = username
+    const normalizedEmail = email.toLowerCase()
 
     // 1. Check if user already exists
     const existing = await prisma.user.findFirst({
@@ -32,8 +37,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '帳號或電子郵件已被註冊' }, { status: 400 })
     }
 
-    // 2. Hash password with SHA-256
-    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex')
+    // 2. Hash password with Argon2
+    const hashedPassword = await argon2.hash(password)
 
     // 3. Determine system role
     const totalUsers = await prisma.user.count()
@@ -55,20 +60,22 @@ export async function POST(request: Request) {
     })
 
     if (pendingInvitations.length > 0) {
-      // Auto-accept all pending invitations for this email
-      for (const invite of pendingInvitations) {
-        await prisma.workspaceUser.create({
-          data: {
-            workspaceId: invite.workspaceId,
-            userId: newUser.id,
-            role: invite.role,
-            twoFactor: false
-          }
-        })
-        await prisma.workspaceInvitation.delete({
-          where: { id: invite.id }
-        })
-      }
+      // Auto-accept all pending invitations for this email in an atomic transaction
+      await prisma.$transaction(async (tx) => {
+        for (const invite of pendingInvitations) {
+          await tx.workspaceUser.create({
+            data: {
+              workspaceId: invite.workspaceId,
+              userId: newUser.id,
+              role: invite.role,
+              twoFactor: false
+            }
+          })
+          await tx.workspaceInvitation.delete({
+            where: { id: invite.id }
+          })
+        }
+      })
     } else {
       // Auto-create a default personal workspace with a default table for the user
       let newWorkspace
@@ -125,7 +132,7 @@ export async function POST(request: Request) {
       email: newUser.email,
       role: newUser.role
     }
-    const sessionToken = Buffer.from(JSON.stringify(userPayload)).toString('base64')
+    const sessionToken = createSessionToken(userPayload)
 
     const cookieStore = await cookies()
     cookieStore.set('session', sessionToken, {

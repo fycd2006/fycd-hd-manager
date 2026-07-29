@@ -25,6 +25,7 @@ Configure these in `.env.local` and in Vercel project settings:
 ```env
 DATABASE_URL="your_tidb_connection_string"
 REDIS_URL="your_redis_connection_string"
+SESSION_SECRET="your-super-secret-key-at-least-32-chars-long"
 NEXT_PUBLIC_APP_NAME="Baserow"
 ```
 

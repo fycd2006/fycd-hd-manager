@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "tmp_baserow_ref/**",
+    ".baserow_src/**",
   ]),
 ]);
 
