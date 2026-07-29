@@ -3,16 +3,17 @@
 import React, { useState, useRef } from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { LangSwitcherDropdown } from './LangSwitcherDropdown'
-import { ChevronDown } from 'lucide-react'
+import { Globe, ChevronDown } from 'lucide-react'
 
 interface LangPickerProps {
   align?: 'left' | 'right'
-  showIcon?: boolean
+  variant?: 'toolbar' | 'dashboard' | 'subtle'
   className?: string
 }
 
 export const LangPicker: React.FC<LangPickerProps> = ({
   align = 'left',
+  variant = 'dashboard',
   className = ''
 }) => {
   const { locale, locales } = useI18n()
@@ -22,7 +23,6 @@ export const LangPicker: React.FC<LangPickerProps> = ({
 
   const currentLocaleObj = locales.find((l) => l.code === locale)
   const visibleLanguageName = currentLocaleObj?.name || '繁體中文'
-  const flag = locale === 'zh-TW' ? '🇹🇼' : '🇺🇸'
 
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -33,25 +33,89 @@ export const LangPicker: React.FC<LangPickerProps> = ({
     setIsOpen((prev) => !prev)
   }
 
+  // Toolbar Variant (matches ViewToolbar header button system)
+  if (variant === 'toolbar') {
+    return (
+      <div className={`relative inline-block ${className}`}>
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className={`header__filter-link ${isOpen ? 'active' : ''}`}
+          style={{
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: isOpen ? '#eff6ff' : 'transparent',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '5px 10px',
+            fontSize: '13px',
+            color: isOpen ? '#2563eb' : '#475569',
+            fontWeight: isOpen ? 600 : 500,
+            whiteSpace: 'nowrap',
+            transition: 'all 0.15s ease'
+          }}
+          title="介面語言 / Language"
+        >
+          <Globe size={15} color={isOpen ? '#2563eb' : '#64748b'} className="header__filter-icon" />
+          <span style={{ color: isOpen ? '#2563eb' : '#475569' }}>{visibleLanguageName}</span>
+          <ChevronDown size={14} color="#64748b" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+        </button>
+
+        <LangSwitcherDropdown
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          align={align}
+          anchorRect={anchorRect}
+        />
+      </div>
+    )
+  }
+
+  // Dashboard / Default Variant (matches WorkspaceDashboard action buttons)
   return (
-    <div className={`inline-block ${className}`}>
+    <div className={`relative inline-block ${className}`}>
       <button
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className={`group inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-full border transition-all duration-200 shadow-xs hover:shadow-md active:scale-95 cursor-pointer whitespace-nowrap flex-shrink-0 ${
-          isOpen
-            ? 'bg-blue-50/90 text-blue-600 border-blue-200 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800'
-            : 'bg-white/90 backdrop-blur-md text-slate-700 border-slate-200/80 hover:bg-slate-50 hover:text-slate-900 dark:bg-slate-900/90 dark:text-slate-200 dark:border-slate-800 dark:hover:bg-slate-800/80'
-        }`}
+        style={{
+          height: '40px',
+          padding: '0 14px',
+          borderRadius: '8px',
+          backgroundColor: isOpen ? '#f4f4f5' : '#ffffff',
+          color: isOpen ? '#09090b' : '#27272a',
+          border: '1px solid #e4e4e7',
+          fontSize: '13px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          transition: 'all 0.15s ease',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          whiteSpace: 'nowrap'
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen) {
+            e.currentTarget.style.backgroundColor = '#f4f4f5'
+            e.currentTarget.style.borderColor = '#d4d4d8'
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen) {
+            e.currentTarget.style.backgroundColor = '#ffffff'
+            e.currentTarget.style.borderColor = '#e4e4e7'
+          }
+        }}
         aria-expanded={isOpen}
         title="切換語言 / Select Language"
       >
-        <span className="text-sm leading-none flex-shrink-0 select-none group-hover:scale-110 transition-transform">
-          {flag}
-        </span>
-        <span className="tracking-tight font-medium whitespace-nowrap">{visibleLanguageName}</span>
-        <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 opacity-60 transition-transform duration-300 ${isOpen ? 'rotate-180 opacity-100 text-blue-600 dark:text-blue-400' : ''}`} />
+        <Globe size={15} color="#52525b" />
+        <span>{visibleLanguageName}</span>
+        <ChevronDown size={14} color="#71717a" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
       </button>
 
       <LangSwitcherDropdown

@@ -524,7 +524,7 @@ export function ViewToolbar({
         </li>
 
         <li className="header__filter-item" style={{ position: 'relative', marginLeft: '4px', display: 'flex', alignItems: 'center' }}>
-          <LangPicker align="right" />
+          <LangPicker align="right" variant="toolbar" />
         </li>
 
         <input

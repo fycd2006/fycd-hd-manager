@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from 'react'
 import type { User, Workspace } from '@/modules/database/types'
-import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import {
   ChevronsUpDown,
   Plus,
@@ -931,7 +930,6 @@ export default function Sidebar({
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                <LangPicker align="left" />
                 <button
                   onClick={onToggleTheme}
                   title={theme === 'dark' ? '切換為明亮模式' : '切換為深色模式'}

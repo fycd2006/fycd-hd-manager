@@ -12,11 +12,6 @@ interface LangSwitcherDropdownProps {
   anchorRect: DOMRect | null
 }
 
-const LOCALE_METADATA: Record<string, { flag: string; nativeName: string; region: string }> = {
-  'zh-TW': { flag: '🇹🇼', nativeName: '繁體中文', region: 'Taiwan (ROC)' },
-  'en': { flag: '🇺🇸', nativeName: 'English (US)', region: 'United States' }
-}
-
 export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
   isOpen,
   onClose,
@@ -60,11 +55,11 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
 
   if (!isOpen || !anchorRect) return null
 
-  // Calculate top-layer fixed positioning
+  // Calculate top-layer fixed position
   const topPos = anchorRect.bottom + 6
-  let leftPos = align === 'right' ? anchorRect.right - 230 : anchorRect.left
+  let leftPos = align === 'right' ? anchorRect.right - 200 : anchorRect.left
   if (typeof window !== 'undefined') {
-    leftPos = Math.max(12, Math.min(leftPos, window.innerWidth - 240))
+    leftPos = Math.max(12, Math.min(leftPos, window.innerWidth - 210))
   }
 
   const menuContent = (
@@ -74,31 +69,26 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
         top: `${topPos}px`,
         left: `${leftPos}px`,
         zIndex: 99999999,
-        width: '230px',
-        minWidth: '220px',
+        backgroundColor: '#ffffff',
+        borderRadius: '12px',
+        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
+        border: '1px solid #e2e8f0',
+        padding: '6px',
+        minWidth: '200px',
         boxSizing: 'border-box'
       }}
       ref={dropdownRef}
-      className="rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/90 dark:border-slate-800 shadow-2xl p-1.5 animate-in fade-in-50 zoom-in-95 duration-150"
       role="menu"
       aria-label="Language selection menu"
     >
-      {/* Sleek Header */}
-      <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center justify-between gap-2 whitespace-nowrap">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider whitespace-nowrap">
-          <Globe className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-          <span className="whitespace-nowrap">語言偏好 / Language</span>
-        </div>
-        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">
-          {locales.length} 個語言
-        </span>
+      <div style={{ padding: '6px 10px 4px 10px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Globe size={13} color="#2563eb" />
+        <span>介面語言 (Language)</span>
       </div>
 
-      {/* Language Options List */}
-      <div className="space-y-1">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
         {locales.map((loc) => {
           const isSelected = loc.code === locale
-          const meta = LOCALE_METADATA[loc.code] || { flag: '🌐', nativeName: loc.name, region: '' }
           return (
             <button
               key={loc.code}
@@ -108,31 +98,31 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
                 await setLocale(loc.code as LocaleCode)
                 onClose()
               }}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-xs flex items-center justify-between transition-all duration-150 group cursor-pointer ${
-                isSelected
-                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold shadow-xs'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/80'
-              }`}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: isSelected ? 600 : 400,
+                color: isSelected ? '#2563eb' : '#0f172a',
+                backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'background-color 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc'
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'
+              }}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="text-base select-none group-hover:scale-110 transition-transform flex-shrink-0">
-                  {meta.flag}
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-semibold text-xs text-slate-800 dark:text-slate-100 whitespace-nowrap">
-                    {loc.name}
-                  </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal whitespace-nowrap">
-                    {meta.region}
-                  </span>
-                </div>
-              </div>
-
-              {isSelected && (
-                <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs flex-shrink-0 ml-2">
-                  <Check className="w-3 h-3 stroke-[3]" />
-                </div>
-              )}
+              <span>{loc.name}</span>
+              {isSelected && <Check size={16} color="#2563eb" style={{ flexShrink: 0 }} />}
             </button>
           )
         })}
