@@ -9,6 +9,7 @@ import { AirtableImportModal } from '@/modules/database/components/import/Airtab
 import { FilterMenu } from './menu/FilterMenu'
 import { SortMenu } from './menu/SortMenu'
 import { ColorMenu } from './menu/ColorMenu'
+import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 
 
 interface ViewToolbarProps {
@@ -520,6 +521,10 @@ export function ViewToolbar({
               </span>
             )}
           </div>
+        </li>
+
+        <li className="header__filter-item" style={{ position: 'relative', marginLeft: '4px', display: 'flex', alignItems: 'center' }}>
+          <LangPicker align="right" />
         </li>
 
         <input
