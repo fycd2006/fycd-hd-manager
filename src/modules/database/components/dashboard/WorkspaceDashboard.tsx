@@ -147,8 +147,8 @@ export default function WorkspaceDashboard({
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <LangPicker align="right" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+            <LangPicker align="right" variant="dashboard" />
             {onShowMembersModal && (
               <button
                 onClick={onShowMembersModal}
@@ -166,7 +166,9 @@ export default function WorkspaceDashboard({
                   alignItems: 'center',
                   gap: '8px',
                   transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#f4f4f5'
@@ -184,7 +186,7 @@ export default function WorkspaceDashboard({
             {activeWorkspace && onShowDatabaseModal && (
               <button
                 onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-                className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-indigo-500/25 flex items-center gap-2 cursor-pointer border-none"
+                className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-indigo-500/25 flex items-center gap-2 cursor-pointer border-none whitespace-nowrap flex-shrink-0"
               >
                 <Plus className="w-4 h-4" />
                 <span>新增資料庫</span>
@@ -193,13 +195,13 @@ export default function WorkspaceDashboard({
           </div>
         </div>
 
-        {/* Minimalist Linear-Style Data Metrics */}
+        {/* Minimalist Linear-Style Data Metrics (2 Balanced Metric Cards) */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '16px'
         }}>
-          {/* Metric 1 */}
+          {/* Metric 1: Database Count */}
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '12px',
@@ -211,20 +213,20 @@ export default function WorkspaceDashboard({
             boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
           }}>
             <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 DATABASE COUNT
               </div>
               <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em' }}>
                 {databases.length}
-                <span style={{ fontSize: '13px', fontWeight: 500, color: '#a1a1aa', marginLeft: '6px' }}>個</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>個資料庫</span>
               </div>
             </div>
             <div style={{
-              width: '42px',
-              height: '42px',
+              width: '44px',
+              height: '44px',
               borderRadius: '10px',
-              backgroundColor: '#f4f4f5',
-              color: '#18181b',
+              backgroundColor: '#eff6ff',
+              color: '#2563eb',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -233,7 +235,7 @@ export default function WorkspaceDashboard({
             </div>
           </div>
 
-          {/* Metric 2 */}
+          {/* Metric 2: Total Tables */}
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '12px',
@@ -245,58 +247,25 @@ export default function WorkspaceDashboard({
             boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
           }}>
             <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 TOTAL TABLES
               </div>
               <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em' }}>
                 {totalTablesCount}
-                <span style={{ fontSize: '13px', fontWeight: 500, color: '#a1a1aa', marginLeft: '6px' }}>張</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>張資料表</span>
               </div>
             </div>
             <div style={{
-              width: '42px',
-              height: '42px',
+              width: '44px',
+              height: '44px',
               borderRadius: '10px',
-              backgroundColor: '#eff6ff',
-              color: '#2563eb',
+              backgroundColor: '#f5f3ff',
+              color: '#7c3aed',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
               <TableIcon size={20} />
-            </div>
-          </div>
-
-          {/* Metric 3 */}
-          <div style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '12px',
-            border: '1px solid #e4e4e7',
-            padding: '20px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-          }}>
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                SYSTEM STATUS
-              </div>
-              <div style={{ fontSize: '15px', fontWeight: 700, color: '#10b981', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Zap size={15} color="#10b981" /> 運作正常 (100% 正常)
-              </div>
-            </div>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '10px',
-              backgroundColor: '#ecfdf5',
-              color: '#10b981',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Activity size={20} />
             </div>
           </div>
         </div>
@@ -440,7 +409,7 @@ export default function WorkspaceDashboard({
                 >
                   {/* Database Card Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                       <div style={{
                         width: '36px',
                         height: '36px',
@@ -454,14 +423,13 @@ export default function WorkspaceDashboard({
                       }}>
                         <DatabaseIcon size={18} />
                       </div>
-                      <div style={{ minWidth: 0 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{
                           fontSize: '15px',
                           fontWeight: 700,
                           color: '#09090b',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          lineHeight: 1.3,
+                          wordBreak: 'break-word'
                         }}>
                           {db.name}
                         </div>
