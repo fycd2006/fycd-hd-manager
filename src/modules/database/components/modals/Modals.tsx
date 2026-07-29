@@ -220,16 +220,31 @@ export function RenameModal({ show, type, initialValue, onClose, onSubmit }: Ren
 
   return (
     <Modal show={show} onClose={onClose} title={getTitle()} size="small">
-      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
-        <div className="w-full flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
             新名稱
           </label>
-          <div className="relative flex items-center">
-            <Edit3 className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: '#94a3b8', zIndex: 2 }}>
+              <Edit3 size={16} />
+            </div>
             <input
               type="text"
-              className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 shadow-sm transition-all"
+              style={{
+                width: '100%',
+                height: '44px',
+                paddingLeft: '42px',
+                paddingRight: '14px',
+                fontSize: '14px',
+                borderRadius: '12px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: '#f8fafc',
+                color: '#0f172a',
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'all 0.15s ease'
+              }}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="請輸入新名稱..."
@@ -237,11 +252,11 @@ export function RenameModal({ show, type, initialValue, onClose, onSubmit }: Ren
             />
           </div>
         </div>
-        <div className="flex items-center justify-between pt-2">
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400">
-            按 <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded border border-slate-200 dark:border-slate-700">↵ Enter</kbd> 儲存
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingTop: '12px', boxSizing: 'border-box' }}>
+          <div className="hidden sm:flex" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+            按 <kbd style={{ padding: '2px 6px', fontSize: '11px', fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #cbd5e1' }}>↵ Enter</kbd> 儲存
           </div>
-          <div className="flex items-center justify-end gap-2.5 ml-auto">
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
             <Button type="secondary" size="regular" onClick={onClose}>
               取消
             </Button>
@@ -286,17 +301,32 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
   }
 
   return (
-    <Modal show={show} onClose={onClose} title="新增視圖" size="small">
-      <form onSubmit={handleSubmit} className="w-full flex flex-col gap-5">
-        <div className="w-full flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+    <Modal show={show} onClose={onClose} title="新增視圖" size="medium">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
             視圖名稱
           </label>
-          <div className="relative flex items-center">
-            <LayoutGrid className="absolute left-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: '#94a3b8', zIndex: 2 }}>
+              <LayoutGrid size={16} />
+            </div>
             <input
               type="text"
-              className="w-full pl-10 pr-3.5 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 shadow-sm transition-all"
+              style={{
+                width: '100%',
+                height: '44px',
+                paddingLeft: '42px',
+                paddingRight: '14px',
+                fontSize: '14px',
+                borderRadius: '12px',
+                border: '1px solid #cbd5e1',
+                backgroundColor: '#f8fafc',
+                color: '#0f172a',
+                outline: 'none',
+                boxSizing: 'border-box',
+                transition: 'all 0.15s ease'
+              }}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="例如：總覽視圖、進行中看板..."
@@ -305,11 +335,11 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
           </div>
         </div>
         
-        <div className="w-full flex flex-col gap-2">
-          <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
             視圖類型
           </label>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
             {[
               { id: 'grid', label: '表格 (Grid)', icon: LayoutGrid },
               { id: 'kanban', label: '看板 (Kanban)', icon: Kanban },
@@ -325,25 +355,37 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
                   type="button"
                   key={v.id}
                   onClick={() => setType(v.id as any)}
-                  className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left cursor-pointer active:scale-[0.98] ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold shadow-sm ring-1 ring-blue-500/30'
-                      : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
-                  }`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    border: isSelected ? '1.5px solid #3b82f6' : '1px solid #cbd5e1',
+                    backgroundColor: isSelected ? '#eff6ff' : '#f8fafc',
+                    color: isSelected ? '#1d4ed8' : '#334155',
+                    fontWeight: isSelected ? 600 : 500,
+                    transition: 'all 0.15s ease'
+                  }}
                 >
-                  <Icon className={`w-4 h-4 flex-shrink-0 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                  <span className="text-xs tracking-tight">{v.label}</span>
+                  <Icon size={16} style={{ color: isSelected ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
+                  <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{v.label}</span>
                 </button>
               );
             })}
           </div>
         </div>
         
-        <div className="flex items-center justify-between pt-2">
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-slate-400">
-            按 <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded border border-slate-200 dark:border-slate-700">↵ Enter</kbd> 建立
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingTop: '12px', boxSizing: 'border-box' }}>
+          <div className="hidden sm:flex" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+            按 <kbd style={{ padding: '2px 6px', fontSize: '11px', fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #cbd5e1' }}>↵ Enter</kbd> 建立
           </div>
-          <div className="flex items-center justify-end gap-2.5 ml-auto">
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
             <Button type="secondary" size="regular" onClick={onClose}>
               取消
             </Button>
