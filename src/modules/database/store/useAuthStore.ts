@@ -27,6 +27,7 @@ export interface AuthActions {
   register: (username: string, email: string, password: string) => Promise<{ ok: boolean; error?: string }>
   logout: () => Promise<void>
   checkAuth: () => Promise<boolean>
+  updateProfile: (updates: { username?: string; oldPassword?: string; newPassword?: string }) => Promise<{ ok: boolean; error?: string }>
 }
 
 export const useAuthStore = (): [AuthState, AuthActions] => {
@@ -67,6 +68,14 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
     return result.authenticated
   }, [])
 
+  const updateProfile = useCallback(async (updates: { username?: string; oldPassword?: string; newPassword?: string }) => {
+    const result = await authService.updateProfile(updates)
+    if (result.ok && result.user) {
+      setCurrentUser(result.user)
+    }
+    return { ok: result.ok, error: result.error }
+  }, [])
+
   const state: AuthState = {
     currentUser,
     authMode,
@@ -87,7 +96,8 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
     register,
     logout,
     checkAuth,
-  }), [setCurrentUser, setAuthMode, setAuthUsername, setAuthEmail, setAuthPassword, setAuthLoading, login, register, logout, checkAuth])
+    updateProfile,
+  }), [setCurrentUser, setAuthMode, setAuthUsername, setAuthEmail, setAuthPassword, setAuthLoading, login, register, logout, checkAuth, updateProfile])
 
   return [state, actions]
 }

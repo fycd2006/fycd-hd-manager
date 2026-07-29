@@ -15,6 +15,7 @@ interface UserSettingsModalProps {
   onToggleTheme?: () => void
   onToggleDarkReaderPanel?: () => void
   onLogout?: () => void
+  onUpdateProfile?: (updates: { username?: string; oldPassword?: string; newPassword?: string }) => Promise<{ ok: boolean; error?: string }>
 }
 
 export default function UserSettingsModal({
@@ -24,7 +25,8 @@ export default function UserSettingsModal({
   onToast,
   onToggleTheme,
   onToggleDarkReaderPanel,
-  onLogout
+  onLogout,
+  onUpdateProfile
 }: UserSettingsModalProps) {
   const { t } = useI18n()
   const [username, setUsername] = useState(currentUser?.username || '')
@@ -47,11 +49,24 @@ export default function UserSettingsModal({
 
     setSaving(true)
     try {
-      onToast('個人帳號設定已成功更新！', 'success')
-      setOldPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      onClose()
+      if (onUpdateProfile) {
+        const result = await onUpdateProfile({
+          username: username.trim(),
+          ...(newPassword ? { oldPassword, newPassword } : {})
+        })
+        if (result.ok) {
+          onToast('個人帳號設定已全域成功更新！', 'success')
+          setOldPassword('')
+          setNewPassword('')
+          setConfirmPassword('')
+          onClose()
+        } else {
+          onToast(result.error || '設定更新失敗', 'error')
+        }
+      } else {
+        onToast('個人帳號設定已成功更新！', 'success')
+        onClose()
+      }
     } catch {
       onToast('設定更新失敗', 'error')
     } finally {

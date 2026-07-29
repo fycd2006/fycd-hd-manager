@@ -71,3 +71,23 @@ export const logout = async (): Promise<void> => {
     // Ignore errors during logout
   }
 }
+
+/**
+ * Update User Profile (username, password)
+ */
+export const updateProfile = async (updates: { username?: string; oldPassword?: string; newPassword?: string }): Promise<{ ok: boolean; user?: User; error?: string }> => {
+  try {
+    const res = await fetch('/api/users/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    const data = await res.json()
+    if (res.ok && data.user) {
+      return { ok: true, user: data.user }
+    }
+    return { ok: false, error: data.error || '更新帳號設定失敗' }
+  } catch {
+    return { ok: false, error: '更新帳號設定失敗' }
+  }
+}

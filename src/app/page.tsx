@@ -1483,6 +1483,13 @@ export default function Home() {
           onToggleTheme={themeActions.toggleTheme}
           onToggleDarkReaderPanel={() => themeActions.setShowDarkReaderPanel(!themeState.showDarkReaderPanel)}
           onLogout={authActions.logout}
+          onUpdateProfile={async (updates) => {
+            const res = await authActions.updateProfile(updates)
+            if (res.ok) {
+              await wsActions.fetchWorkspaces()
+            }
+            return res
+          }}
         />
       )}
 
