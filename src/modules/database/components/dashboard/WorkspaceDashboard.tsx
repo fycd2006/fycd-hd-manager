@@ -409,11 +409,11 @@ export default function WorkspaceDashboard({
                 >
                   {/* Database Card Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
                       <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '8px',
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '10px',
                         backgroundColor: '#eff6ff',
                         color: '#2563eb',
                         display: 'flex',
@@ -423,17 +423,22 @@ export default function WorkspaceDashboard({
                       }}>
                         <DatabaseIcon size={18} />
                       </div>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{
-                          fontSize: '15px',
-                          fontWeight: 700,
-                          color: '#09090b',
-                          lineHeight: 1.3,
-                          wordBreak: 'break-word'
-                        }}>
+                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: 700,
+                            color: '#09090b',
+                            lineHeight: 1.3,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={db.name}
+                        >
                           {db.name}
                         </div>
-                        <div style={{ fontSize: '11.5px', color: '#71717a', fontWeight: 500 }}>
+                        <div style={{ fontSize: '11.5px', color: '#71717a', fontWeight: 500, whiteSpace: 'nowrap' }}>
                           {db.tables?.length || 0} 張資料表
                         </div>
                       </div>
@@ -442,7 +447,7 @@ export default function WorkspaceDashboard({
                     {onShowCreateTableModal && (
                       <button
                         onClick={() => onShowCreateTableModal(db.id)}
-                        className="h-7 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700/80 hover:border-blue-200 dark:hover:border-blue-800 text-xs font-semibold transition-all active:scale-[0.98] flex items-center gap-1.5 cursor-pointer flex-shrink-0"
+                        className="h-8 px-3 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-slate-700/80 hover:border-blue-200 dark:hover:border-blue-800 text-xs font-semibold transition-all active:scale-[0.98] flex items-center gap-1.5 cursor-pointer flex-shrink-0 whitespace-nowrap"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>新增資料表</span>
