@@ -1411,15 +1411,50 @@ export function ViewToolbar({
                       border: 'none',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between'
+                      justifyContent: 'space-between',
+                      transition: 'all 0.15s ease'
                     }}
                   >
-                    <span>{view.name}</span>
-                    {isSelected && <Check size={16} color="#ffffff" />}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                      {getViewIcon(view.type || 'grid', { size: 16, color: isSelected ? '#ffffff' : '#64748b', style: { flexShrink: 0 } })}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{view.name}</span>
+                    </div>
+                    {isSelected && <Check size={16} color="#ffffff" style={{ flexShrink: 0 }} />}
                   </button>
                 )
               })}
             </div>
+
+            {canManageStructure && (
+              <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f1f5f9' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowViewContext(false)
+                    setShowNewViewModal(true)
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    backgroundColor: '#eff6ff',
+                    color: '#2563eb',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Plus size={16} color="#2563eb" />
+                  <span>新增視圖</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>,
         document.body
