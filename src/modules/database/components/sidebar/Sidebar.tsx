@@ -753,7 +753,7 @@ export default function Sidebar({
 
                           {/* Database Options Dropdown */}
                           {isDbMenuOpen && (
-                            <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 1000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
+                            <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 100000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
                               <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                                 <li>
                                   <div
@@ -856,7 +856,7 @@ export default function Sidebar({
 
                                   {/* Table Options Dropdown */}
                                   {isTblMenuOpen && (
-                                    <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 1000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
+                                    <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 100000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
                                       <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                                         <li>
                                           <div
