@@ -930,7 +930,7 @@ export default function Sidebar({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                 <LangPicker align="left" />
                 <button
                   onClick={onToggleTheme}

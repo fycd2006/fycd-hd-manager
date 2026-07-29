@@ -8,6 +8,7 @@ import {
   ArrowUpRight, ShieldCheck, Activity, Filter, Command,
   ArrowRight, Clock, Zap
 } from 'lucide-react'
+import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 
 interface WorkspaceDashboardProps {
   currentUser: User
@@ -147,6 +148,7 @@ export default function WorkspaceDashboard({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <LangPicker align="right" />
             {onShowMembersModal && (
               <button
                 onClick={onShowMembersModal}
