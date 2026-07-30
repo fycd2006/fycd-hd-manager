@@ -1,35 +1,33 @@
-import { describe, it } from 'node:test'
-import assert from 'node:assert/strict'
 import { parseFormula, evaluateFormula, extractVariables, detectCircularDependency } from '../formula'
 
 describe('parseFormula & evaluateFormula', () => {
   it('evaluates basic arithmetic expressions', () => {
     const ast = parseFormula('10 + 20 * 2')
     const result = evaluateFormula(ast, {})
-    assert.equal(result, 50)
+    expect(result).toBe(50)
   })
 
   it('handles division by zero gracefully returning 0', () => {
     const ast = parseFormula('100 / 0')
     const result = evaluateFormula(ast, {})
-    assert.equal(result, 0)
+    expect(result).toBe(0)
   })
 
   it('evaluates built-in functions: CONCAT, UPPER, IF', () => {
     const concatAst = parseFormula('CONCAT("Hello", " ", "World")')
-    assert.equal(evaluateFormula(concatAst, {}), 'Hello World')
+    expect(evaluateFormula(concatAst, {})).toBe('Hello World')
 
     const upperAst = parseFormula('UPPER("test")')
-    assert.equal(evaluateFormula(upperAst, {}), 'TEST')
+    expect(evaluateFormula(upperAst, {})).toBe('TEST')
 
     const ifAst = parseFormula('IF(1, "yes", "no")')
-    assert.equal(evaluateFormula(ifAst, {}), 'yes')
+    expect(evaluateFormula(ifAst, {})).toBe('yes')
   })
 
   it('evaluates variables accurately', () => {
     const ast = parseFormula('{field_1} + {field_2}')
     const result = evaluateFormula(ast, { field_1: 15, field_2: 25 })
-    assert.equal(result, 40)
+    expect(result).toBe(40)
   })
 })
 
@@ -37,7 +35,7 @@ describe('extractVariables', () => {
   it('extracts all referenced variables from AST', () => {
     const ast = parseFormula('IF({field_price}, {field_price} * {field_tax_rate}, 0)')
     const vars = extractVariables(ast)
-    assert.deepEqual(vars.sort(), ['field_price', 'field_tax_rate'].sort())
+    expect(vars.sort()).toEqual(['field_price', 'field_tax_rate'].sort())
   })
 })
 
@@ -47,7 +45,7 @@ describe('detectCircularDependency', () => {
       field_1: '{field_2} + 10',
       field_2: '{field_1} * 2'
     }
-    assert.equal(detectCircularDependency('field_1', formulasMap), true)
+    expect(detectCircularDependency('field_1', formulasMap)).toBe(true)
   })
 
   it('returns false for acyclic formula relationships', () => {
@@ -56,6 +54,6 @@ describe('detectCircularDependency', () => {
       field_2: '{field_3} * 2',
       field_3: '100'
     }
-    assert.equal(detectCircularDependency('field_1', formulasMap), false)
+    expect(detectCircularDependency('field_1', formulasMap)).toBe(false)
   })
 })

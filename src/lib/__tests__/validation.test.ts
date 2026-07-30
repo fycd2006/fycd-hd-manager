@@ -1,38 +1,36 @@
-import { describe, it } from 'node:test'
-import assert from 'node:assert/strict'
 import { sanitizeSearchQuery, parsePositiveInt } from '../validation'
 
 describe('sanitizeSearchQuery', () => {
   it('returns empty string for non-string inputs', () => {
-    assert.equal(sanitizeSearchQuery(null), '')
-    assert.equal(sanitizeSearchQuery(undefined), '')
-    assert.equal(sanitizeSearchQuery(123), '')
-    assert.equal(sanitizeSearchQuery({}), '')
+    expect(sanitizeSearchQuery(null)).toBe('')
+    expect(sanitizeSearchQuery(undefined)).toBe('')
+    expect(sanitizeSearchQuery(123)).toBe('')
+    expect(sanitizeSearchQuery({})).toBe('')
   })
 
   it('trims whitespace and enforces maxLength', () => {
-    assert.equal(sanitizeSearchQuery('  hello world  '), 'hello world')
-    assert.equal(sanitizeSearchQuery('abcdefghij', 5), 'abcde')
+    expect(sanitizeSearchQuery('  hello world  ')).toBe('hello world')
+    expect(sanitizeSearchQuery('abcdefghij', 5)).toBe('abcde')
   })
 
   it('strips dangerous HTML characters < > " \'', () => {
-    assert.equal(sanitizeSearchQuery('<script>alert("xss")</script>'), 'scriptalert(xss)/script')
-    assert.equal(sanitizeSearchQuery("SELECT * FROM 'users'"), 'SELECT * FROM users')
+    expect(sanitizeSearchQuery('<script>alert("xss")</script>')).toBe('scriptalert(xss)/script')
+    expect(sanitizeSearchQuery("SELECT * FROM 'users'")).toBe('SELECT * FROM users')
   })
 })
 
 describe('parsePositiveInt', () => {
   it('parses valid positive integer numbers and strings', () => {
-    assert.equal(parsePositiveInt(10), 10)
-    assert.equal(parsePositiveInt('42'), 42)
-    assert.equal(parsePositiveInt(0), 0)
+    expect(parsePositiveInt(10)).toBe(10)
+    expect(parsePositiveInt('42')).toBe(42)
+    expect(parsePositiveInt(0)).toBe(0)
   })
 
   it('returns defaultValue for invalid, negative, or non-integer inputs', () => {
-    assert.equal(parsePositiveInt(-5, 0), 0)
-    assert.equal(parsePositiveInt('abc', 10), 10)
-    assert.equal(parsePositiveInt(3.14, 0), 0)
-    assert.equal(parsePositiveInt(null, 1), 1)
-    assert.equal(parsePositiveInt(undefined, 5), 5)
+    expect(parsePositiveInt(-5, 0)).toBe(0)
+    expect(parsePositiveInt('abc', 10)).toBe(10)
+    expect(parsePositiveInt(3.14, 0)).toBe(0)
+    expect(parsePositiveInt(null, 1)).toBe(1)
+    expect(parsePositiveInt(undefined, 5)).toBe(5)
   })
 })
