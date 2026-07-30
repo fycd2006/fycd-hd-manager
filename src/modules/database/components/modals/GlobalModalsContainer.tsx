@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from './Modals'
 import RowEditModal from './RowEditModal'
 import MembersModal from './MembersModal'
@@ -49,13 +49,14 @@ interface GlobalModalsContainerProps {
   setFilterRules: (rules: FilterRule[]) => void
   hiddenFieldKeys: string[]
   setHiddenFieldKeys: (keys: string[]) => void
-  saveViewConfig: (viewId: number, config: any) => void
+  saveViewConfig: (viewId: number, updates: any) => Promise<void>
   toggleSort: (fieldKey: string) => void
-  setGroupByField: (fieldKey: string) => void
+  setGroupByField: (fieldKey: string | null) => void
   deleteField: (fieldId: number) => Promise<void>
+  onRefreshRows?: () => Promise<void>
 }
 
-export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
+export default function GlobalModalsContainer({
   wsState,
   wsActions,
   uiActions,
@@ -101,33 +102,34 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
   toggleSort,
   setGroupByField,
   deleteField,
-}) => {
+  onRefreshRows
+}: GlobalModalsContainerProps) {
+  const [insertFieldContext, setInsertFieldContext] = useState<{ targetFieldId: number; position: 'left' | 'right' } | null>(null)
+
+  const reloadFields = async () => {
+    if (!wsState.activeTableId) return
+    const refreshed = await fieldService.fetchFields(wsState.activeTableId)
+    setFields(refreshed)
+    if (onRefreshRows) await onRefreshRows()
+  }
+
   return (
     <>
       {/* WorkspaceModal */}
-      {wsState.showWorkspaceModal && (
+      {wsState.showNewWorkspaceModal && (
         <WorkspaceModal
-          show={wsState.showWorkspaceModal}
-          onClose={() => wsActions.setShowWorkspaceModal(false)}
-          onSubmit={async (name: string) => {
-            const res = await wsActions.createWorkspace(name)
-            if (res.ok) {
-              uiActions.addToast(`已成功建立工作區「${name}」`, 'success')
-            } else {
-              uiActions.addToast(res.error || '建立工作區失敗', 'error')
-            }
-          }}
+          show={wsState.showNewWorkspaceModal}
+          onClose={() => wsActions.setShowNewWorkspaceModal(false)}
+          onSubmit={wsActions.handleCreateWorkspace}
         />
       )}
 
       {/* DatabaseModal */}
-      {wsState.showDatabaseModal && (
+      {wsState.showNewDatabaseModal && (
         <DatabaseModal
-          show={wsState.showDatabaseModal}
-          onClose={() => wsActions.setShowDatabaseModal(false)}
-          onSubmit={async (name: string) => {
-            await wsActions.createDatabase(wsState.modalWsId!, name)
-          }}
+          show={wsState.showNewDatabaseModal}
+          onClose={() => wsActions.setShowNewDatabaseModal(false)}
+          onSubmit={wsActions.handleCreateDatabase}
         />
       )}
 
@@ -136,16 +138,7 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
         <TableModal
           show={showTableModal}
           onClose={() => setShowTableModal(false)}
-          onSubmit={async (name: string) => {
-            if (modalDbIdForTable) {
-              const res = await wsActions.createTable(modalDbIdForTable, name)
-              if (res.ok) {
-                uiActions.addToast('資料表建立成功', 'success')
-              } else {
-                uiActions.addToast(res.error || '建立資料表失敗', 'error')
-              }
-            }
-          }}
+          onSubmit={(name) => wsActions.handleCreateTable(name, modalDbIdForTable || undefined)}
         />
       )}
 
@@ -154,11 +147,9 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
         <RenameModal
           show={showRenameModal}
           onClose={() => setShowRenameModal(false)}
-          onSubmit={async (name: string) => {
-            await handleRenameSubmit(name)
-          }}
+          onSubmit={handleRenameSubmit}
           initialValue={renameNameValue}
-          type={renameType as 'workspace' | 'database' | 'table'}
+          type={renameType as any}
         />
       )}
 
@@ -167,10 +158,7 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
         <ViewModal
           show={showNewViewModal}
           onClose={() => setShowNewViewModal(false)}
-          onSubmit={async (name: string, type: 'grid' | 'kanban' | 'gallery' | 'calendar' | 'timeline' | 'form') => {
-            await createView(name, type)
-            setShowNewViewModal(false)
-          }}
+          onSubmit={createView}
         />
       )}
 
@@ -178,57 +166,68 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
       {showNewFieldModal && (
         <FieldModal
           show={showNewFieldModal}
-          editField={editingFieldForModal}
           onClose={() => {
             setShowNewFieldModal(false)
             setEditingFieldForModal(null)
+            setInsertFieldContext(null)
           }}
-          onSubmit={async (name: string, type: string, options?: any) => {
-            if (!wsState.activeTableId) {
-              uiActions.addToast('未選擇資料表', 'error')
-              return
-            }
+          onSubmit={async (name, type, options) => {
+            if (!wsState.activeTableId) return
             if (editingFieldForModal) {
-              await handleUpdateField(editingFieldForModal.id, { name, type, options })
-              setShowNewFieldModal(false)
-              setEditingFieldForModal(null)
-              uiActions.addToast(`欄位 "${name}" 已成功更新`, 'success')
-            } else {
-              const res = await fieldService.createField(wsState.activeTableId, { name, type, options } as any)
-              if (res.ok && res.field) {
-                setFields((prev: TableField[]) => [...prev, res.field!])
-                setShowNewFieldModal(false)
-                uiActions.addToast(`欄位 "${name}" 已成功建立`, 'success')
+              const res = await fieldService.updateField(wsState.activeTableId, editingFieldForModal.id, { name, type, options })
+              if (res.ok) {
+                await reloadFields()
+                uiActions.addToast('更新欄位成功', 'success')
               } else {
-                uiActions.addToast(res.error || '新增欄位失敗', 'error')
+                uiActions.addToast('更新欄位失敗', 'error')
+              }
+            } else {
+              const payload: any = { name, type, options }
+              if (insertFieldContext) {
+                payload.targetFieldId = insertFieldContext.targetFieldId
+                payload.position = insertFieldContext.position
+              }
+              const res = await fieldService.createField(wsState.activeTableId, payload)
+              if (res.ok && res.field) {
+                await reloadFields()
+                uiActions.addToast('新增欄位成功', 'success')
+              } else {
+                uiActions.addToast('新增欄位失敗', 'error')
               }
             }
+            setShowNewFieldModal(false)
+            setEditingFieldForModal(null)
+            setInsertFieldContext(null)
           }}
           tables={wsState.workspaces.flatMap((w: any) => w.databases?.flatMap((d: any) => d.tables || []) || [])}
           fields={fields}
+          editField={editingFieldForModal}
         />
       )}
 
-      {/* RowEditModal */}
+      {/* RowEditModal (Detail View Modal) */}
       {showDetailModal && selectedRow && (
         <RowEditModal
           show={showDetailModal}
-          onClose={() => setShowDetailModal(false)}
           row={selectedRow}
-          rowIndex={displayRows.findIndex(r => r.id === selectedRow.id)}
+          rowIndex={displayRows.findIndex((r) => r.id === selectedRow.id)}
           totalRows={displayRows.length}
           fields={fields}
-          readOnly={!currentUserRolePermissions.canEditData}
-          currentUser={currentUser}
+          onClose={() => {
+            setShowDetailModal(false)
+            setSelectedRow(null)
+          }}
           onUpdateCell={updateCell}
           onNavigatePrevious={() => {
-            const idx = displayRows.findIndex(r => r.id === selectedRow.id)
+            const idx = displayRows.findIndex((r) => r.id === selectedRow.id)
             if (idx > 0) setSelectedRow(displayRows[idx - 1])
           }}
           onNavigateNext={() => {
-            const idx = displayRows.findIndex(r => r.id === selectedRow.id)
-            if (idx >= 0 && idx < displayRows.length - 1) setSelectedRow(displayRows[idx + 1])
+            const idx = displayRows.findIndex((r) => r.id === selectedRow.id)
+            if (idx !== -1 && idx < displayRows.length - 1) setSelectedRow(displayRows[idx + 1])
           }}
+          currentUser={currentUser}
+          readOnly={currentUserRolePermissions ? !(currentUserRolePermissions.canEditData ?? currentUserRolePermissions.canEditRows ?? true) : false}
         />
       )}
 
@@ -298,20 +297,23 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
             uiActions.addToast(`已更新「${field.name}」欄位權限`, 'info')
           }}
           onInsertLeft={(field) => {
+            setInsertFieldContext({ targetFieldId: field.id, position: 'left' })
             setShowNewFieldModal(true)
             uiActions.addToast(`在「${field.name}」左側新增欄位`, 'info')
           }}
           onInsertRight={(field) => {
+            setInsertFieldContext({ targetFieldId: field.id, position: 'right' })
             setShowNewFieldModal(true)
             uiActions.addToast(`在「${field.name}」右側新增欄位`, 'info')
           }}
           onDuplicateField={async (field) => {
             if (!wsState.activeTableId) return
-            const newName = `${field.name} (Copy)`
-            const res = await fieldService.createField(wsState.activeTableId, { name: newName, type: field.type, options: field.options })
+            const res = await fieldService.duplicateField(wsState.activeTableId, field.id)
             if (res.ok && res.field) {
-              setFields((prev: TableField[]) => [...prev, res.field!])
-              uiActions.addToast(`已複製欄位「${field.name}」`, 'success')
+              await reloadFields()
+              uiActions.addToast(`已複製欄位「${field.name}」與欄位內容`, 'success')
+            } else {
+              uiActions.addToast('複製欄位失敗', 'error')
             }
           }}
           onCreateFilter={(field) => {
@@ -355,4 +357,3 @@ export const GlobalModalsContainer: React.FC<GlobalModalsContainerProps> = ({
     </>
   )
 }
-export default GlobalModalsContainer

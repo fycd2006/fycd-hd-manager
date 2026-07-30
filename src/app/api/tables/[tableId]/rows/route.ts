@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { getSessionUser } from '@/lib/auth'
-import { parseFormula, evaluateFormula } from '@/lib/formula'
+import { evaluateFormula } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 
@@ -29,6 +29,7 @@ export async function GET(
     // 1. Fetch fields to identify link_row, lookup, and rollup fields
     const fields = await prisma.tableField.findMany({
       where: { tableId: id, deletedAt: null },
+      orderBy: { order: 'asc' }
     })
 
     const linkRowFields = fields.filter(f => f.type === 'link_row')
@@ -38,11 +39,14 @@ export async function GET(
     const collaboratorFields = fields.filter(f => f.type === 'collaborator')
     const auditFields = fields.filter(f => ['created_on', 'last_modified_on', 'created_by', 'last_modified_by'].includes(f.type))
 
-    // Query all system users for collaborator name mapping
-    const allUsers = await prisma.user.findMany({
-      select: { id: true, username: true }
-    })
-    const userMap = new Map<number, string>(allUsers.map(u => [u.id, u.username]))
+    // Query system users for collaborator name mapping (only if collaborator fields exist)
+    const userMap = new Map<number, string>()
+    if (collaboratorFields.length > 0) {
+      const allUsers = await prisma.user.findMany({
+        select: { id: true, username: true }
+      })
+      allUsers.forEach(u => userMap.set(u.id, u.username))
+    }
 
     // 2. Fetch rows (with server-side DB search across table fields)
     let whereCondition: any = { tableId: id, deletedAt: null }
@@ -67,18 +71,38 @@ export async function GET(
     // Parse JSON data
     let parsed = rows.map(r => ({ ...r, data: JSON.parse(r.data || '{}') }))
 
+    // Helper to safely parse target row IDs from link_row values in any format
+    const parseLinkRowIds = (val: any): number[] => {
+      if (val === null || val === undefined) return []
+      let list: any[] = []
+      if (Array.isArray(val)) {
+        list = val
+      } else if (typeof val === 'string' && val.trim()) {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed)) list = parsed
+          else list = [parsed]
+        } catch {
+          list = val.split(',').map(s => s.trim()).filter(Boolean)
+        }
+      } else {
+        list = [val]
+      }
+      return list.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return Number(item.id)
+        }
+        return Number(item)
+      }).filter(n => !isNaN(n) && n > 0)
+    }
+
     // 3. Collect all target row IDs from link_row fields to query them in bulk
     const targetRowIds = new Set<number>()
     parsed.forEach(row => {
       linkRowFields.forEach(f => {
         const key = `field_${f.id}`
-        const val = row.data[key]
-        if (Array.isArray(val)) {
-          val.forEach(id => {
-            const numId = Number(id)
-            if (!isNaN(numId)) targetRowIds.add(numId)
-          })
-        }
+        const ids = parseLinkRowIds(row.data[key])
+        ids.forEach(id => targetRowIds.add(id))
       })
     })
 
@@ -117,13 +141,8 @@ export async function GET(
     parsed.forEach(row => {
       Object.values(activeRelationFields).forEach(ref => {
         const key = `field_${ref.relationFieldId}`
-        const val = row.data[key]
-        if (Array.isArray(val)) {
-          val.forEach(id => {
-            const numId = Number(id)
-            if (!isNaN(numId)) targetRowIds.add(numId)
-          })
-        }
+        const ids = parseLinkRowIds(row.data[key])
+        ids.forEach(id => targetRowIds.add(id))
       })
     })
 
@@ -160,9 +179,9 @@ export async function GET(
           const primaryKey = targetPrimaryFieldMap.get(tr.tableId)
           let primaryVal = primaryKey ? trData[primaryKey] : null
 
-          // Fallback if primary value is empty
+          // Fallback if primary value is empty: search other text values before falling back to row ID
           if (primaryVal == null || primaryVal === '') {
-            const firstNonEmpty = Object.values(trData).find(v => v != null && v !== '')
+            const firstNonEmpty = Object.values(trData).find(v => v != null && v !== '' && typeof v !== 'object')
             primaryVal = firstNonEmpty ?? `列 ID: ${tr.id}`
           }
 
@@ -181,16 +200,22 @@ export async function GET(
       linkRowFields.forEach(f => {
         const key = `field_${f.id}`
         const val = newData[key]
-        if (Array.isArray(val)) {
-          newData[key] = val
-            .filter(id => targetDisplayMap.has(Number(id)))
-            .map(id => ({
-              id,
-              value: targetDisplayMap.get(Number(id)) || `列 ID: ${id}`
-            }))
-        } else {
-          newData[key] = []
-        }
+        const ids = parseLinkRowIds(val)
+        newData[key] = ids.map(id => {
+          const displayLabel = targetDisplayMap.get(id)
+          let existingLabel = ''
+          if (Array.isArray(val)) {
+            const foundObj = val.find((item: any) => typeof item === 'object' && item !== null && Number(item.id) === id)
+            if (foundObj && foundObj.value && !String(foundObj.value).startsWith('列 ID:')) {
+              existingLabel = String(foundObj.value)
+            }
+          }
+          const finalLabel = (displayLabel && !displayLabel.startsWith('列 ID:')) ? displayLabel : (existingLabel || displayLabel || `列 ID: ${id}`)
+          return {
+            id,
+            value: finalLabel
+          }
+        })
       })
       // C. Populate collaborator display structures
       collaboratorFields.forEach(f => {
@@ -297,8 +322,8 @@ export async function GET(
         }
 
         try {
-          const ast = parseFormula(String(expr))
-          const result = evaluateFormula(ast, newData)
+          const fieldOrder = fields.map(f => f.id)
+          const result = evaluateFormula(String(expr), newData, fieldOrder)
           newData[destKey] = result != null ? String(result) : ''
         } catch (e) {
           newData[destKey] = '#VALUE!'
@@ -430,7 +455,10 @@ export async function POST(
 
     const body = await request.json()
     
-    const fields = await prisma.tableField.findMany({ where: { tableId: id } })
+    const fields = await prisma.tableField.findMany({ 
+      where: { tableId: id, deletedAt: null },
+      orderBy: { order: 'asc' }
+    })
     const username = await getSessionUsername()
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
@@ -520,7 +548,10 @@ export async function PATCH(
     const rid = parseInt(rowId)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
 
-    const fields = await prisma.tableField.findMany({ where: { tableId: tid } })
+    const fields = await prisma.tableField.findMany({ 
+      where: { tableId: tid, deletedAt: null },
+      orderBy: { order: 'asc' }
+    })
     const username = await getSessionUsername()
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
@@ -558,6 +589,33 @@ export async function PATCH(
         entries.forEach(([k, val]) => {
           currentData[k] = val ?? null
         })
+
+        // Recompute current row formulas dynamically when any cell in row is updated
+        const formulaFields = fields.filter(f => f.type === 'formula')
+        formulaFields.forEach(ff => {
+          const destKey = `field_${ff.id}`
+          let expr = ff.options
+          if (!expr) return
+          if (typeof expr === 'string' && (expr.startsWith('{') || expr.startsWith('"'))) {
+            try {
+              let parsed = JSON.parse(expr)
+              if (typeof parsed === 'string') {
+                try { parsed = JSON.parse(parsed) } catch {}
+              }
+              if (parsed && typeof parsed === 'object' && parsed.formula) {
+                expr = parsed.formula
+              }
+            } catch {}
+          }
+          try {
+            const fieldOrder = fields.map(f => f.id)
+            const res = evaluateFormula(String(expr), currentData, fieldOrder)
+            currentData[destKey] = res != null ? String(res) : ''
+          } catch {
+            currentData[destKey] = '#VALUE!'
+          }
+        })
+
         await prisma.tableRow.update({
           where: { id: rid },
           data: {

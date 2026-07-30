@@ -26,7 +26,7 @@ export const fetchFields = async (tableId: number): Promise<TableField[]> => {
  */
 export const createField = async (
   tableId: number,
-  field: Partial<TableField> & { type: string }
+  field: Partial<TableField> & { type: string; targetFieldId?: number; position?: 'left' | 'right' }
 ): Promise<{ ok: boolean; field?: TableField; error?: string }> => {
   try {
     const res = await fetch(`/api/tables/${tableId}/fields`, {
@@ -41,6 +41,28 @@ export const createField = async (
     return { ok: false, error: data.error || '建立欄位失敗' }
   } catch {
     return { ok: false, error: '建立欄位失敗' }
+  }
+}
+
+/**
+ * Duplicate a field (schema + row cell values)
+ */
+export const duplicateField = async (
+  tableId: number,
+  fieldId: number
+): Promise<{ ok: boolean; field?: TableField; error?: string }> => {
+  try {
+    const res = await fetch(`/api/tables/${tableId}/fields/${fieldId}/duplicate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const data = await res.json()
+    if (res.ok) {
+      return { ok: true, field: data }
+    }
+    return { ok: false, error: data.error || '複製欄位失敗' }
+  } catch {
+    return { ok: false, error: '複製欄位失敗' }
   }
 }
 
@@ -88,7 +110,7 @@ export const renameField = async (tableId: number, fieldId: number, name: string
 export const reorderFields = async (tableId: number, fieldOrder: number[]): Promise<{ ok: boolean; error?: string }> => {
   try {
     const res = await fetch(`/api/tables/${tableId}/fields/reorder`, {
-      method: 'PATCH',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order: fieldOrder }),
     })

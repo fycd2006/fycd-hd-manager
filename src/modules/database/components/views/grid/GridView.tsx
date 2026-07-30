@@ -287,6 +287,28 @@ export const GridView: React.FC<GridViewProps> = ({
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell]);
 
+  const handleNavigateCell = useCallback((rIndex: number, cIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => {
+    let nextRow = rIndex;
+    let nextCol = cIndex;
+
+    if (direction === 'nextRow') nextRow = Math.min(rows.length - 1, rIndex + 1);
+    if (direction === 'prevRow') nextRow = Math.max(0, rIndex - 1);
+    if (direction === 'nextCol') nextCol = Math.min(fields.length - 1, cIndex + 1);
+    if (direction === 'prevCol') nextCol = Math.max(0, cIndex - 1);
+
+    setSelectedCell([nextRow, nextCol]);
+    setSelectionStart([nextRow, nextCol]);
+    setSelectionEnd([nextRow, nextCol]);
+
+    if (direction === 'nextRow' && nextRow !== rIndex) {
+      setTimeout(() => {
+        setIsEditing(true);
+      }, 50);
+    } else {
+      setIsEditing(false);
+    }
+  }, [rows.length, fields.length]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isEditing) return;
@@ -919,6 +941,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         onCancelEditCell={() => setIsEditing(false)}
                         onExpandRow={() => onExpandRow?.(row.id)}
                         onReorderRows={onReorderRows}
+                        onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}
                       />
                     </div>
                   );

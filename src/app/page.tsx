@@ -17,6 +17,7 @@ import UserSettingsModal from '@/modules/database/components/modals/UserSettings
 import SubscriptionModal from '@/modules/database/components/modals/SubscriptionModal'
 import DarkReaderModal from '@/modules/database/components/modals/DarkReaderModal'
 import { getRolePermissions } from '@/lib/permissions'
+import { evaluateFormula } from '@/lib/formula'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
@@ -209,16 +210,11 @@ export default function Home() {
     }
   }, [])
 
-  // Initialize authentication and automatically load workspaces on page mount & login
+  // Initialize authentication and load workspaces concurrently on page mount
   useEffect(() => {
     authActions.checkAuth()
+    wsActions.fetchWorkspaces()
   }, [])
-
-  useEffect(() => {
-    if (authState.currentUser) {
-      wsActions.fetchWorkspaces()
-    }
-  }, [authState.currentUser])
 
 
   // Undo / Redo Hook
@@ -347,12 +343,39 @@ export default function Home() {
       const targetRow = rows.find(r => r.id === rowId)
       const oldValue = targetRow ? targetRow.data[fieldKey] : null
 
-      // Optimistically update UI state immediately (preserving object values for tags)
-      setRows(prev => prev.map(r => r.id === rowId ? { ...r, data: { ...r.data, [fieldKey]: value } } : r))
+      // Optimistically update UI state immediately and recompute formulas locally
+      const formulaFields = fields.filter(f => f.type === 'formula')
+      setRows(prev => prev.map(r => {
+        if (r.id !== rowId) return r
+        const updatedData = { ...r.data, [fieldKey]: value }
+        formulaFields.forEach(ff => {
+          const destKey = `field_${ff.id}`
+          let expr = ff.options
+          if (!expr) return
+          if (typeof expr === 'string' && (expr.startsWith('{') || expr.startsWith('"'))) {
+            try {
+              let parsed = JSON.parse(expr)
+              if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed) } catch {} }
+              if (parsed && typeof parsed === 'object' && parsed.formula) expr = parsed.formula
+            } catch {}
+          }
+          try {
+            const fieldOrder = fields.map(f => f.id)
+            const res = evaluateFormula(String(expr), updatedData as any, fieldOrder)
+            updatedData[destKey] = res != null ? String(res) : ''
+          } catch {
+            updatedData[destKey] = '#VALUE!'
+          }
+        })
+        return { ...r, data: updatedData }
+      }))
 
       const result = await rowService.updateCell(wsState.activeTableId, rowId, fieldKey, payloadValue)
 
       if (result.ok) {
+        if (result.row) {
+          setRows(prev => prev.map(r => r.id === rowId ? result.row! : r))
+        }
         if (!skipPushHistory) {
           pushEdit({
             rowId,
@@ -962,11 +985,47 @@ export default function Home() {
     .flatMap(d => d.tables)
     .find(t => t.id === wsState.activeTableId)
 
-  // Show loading spinner while checking authentication
+  // Show unified App Shell skeleton during initial load & authentication check
   if (authState.authLoading) {
+    const isDark = themeState.theme === 'dark'
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', width: '100vw', backgroundColor: '#f8fafc' }}>
-        <div style={{ width: '32px', height: '32px', border: '4px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div className={`app-container theme-${themeState.theme}`} style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
+        {/* Sidebar Skeleton */}
+        <div style={{ width: '250px', height: '100%', borderRight: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
+            <div style={{ width: '120px', height: '18px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
+            {[100, 70, 85, 60, 90].map((w, i) => (
+              <div key={i} style={{ width: `${w}%`, height: '18px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#e2e8f0', animation: 'pulse 1.5s infinite ease-in-out' }} />
+            ))}
+          </div>
+        </div>
+        {/* Main Content Skeleton */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+          {/* View Toolbar Skeleton */}
+          <div style={{ height: '48px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '16px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
+            <div style={{ width: '100px', height: '24px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
+            <div style={{ width: '80px', height: '24px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#e2e8f0', animation: 'pulse 1.5s infinite ease-in-out' }} />
+            <div style={{ width: '80px', height: '24px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#e2e8f0', animation: 'pulse 1.5s infinite ease-in-out' }} />
+          </div>
+          {/* Grid Skeleton */}
+          <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', height: '32px' }}>
+              {[1, 2, 3, 4, 5].map(col => (
+                <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
+              ))}
+            </div>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(row => (
+              <div key={row} style={{ display: 'flex', gap: '8px', height: '36px' }}>
+                {[1, 2, 3, 4, 5].map(col => (
+                  <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#1e293b' : '#f1f5f9', animation: 'pulse 1.5s infinite ease-in-out' }} />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -1499,6 +1558,7 @@ export default function Home() {
         toggleSort={toggleSort}
         setGroupByField={setGroupByField}
         deleteField={deleteField}
+        onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId) }}
       />
 
       {/* User Account & Subscription Modals - Always Mounted */}

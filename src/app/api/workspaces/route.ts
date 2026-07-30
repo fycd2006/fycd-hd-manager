@@ -111,46 +111,48 @@ export async function GET() {
     }
 
     const defaultDb = workspaces[0]?.databases?.[0]
-    const orphanTables = await prisma.databaseTable.findMany({
-      where: { databaseId: null },
-      select: { id: true }
-    })
-
-    if (orphanTables.length > 0 && defaultDb) {
-      await prisma.databaseTable.updateMany({
-        where: { id: { in: orphanTables.map(t => t.id) } },
-        data: { databaseId: defaultDb.id }
+    if (defaultDb) {
+      const orphanTable = await prisma.databaseTable.findFirst({
+        where: { databaseId: null },
+        select: { id: true }
       })
 
-      workspaces = await prisma.workspace.findMany({
-        where: workspaceWhere,
-        include: {
-          members: {
-            include: {
-              user: { select: { id: true, username: true, email: true } }
-            }
-          },
-          databases: {
-            include: {
-              tables: {
-                where: { deletedAt: null },
-                orderBy: { order: 'asc' },
-                select: {
-                  id: true,
-                  name: true,
-                  order: true,
-                  databaseId: true,
-                  createdAt: true,
-                  updatedAt: true,
-                  deletedAt: true,
-                  _count: { select: { rows: true } }
+      if (orphanTable) {
+        await prisma.databaseTable.updateMany({
+          where: { databaseId: null },
+          data: { databaseId: defaultDb.id }
+        })
+
+        workspaces = await prisma.workspace.findMany({
+          where: workspaceWhere,
+          include: {
+            members: {
+              include: {
+                user: { select: { id: true, username: true, email: true } }
+              }
+            },
+            databases: {
+              include: {
+                tables: {
+                  where: { deletedAt: null },
+                  orderBy: { order: 'asc' },
+                  select: {
+                    id: true,
+                    name: true,
+                    order: true,
+                    databaseId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    deletedAt: true,
+                    _count: { select: { rows: true } }
+                  }
                 }
               }
             }
-          }
-        },
-        orderBy: { createdAt: 'asc' }
-      })
+          },
+          orderBy: { createdAt: 'asc' }
+        })
+      }
     }
 
     return NextResponse.json(workspaces)

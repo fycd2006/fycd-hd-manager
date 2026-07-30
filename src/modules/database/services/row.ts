@@ -73,17 +73,17 @@ export const updateCell = async (
   rowId: number,
   fieldKey: string,
   value: CellValue
-): Promise<{ ok: boolean; error?: string }> => {
+): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
   try {
     const res = await fetch(`/api/tables/${tableId}/rows`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rowId, fieldKey, value }),
     })
-    if (res.ok) {
-      return { ok: true }
-    }
     const data = await res.json()
+    if (res.ok) {
+      return { ok: true, row: data }
+    }
     return { ok: false, error: data.error || '更新失敗' }
   } catch {
     return { ok: false, error: '更新失敗' }
@@ -109,41 +109,21 @@ export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: b
 }
 
 /**
- * Duplicate a row
- */
-export const duplicateRow = async (tableId: number, rowData: Record<string, CellValue>): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
-  try {
-    const res = await fetch(`/api/tables/${tableId}/rows`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: rowData }),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      return { ok: true, row: data }
-    }
-    return { ok: false, error: data.error || '複製列失敗' }
-  } catch {
-    return { ok: false, error: '複製列失敗' }
-  }
-}
-
-/**
  * Reorder rows
  */
-export const reorderRows = async (tableId: number, rowOrders: number[]): Promise<{ ok: boolean; error?: string }> => {
+export const reorderRows = async (tableId: number, rowIds: number[]): Promise<{ ok: boolean; error?: string }> => {
   try {
-    const res = await fetch(`/api/tables/${tableId}/rows`, {
-      method: 'PUT',
+    const res = await fetch(`/api/tables/${tableId}/rows/reorder`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rowOrders }),
+      body: JSON.stringify({ rowIds }),
     })
     if (res.ok) {
       return { ok: true }
     }
     const data = await res.json()
-    return { ok: false, error: data.error || '重排資料列失敗' }
+    return { ok: false, error: data.error || '調整列順序失敗' }
   } catch {
-    return { ok: false, error: '重排資料列失敗' }
+    return { ok: false, error: '調整列順序失敗' }
   }
 }

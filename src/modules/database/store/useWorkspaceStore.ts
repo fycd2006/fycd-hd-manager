@@ -47,8 +47,20 @@ export interface WorkspaceActions {
 
 export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<number | null>(null)
-  const [activeTableId, setActiveTableId] = useState<number | null>(null)
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('activeWorkspaceId')
+      return saved ? parseInt(saved, 10) : null
+    }
+    return null
+  })
+  const [activeTableId, setActiveTableIdState] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('activeTableId')
+      return saved !== null ? parseInt(saved, 10) : null
+    }
+    return null
+  })
   const [activeViewId, setActiveViewId] = useState<number | null>(null)
   const [collapsedWorkspaces, setCollapsedWorkspaces] = useState<Record<number, boolean>>({})
   const [collapsedDatabases, setCollapsedDatabases] = useState<Record<number, boolean>>({})
@@ -58,6 +70,17 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
   const [newDatabaseName, setNewDatabaseName] = useState('')
   const [modalWsId, setModalWsId] = useState<number | null>(null)
   const [modalDbId, setModalDbId] = useState<number | null>(null)
+
+  const setActiveTableId = useCallback((id: number | null) => {
+    setActiveTableIdState(id)
+    if (typeof window !== 'undefined') {
+      if (id !== null) {
+        localStorage.setItem('activeTableId', String(id))
+      } else {
+        localStorage.removeItem('activeTableId')
+      }
+    }
+  }, [])
 
   const toggleWorkspaceCollapse = useCallback((wsId: number) => {
     setCollapsedWorkspaces(prev => ({
@@ -90,7 +113,7 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
         return currentWorkspaces
       })
     }
-  }, [])
+  }, [setActiveTableId])
 
   const fetchWorkspaces = useCallback(async () => {
     const result = await workspaceService.fetchWorkspaces()
@@ -100,14 +123,34 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
       const savedWsId = typeof window !== 'undefined' ? localStorage.getItem('activeWorkspaceId') : null
       const parsedWsId = savedWsId ? parseInt(savedWsId, 10) : null
 
-      setActiveWorkspaceIdState(prev => {
-        const validWsId = (parsedWsId && result.some(w => w.id === parsedWsId)) ? parsedWsId : (prev ?? result[0].id)
-        const targetWs = result.find(w => w.id === validWsId) || result[0]
-        const firstTable = targetWs.databases?.[0]?.tables?.[0]
-        if (firstTable) {
-          setActiveTableId(firstTable.id)
+      const savedTableId = typeof window !== 'undefined' ? localStorage.getItem('activeTableId') : null
+      const parsedTableId = savedTableId !== null ? parseInt(savedTableId, 10) : null
+
+      let targetTableId = parsedTableId
+      let ownerWs = targetTableId ? result.find(w => (w.databases || []).some(d => (d.tables || []).some(t => t.id === targetTableId))) : null
+
+      let resolvedWsId = ownerWs ? ownerWs.id : (parsedWsId && result.some(w => w.id === parsedWsId) ? parsedWsId : result[0].id)
+      setActiveWorkspaceIdState(resolvedWsId)
+      if (typeof window !== 'undefined') localStorage.setItem('activeWorkspaceId', String(resolvedWsId))
+
+      setActiveTableIdState(prev => {
+        const candidateId = prev !== null ? prev : parsedTableId
+        const allTables = result.flatMap(w => w.databases || []).flatMap(d => d.tables || [])
+
+        if (candidateId === 0) return 0 // Explicit dashboard view
+        if (candidateId !== null && candidateId !== undefined) {
+          const exists = allTables.some(t => t.id === candidateId)
+          if (exists) {
+            if (typeof window !== 'undefined') localStorage.setItem('activeTableId', String(candidateId))
+            return candidateId
+          }
         }
-        return targetWs.id
+
+        const fallbackTableId = allTables[0]?.id ?? null
+        if (fallbackTableId !== null && typeof window !== 'undefined') {
+          localStorage.setItem('activeTableId', String(fallbackTableId))
+        }
+        return fallbackTableId
       })
     }
 

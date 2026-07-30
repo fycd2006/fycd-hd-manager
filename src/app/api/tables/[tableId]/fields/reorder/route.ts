@@ -11,17 +11,20 @@ export async function POST(
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
     const body = await request.json()
-    const { fieldOrders } = body // Expected format: { fieldOrders: { id: number, order: number }[] }
-    if (!Array.isArray(fieldOrders)) {
+    const rawList = body.order || body.fieldOrders
+
+    if (!Array.isArray(rawList)) {
       return NextResponse.json({ error: '無效的排序格式' }, { status: 400 })
     }
 
-    // Batch update using transactions
+    const fieldIds: number[] = rawList.map((item: any) => typeof item === 'number' ? item : item.id)
+
+    // Batch update using transaction
     await prisma.$transaction(
-      fieldOrders.map(fo =>
+      fieldIds.map((fieldId, index) =>
         prisma.tableField.update({
-          where: { id: fo.id, tableId: id },
-          data: { order: fo.order },
+          where: { id: fieldId, tableId: id },
+          data: { order: index },
         })
       )
     )

@@ -34,6 +34,7 @@ interface GridViewRowProps {
   onCancelEditCell: () => void;
   onExpandRow?: () => void;
   onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void;
+  onNavigateCell?: (colIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => void;
 }
 
 export const GridViewRow: React.FC<GridViewRowProps> = ({
@@ -58,6 +59,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   onCancelEditCell,
   onExpandRow,
   onReorderRows,
+  onNavigateCell,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragTarget, setIsDragTarget] = useState(false);
@@ -144,9 +146,12 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           position: 'sticky',
           left: 0,
           zIndex: 15,
-          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : (matchedColorBg || '#ffffff'),
+          background: isRowSelected 
+            ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' 
+            : (isHovered ? '#f1f5f9' : (matchedColorBg || '#ffffff')),
           borderRight: '1px solid var(--border-color, #e2e8f0)',
-          borderLeft: isRowSelected ? '3px solid #2563eb' : 'none',
+          borderLeft: isRowSelected ? '3px solid #2563eb' : (isHovered ? '3px solid #94a3b8' : 'none'),
+          transition: 'background-color 0.12s ease, border-left-color 0.12s ease',
           padding: '0 4px',
           display: 'flex',
           alignItems: 'center',
@@ -235,6 +240,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             isEditing={Boolean(isSelected && isCellEditing)}
             isInRange={isInRange}
             isRowSelected={isRowSelected}
+            isRowHovered={isHovered}
             rangeEdges={rangeEdges}
             isPrimary={cIndex === 0}
             rowColorBg={matchedColorBg}
@@ -246,6 +252,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             onUpdate={(val) => onUpdateCell(field.id, val)}
             onUpdateField={onUpdateField}
             onCancelEdit={onCancelEditCell}
+            onNavigateCell={(dir) => onNavigateCell?.(cIndex, dir)}
           />
         );
       })}

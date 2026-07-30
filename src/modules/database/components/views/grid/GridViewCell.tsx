@@ -69,6 +69,112 @@ const parseSelectItems = (val: any): string[] => {
   return [String(val)];
 };
 
+export function formatNumberValue(val: any, options?: any): string {
+  if (val === null || val === undefined || val === '') return '';
+  const num = Number(val);
+  if (isNaN(num)) return String(val);
+
+  let opts: any = {};
+  if (options) {
+    try {
+      opts = typeof options === 'string' ? JSON.parse(options) : options;
+    } catch {}
+  }
+
+  const decimals = typeof opts.number_decimal_places === 'number' ? opts.number_decimal_places : null;
+  const prefix = opts.number_prefix || '';
+  const suffix = opts.number_suffix || '';
+  const format = opts.number_format || 'thousands';
+
+  let formatted = '';
+  if (decimals !== null) {
+    formatted = format === 'standard'
+      ? num.toFixed(decimals)
+      : num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  } else {
+    formatted = format === 'standard' ? String(num) : num.toLocaleString();
+  }
+
+  return `${prefix}${formatted}${suffix}`;
+}
+
+export function renderFormulaCell(value: any) {
+  if (value === null || value === undefined || value === '') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', width: '100%', height: '100%', background: 'rgba(248, 250, 252, 0.4)' }}>
+        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, fontFamily: 'monospace', opacity: 0.6 }}>ƒ</span>
+      </div>
+    );
+  }
+
+  const valStr = String(value);
+
+  // 1. Formula Errors (#DIV/0!, #ERROR!, #NAME?, #CIRCULAR!, #VALUE!, #N/A)
+  if (valStr.startsWith('#')) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', width: '100%', height: '100%', background: 'rgba(254, 226, 226, 0.4)' }}>
+        <span style={{
+          fontSize: '11px',
+          fontWeight: 700,
+          fontFamily: 'monospace',
+          color: '#991b1b',
+          background: '#fee2e2',
+          border: '1px solid #fca5a5',
+          padding: '1px 6px',
+          borderRadius: '4px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '3px'
+        }}>
+          ⚠️ {valStr}
+        </span>
+      </div>
+    );
+  }
+
+  // 2. Boolean values
+  if (value === true || value === false || valStr === 'true' || valStr === 'false') {
+    const isTrue = value === true || valStr === 'true';
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', width: '100%', height: '100%', background: 'rgba(248, 250, 252, 0.4)' }}>
+        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, opacity: 0.7 }}>ƒ</span>
+        <span style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          color: isTrue ? '#15803d' : '#475569',
+          background: isTrue ? '#dcfce7' : '#f1f5f9',
+          border: isTrue ? '1px solid #86efac' : '1px solid #cbd5e1',
+          padding: '1px 8px',
+          borderRadius: '12px'
+        }}>
+          {isTrue ? '✓ True' : '✗ False'}
+        </span>
+      </div>
+    );
+  }
+
+  // 3. Numeric values
+  const num = Number(value);
+  const isNumeric = !isNaN(num) && typeof value !== 'boolean' && valStr.trim() !== '';
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: isNumeric ? 'flex-end' : 'flex-start', gap: '6px', padding: '0 8px', overflow: 'hidden', width: '100%', height: '100%', background: 'rgba(248, 250, 252, 0.4)' }}>
+      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, flexShrink: 0, opacity: 0.7 }}>ƒ</span>
+      <span style={{
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        fontSize: '13px',
+        color: '#1e293b',
+        fontWeight: isNumeric ? 600 : 400,
+        fontFamily: isNumeric ? 'monospace' : 'inherit'
+      }}>
+        {isNumeric ? num.toLocaleString() : valStr}
+      </span>
+    </div>
+  );
+}
+
 interface GridViewCellProps {
   rowId: number;
   field: TableField;
@@ -77,6 +183,7 @@ interface GridViewCellProps {
   isEditing: boolean;
   isInRange?: boolean;
   isRowSelected?: boolean;
+  isRowHovered?: boolean;
   rangeEdges?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   isPrimary?: boolean;
   rowColorBg?: string | null;
@@ -88,6 +195,7 @@ interface GridViewCellProps {
   onUpdate: (val: any) => void;
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
   onCancelEdit: () => void;
+  onNavigateCell?: (direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => void;
 }
 
 export const GridViewCell: React.FC<GridViewCellProps> = ({
@@ -98,6 +206,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   isEditing,
   isInRange,
   isRowSelected,
+  isRowHovered,
   rangeEdges,
   isPrimary = false,
   rowColorBg,
@@ -109,11 +218,16 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   onUpdate,
   onUpdateField,
   onCancelEdit,
+  onNavigateCell,
 }) => {
   const getInitialStringValue = (val: any, type: string): string => {
-    if (val === null || val === undefined) return '';
+    if (val === null || val === undefined) return type === 'multiple_select' ? '[]' : '';
     if (type === 'boolean') return String(val);
     if (type === 'date') return formatDateValue(val);
+    if (type === 'multiple_select') {
+      const items = parseSelectItems(val);
+      return JSON.stringify(items);
+    }
     const items = parseSelectItems(val);
     if (items.length > 0) return items.join(', ');
     return String(val);
@@ -171,21 +285,55 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     return Array.from(new Set(cleaned));
   };
 
-  const [localVal, setLocalVal] = useState<string>(getInitialStringValue(value, field.type));
+  const [localVal, setLocalVal] = useState<any>(getInitialStringValue(value, field.type));
   const inputRef = useRef<HTMLInputElement>(null);
+  const localValRef = useRef(localVal);
+  const hasCommittedRef = useRef(false);
 
   useEffect(() => {
-    setLocalVal(getInitialStringValue(value, field.type));
-  }, [value, field.type]);
+    if (!isEditing) {
+      setLocalVal(getInitialStringValue(value, field.type));
+    }
+  }, [value, field.type, isEditing]);
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      if (typeof (inputRef.current as any).select === 'function') {
-        (inputRef.current as any).select();
-      }
+    localValRef.current = localVal;
+  }, [localVal]);
+
+  useEffect(() => {
+    if (isEditing) {
+      hasCommittedRef.current = false;
     }
   }, [isEditing]);
+
+  useEffect(() => {
+    return () => {
+      if (isEditing && !hasCommittedRef.current) {
+        hasCommittedRef.current = true;
+        if (field.type === 'number') {
+          const trimmed = String(localValRef.current ?? '').trim();
+          const num = trimmed === '' ? null : Number(trimmed);
+          onUpdate(isNaN(num as any) ? null : num);
+        } else if (['text', 'long_text', 'url', 'email', 'phone'].includes(field.type)) {
+          onUpdate(localValRef.current);
+        }
+      }
+    };
+  }, [isEditing, field.type]);
+
+  useEffect(() => {
+    if (isEditing) {
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          if (typeof (inputRef.current as any).select === 'function' && field.type !== 'single_select' && field.type !== 'multiple_select') {
+            (inputRef.current as any).select();
+          }
+        }
+      }, 30);
+      return () => clearTimeout(timer);
+    }
+  }, [isEditing, field.type]);
 
   const handleBlur = () => {
     onUpdate(localVal);
@@ -205,6 +353,55 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const cellRef = useRef<HTMLDivElement>(null);
   const longTextRef = useRef<HTMLTextAreaElement>(null);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number>(0);
+
+  useEffect(() => {
+    if (!cellRef.current) return;
+    setMeasuredWidth(cellRef.current.clientWidth);
+    if (typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.contentRect && entry.contentRect.width > 0) {
+          setMeasuredWidth(entry.contentRect.width);
+        }
+      }
+    });
+    observer.observe(cellRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const calculateDynamicVisibleCount = (itemStrings: string[], width: number): { visibleCount: number; hiddenCount: number } => {
+    if (!itemStrings || itemStrings.length === 0) return { visibleCount: 0, hiddenCount: 0 };
+
+    const containerW = width > 0 ? width - 16 : 200;
+    let currentWidth = 0;
+    let visibleCount = 0;
+
+    for (let i = 0; i < itemStrings.length; i++) {
+      const str = String(itemStrings[i] || '');
+      const tagWidth = Math.max(32, str.length * 8 + 30);
+      const badgeWidth = (i < itemStrings.length - 1) ? 36 : 0;
+
+      if (currentWidth + tagWidth + badgeWidth <= containerW) {
+        currentWidth += tagWidth + 4;
+        visibleCount++;
+      } else {
+        break;
+      }
+    }
+
+    visibleCount = Math.max(1, visibleCount);
+
+    if (visibleCount >= itemStrings.length) {
+      return { visibleCount: itemStrings.length, hiddenCount: 0 };
+    }
+
+    return {
+      visibleCount,
+      hiddenCount: itemStrings.length - visibleCount
+    };
+  };
 
   useEffect(() => {
     if (isEditing && cellRef.current) {
@@ -613,11 +810,6 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           <>
             <div 
               tabIndex={0}
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node) && !document.querySelector('[data-select-portal="true"]')?.contains(e.relatedTarget as Node)) {
-                   onUpdate(localVal);
-                }
-              }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') onCancelEdit();
                 if (e.key === 'Enter' && comboSearch) {
@@ -664,6 +856,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 />
                 <div
                   data-select-portal="true"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   style={{
                     position: 'fixed',
                     top: popoverPos ? popoverPos.top : 0,
@@ -691,6 +885,23 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       type="text"
                       value={comboSearch}
                       onChange={(e) => setComboSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          onCancelEdit();
+                        }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!comboSearch.trim()) return;
+                          const val = comboSearch.trim();
+                          if (!isExactMatch && onUpdateField) {
+                            const newOptions = [...options, val];
+                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                          }
+                          setLocalVal(val);
+                          onUpdate(val);
+                          onCancelEdit();
+                        }
+                      }}
                       placeholder="搜尋或輸入新增..."
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
                     />
@@ -754,8 +965,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       if (field.type === 'multiple_select') {
         const options = getFieldOptions();
         let currentItems: string[] = [];
-        try { currentItems = JSON.parse(localVal); if (!Array.isArray(currentItems)) currentItems = [localVal]; } 
-        catch { currentItems = localVal.split(',').map(s => s.trim()).filter(Boolean); }
+        try { currentItems = JSON.parse(localVal); if (!Array.isArray(currentItems)) currentItems = [String(localVal)]; } 
+        catch { currentItems = String(localVal ?? '').split(',').map((s: string) => s.trim()).filter(Boolean); }
         
         const filteredOptions = options.filter(opt => opt.toLowerCase().includes(comboSearch.toLowerCase()));
         const isExactMatch = options.some(opt => opt.toLowerCase() === comboSearch.toLowerCase());
@@ -765,11 +976,6 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           <>
             <div 
               tabIndex={0}
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node) && !document.querySelector('[data-select-portal="true"]')?.contains(e.relatedTarget as Node)) {
-                   handleBlur();
-                }
-              }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') onCancelEdit();
                 if (e.key === 'Enter' && comboSearch && !searchAlreadySelected) {
@@ -829,6 +1035,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 />
                 <div
                   data-select-portal="true"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
                   style={{
                     position: 'fixed',
                     top: popoverPos ? popoverPos.top : 0,
@@ -856,6 +1064,28 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       type="text"
                       value={comboSearch}
                       onChange={(e) => setComboSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          onCancelEdit();
+                        }
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!comboSearch.trim()) return;
+                          const val = comboSearch.trim();
+                          if (!isExactMatch && onUpdateField) {
+                            const newOptions = [...options, val];
+                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                          }
+                          let nextItems = [...currentItems];
+                          if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
+                            nextItems.push(val);
+                          }
+                          const nextVal = JSON.stringify(nextItems);
+                          setLocalVal(nextVal);
+                          onUpdate(nextVal);
+                          setComboSearch('');
+                        }
+                      }}
                       placeholder="搜尋或輸入新增..."
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
                     />
@@ -932,8 +1162,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       }
 
       if (field.type === 'long_text') {
-        const charCount = localVal.length;
-        const wordCount = localVal.trim() ? localVal.trim().split(/\s+/).length : 0;
+        const textVal = String(localVal ?? '');
+        const charCount = textVal.length;
+        const wordCount = textVal.trim() ? textVal.trim().split(/\s+/).length : 0;
 
         if (isLongTextExpanded) {
           // Fullscreen modal overlay
@@ -1149,6 +1380,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         <input
           ref={inputRef}
           type={inputType}
+          step={field.type === 'number' ? 'any' : undefined}
           value={localVal}
           onChange={(e) => {
             const nextVal = e.target.value;
@@ -1157,8 +1389,49 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               onUpdate(nextVal);
             }
           }}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            hasCommittedRef.current = true;
+            if (field.type === 'number') {
+              const trimmed = String(localVal ?? '').trim();
+              const num = trimmed === '' ? null : Number(trimmed);
+              onUpdate(isNaN(num as any) ? null : num);
+            } else {
+              onUpdate(localVal);
+            }
+            onCancelEdit();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              hasCommittedRef.current = true;
+              const isShift = e.shiftKey;
+              if (field.type === 'number') {
+                const trimmed = String(localVal ?? '').trim();
+                const num = trimmed === '' ? null : Number(trimmed);
+                onUpdate(isNaN(num as any) ? null : num);
+              } else {
+                onUpdate(localVal);
+              }
+              onCancelEdit();
+              onNavigateCell?.(isShift ? 'prevRow' : 'nextRow');
+            } else if (e.key === 'Tab') {
+              e.preventDefault();
+              hasCommittedRef.current = true;
+              const isShift = e.shiftKey;
+              if (field.type === 'number') {
+                const trimmed = String(localVal ?? '').trim();
+                const num = trimmed === '' ? null : Number(trimmed);
+                onUpdate(isNaN(num as any) ? null : num);
+              } else {
+                onUpdate(localVal);
+              }
+              onCancelEdit();
+              onNavigateCell?.(isShift ? 'prevCol' : 'nextCol');
+            } else if (e.key === 'Escape') {
+              hasCommittedRef.current = true;
+              onCancelEdit();
+            }
+          }}
           style={{
             position: 'absolute',
             top: 0,
@@ -1198,12 +1471,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (field.type === 'single_select' || field.type === 'multiple_select') {
       const allOptions = getFieldOptions();
       const items = parseSelectItems(value);
-      const visibleItems = items.slice(0, 3);
-      const hiddenCount = items.length - visibleItems.length;
 
       return (
-        <div style={{ display: 'flex', gap: '4px', padding: '4px 6px', overflow: 'hidden', alignItems: 'center', alignContent: 'center', height: '100%', flexWrap: 'wrap', width: '100%' }}>
-          {visibleItems.map((itemStr, i) => {
+        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
+          {items.map((itemStr, i) => {
             const { bg, text } = getOptionColor(itemStr, allOptions);
             return (
               <span 
@@ -1215,74 +1486,22 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   borderRadius: '12px', 
                   fontSize: '12px', 
                   fontWeight: 500,
-                  whiteSpace: 'pre-wrap', 
-                  wordBreak: 'break-all',
-                  overflowWrap: 'anywhere',
-                  overflow: 'hidden',
-                  maxWidth: '100%',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                   display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px'
+                  alignItems: 'center'
                 }}
                 title={itemStr}
               >
-                <span>{itemStr}</span>
-                {isCellHovered && !isEditing && (
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const nextItems = items.filter(x => x !== itemStr);
-                      onUpdate(field.type === 'single_select' ? (nextItems[0] || '') : JSON.stringify(nextItems));
-                    }}
-                    style={{ cursor: 'pointer', color: text, opacity: 0.7, fontSize: '11px', lineHeight: 1 }}
-                    title="移除"
-                  >
-                    ×
-                  </span>
-                )}
+                {itemStr}
               </span>
             );
           })}
-
-          {hiddenCount > 0 && (
-            <span style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', padding: '2px 6px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenCount} 個選項`}>
-              +{hiddenCount}
-            </span>
-          )}
-
-          {isCellHovered && !isEditing && (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartEdit();
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2px 8px',
-                background: '#f1f5f9',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#475569',
-                cursor: 'pointer',
-                flexShrink: 0,
-                transition: 'background-color 0.15s, color 0.15s'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#475569'; }}
-              title="選擇選項"
-            >
-              +
-            </span>
-          )}
         </div>
       );
     }
 
     if (field.type === 'collaborator') {
-      // Parse collaborator value: [{id, username}] or JSON string thereof
       let collabItems: Array<{ id: number; username: string }> = [];
       if (Array.isArray(value)) {
         collabItems = value.map(item => {
@@ -1309,19 +1528,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         return (
           <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
             {collabItems.map((item, i) => (
-              <span key={i} style={{ background: '#e0e7ff', color: '#4338ca', border: '1px solid #a5b4fc', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500, textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                {item.username}
-              </span>
-            ))}
-          </div>
-        );
-      }
-
-      if (collabItems.length > 0) {
-        return (
-          <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
-            {collabItems.map((item, i) => (
-              <span key={i} style={{ background: '#e0e7ff', color: '#4338ca', border: '1px solid #a5b4fc', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              <span key={i} style={{ background: '#e0e7ff', color: '#4338ca', border: '1px solid #a5b4fc', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500, flexShrink: 0 }}>
                 {item.username}
               </span>
             ))}
@@ -1342,8 +1549,13 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           let label = String(item.value || '');
           if (!label || label.startsWith('列 ID:')) {
             const rRow = relationRows.find(r => r.id === numId);
-            if (rRow && primaryKey && rRow.data?.[primaryKey]) {
-              label = String(rRow.data[primaryKey]);
+            if (rRow) {
+              if (primaryKey && rRow.data?.[primaryKey]) {
+                label = String(rRow.data[primaryKey]);
+              } else {
+                const firstVal = Object.values(rRow.data || {}).find(v => v != null && v !== '' && typeof v !== 'object');
+                if (firstVal) label = String(firstVal);
+              }
             }
           }
           return { id: numId, value: label || `列 ID: ${numId}` };
@@ -1351,8 +1563,13 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         const numId = Number(item);
         let label = '';
         const rRow = relationRows.find(r => r.id === numId);
-        if (rRow && primaryKey && rRow.data?.[primaryKey]) {
-          label = String(rRow.data[primaryKey]);
+        if (rRow) {
+          if (primaryKey && rRow.data?.[primaryKey]) {
+            label = String(rRow.data[primaryKey]);
+          } else {
+            const firstVal = Object.values(rRow.data || {}).find(v => v != null && v !== '' && typeof v !== 'object');
+            if (firstVal) label = String(firstVal);
+          }
         }
         return { id: numId, value: label || `列 ID: ${numId}` };
       };
@@ -1369,13 +1586,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         } catch {}
       }
 
-      const visibleLinks = linkItems.slice(0, 4);
-      const hiddenLinkCount = linkItems.length - visibleLinks.length;
-      const showControls = isCellHovered && !isEditing;
-
       return (
-        <div style={{ display: 'flex', gap: '4px', padding: '4px 6px', overflow: 'hidden', alignItems: 'center', alignContent: 'center', height: '100%', width: '100%', flexWrap: 'wrap' }}>
-          {visibleLinks.map((item, i) => (
+        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
+          {linkItems.map((item, i) => (
             <span 
               key={i} 
               style={{ 
@@ -1385,76 +1598,17 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 borderRadius: '6px', 
                 fontSize: '13px', 
                 fontWeight: 500,
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-                overflowWrap: 'anywhere',
-                overflow: 'hidden',
-                maxWidth: '100%',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
                 display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px'
+                alignItems: 'center'
               }}
               title={item.value}
             >
-              <span>{item.value}</span>
-              {showControls && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const updated = linkItems.filter(x => x.id !== item.id).map(x => ({ id: x.id, value: x.value }));
-                    onUpdate(updated);
-                  }}
-                  style={{
-                    cursor: 'pointer',
-                    color: '#64748b',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    lineHeight: 1,
-                    padding: '0 1px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = '#64748b'}
-                  title="移除關聯"
-                >
-                  ×
-                </span>
-              )}
+              {item.value}
             </span>
           ))}
 
-          {hiddenLinkCount > 0 && (
-            <span style={{ background: '#e2e8f0', color: '#475569', padding: '2px 6px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, flexShrink: 0 }} title={`另有 ${hiddenLinkCount} 筆關聯`}>
-              +{hiddenLinkCount}
-            </span>
-          )}
-
-          {showControls && (
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                onStartEdit();
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2px 8px',
-                background: '#f1f5f9',
-                borderRadius: '6px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#475569',
-                cursor: 'pointer',
-                flexShrink: 0,
-                transition: 'background-color 0.15s, color 0.15s'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#475569'; }}
-              title="新增關聯"
-            >
-              +
-            </span>
-          )}
         </div>
       );
     }
@@ -1572,9 +1726,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     }
 
     if (field.type === 'number') {
+      const formatted = formatNumberValue(value, field.options);
       return (
-        <span style={{ width: '100%', padding: '0 8px', textAlign: 'right', fontSize: '13px', color: '#1e293b', fontFamily: 'monospace' }}>
-          {value !== null && value !== undefined && value !== '' ? Number(value).toLocaleString() : ''}
+        <span style={{ width: '100%', padding: '0 8px', textAlign: 'right', fontSize: '13px', color: '#1e293b', fontFamily: 'monospace', fontWeight: 500 }}>
+          {formatted}
         </span>
       );
     }
@@ -1631,7 +1786,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       );
     }
 
-    if (field.type === 'formula' || field.type === 'lookup' || field.type === 'rollup') {
+    if (field.type === 'formula') {
+      return renderFormulaCell(value);
+    }
+
+    if (field.type === 'lookup' || field.type === 'rollup') {
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '0 8px', overflow: 'hidden', width: '100%', background: 'rgba(248, 250, 252, 0.6)', height: '100%' }}>
           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>ƒ</span>
@@ -1719,6 +1878,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     cellBg = isCellHovered ? 'rgba(37, 99, 235, 0.12)' : 'rgba(37, 99, 235, 0.08)';
   } else if (isSelected) {
     cellBg = 'rgba(37, 99, 235, 0.04)';
+  } else if (isCellHovered) {
+    cellBg = 'rgba(226, 232, 240, 0.7)';
+  } else if (isRowHovered) {
+    cellBg = '#f8fafc';
   }
 
   let cellShadow: string | undefined = undefined;
@@ -1783,6 +1946,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         boxShadow: finalBoxShadow,
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
         background: cellBg ? `linear-gradient(${cellBg}, ${cellBg}), ${rowColorBg || '#ffffff'}` : (rowColorBg || '#ffffff'),
+        transition: 'background 0.12s ease, box-shadow 0.12s ease',
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',

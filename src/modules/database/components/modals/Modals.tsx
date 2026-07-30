@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -12,7 +12,7 @@ import {
   Sparkles, Search, ChevronDown, X, Database, Table
 } from 'lucide-react'
 import { TableField } from '@/modules/database/types'
-import { parseFormula } from '@/lib/formula'
+import { parseFormula, getSupportedFunctions } from '@/lib/formula'
 
 // ============================================
 // Workspace Modal
@@ -473,8 +473,47 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   const [rollupFunction, setRollupFunction] = useState('sum')
   const [formula, setFormula] = useState('')
   const [formulaTab, setFormulaTab] = useState<'fields' | 'functions' | 'operators'>('fields')
+  const [functionSearch, setFunctionSearch] = useState('')
+  const [activeHoverFunc, setActiveHoverFunc] = useState<{ name: string; doc: string; snippet: string; category?: string } | null>(null)
+  const [selectedHelpFunc, setSelectedHelpFunc] = useState<{ name: string; doc: string; snippet: string; category?: string } | null>(null)
+  
+  // Number field options state
+  const [numberDecimalPlaces, setNumberDecimalPlaces] = useState<number>(0)
+  const [numberFormat, setNumberFormat] = useState<string>('thousands')
+  const [numberPrefix, setNumberPrefix] = useState<string>('')
+  const [numberSuffix, setNumberSuffix] = useState<string>('')
+
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const formulaTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const insertAtCursor = (text: string, cursorOffsetFromEnd: number = 0) => {
+    const el = formulaTextareaRef.current
+    if (!el) {
+      setFormula(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + text)
+      return
+    }
+    const start = el.selectionStart ?? formula.length
+    const end = el.selectionEnd ?? formula.length
+    const before = formula.slice(0, start)
+    const after = formula.slice(end)
+
+    // Add spacing if needed
+    const needsLeadingSpace = before.length > 0 && !/\s|[({,]/.test(before.slice(-1)) && !/^[),%]/.test(text)
+    const prefix = needsLeadingSpace ? ' ' : ''
+    const insertedText = prefix + text
+
+    const newFormula = before + insertedText + after
+    setFormula(newFormula)
+
+    const targetPos = start + insertedText.length - cursorOffsetFromEnd
+
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(targetPos, targetPos)
+    })
+  }
 
   let formulaSyntaxError = ''
   if (formula && formula.trim()) {
@@ -503,8 +542,16 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             else if (parsed && Array.isArray(parsed.choices)) choices = parsed.choices.map(String)
             else if (parsed && Array.isArray(parsed.select_options)) choices = parsed.select_options.map((o: any) => typeof o === 'object' ? o.value || o.name || String(o) : String(o))
 
-            if (parsed && typeof parsed === 'object' && parsed.formula) {
-              formulaStr = String(parsed.formula)
+            if (parsed && typeof parsed === 'object') {
+              if (parsed.formula) {
+                formulaStr = String(parsed.formula)
+              }
+              if (typeof parsed.number_decimal_places === 'number') {
+                setNumberDecimalPlaces(parsed.number_decimal_places)
+              }
+              if (parsed.number_format) setNumberFormat(parsed.number_format)
+              if (parsed.number_prefix) setNumberPrefix(parsed.number_prefix)
+              if (parsed.number_suffix) setNumberSuffix(parsed.number_suffix)
             } else if (typeof editField.options === 'string' && !editField.options.startsWith('{')) {
               formulaStr = editField.options
             }
@@ -521,6 +568,10 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         setTypeSearch('')
         setOptionsList([])
         setFormula('')
+        setNumberDecimalPlaces(0)
+        setNumberFormat('thousands')
+        setNumberPrefix('')
+        setNumberSuffix('')
       }
     }
   }, [editField, show])
@@ -584,6 +635,13 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         }
       } else if (type === 'formula') {
         parsedOptions = { formula }
+      } else if (type === 'number') {
+        parsedOptions = {
+          number_decimal_places: numberDecimalPlaces,
+          number_format: numberFormat,
+          number_prefix: numberPrefix,
+          number_suffix: numberSuffix
+        }
       }
 
       await onSubmit(name.trim(), type, parsedOptions)
@@ -597,7 +655,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   }
 
   return (
-    <Modal show={show} onClose={onClose} title="" size="small" overflowVisible={true}>
+    <Modal show={show} onClose={onClose} title="" size={type === 'formula' ? 'medium' : 'small'} overflowVisible={true}>
       <form onSubmit={handleSubmit}>
         {/* Header Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
@@ -774,6 +832,72 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             </div>
 
             {/* Type Specific Options */}
+            {type === 'number' && (
+              <div style={{ marginBottom: '16px', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>
+                  數字欄位設定 (Number Options)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
+                      小數位數 (Decimal Places)
+                    </label>
+                    <select
+                      value={numberDecimalPlaces}
+                      onChange={(e) => setNumberDecimalPlaces(Number(e.target.value))}
+                      style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px', background: '#fff' }}
+                    >
+                      <option value={0}>0 (整數 1234)</option>
+                      <option value={1}>1 (1234.5)</option>
+                      <option value={2}>2 (1234.56)</option>
+                      <option value={3}>3 (1234.567)</option>
+                      <option value={4}>4 (1234.5678)</option>
+                      <option value={5}>5 (1234.56789)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
+                      格式 (Format)
+                    </label>
+                    <select
+                      value={numberFormat}
+                      onChange={(e) => setNumberFormat(e.target.value)}
+                      style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px', background: '#fff' }}
+                    >
+                      <option value="thousands">千分位 (1,234.56)</option>
+                      <option value="standard">一般數字 (1234.56)</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
+                      前綴單位 (Prefix, 如 $, NT$)
+                    </label>
+                    <input
+                      type="text"
+                      value={numberPrefix}
+                      onChange={(e) => setNumberPrefix(e.target.value)}
+                      placeholder="如 $, NT$"
+                      style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
+                      後綴單位 (Suffix, 如 %, 元)
+                    </label>
+                    <input
+                      type="text"
+                      value={numberSuffix}
+                      onChange={(e) => setNumberSuffix(e.target.value)}
+                      placeholder="如 %, 元, kg"
+                      style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px', outline: 'none' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {(type === 'single_select' || type === 'multiple_select') && (
               <div style={{ marginBottom: '16px', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px', background: '#f8fafc' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>
@@ -911,6 +1035,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                 </div>
 
                 <textarea
+                  ref={formulaTextareaRef}
                   value={formula}
                   onChange={(e) => setFormula(e.target.value)}
                   placeholder="輸入公式，例如: field_1 + field_2 或 CONCAT(field_1, ' ', field_2)"
@@ -985,27 +1110,38 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                     {formulaTab === 'fields' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {fields && fields.length > 0 ? (
-                          fields.map(f => (
-                            <div
-                              key={f.id}
-                              onClick={() => setFormula(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + `field_${f.id}`)}
-                              style={{
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                background: '#f1f5f9',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                color: '#334155'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#e2e8f0'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = '#f1f5f9'}
-                            >
-                              <span>{f.name}</span>
-                              <span style={{ fontFamily: 'monospace', color: '#2563eb', fontSize: '11px', fontWeight: 600 }}>field_{f.id}</span>
-                            </div>
-                          ))
+                          fields.map((f, idx) => {
+                            const shortAlias = `F${idx + 1}`
+                            return (
+                              <div
+                                key={f.id}
+                                onClick={() => insertAtCursor(shortAlias)}
+                                style={{
+                                  padding: '5px 10px',
+                                  borderRadius: '6px',
+                                  background: '#f8fafc',
+                                  border: '1px solid #e2e8f0',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  color: '#334155',
+                                  transition: 'all 0.15s'
+                                }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#93c5fd'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
+                                title={`插入短代號 ${shortAlias} (${f.name})`}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ fontFamily: 'monospace', color: '#2563eb', background: '#dbeafe', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>
+                                    {shortAlias}
+                                  </span>
+                                  <span style={{ fontWeight: 500 }}>{f.name}</span>
+                                </div>
+                                <span style={{ fontFamily: 'monospace', color: '#94a3b8', fontSize: '11px' }}>field_{f.id}</span>
+                              </div>
+                            )
+                          })
                         ) : (
                           <div style={{ color: '#94a3b8', fontStyle: 'italic', padding: '8px 0' }}>尚無可用欄位</div>
                         )}
@@ -1014,61 +1150,71 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
 
                     {formulaTab === 'functions' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {[
-                          { category: '文字 (Text)', funcs: [
-                            { name: 'CONCAT', doc: 'CONCAT(a, b) - 連接字串', snippet: 'CONCAT(field_1, field_2)' },
-                            { name: 'UPPER', doc: 'UPPER(text) - 轉大寫', snippet: 'UPPER(field_1)' },
-                            { name: 'LOWER', doc: 'LOWER(text) - 轉小寫', snippet: 'LOWER(field_1)' },
-                            { name: 'CONTAINS', doc: 'CONTAINS(text, search) - 判斷包含', snippet: 'CONTAINS(field_1, "abc")' },
-                          ]},
-                          { category: '數值 (Math)', funcs: [
-                            { name: 'ROUND', doc: 'ROUND(val, decimals) - 四捨五入', snippet: 'ROUND(field_1, 2)' },
-                            { name: 'ABS', doc: 'ABS(val) - 絕對值', snippet: 'ABS(field_1)' },
-                            { name: 'CEIL', doc: 'CEIL(val) - 無條件進位', snippet: 'CEIL(field_1)' },
-                            { name: 'FLOOR', doc: 'FLOOR(val) - 無條件捨去', snippet: 'FLOOR(field_1)' },
-                            { name: 'MOD', doc: 'MOD(a, b) - 取餘數', snippet: 'MOD(field_1, 2)' },
-                          ]},
-                          { category: '邏輯 (Logic)', funcs: [
-                            { name: 'IF', doc: 'IF(cond, val1, val2) - 條件判斷', snippet: 'IF(field_1 > 10, "Yes", "No")' },
-                            { name: 'AND', doc: 'AND(a, b) - 邏輯及', snippet: 'AND(field_1, field_2)' },
-                            { name: 'OR', doc: 'OR(a, b) - 邏輯或', snippet: 'OR(field_1, field_2)' },
-                            { name: 'NOT', doc: 'NOT(x) - 邏輯非', snippet: 'NOT(field_1)' },
-                            { name: 'ISBLANK', doc: 'ISBLANK(val) - 判斷空白', snippet: 'ISBLANK(field_1)' },
-                          ]},
-                          { category: '日期 (Date)', funcs: [
-                            { name: 'TODAY', doc: 'TODAY() - 今日日期', snippet: 'TODAY()' },
-                            { name: 'YEAR', doc: 'YEAR(date) - 取得年份', snippet: 'YEAR(field_1)' },
-                            { name: 'MONTH', doc: 'MONTH(date) - 取得月份', snippet: 'MONTH(field_1)' },
-                            { name: 'DAY', doc: 'DAY(date) - 取得日期', snippet: 'DAY(field_1)' },
-                            { name: 'DATE_DIFF', doc: 'DATE_DIFF(d1, d2) - 計算天數差', snippet: 'DATE_DIFF(field_1, field_2)' },
-                          ]}
-                        ].map((cat, idx) => (
+                        <div style={{ position: 'sticky', top: 0, background: '#fff', paddingBottom: '6px', zIndex: 1 }}>
+                          <input
+                            type="text"
+                            value={functionSearch}
+                            onChange={(e) => setFunctionSearch(e.target.value)}
+                            placeholder="搜尋函數 (Search functions)..."
+                            style={{
+                              width: '100%',
+                              padding: '4px 8px',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              outline: 'none',
+                              background: '#f8fafc'
+                            }}
+                          />
+                        </div>
+                        {getSupportedFunctions()
+                          .map(cat => ({
+                            ...cat,
+                            funcs: cat.funcs.map(f => ({ ...f, category: cat.category })).filter(fn =>
+                              !functionSearch.trim() ||
+                              fn.name.toLowerCase().includes(functionSearch.toLowerCase()) ||
+                              fn.doc.toLowerCase().includes(functionSearch.toLowerCase())
+                            )
+                          }))
+                          .filter(cat => cat.funcs.length > 0)
+                          .map((cat, idx) => (
                           <div key={idx}>
                             <div style={{ fontWeight: 600, color: '#64748b', fontSize: '11px', marginBottom: '4px' }}>{cat.category}</div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
-                              {cat.funcs.map((fn, fIdx) => (
-                                <button
-                                  key={fIdx}
-                                  type="button"
-                                  title={fn.doc}
-                                  onClick={() => setFormula(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + fn.snippet)}
-                                  style={{
-                                    padding: '3px 8px',
-                                    borderRadius: '4px',
-                                    border: '1px solid #cbd5e1',
-                                    background: '#f8fafc',
-                                    cursor: 'pointer',
-                                    fontSize: '12px',
-                                    fontFamily: 'monospace',
-                                    color: '#2563eb',
-                                    fontWeight: 500
-                                  }}
-                                  onMouseEnter={(e) => e.currentTarget.style.background = '#dbeafe'}
-                                  onMouseLeave={(e) => e.currentTarget.style.background = '#f8fafc'}
-                                >
-                                  {fn.name}
-                                </button>
-                              ))}
+                              {cat.funcs.map((fn, fIdx) => {
+                                const isSelected = selectedHelpFunc?.name === fn.name
+                                return (
+                                  <button
+                                    key={fIdx}
+                                    type="button"
+                                    title={fn.doc}
+                                    onClick={() => {
+                                      insertAtCursor(`${fn.name}()`, 1)
+                                      setSelectedHelpFunc(fn)
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = '#dbeafe'
+                                      setActiveHoverFunc(fn)
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = isSelected ? '#eff6ff' : '#f8fafc'
+                                    }}
+                                    style={{
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      border: isSelected ? '1px solid #3b82f6' : '1px solid #cbd5e1',
+                                      background: isSelected ? '#eff6ff' : '#f8fafc',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      fontFamily: 'monospace',
+                                      color: isSelected ? '#1d4ed8' : '#2563eb',
+                                      fontWeight: isSelected ? 700 : 500
+                                    }}
+                                  >
+                                    {fn.name}
+                                  </button>
+                                )
+                              })}
                             </div>
                           </div>
                         ))}
@@ -1077,11 +1223,11 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
 
                     {formulaTab === 'operators' && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '4px 0' }}>
-                        {['+', '-', '*', '/', '(', ')', ',', '""', 'field_1'].map((op, i) => (
+                        {['+', '-', '*', '/', '%', '^', '&', '=', '<>', '>', '<', '>=', '<=', '(', ')', ',', '""'].map((op, i) => (
                           <button
                             key={i}
                             type="button"
-                            onClick={() => setFormula(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + op)}
+                            onClick={() => insertAtCursor(op)}
                             style={{
                               padding: '6px 12px',
                               borderRadius: '4px',
@@ -1103,6 +1249,97 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                     )}
                   </div>
                 </div>
+
+                {/* Function Description & Help Panel (Baserow Style) */}
+                {(() => {
+                  const displayFunc = activeHoverFunc || selectedHelpFunc
+                  return (
+                    <div style={{
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '6px',
+                      padding: '12px 14px',
+                      background: displayFunc ? '#f8fafc' : '#f1f5f9',
+                      transition: 'all 0.15s ease-in-out'
+                    }}>
+                      {displayFunc ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{
+                                fontFamily: 'monospace',
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                background: '#3b82f6',
+                                color: '#ffffff',
+                                padding: '2px 8px',
+                                borderRadius: '4px'
+                              }}>
+                                {displayFunc.name}
+                              </span>
+                              {displayFunc.category && (
+                                <span style={{ fontSize: '11px', color: '#64748b', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>
+                                  {displayFunc.category}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => insertAtCursor(`${displayFunc.name}()`, 1)}
+                              style={{
+                                fontSize: '11px',
+                                padding: '3px 10px',
+                                background: '#2563eb',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              + 插入 {displayFunc.name}()
+                            </button>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '2px', textTransform: 'uppercase' }}>
+                              語法說明 (Syntax)
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#1e293b', fontWeight: 500 }}>
+                              {displayFunc.doc}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '2px', textTransform: 'uppercase' }}>
+                              使用範例 (Example)
+                            </div>
+                            <div style={{
+                              fontFamily: 'monospace',
+                              fontSize: '12px',
+                              background: '#ffffff',
+                              border: '1px solid #cbd5e1',
+                              padding: '6px 10px',
+                              borderRadius: '4px',
+                              color: '#2563eb',
+                              fontWeight: 600,
+                              wordBreak: 'break-all'
+                            }}>
+                              <code>{displayFunc.snippet}</code>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '12px' }}>
+                          <span style={{ fontSize: '16px' }}>💡</span>
+                          <span>將滑鼠懸停於上方公式庫中的任何函數，或點擊函數，即可在此處查看詳細語法與範例說明。</span>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </div>

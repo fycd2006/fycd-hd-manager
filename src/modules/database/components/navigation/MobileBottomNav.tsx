@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Home, Database as DatabaseIcon, Search, Bell, Settings, X, Table as TableIcon, ChevronRight, Check, GripVertical, ChevronDown, Compass, Layers, Sparkles, Plus } from 'lucide-react'
 import type { Workspace, User, TableField, TableRow } from '@/modules/database/types'
 import { useThemeStore } from '@/modules/database/store/useThemeStore'
+import { useWorkspaceStore } from '@/modules/database/store/useWorkspaceStore'
 import MobileSearchModal from './MobileSearchModal'
 
 interface MobileBottomNavProps {
@@ -60,9 +61,43 @@ export default function MobileBottomNav({
   const [showDbModal, setShowDbModal] = useState(false)
   const [showSearchModal, setShowSearchModal] = useState(false)
   
-  // Store theme state
+  // Store theme & workspace store
   const [themeState] = useThemeStore()
   const isDark = themeState.theme === 'dark'
+  const [, wsActions] = useWorkspaceStore()
+
+  // Database & Table creation state inside Modal
+  const [isCreatingDb, setIsCreatingDb] = useState(false)
+  const [newDbName, setNewDbName] = useState('')
+  const [creatingDbLoading, setCreatingDbLoading] = useState(false)
+
+  const [creatingTableForDbId, setCreatingTableForDbId] = useState<number | null>(null)
+  const [newTableName, setNewTableName] = useState('')
+  const [creatingTableLoading, setCreatingTableLoading] = useState(false)
+
+  const handleCreateDbSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!newDbName.trim() || !activeWorkspaceId) return
+    setCreatingDbLoading(true)
+    const res = await wsActions.createDatabase(activeWorkspaceId, newDbName.trim())
+    setCreatingDbLoading(false)
+    if (res.ok) {
+      setNewDbName('')
+      setIsCreatingDb(false)
+    }
+  }
+
+  const handleCreateTableSubmit = async (dbId: number, e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!newTableName.trim()) return
+    setCreatingTableLoading(true)
+    const res = await wsActions.createTable(dbId, newTableName.trim())
+    setCreatingTableLoading(false)
+    if (res.ok) {
+      setNewTableName('')
+      setCreatingTableForDbId(null)
+    }
+  }
 
   // LIVBubbleMenu Radial Expansion State
   const [isBubbleMenuOpen, setIsBubbleMenuOpen] = useState(false)
@@ -927,24 +962,49 @@ export default function MobileBottomNav({
                   資料庫與資料表
                 </h3>
               </div>
-              <button
-                onClick={() => setShowDbModal(false)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: isDark ? '#1e293b' : '#f1f5f9',
-                  border: 'none',
-                  color: isDark ? '#94a3b8' : '#64748b',
-                  cursor: 'pointer',
-                  borderRadius: '9999px',
-                  transition: 'transform 0.15s ease'
-                }}
-              >
-                <X size={16} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingDb(prev => !prev);
+                    setNewDbName('');
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '10px',
+                    backgroundColor: '#eff6ff',
+                    color: '#2563eb',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Plus size={14} />
+                  新增資料庫
+                </button>
+                <button
+                  onClick={() => setShowDbModal(false)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: isDark ? '#1e293b' : '#f1f5f9',
+                    border: 'none',
+                    color: isDark ? '#94a3b8' : '#64748b',
+                    cursor: 'pointer',
+                    borderRadius: '9999px',
+                    transition: 'transform 0.15s ease'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px 24px 24px' }}>
@@ -978,14 +1038,93 @@ export default function MobileBottomNav({
                 </div>
               )}
 
+              {isCreatingDb && (
+                <form onSubmit={handleCreateDbSubmit} style={{ marginBottom: '14px', padding: '12px', backgroundColor: isDark ? '#1e293b' : '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '14px', display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newDbName}
+                    onChange={(e) => setNewDbName(e.target.value)}
+                    placeholder="輸入新資料庫名稱..."
+                    style={{ flex: 1, padding: '8px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: isDark ? '#0f172a' : '#ffffff', color: isDark ? '#ffffff' : '#0f172a' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={creatingDbLoading || !newDbName.trim()}
+                    style={{ padding: '8px 14px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingDbLoading ? 0.6 : 1 }}
+                  >
+                    {creatingDbLoading ? '建立中...' : '建立'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setIsCreatingDb(false); setNewDbName(''); }}
+                    style={{ padding: '8px 10px', backgroundColor: 'transparent', color: '#64748b', border: 'none', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    取消
+                  </button>
+                </form>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {activeWorkspace && activeWorkspace.databases && activeWorkspace.databases.length > 0 ? (
                   activeWorkspace.databases.map(db => (
                     <div key={db.id} style={{ backgroundColor: isDark ? '#1e293b' : '#f8fafc', border: 'none', borderRadius: '16px', padding: '14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', padding: '0 2px' }}>
-                        <DatabaseIcon size={16} color="#2563eb" />
-                        <h4 style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0 }}>{db.name}</h4>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', padding: '0 2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <DatabaseIcon size={16} color="#2563eb" />
+                          <h4 style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0 }}>{db.name}</h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreatingTableForDbId(creatingTableForDbId === db.id ? null : db.id);
+                            setNewTableName('');
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                            color: '#2563eb',
+                            border: '1px solid #cbd5e1',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Plus size={12} />
+                          新增資料表
+                        </button>
                       </div>
+
+                      {creatingTableForDbId === db.id && (
+                        <form onSubmit={(e) => handleCreateTableSubmit(db.id, e)} style={{ marginBottom: '10px', padding: '8px', backgroundColor: isDark ? '#0f172a' : '#ffffff', borderRadius: '10px', border: '1px solid #cbd5e1', display: 'flex', gap: '6px' }}>
+                          <input
+                            type="text"
+                            autoFocus
+                            value={newTableName}
+                            onChange={(e) => setNewTableName(e.target.value)}
+                            placeholder="輸入新資料表名稱..."
+                            style={{ flex: 1, padding: '6px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: isDark ? '#1e293b' : '#f8fafc', color: isDark ? '#ffffff' : '#0f172a' }}
+                          />
+                          <button
+                            type="submit"
+                            disabled={creatingTableLoading || !newTableName.trim()}
+                            style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingTableLoading ? 0.6 : 1 }}
+                          >
+                            {creatingTableLoading ? '建立中...' : '建立'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setCreatingTableForDbId(null); setNewTableName(''); }}
+                            style={{ padding: '6px 8px', backgroundColor: 'transparent', color: '#64748b', border: 'none', fontSize: '12px', cursor: 'pointer' }}
+                          >
+                            取消
+                          </button>
+                        </form>
+                      )}
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {db.tables && db.tables.map(table => {

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Plus, X, Search, Check, Link as LinkIcon } from 'lucide-react'
+import { Plus, X, Search, Check, Link as LinkIcon, Paperclip } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
 
 export interface AttachmentFile {
@@ -436,6 +436,126 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
             )
           )}
         </div>
+      </div>
+    )
+  }
+
+  // RENDER: File / Attachment
+  if (field.type === 'file' || field.type === 'attachment') {
+    const parseAttachmentFiles = (val: any): AttachmentFile[] => {
+      if (val == null || val === '') return []
+      let list: any[] = []
+      if (Array.isArray(val)) list = val
+      else if (typeof val === 'string' && val.trim()) {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed)) list = parsed
+          else list = [parsed]
+        } catch {
+          list = [{ url: val, name: val.split('/').pop() || '附件檔案' }]
+        }
+      } else if (typeof val === 'object') {
+        list = [val]
+      }
+      return list.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return {
+            url: String(item.url || item.path || ''),
+            name: String(item.name || item.filename || item.url?.split('/').pop() || '附件檔案'),
+            size: item.size
+          }
+        }
+        return { url: String(item), name: String(item).split('/').pop() || '附件檔案' }
+      }).filter(f => Boolean(f.url || f.name))
+    }
+
+    const files = parseAttachmentFiles(value)
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!e.target.files || e.target.files.length === 0 || readOnly) return
+      const uploadedFiles: AttachmentFile[] = Array.from(e.target.files).map(f => ({
+        url: URL.createObjectURL(f),
+        name: f.name,
+        size: f.size
+      }))
+      const nextFiles = [...files, ...uploadedFiles]
+      onChange(fieldKey, nextFiles)
+    }
+
+    const removeFile = (idx: number) => {
+      if (readOnly) return
+      const nextFiles = files.filter((_, i) => i !== idx)
+      onChange(fieldKey, nextFiles)
+    }
+
+    return (
+      <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          {files.length === 0 ? (
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>尚無附件檔</span>
+          ) : (
+            files.map((file, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '5px 12px',
+                  background: '#f1f5f9',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '10px',
+                  fontSize: '12px',
+                  color: '#1e293b',
+                  fontWeight: 500
+                }}
+              >
+                <Paperclip size={14} color="#6366f1" />
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#4f46e5', textDecoration: 'underline', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {file.name}
+                </a>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => removeFile(idx)}
+                    style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center' }}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {!readOnly && (
+          <label
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#2563eb',
+              cursor: 'pointer',
+              alignSelf: 'flex-start',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Plus size={13} />
+            <span>上傳附件檔案</span>
+            <input type="file" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
+          </label>
+        )}
       </div>
     )
   }

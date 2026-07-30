@@ -1,13 +1,14 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { ChevronUp, ChevronDown, X, Lock } from 'lucide-react'
+import { ChevronUp, ChevronDown, X, Lock, Star, ExternalLink, Mail, Phone } from 'lucide-react'
 import type { TableField, TableRow } from '@/modules/database/types'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import RowCommentsPanel, { ActivityLogEntry } from './RowCommentsPanel'
 import CollaboratorSelector from './CollaboratorSelector'
 import AdvancedFieldInputs from './AdvancedFieldInputs'
 import { formatDateValue } from '@/modules/database/utils'
+import { formatNumberValue, renderFormulaCell } from '../views/grid/GridViewCell'
 
 interface RowEditModalProps {
   show: boolean
@@ -221,7 +222,7 @@ export default function RowEditModal({
               {fields.filter(field => field.type !== 'activity_log').map(field => {
                 const fieldKey = `field_${field.id}`
                 const value = formData[fieldKey] ?? ''
-                const isAdvanced = ['collaborator', 'single_select', 'multiple_select', 'link_row'].includes(field.type)
+                const isAdvanced = ['collaborator', 'single_select', 'multiple_select', 'link_row', 'file', 'attachment'].includes(field.type)
 
                 return (
                   <li key={field.id} className="row-modal__field-item" style={{ background: '#ffffff', border: '1px solid rgba(226, 232, 240, 0.9)', borderRadius: '16px', padding: '16px 18px', boxShadow: '0 2px 10px -3px rgba(15, 23, 42, 0.04)', transition: 'all 0.2s ease' }}>
@@ -260,6 +261,97 @@ export default function RowEditModal({
                               {(value === 'true' || value === true || value === '1' || value === 1) ? '已勾選 (True)' : '未勾選 (False)'}
                             </span>
                           </div>
+                        ) : field.type === 'rating' ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px' }}>
+                            {[1, 2, 3, 4, 5].map((starNum) => {
+                              const ratingVal = Math.min(5, Math.max(0, parseInt(String(value || 0)) || 0))
+                              const isFilled = starNum <= ratingVal
+                              return (
+                                <Star
+                                  key={starNum}
+                                  size={22}
+                                  onClick={() => !readOnly && handleChange(field.id, starNum === ratingVal ? 0 : starNum, true)}
+                                  style={{ cursor: readOnly ? 'default' : 'pointer', transition: 'all 0.15s ease' }}
+                                  fill={isFilled ? '#f59e0b' : '#e2e8f0'}
+                                  color={isFilled ? '#d97706' : '#cbd5e1'}
+                                />
+                              )
+                            })}
+                            <span style={{ marginLeft: '10px', fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
+                              {value ? `${value} 顆星` : '未評分'}
+                            </span>
+                          </div>
+                        ) : field.type === 'url' ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                              type="text"
+                              className="input soft-input"
+                              readOnly={readOnly}
+                              value={value ?? ''}
+                              onFocus={() => handleFocusField(fieldKey)}
+                              onChange={e => handleChange(field.id, e.target.value, false)}
+                              onBlur={e => commitFieldChangeLog(fieldKey, e.target.value)}
+                              placeholder="https://example.com"
+                              style={{ flex: 1, padding: '10px 14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '13px', outline: 'none' }}
+                            />
+                            {Boolean(value) && (
+                              <a
+                                href={String(value).startsWith('http') ? String(value) : `https://${value}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ padding: '9px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', fontSize: '12px', fontWeight: 600, color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+                              >
+                                <ExternalLink size={14} />
+                                開啟
+                              </a>
+                            )}
+                          </div>
+                        ) : field.type === 'email' ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                              type="email"
+                              className="input soft-input"
+                              readOnly={readOnly}
+                              value={value ?? ''}
+                              onFocus={() => handleFocusField(fieldKey)}
+                              onChange={e => handleChange(field.id, e.target.value, false)}
+                              onBlur={e => commitFieldChangeLog(fieldKey, e.target.value)}
+                              placeholder="user@example.com"
+                              style={{ flex: 1, padding: '10px 14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '13px', outline: 'none' }}
+                            />
+                            {Boolean(value) && (
+                              <a
+                                href={`mailto:${value}`}
+                                style={{ padding: '9px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', fontSize: '12px', fontWeight: 600, color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+                              >
+                                <Mail size={14} />
+                                寫信
+                              </a>
+                            )}
+                          </div>
+                        ) : field.type === 'phone_number' ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                              type="tel"
+                              className="input soft-input"
+                              readOnly={readOnly}
+                              value={value ?? ''}
+                              onFocus={() => handleFocusField(fieldKey)}
+                              onChange={e => handleChange(field.id, e.target.value, false)}
+                              onBlur={e => commitFieldChangeLog(fieldKey, e.target.value)}
+                              placeholder="0912-345-678"
+                              style={{ flex: 1, padding: '10px 14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '13px', outline: 'none' }}
+                            />
+                            {Boolean(value) && (
+                              <a
+                                href={`tel:${value}`}
+                                style={{ padding: '9px 14px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', fontSize: '12px', fontWeight: 600, color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}
+                              >
+                                <Phone size={14} />
+                                撥打
+                              </a>
+                            )}
+                          </div>
                         ) : field.type === 'long_text' ? (
                           <textarea
                             className="input soft-input"
@@ -271,7 +363,14 @@ export default function RowEditModal({
                             placeholder="請輸入內容..."
                             style={{ width: '100%', padding: '12px 14px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '13px', wordBreak: 'break-all', outline: 'none', transition: 'all 0.15s ease', lineHeight: '1.5' }}
                           />
-                        ) : ['formula', 'lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'uuid'].includes(field.type) ? (
+                        ) : field.type === 'formula' ? (
+                          <div style={{ padding: '8px 12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', minHeight: '42px' }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {renderFormulaCell(value)}
+                            </div>
+                            <span style={{ fontSize: '11px', color: '#6366f1', background: '#ffffff', border: '1px solid rgba(99, 102, 241, 0.25)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, flexShrink: 0 }}>公式唯讀</span>
+                          </div>
+                        ) : ['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'uuid'].includes(field.type) ? (
                           <div style={{ padding: '10px 14px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '13px', color: '#334155', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Lock size={14} style={{ color: '#6366f1' }} />
                             <span style={{ wordBreak: 'break-all', fontWeight: 500 }}>{value !== null && value !== undefined ? String(value) : ''}</span>
@@ -280,12 +379,31 @@ export default function RowEditModal({
                         ) : (
                           <input
                             type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                            step={field.type === 'number' ? 'any' : undefined}
                             className="input soft-input"
                             readOnly={readOnly}
                             value={field.type === 'date' ? formatDateValue(value) : (value ?? '')}
                             onFocus={() => handleFocusField(fieldKey)}
-                            onChange={e => handleChange(field.id, e.target.value, false)}
-                            onBlur={e => commitFieldChangeLog(fieldKey, e.target.value)}
+                            onChange={e => {
+                              const val = e.target.value
+                              if (field.type === 'number') {
+                                const trimmed = val.trim()
+                                const num = trimmed === '' ? null : Number(trimmed)
+                                handleChange(field.id, isNaN(num as any) ? null : num, false)
+                              } else {
+                                handleChange(field.id, val, false)
+                              }
+                            }}
+                            onBlur={e => {
+                              const val = e.target.value
+                              if (field.type === 'number') {
+                                const trimmed = val.trim()
+                                const num = trimmed === '' ? null : Number(trimmed)
+                                commitFieldChangeLog(fieldKey, isNaN(num as any) ? null : num)
+                              } else {
+                                commitFieldChangeLog(fieldKey, val)
+                              }
+                            }}
                             placeholder="請輸入..."
                             style={{ width: '100%', padding: '10px 14px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '13px', wordBreak: 'break-all', outline: 'none', transition: 'all 0.15s ease' }}
                           />
