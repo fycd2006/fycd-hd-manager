@@ -19,71 +19,69 @@ export async function GET(
       return NextResponse.json({ error: '無效的工作區 ID' }, { status: 400 })
     }
 
-    // 1. Fetch workspace members
-    const members = await prisma.workspaceUser.findMany({
-      where: { workspaceId },
-      include: {
-        user: {
-          select: { id: true, username: true, email: true, role: true }
-        }
-      },
-      orderBy: { createdAt: 'asc' }
-    })
+    // 1. Parallelize fetching workspace members, invitations, and teams
+    let [members, invitations, teams] = await Promise.all([
+      prisma.workspaceUser.findMany({
+        where: { workspaceId },
+        include: {
+          user: {
+            select: { id: true, username: true, email: true, role: true }
+          }
+        },
+        orderBy: { createdAt: 'asc' }
+      }),
+      prisma.workspaceInvitation.findMany({
+        where: { workspaceId },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.workspaceTeam.findMany({
+        where: { workspaceId },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: { id: true, username: true, email: true }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'asc' }
+      })
+    ])
 
-    // If workspace has no explicit WorkspaceUser records yet, sync all system users or activeUser
+    // If workspace has no explicit WorkspaceUser records yet, sync in 1 bulk insert
     if (members.length === 0) {
-      const systemUsers = await prisma.user.findMany()
-      for (const u of systemUsers) {
-        await prisma.workspaceUser.upsert({
-          where: { workspaceId_userId: { workspaceId, userId: u.id } },
-          update: {},
-          create: {
+      const systemUsers = await prisma.user.findMany({ select: { id: true, role: true } })
+      if (systemUsers.length > 0) {
+        await prisma.workspaceUser.createMany({
+          data: systemUsers.map(u => ({
             workspaceId,
             userId: u.id,
             role: u.role === 'admin' ? 'admin' : 'member',
             twoFactor: false
-          }
+          })),
+          skipDuplicates: true
+        })
+
+        // Re-fetch updated members once
+        members = await prisma.workspaceUser.findMany({
+          where: { workspaceId },
+          include: {
+            user: {
+              select: { id: true, username: true, email: true, role: true }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
         })
       }
     }
 
-    const updatedMembers = await prisma.workspaceUser.findMany({
-      where: { workspaceId },
-      include: {
-        user: {
-          select: { id: true, username: true, email: true, role: true }
-        }
-      },
-      orderBy: { createdAt: 'asc' }
-    })
-
-    // 2. Fetch pending invitations
-    const invitations = await prisma.workspaceInvitation.findMany({
-      where: { workspaceId },
-      orderBy: { createdAt: 'desc' }
-    })
-
-    // 3. Fetch teams
-    const teams = await prisma.workspaceTeam.findMany({
-      where: { workspaceId },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: { id: true, username: true, email: true }
-            }
-          }
-        }
-      },
-      orderBy: { createdAt: 'asc' }
-    })
-
     return NextResponse.json({
-      members: updatedMembers.map(m => ({
+      members: members.map(m => ({
         id: m.id,
         userId: m.userId,
-        name: m.user.username,
-        email: m.user.email,
+        name: m.user?.username || '未具名用戶',
+        email: m.user?.email || '',
         role: m.role,
         twoFactor: m.twoFactor,
         createdAt: m.createdAt

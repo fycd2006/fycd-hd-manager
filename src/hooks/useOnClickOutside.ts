@@ -2,12 +2,20 @@ import { useEffect } from 'react';
 
 export function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, handler: (event: MouseEvent | TouchEvent) => void) {
   useEffect(() => {
-    const listener = (event: MouseEvent | TouchEvent) => {
+    let mousedownTarget: Node | null = null;
+
+    const handleMouseDown = (event: MouseEvent | TouchEvent) => {
+      mousedownTarget = event.target as Node;
+    };
+
+    const handleMouseUp = (event: MouseEvent | TouchEvent) => {
       const target = event.target as HTMLElement;
-      // Do nothing if clicking ref's element, descendent elements, or portal modals
+
+      // Do nothing if clicking ref's element, descendent elements, mousedown started inside, or portal modals
       if (
         !ref.current ||
         ref.current.contains(target as Node) ||
+        (mousedownTarget && ref.current.contains(mousedownTarget)) ||
         target?.closest?.('[data-relation-modal="true"]') ||
         target?.closest?.('.portal-modal') ||
         target?.closest?.('[data-longtext-portal="true"]') ||
@@ -18,12 +26,16 @@ export function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, hand
       handler(event);
     };
 
-    document.addEventListener('mousedown', listener);
-    document.addEventListener('touchstart', listener);
+    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('touchstart', handleMouseDown);
+    document.addEventListener('touchend', handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousedown', listener);
-      document.removeEventListener('touchstart', listener);
+      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchstart', handleMouseDown);
+      document.removeEventListener('touchend', handleMouseUp);
     };
   }, [ref, handler]);
 }

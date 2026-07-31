@@ -54,6 +54,7 @@ interface GlobalModalsContainerProps {
   setGroupByField: (fieldKey: string | null) => void
   deleteField: (fieldId: number) => Promise<void>
   onRefreshRows?: () => Promise<void>
+  onOpenAirtableImport?: () => void
 }
 
 export default function GlobalModalsContainer({
@@ -102,7 +103,8 @@ export default function GlobalModalsContainer({
   toggleSort,
   setGroupByField,
   deleteField,
-  onRefreshRows
+  onRefreshRows,
+  onOpenAirtableImport
 }: GlobalModalsContainerProps) {
   const [insertFieldContext, setInsertFieldContext] = useState<{ targetFieldId: number; position: 'left' | 'right' } | null>(null)
 
@@ -137,6 +139,7 @@ export default function GlobalModalsContainer({
         <DatabaseModal
           show={wsState.showDatabaseModal}
           onClose={() => wsActions.setShowDatabaseModal(false)}
+          onOpenAirtableImport={onOpenAirtableImport}
           onSubmit={async (name) => {
             const wsId = wsState.modalWsId || wsState.activeWorkspaceId
             if (!wsId) {

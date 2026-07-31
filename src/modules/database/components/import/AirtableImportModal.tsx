@@ -1,6 +1,4 @@
-'use client'
-
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, UploadCloud, Link as LinkIcon, Key, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 
@@ -20,6 +18,9 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [resultStats, setResultStats] = useState<{ tableCount: number; rowCount: number } | null>(null)
+
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const mousedownOnBackdropRef = useRef<boolean>(false)
 
   // Reset modal state when opened
   React.useEffect(() => {
@@ -89,8 +90,20 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
     }
   }
 
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
+  }
+
+  const handleBackdropMouseUp = (e: React.MouseEvent) => {
+    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+      onClose()
+    }
+    mousedownOnBackdropRef.current = false
+  }
+
   const modalContent = (
     <div
+      ref={overlayRef}
       style={{
         position: 'fixed',
         inset: 0,
@@ -102,7 +115,8 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
         justifyContent: 'center',
         padding: '16px',
       }}
-      onClick={onClose}
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
     >
       <div
         style={{

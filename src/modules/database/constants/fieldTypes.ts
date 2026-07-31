@@ -7,7 +7,7 @@ import React from 'react'
 import { 
   Type, AlignLeft, Plug, Hash, Star, CheckCircle2, Calendar, Edit3, User, 
   Plus, UserCheck, Clock, Link2, Mail, CheckCircle, List, Phone, Calculator, 
-  Grid, Box, Glasses, Users, Tag, Binary, Lock, FileEdit, Sparkles
+  Grid, Box, Glasses, Users, Tag, Binary, Lock, FileEdit, Sparkles, MessageSquare
 } from 'lucide-react'
 
 /**
@@ -43,6 +43,7 @@ export const FIELD_TYPE_ICONS: Record<string, () => React.ReactNode> = {
   password: () => React.createElement(Lock, { size: 14 }),
   edit_row_link: () => React.createElement(FileEdit, { size: 14 }),
   ai_prompt: () => React.createElement(Sparkles, { size: 14 }),
+  latest_comment: () => React.createElement(MessageSquare, { size: 14 }),
 }
 
 /**
@@ -78,6 +79,7 @@ export const FIELD_TYPE_LABELS: Record<string, string> = {
   password: 'Password',
   edit_row_link: 'Edit row link',
   ai_prompt: 'AI prompt',
+  latest_comment: '最新留言紀錄 (Latest comment)',
 }
 
 /**
@@ -111,6 +113,7 @@ export const AVAILABLE_FIELD_TYPES = [
   'password',
   'edit_row_link',
   'ai_prompt',
+  'latest_comment',
 ]
 
 /**

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Home, Database as DatabaseIcon, Search, Bell, Settings, X, Table as TableIcon, ChevronRight, Check, GripVertical, ChevronDown, Compass, Layers, Sparkles, Plus } from 'lucide-react'
+import { Home, Database as DatabaseIcon, Search, Bell, Settings, X, Table as TableIcon, ChevronRight, Check, GripVertical, ChevronDown, Compass, Layers, Sparkles, Plus, UploadCloud } from 'lucide-react'
 import type { Workspace, User, TableField, TableRow } from '@/modules/database/types'
 import { useThemeStore } from '@/modules/database/store/useThemeStore'
 import { useWorkspaceStore } from '@/modules/database/store/useWorkspaceStore'
@@ -25,6 +25,7 @@ interface MobileBottomNavProps {
   onToggleTheme?: () => void
   onToggleDarkReaderPanel?: () => void
   onLogout?: () => void
+  onImportAirtable?: () => void
 }
 
 // Crisp native haptic vibration helper
@@ -54,7 +55,8 @@ export default function MobileBottomNav({
   onSelectRow,
   onToggleTheme,
   onToggleDarkReaderPanel,
-  onLogout
+  onLogout,
+  onImportAirtable
 }: MobileBottomNavProps) {
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'home' | 'database' | 'search' | 'alerts' | 'settings'>('home')
@@ -986,6 +988,31 @@ export default function MobileBottomNav({
                   <Plus size={14} />
                   新增資料庫
                 </button>
+
+                {onImportAirtable && (
+                  <button
+                    onClick={() => {
+                      setShowDbModal(false)
+                      onImportAirtable()
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FFF7ED',
+                      color: '#EA580C',
+                      border: '1px solid #FFEDD5',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <UploadCloud size={14} />
+                    從 Airtable 匯入
+                  </button>
+                )}
                 <button
                   onClick={() => setShowDbModal(false)}
                   style={{

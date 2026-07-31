@@ -95,10 +95,25 @@ export default function RowEditModal({
     return <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Τ</span>
   }
 
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const mousedownOnBackdropRef = useRef<boolean>(false)
+
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
+  }
+
+  const handleBackdropMouseUp = (e: React.MouseEvent) => {
+    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+      onClose()
+    }
+    mousedownOnBackdropRef.current = false
+  }
+
   if (!show || !row) return null
 
   const modalContent = (
     <div
+      ref={overlayRef}
       className="modal-overlay animate-in fade-in duration-150"
       style={{
         position: 'fixed',
@@ -112,10 +127,11 @@ export default function RowEditModal({
         padding: '24px',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
-      onClick={onClose}
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
     >
       <div
-        className="row-edit-modal animate-in zoom-in-95 duration-150"
+        className="row-edit-modal row-edit-modal-card animate-in zoom-in-95 duration-150"
         onClick={e => e.stopPropagation()}
         style={{
           width: isSidebarCollapsed ? '720px' : '1040px',
@@ -133,9 +149,9 @@ export default function RowEditModal({
         }}
       >
         {/* Left Section: Main Row Fields Form */}
-        <div style={{ flex: isSidebarCollapsed ? '1 1 100%' : '1 1 62%', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, background: '#ffffff', transition: 'flex 0.25s ease' }}>
+        <div className="row-edit-modal-left" style={{ flex: isSidebarCollapsed ? '1 1 100%' : '1 1 62%', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, background: '#ffffff', transition: 'flex 0.25s ease' }}>
           {/* Header */}
-          <div style={{ padding: '24px 32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9' }}>
+          <div className="row-edit-modal-header" style={{ padding: '24px 32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
               <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {rowTitle}
@@ -232,12 +248,12 @@ export default function RowEditModal({
           </div>
 
           {/* Form Scroll Area */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px 32px' }}>
+          <div className="row-edit-modal-form-body" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px 32px' }}>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '22px' }}>
               {fields.filter(field => field.type !== 'activity_log').map(field => {
                 const fieldKey = `field_${field.id}`
                 const value = formData[fieldKey] ?? ''
-                const isAdvanced = ['collaborator', 'single_select', 'multiple_select', 'link_row', 'file', 'attachment'].includes(field.type)
+                const isAdvanced = ['collaborator', 'single_select', 'multiple_select', 'link_row', 'file', 'attachment', 'latest_comment'].includes(field.type)
 
                 return (
                   <li key={field.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -358,7 +374,7 @@ export default function RowEditModal({
 
         {/* Right Section: Activity Log & Comments Sidebar */}
         {!isSidebarCollapsed && (
-          <div style={{ flex: '0 0 38%', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
+          <div className="row-edit-modal-right" style={{ flex: '0 0 38%', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
             <RowCommentsPanel
               tableId={row.tableId}
               rowId={row.id}

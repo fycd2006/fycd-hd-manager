@@ -116,15 +116,28 @@ $palette-purple-1100: #46205e !default;
 // map allows us to easily tweak them without having to do a massive search and replace.
 // Once we're sure about the changes, we can do a search and replace, replace the old
 // ones for the correct new ones, and then remove these.
-$color-primary-100: $palette-blue-50 !default;
-$color-primary-200: $palette-blue-100 !default;
-$color-primary-300: $palette-blue-200 !default;
-$color-primary-400: $palette-blue-400 !default;
-$color-primary-500: $palette-blue-500 !default;
-$color-primary-600: $palette-blue-700 !default;
-$color-primary-700: $palette-blue-800 !default;
-$color-primary-800: $palette-blue-900 !default;
-$color-primary-900: $palette-blue-1100 !default;
+$palette-orange-50: #fff7ed !default;
+$palette-orange-100: #ffedd5 !default;
+$palette-orange-200: #fed7aa !default;
+$palette-orange-300: #fdba74 !default;
+$palette-orange-400: #fb923c !default;
+$palette-orange-500: #ea580c !default;
+$palette-orange-600: #ea580c !default;
+$palette-orange-700: #c2410c !default;
+$palette-orange-800: #9a3412 !default;
+$palette-orange-900: #7c2d12 !default;
+$palette-orange-1000: #431407 !default;
+
+// Map primary color scale to Warm Orange palette
+$color-primary-100: $palette-orange-50 !default;
+$color-primary-200: $palette-orange-100 !default;
+$color-primary-300: $palette-orange-200 !default;
+$color-primary-400: $palette-orange-400 !default;
+$color-primary-500: $palette-orange-500 !default;
+$color-primary-600: $palette-orange-700 !default;
+$color-primary-700: $palette-orange-800 !default;
+$color-primary-800: $palette-orange-900 !default;
+$color-primary-900: $palette-orange-1000 !default;
 
 $color-neutral-10: $palette-neutral-25 !default;
 $color-neutral-50: $palette-neutral-25 !default;

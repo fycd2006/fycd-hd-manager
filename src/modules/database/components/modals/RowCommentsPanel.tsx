@@ -48,6 +48,8 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
     commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [comments])
 
+  const [fetchedLogs, setFetchedLogs] = useState<ActivityLogEntry[]>([])
+
   const loadComments = useCallback(async () => {
     if (!tableId || !rowId) return
     setCommentsLoading(true)
@@ -55,7 +57,19 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
       const res = await fetch(`/api/tables/${tableId}/rows/comments?rowId=${rowId}`)
       if (res.ok) {
         const data = await res.json()
-        setComments(Array.isArray(data) ? data : [])
+        if (Array.isArray(data)) {
+          const userComments = data.filter((item: any) => !item.content.startsWith('[HISTORY]'))
+          const historyLogs = data
+            .filter((item: any) => item.content.startsWith('[HISTORY]'))
+            .map((item: any) => ({
+              id: String(item.id),
+              user: item.user?.username || '系統 (System)',
+              time: new Date(item.createdAt).toLocaleString('zh-TW', { hour12: false }),
+              content: item.content.replace('[HISTORY] ', '')
+            }))
+          setComments(userComments)
+          setFetchedLogs(historyLogs)
+        }
       }
     } catch (e) {
       console.error('Failed to load comments:', e)
@@ -132,10 +146,10 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
             fontSize: '13px',
             fontWeight: activeTab === 'comments' ? 600 : 500,
             border: 'none',
-            borderBottom: activeTab === 'comments' ? '2px solid #18181B' : '2px solid transparent',
+            borderBottom: activeTab === 'comments' ? '2px solid #EA580C' : '2px solid transparent',
             cursor: 'pointer',
             background: 'transparent',
-            color: activeTab === 'comments' ? '#1e293b' : '#64748b',
+            color: activeTab === 'comments' ? '#EA580C' : '#64748b',
             transition: 'all 0.15s ease',
             display: 'flex',
             alignItems: 'center',
@@ -158,10 +172,10 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
             fontSize: '13px',
             fontWeight: activeTab === 'activity' ? 600 : 500,
             border: 'none',
-            borderBottom: activeTab === 'activity' ? '2px solid #18181B' : '2px solid transparent',
+            borderBottom: activeTab === 'activity' ? '2px solid #EA580C' : '2px solid transparent',
             cursor: 'pointer',
             background: 'transparent',
-            color: activeTab === 'activity' ? '#1e293b' : '#64748b',
+            color: activeTab === 'activity' ? '#EA580C' : '#64748b',
             transition: 'all 0.15s ease',
             display: 'flex',
             alignItems: 'center',
@@ -170,9 +184,9 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
           }}
         >
           <span>History</span>
-          {activityLog.length > 0 && (
+          {(activityLog.length + fetchedLogs.length) > 0 && (
             <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#475569', padding: '1px 6px', borderRadius: '10px' }}>
-              {activityLog.length}
+              {activityLog.length + fetchedLogs.length}
             </span>
           )}
         </button>
@@ -281,7 +295,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                     color: '#0f172a',
                     transition: 'border-color 0.15s ease',
                   }}
-                  onFocus={e => (e.target.style.borderColor = '#3F6212')}
+                  onFocus={e => (e.target.style.borderColor = '#EA580C')}
                   onBlur={e => (e.target.style.borderColor = '#cbd5e1')}
                 />
                 <button
@@ -292,7 +306,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                     right: '10px',
                     background: 'none',
                     border: 'none',
-                    color: commentInput.trim() ? '#3F6212' : '#cbd5e1',
+                    color: commentInput.trim() ? '#EA580C' : '#cbd5e1',
                     cursor: commentInput.trim() ? 'pointer' : 'default',
                     display: 'flex',
                     alignItems: 'center',
@@ -309,36 +323,38 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
       )}
 
       {/* Tab Content 2: Activity Log */}
-      {activeTab === 'activity' && (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: '20px 20px 16px' }}>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {activityLog.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                  minHeight: '220px',
-                  color: '#64748b',
-                  gap: '12px',
-                  padding: '24px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                  <History size={22} />
+      {activeTab === 'activity' && (() => {
+        const mergedLogs = [...activityLog, ...fetchedLogs]
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: '20px 20px 16px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {mergedLogs.length === 0 ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%',
+                    minHeight: '220px',
+                    color: '#64748b',
+                    gap: '12px',
+                    padding: '24px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                    <History size={22} />
+                  </div>
+                  <span style={{ fontSize: '13px', color: '#475569' }}>尚無此資料列的歷史變更紀錄</span>
                 </div>
-                <span style={{ fontSize: '13px', color: '#475569' }}>No history entries for this row.</span>
-              </div>
-            ) : (
-              activityLog.map((log, index) => {
-                const logId = log.id || String(index)
-                const isEditing = editingLogId === logId
-                const logUser = log.user || (log as any).username || 'System'
-                const logTime = log.time || (log as any).timestamp || (log as any).createdAt || ''
-                const logContent = log.content || (log as any).description || (log as any).action || ''
+              ) : (
+                mergedLogs.map((log, index) => {
+                  const logId = log.id || String(index)
+                  const isEditing = editingLogId === logId
+                  const logUser = log.user || (log as any).username || 'System'
+                  const logTime = log.time || (log as any).timestamp || (log as any).createdAt || ''
+                  const logContent = log.content || (log as any).description || (log as any).action || ''
 
                 return (
                   <div
@@ -396,10 +412,11 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                   </div>
                 )
               })
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

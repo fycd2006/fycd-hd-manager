@@ -94,6 +94,9 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
   // Action Menu Dropdown State
   const [activeActionMenuMemberId, setActiveActionMenuMemberId] = useState<number | null>(null)
 
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const mousedownOnBackdropRef = useRef<boolean>(false)
+
   useEffect(() => {
     if (!workspace) return
     fetchMembersData()
@@ -270,9 +273,22 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
 
   const selectedInviteRoleObj = WORKSPACE_ROLES.find(r => r.uid === inviteRole) || WORKSPACE_ROLES[0]
 
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
+  }
+
+  const handleBackdropMouseUp = (e: React.MouseEvent) => {
+    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+      onClose()
+    }
+    mousedownOnBackdropRef.current = false
+  }
+
   return (
     <div
-      onClick={onClose}
+      ref={overlayRef}
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
       style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)', padding: '12px' }}
     >
       <style>{`
@@ -335,7 +351,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
           align-items: center;
           gap: 6px;
           padding: 9px 18px;
-          background-color: #3F6212;
+          background: var(--cta-gradient, linear-gradient(135deg, #EA580C 0%, #F97316 100%));
           color: #ffffff;
           border: none;
           border-radius: 10px;
@@ -343,7 +359,12 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
-          box-shadow: 0 2px 6px rgba(63, 98, 18,0.2);
+          box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
+          transition: all 0.15s ease;
+        }
+        .members-modal-invite-btn:hover {
+          background: linear-gradient(135deg, #C2410C 0%, #EA580C 100%);
+          box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4);
         }
 
         @media (max-width: 640px) {

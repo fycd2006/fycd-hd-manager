@@ -17,12 +17,12 @@ const OPERATOR_OPTIONS = [
 ]
 
 const COLOR_OPTIONS = [
-  { value: 'red', label: '🔴 紅色' },
-  { value: 'green', label: '🟢 綠色' },
-  { value: 'blue', label: '🔵 藍色' },
-  { value: 'yellow', label: '🟡 黃色' },
-  { value: 'purple', label: '🟣 紫色' },
-  { value: 'orange', label: '🟠 橘色' },
+  { value: 'red', label: '紅色 (Red)' },
+  { value: 'green', label: '綠色 (Green)' },
+  { value: 'blue', label: '藍色 (Blue)' },
+  { value: 'yellow', label: '黃色 (Yellow)' },
+  { value: 'purple', label: '紫色 (Purple)' },
+  { value: 'orange', label: '橘色 (Orange)' },
 ]
 
 export function ColorMenu({

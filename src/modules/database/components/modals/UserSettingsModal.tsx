@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { X, User, Mail, Key, Check, Sun, Moon, Sliders, LogOut, Palette } from 'lucide-react'
 import type { User as UserType } from '@/modules/database/types'
 import { useThemeStore } from '@/modules/database/store/useThemeStore'
@@ -38,6 +38,9 @@ export default function UserSettingsModal({
   const [themeState, themeActions] = useThemeStore()
   const isDark = themeState.theme === 'dark'
 
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const mousedownOnBackdropRef = useRef<boolean>(false)
+
   if (!show) return null
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -74,12 +77,24 @@ export default function UserSettingsModal({
     }
   }
 
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
+  }
+
+  const handleBackdropMouseUp = (e: React.MouseEvent) => {
+    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+      onClose()
+    }
+    mousedownOnBackdropRef.current = false
+  }
+
   return (
     <div
+      ref={overlayRef}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 1100,
+        zIndex: 1050,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -88,7 +103,8 @@ export default function UserSettingsModal({
         pointerEvents: 'auto',
         touchAction: 'manipulation'
       }}
-      onClick={onClose}
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
     >
       {/* Soft Borderless Elevated Card */}
       <div

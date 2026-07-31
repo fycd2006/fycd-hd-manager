@@ -17,17 +17,17 @@
   --text-muted: #71717A;
   --text-inverse: #FFFFFF;
 
-  /* Primary Accent & Action Colors */
-  --accent-primary: #18181B;
-  --accent-primary-hover: #27272A;
-  --accent-soft: #F4F4F5;
-  --accent-soft-hover: #E4E4E7;
+  /* Primary Accent & Action Colors (10% Warm Orange Focus & Action) */
+  --accent-primary: #EA580C;
+  --accent-primary-hover: #C2410C;
+  --accent-soft: #FFF7ED;
+  --accent-soft-hover: #FFEDD5;
 
-  /* Borders & Dividers */
+  /* Borders & Dividers (30% Sage Green Active Border) */
   --border-hairline: #E4E4E7;
   --border-subtle: #F4F4F5;
   --border-strong: #D4D4D8;
-  --border-focus: #18181B;
+  --border-focus: #EA580C;
 
   /* Shadows & Depth */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);

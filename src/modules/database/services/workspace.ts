@@ -134,3 +134,21 @@ export const rename = async (type: 'workspace' | 'database' | 'table', id: numbe
     return { ok: false, error: '重新命名失敗' }
   }
 }
+
+/**
+ * Move a table to another database or update order
+ */
+export const moveTable = async (tableId: number, targetDatabaseId: number, order?: number): Promise<{ ok: boolean; error?: string }> => {
+  try {
+    const res = await fetch(`/api/tables/${tableId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ databaseId: targetDatabaseId, ...(order !== undefined && { order }) }),
+    })
+    if (res.ok) return { ok: true }
+    const data = await res.json()
+    return { ok: false, error: data.error || '轉移資料表失敗' }
+  } catch {
+    return { ok: false, error: '轉移資料表失敗' }
+  }
+}

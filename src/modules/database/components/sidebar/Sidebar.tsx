@@ -25,7 +25,8 @@ import {
   Search,
   Check,
   User as UserIcon,
-  FileText
+  FileText,
+  GripVertical
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -68,6 +69,8 @@ interface SidebarProps {
   onDeleteTable?: (tableId: number, tableName: string) => void
   userPermissions?: any
   onSelectDashboard?: () => void
+  onMoveTableToDatabase?: (tableId: number, targetDbId: number, targetOrder?: number) => void
+  onReorderDatabases?: (wsId: number, orderedDbIds: number[]) => void
 }
 
 export default function Sidebar({
@@ -102,9 +105,16 @@ export default function Sidebar({
   onToggleDarkReaderPanel,
   onDeleteTable,
   userPermissions,
-  onSelectDashboard
+  onSelectDashboard,
+  onMoveTableToDatabase,
+  onReorderDatabases
 }: SidebarProps) {
   const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null)
+  
+  // Drag and Drop State
+  const [draggedItem, setDraggedItem] = useState<{ type: 'database' | 'table'; id: number; sourceDbId?: number } | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ type: 'database' | 'table'; id: number; position?: 'before' | 'after' | 'inside' } | null>(null)
+  
   const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState('')
   const popoverRef = useRef<HTMLDivElement>(null)
 
@@ -214,7 +224,7 @@ export default function Sidebar({
                 <img
                   src="/logo.jpg"
                   alt="FYCD HD Manager Logo"
-                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #3F6212', boxShadow: '0 2px 6px rgba(63, 98, 18,0.2)' }}
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #EA580C', boxShadow: '0 2px 6px rgba(234, 88, 12, 0.25)' }}
                 />
               </button>
 
@@ -722,7 +732,55 @@ export default function Sidebar({
                         {/* Database Item Row */}
                         <div
                           className="sidebar-hover-item"
-                          style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', borderRadius: '8px', cursor: 'pointer', position: 'relative' }}
+                          draggable={canManageStructure}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'database', id: db.id }))
+                            setDraggedItem({ type: 'database', id: db.id })
+                          }}
+                          onDragOver={(e) => {
+                            if (!draggedItem) return
+                            e.preventDefault()
+                            e.stopPropagation()
+                            if (draggedItem.type === 'database' && draggedItem.id !== db.id) {
+                              setDropTarget({ type: 'database', id: db.id })
+                            } else if (draggedItem.type === 'table') {
+                              setDropTarget({ type: 'database', id: db.id, position: 'inside' })
+                            }
+                          }}
+                          onDragLeave={(e) => {
+                            e.preventDefault()
+                            setDropTarget(prev => prev?.id === db.id ? null : prev)
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            if (!draggedItem) return
+                            if (draggedItem.type === 'database' && draggedItem.id !== db.id && activeWorkspace) {
+                              const currentDbs = activeWorkspace.databases.map(d => d.id)
+                              const fromIdx = currentDbs.indexOf(draggedItem.id)
+                              const toIdx = currentDbs.indexOf(db.id)
+                              if (fromIdx !== -1 && toIdx !== -1) {
+                                currentDbs.splice(fromIdx, 1)
+                                currentDbs.splice(toIdx, 0, draggedItem.id)
+                                if (onReorderDatabases) onReorderDatabases(activeWorkspace.id, currentDbs)
+                              }
+                            } else if (draggedItem.type === 'table') {
+                              if (onMoveTableToDatabase) onMoveTableToDatabase(draggedItem.id, db.id)
+                            }
+                            setDraggedItem(null)
+                            setDropTarget(null)
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '6px 8px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            transition: 'all 0.15s ease',
+                            backgroundColor: dropTarget?.type === 'database' && dropTarget.id === db.id && dropTarget.position === 'inside' ? '#FFF7ED' : undefined,
+                            border: dropTarget?.type === 'database' && dropTarget.id === db.id && dropTarget.position === 'inside' ? '2px dashed #EA580C' : dropTarget?.type === 'database' && dropTarget.id === db.id ? '2px solid #EA580C' : undefined,
+                          }}
                         >
                           <div
                             onClick={() => onToggleDatabaseCollapse(db.id)}
@@ -814,6 +872,34 @@ export default function Sidebar({
                               return (
                                 <div
                                   key={table.id}
+                                  draggable={canManageStructure}
+                                  onDragStart={(e) => {
+                                    e.stopPropagation()
+                                    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'table', id: table.id, sourceDbId: db.id }))
+                                    setDraggedItem({ type: 'table', id: table.id, sourceDbId: db.id })
+                                  }}
+                                  onDragOver={(e) => {
+                                    if (draggedItem?.type === 'table' && draggedItem.id !== table.id) {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      setDropTarget({ type: 'table', id: table.id })
+                                    }
+                                  }}
+                                  onDragLeave={(e) => {
+                                    e.preventDefault()
+                                    setDropTarget(prev => prev?.id === table.id ? null : prev)
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    if (draggedItem?.type === 'table' && draggedItem.id !== table.id) {
+                                      const targetDbId = db.id
+                                      const targetTableIndex = db.tables.findIndex(t => t.id === table.id)
+                                      if (onMoveTableToDatabase) onMoveTableToDatabase(draggedItem.id, targetDbId, targetTableIndex >= 0 ? targetTableIndex : undefined)
+                                    }
+                                    setDraggedItem(null)
+                                    setDropTarget(null)
+                                  }}
                                   className={`sidebar-hover-item ${isActive ? 'sidebar-active-table' : ''}`}
                                   style={{
                                     padding: '6px 10px',
@@ -822,7 +908,10 @@ export default function Sidebar({
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'space-between',
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    backgroundColor: dropTarget?.type === 'table' && dropTarget.id === table.id ? '#FFF7ED' : undefined,
+                                    borderTop: dropTarget?.type === 'table' && dropTarget.id === table.id ? '2px solid #EA580C' : undefined,
                                   }}
                                   onClick={() => onSetActiveTableId(table.id)}
                                   onDoubleClick={(e) => {
@@ -937,7 +1026,7 @@ export default function Sidebar({
                   alt="FYCD HD Manager Logo"
                   style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0', flexShrink: 0 }}
                 />
-                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--brand-orange-main, #EA580C)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   FYCD HD Manager
                 </span>
               </div>

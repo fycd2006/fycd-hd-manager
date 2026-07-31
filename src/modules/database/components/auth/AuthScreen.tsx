@@ -107,7 +107,7 @@ export default function AuthScreen({
             fontSize: '26px',
             fontWeight: 800,
             margin: '0 0 6px 0',
-            color: '#09090b',
+            color: 'var(--brand-orange-main, #EA580C)',
             letterSpacing: '-0.03em',
             lineHeight: 1.2
           }}>

@@ -1,20 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { cookies } from 'next/headers'
-
-// Helper to authenticate user from session cookies
-async function getSessionUser() {
-  const cookieStore = await cookies()
-  const session = cookieStore.get('session')
-  if (!session?.value) return null
-
-  try {
-    const decoded = Buffer.from(session.value, 'base64').toString('utf-8')
-    return JSON.parse(decoded)
-  } catch {
-    return null
-  }
-}
+import { getSessionUser } from '@/lib/auth'
 
 // GET: 載入某一資料列下的所有留言
 export async function GET(
@@ -45,6 +31,25 @@ export async function GET(
       },
       orderBy: { createdAt: 'asc' }
     })
+
+    const hasHistory = comments.some(c => c.content.startsWith('[HISTORY]'))
+    if (!hasHistory) {
+      const rowMeta = await prisma.tableRow.findUnique({
+        where: { id: rid },
+        select: { createdAt: true, updatedAt: true }
+      })
+      if (rowMeta) {
+        const creationHistory = {
+          id: -999,
+          rowId: rid,
+          userId: 0,
+          content: '[HISTORY] 建立了此資料列',
+          createdAt: rowMeta.createdAt.toISOString(),
+          user: { username: '系統 (System)', role: 'admin' }
+        }
+        return NextResponse.json([creationHistory, ...comments])
+      }
+    }
 
     return NextResponse.json(comments)
   } catch (error: any) {

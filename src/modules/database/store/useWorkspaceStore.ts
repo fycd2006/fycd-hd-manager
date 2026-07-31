@@ -43,6 +43,8 @@ export interface WorkspaceActions {
   createDatabase: (wsId: number, name: string) => Promise<{ ok: boolean; error?: string }>
   createTable: (dbId: number, name: string) => Promise<{ ok: boolean; error?: string }>
   deleteWorkspaceOrDb: (action: 'delete_workspace' | 'delete_database', id: number) => Promise<{ ok: boolean; error?: string }>
+  moveTableToDatabase: (tableId: number, targetDbId: number, targetOrder?: number) => Promise<{ ok: boolean; error?: string }>
+  reorderDatabases: (wsId: number, orderedDbIds: number[]) => void
 }
 
 export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
@@ -202,6 +204,69 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
     [fetchWorkspaces]
   )
 
+  const moveTableToDatabase = useCallback(async (tableId: number, targetDbId: number, targetOrder?: number) => {
+    setWorkspaces(prevWorkspaces => {
+      let movedTable: any = null
+      
+      const nextWorkspaces = prevWorkspaces.map(ws => ({
+        ...ws,
+        databases: (ws.databases || []).map(db => {
+          const found = (db.tables || []).find(t => t.id === tableId)
+          if (found) {
+            movedTable = { ...found, databaseId: targetDbId }
+            return {
+              ...db,
+              tables: db.tables.filter(t => t.id !== tableId)
+            }
+          }
+          return db
+        })
+      }))
+
+      if (!movedTable) return prevWorkspaces
+
+      return nextWorkspaces.map(ws => ({
+        ...ws,
+        databases: (ws.databases || []).map(db => {
+          if (db.id === targetDbId) {
+            const currentTables = [...(db.tables || [])]
+            if (targetOrder !== undefined && targetOrder >= 0 && targetOrder <= currentTables.length) {
+              currentTables.splice(targetOrder, 0, movedTable)
+            } else {
+              currentTables.push(movedTable)
+            }
+            return {
+              ...db,
+              tables: currentTables
+            }
+          }
+          return db
+        })
+      }))
+    })
+
+    const res = await workspaceService.moveTable(tableId, targetDbId, targetOrder)
+    if (!res.ok) {
+      await fetchWorkspaces()
+    }
+    return res
+  }, [fetchWorkspaces])
+
+  const reorderDatabases = useCallback((wsId: number, orderedDbIds: number[]) => {
+    setWorkspaces(prevWorkspaces => prevWorkspaces.map(ws => {
+      if (ws.id === wsId) {
+        const dbMap = new Map((ws.databases || []).map(d => [d.id, d]))
+        const reordered = orderedDbIds.map(id => dbMap.get(id)).filter(Boolean) as any[]
+        const remaining = (ws.databases || []).filter(d => !orderedDbIds.includes(d.id))
+        return {
+          ...ws,
+          databases: [...reordered, ...remaining]
+        }
+      }
+      return ws
+    }))
+  }, [])
+
   const state: WorkspaceState = {
     workspaces,
     activeWorkspaceId,
@@ -237,7 +302,9 @@ export const useWorkspaceStore = (): [WorkspaceState, WorkspaceActions] => {
     createDatabase,
     createTable,
     deleteWorkspaceOrDb,
-  }), [setWorkspaces, setActiveWorkspaceId, setActiveTableId, setActiveViewId, setCollapsedWorkspaces, setCollapsedDatabases, toggleWorkspaceCollapse, toggleDatabaseCollapse, setShowWorkspaceModal, setShowDatabaseModal, setNewWorkspaceName, setNewDatabaseName, setModalWsId, setModalDbId, fetchWorkspaces, createWorkspace, createDatabase, createTable, deleteWorkspaceOrDb])
+    moveTableToDatabase,
+    reorderDatabases,
+  }), [setWorkspaces, setActiveWorkspaceId, setActiveTableId, setActiveViewId, setCollapsedWorkspaces, setCollapsedDatabases, toggleWorkspaceCollapse, toggleDatabaseCollapse, setShowWorkspaceModal, setShowDatabaseModal, setNewWorkspaceName, setNewDatabaseName, setModalWsId, setModalDbId, fetchWorkspaces, createWorkspace, createDatabase, createTable, deleteWorkspaceOrDb, moveTableToDatabase, reorderDatabases])
 
   return [state, actions]
 }

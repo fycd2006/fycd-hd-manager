@@ -12,7 +12,11 @@ export async function PATCH(
     const body = await request.json()
     const updated = await prisma.databaseTable.update({
       where: { id },
-      data: { ...(body.name && { name: body.name }), ...(body.order !== undefined && { order: body.order }) },
+      data: {
+        ...(body.name && { name: body.name }),
+        ...(body.order !== undefined && { order: body.order }),
+        ...(body.databaseId !== undefined && { databaseId: body.databaseId })
+      },
     })
     return NextResponse.json(updated)
   } catch (error: any) {

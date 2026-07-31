@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, Bell, Mail } from 'lucide-react'
 
 export interface NotificationItem {
@@ -30,6 +30,9 @@ export default function NotificationsModal({
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<number | null>(null)
+
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const mousedownOnBackdropRef = useRef<boolean>(false)
 
   const fetchNotifications = async () => {
     setLoading(true)
@@ -81,8 +84,20 @@ export default function NotificationsModal({
 
   const unreadCount = notifications.filter(n => !n.read).length
 
+  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
+  }
+
+  const handleBackdropMouseUp = (e: React.MouseEvent) => {
+    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+      onClose()
+    }
+    mousedownOnBackdropRef.current = false
+  }
+
   return (
     <div
+      ref={overlayRef}
       style={{
         position: 'fixed',
         inset: 0,
@@ -95,7 +110,8 @@ export default function NotificationsModal({
         pointerEvents: 'auto',
         touchAction: 'manipulation'
       }}
-      onClick={onClose}
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
     >
       {/* Soft Borderless Elevated Card */}
       <div

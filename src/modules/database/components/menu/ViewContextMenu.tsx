@@ -19,7 +19,6 @@ interface ViewContextMenuProps {
   onClose: () => void
   onExportView?: () => void
   onImportFile?: () => void
-  onImportAirtable?: () => void
   onDuplicateView?: () => void
   onRenameView?: () => void
   onDeleteView?: () => void
@@ -32,7 +31,6 @@ export function ViewContextMenu({
   onClose,
   onExportView,
   onImportFile,
-  onImportAirtable,
   onDuplicateView,
   onRenameView,
   onDeleteView,
@@ -84,15 +82,6 @@ export function ViewContextMenu({
       icon: Download,
       onClick: () => {
         onImportFile()
-        onClose()
-      }
-    }] : []),
-    ...(onImportAirtable ? [{
-      id: 'import-airtable',
-      label: '從 Airtable 匯入',
-      icon: UploadCloud,
-      onClick: () => {
-        onImportAirtable()
         onClose()
       }
     }] : []),

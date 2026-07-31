@@ -52,10 +52,17 @@ export default function Modal({
 
   if (!show) return null
 
-  const handleOutsideClick = (e: React.MouseEvent) => {
-    if (closeOnOutsideClick && e.target === modalRef.current) {
+  const mousedownOnBackdropRef = useRef<boolean>(false)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    mousedownOnBackdropRef.current = (e.target === modalRef.current)
+  }
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (closeOnOutsideClick && e.target === modalRef.current && mousedownOnBackdropRef.current) {
       onClose()
     }
+    mousedownOnBackdropRef.current = false
   }
 
   const sizeWidthMap = {
@@ -86,7 +93,8 @@ export default function Modal({
         WebkitBackdropFilter: 'blur(10px)',
         boxSizing: 'border-box'
       }}
-      onClick={handleOutsideClick}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
     >
       <div
         className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 transition-all duration-200 animate-in fade-in zoom-in-95"

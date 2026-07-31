@@ -110,7 +110,7 @@ export default function WorkspaceDashboard({
                 style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #e4e4e7', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }} 
               />
               <div>
-                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#18181B' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--brand-orange-main, #EA580C)' }}>
                   FYCD HD Manager
                 </span>
                 <h1 style={{

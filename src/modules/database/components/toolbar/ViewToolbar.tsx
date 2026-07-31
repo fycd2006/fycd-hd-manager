@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2 } from 'lucide-react'
+import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2 } from 'lucide-react'
 import type { TableView, TableField, FilterRule, RowColorRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -64,6 +64,10 @@ interface ViewToolbarProps {
   csvInputRef: React.RefObject<HTMLInputElement | null>
   canManageStructure?: boolean
   onImportAirtable?: () => void
+  onUndo?: () => void
+  onRedo?: () => void
+  canUndo?: boolean
+  canRedo?: boolean
 }
 
 export function ViewToolbar({
@@ -98,8 +102,12 @@ export function ViewToolbar({
   handleExportCSV,
   handleCSVImport,
   csvInputRef,
-  canManageStructure = true,
-  onImportAirtable
+  canManageStructure,
+  onImportAirtable,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false
 }: ViewToolbarProps) {
   const safeRowColorRules = Array.isArray(rowColorRules) ? rowColorRules : [];
   const safeFilterRules = Array.isArray(filterRules) ? filterRules : [];
@@ -353,7 +361,6 @@ export function ViewToolbar({
               }}
               onExportView={handleExportCSV}
               onImportFile={() => csvInputRef.current?.click()}
-              onImportAirtable={onImportAirtable}
               onDuplicateView={onDuplicateView ? () => onDuplicateView(selectedViewForMenu.id) : undefined}
               onRenameView={onRenameView ? () => onRenameView(selectedViewForMenu.id) : undefined}
               onDeleteView={onDeleteView ? () => onDeleteView(selectedViewForMenu.id) : undefined}
@@ -453,6 +460,61 @@ export function ViewToolbar({
             <AlignJustify size={16} color={rowHeightSize !== 'small' ? '#3F6212' : activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b'} className="header__filter-icon" />
             <span className="header__filter-name">Row height</span>
           </a>
+        </li>
+
+        {/* Undo & Redo History Quick Action Buttons */}
+        <li className="header__filter-item" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px' }}>
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="復原 (Undo - Ctrl+Z)"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '5px 8px',
+              borderRadius: '6px',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              opacity: canUndo ? 1 : 0.4,
+              color: '#475569',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => { if (canUndo) e.currentTarget.style.backgroundColor = '#f1f5f9' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+          >
+            <Undo2 size={15} />
+            <span>復原</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="重做 (Redo - Ctrl+Y)"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '5px 8px',
+              borderRadius: '6px',
+              cursor: canRedo ? 'pointer' : 'not-allowed',
+              opacity: canRedo ? 1 : 0.4,
+              color: '#475569',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={(e) => { if (canRedo) e.currentTarget.style.backgroundColor = '#f1f5f9' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+          >
+            <Redo2 size={15} />
+            <span>重做</span>
+          </button>
         </li>
 
         <li className="header__filter-item header__filter-item--right">
@@ -1168,12 +1230,12 @@ export function ViewToolbar({
                         }}
                         style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                       >
-                        <option value="red">🔴 紅色</option>
-                        <option value="green">🟢 綠色</option>
-                        <option value="blue">🔵 藍色</option>
-                        <option value="yellow">🟡 黃色</option>
-                        <option value="purple">🟣 紫色</option>
-                        <option value="orange">🟠 橘色</option>
+                        <option value="red">紅色 (Red)</option>
+                        <option value="green">綠色 (Green)</option>
+                        <option value="blue">藍色 (Blue)</option>
+                        <option value="yellow">黃色 (Yellow)</option>
+                        <option value="purple">紫色 (Purple)</option>
+                        <option value="orange">橘色 (Orange)</option>
                       </select>
                     </div>
                   ))}

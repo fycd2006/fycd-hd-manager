@@ -9,7 +9,7 @@ import {
   Type, AlignLeft, Plug, Hash, Star, CheckCircle2, Edit3, User,
   Plus, UserCheck, Link2, Mail, FileText, CheckCircle, List, Phone,
   Calculator, Grid, Box, Glasses, Users, Tag, Binary, Lock, FileEdit,
-  Sparkles, Search, ChevronDown, X, Database, Table
+  Sparkles, Search, ChevronDown, X, Database, Table, UploadCloud, MessageSquare
 } from 'lucide-react'
 import { TableField } from '@/modules/database/types'
 import { parseFormula, getSupportedFunctions } from '@/lib/formula'
@@ -103,9 +103,10 @@ interface DatabaseModalProps {
   show: boolean
   onClose: () => void
   onSubmit: (name: string) => Promise<void>
+  onOpenAirtableImport?: () => void
 }
 
-export function DatabaseModal({ show, onClose, onSubmit }: DatabaseModalProps) {
+export function DatabaseModal({ show, onClose, onSubmit, onOpenAirtableImport }: DatabaseModalProps) {
   const { t } = useI18n()
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
@@ -158,6 +159,41 @@ export function DatabaseModal({ show, onClose, onSubmit }: DatabaseModalProps) {
             />
           </div>
         </div>
+
+        {onOpenAirtableImport && (
+          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>或匯入現有外部資料庫：</span>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                onOpenAirtableImport()
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '11px 16px',
+                borderRadius: '12px',
+                border: '1px dashed #EA580C',
+                backgroundColor: '#FFF7ED',
+                color: '#EA580C',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFEDD5'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFF7ED'}
+            >
+              <UploadCloud size={16} color="#EA580C" />
+              <span>從 Airtable 匯入資料庫</span>
+            </button>
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingTop: '12px', boxSizing: 'border-box' }}>
           <div className="hidden sm:flex" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
             按 <kbd style={{ padding: '2px 6px', fontSize: '11px', fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #cbd5e1' }}>↵ Enter</kbd> 送出
@@ -613,7 +649,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     { key: 'autonumber', label: 'Autonumber', icon: <Binary size={16} /> },
     { key: 'password', label: 'Password', icon: <Lock size={16} /> },
     { key: 'edit_row_link', label: 'Edit row link', icon: <FileEdit size={16} /> },
-    { key: 'ai_prompt', label: 'AI prompt', icon: <Sparkles size={16} /> }
+    { key: 'ai_prompt', label: 'AI prompt', icon: <Sparkles size={16} /> },
+    { key: 'latest_comment', label: '最新留言紀錄 (Latest comment)', icon: <MessageSquare size={16} /> }
   ]
 
   const filteredTypes = fieldTypeItems.filter(ft =>

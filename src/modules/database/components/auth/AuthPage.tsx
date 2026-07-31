@@ -42,7 +42,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ authState, authActions, them
           alt="FYCD HD Manager Logo" 
           style={{ width: '88px', height: '88px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px', boxShadow: '0 6px 18px rgba(0,0,0,0.12)', border: '2px solid #ffffff' }} 
         />
-        <h1 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 16px 0', color: '#09090b', letterSpacing: '-0.02em' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 16px 0', color: 'var(--brand-orange-main, #EA580C)', letterSpacing: '-0.02em' }}>
           FYCD HD Manager
         </h1>
         

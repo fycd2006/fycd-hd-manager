@@ -228,6 +228,36 @@ export default function Home() {
     }
   )
 
+  // Global Ctrl+Z (Undo) / Ctrl+Y / Ctrl+Shift+Z (Redo) Keydown Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement
+      const isInputFocused = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        (activeEl as HTMLElement).isContentEditable
+      )
+
+      if ((e.ctrlKey || e.metaKey) && !isInputFocused) {
+        if (e.key.toLowerCase() === 'z') {
+          if (e.shiftKey) {
+            e.preventDefault()
+            redo()
+          } else {
+            e.preventDefault()
+            undo()
+          }
+        } else if (e.key.toLowerCase() === 'y') {
+          e.preventDefault()
+          redo()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undo, redo])
+
   // Fetch table data using new services
   const fetchTableData = useCallback(async (tableId: number) => {
     setGridLoading(true)
@@ -326,9 +356,13 @@ export default function Home() {
   }
 
   // Cell update using new service
-  const updateCell = async (rowId: number, fieldKey: string, value: CellValue, skipPushHistory: boolean = false) => {
+  const updateCell = async (rowId: number, fieldKeyOrId: string | number, value: CellValue, skipPushHistory: boolean = false) => {
     if (!wsState.activeTableId) return
     try {
+      const fieldKey = typeof fieldKeyOrId === 'number'
+        ? `field_${fieldKeyOrId}`
+        : (String(fieldKeyOrId).startsWith('field_') ? String(fieldKeyOrId) : `field_${fieldKeyOrId}`)
+
       const fieldId = parseInt(fieldKey.replace('field_', ''))
       const field = fields.find(f => f.id === fieldId)
 
@@ -385,6 +419,27 @@ export default function Home() {
             before: oldValue,
             after: payloadValue
           })
+
+          const fieldName = field?.name || fieldKey
+          const formatVal = (v: any) => {
+            if (v === null || v === undefined || v === '') return '(空)'
+            if (typeof v === 'object') {
+              try { return JSON.stringify(v) } catch { return String(v) }
+            }
+            return String(v)
+          }
+
+          const effectiveTableId = wsState.activeTableId || targetRow?.tableId
+          if (effectiveTableId) {
+            fetch(`/api/tables/${effectiveTableId}/rows/comments`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                rowId,
+                content: `[HISTORY] 將「${fieldName}」由 "${formatVal(oldValue)}" 修改為 "${formatVal(payloadValue)}"`
+              })
+            }).catch(() => {})
+          }
         }
       } else {
         // Revert on error
@@ -431,6 +486,15 @@ export default function Home() {
       const result = await rowService.createRow(wsState.activeTableId, baseData)
       if (result.ok && result.row) {
         setRows(prev => [...prev, result.row!])
+
+        fetch(`/api/tables/${wsState.activeTableId}/rows/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rowId: result.row!.id,
+            content: `[HISTORY] 建立了此資料列`
+          })
+        }).catch(() => {})
 
         if (fields.length > 0) {
           const firstKey = `field_${fields[0].id}`
@@ -1336,6 +1400,8 @@ export default function Home() {
           }}
           onToggleDarkReaderPanel={() => themeActions.setShowDarkReaderPanel(true)}
           onUpdateDarkReaderSettings={(settings) => themeActions.updateDarkReaderSettings(settings)}
+          onMoveTableToDatabase={wsActions.moveTableToDatabase}
+          onReorderDatabases={wsActions.reorderDatabases}
         />
 
         <div className="layout__col-2" style={{ left: isSidebarCollapsed ? '56px' : '250px', transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
@@ -1511,6 +1577,7 @@ export default function Home() {
               setSelectedRow(row)
               setShowDetailModal(true)
             }}
+            onImportAirtable={() => setShowAirtableModal(true)}
           />
         </div>
       </div>
@@ -1562,6 +1629,7 @@ export default function Home() {
         setGroupByField={setGroupByField}
         deleteField={deleteField}
         onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId) }}
+        onOpenAirtableImport={() => setShowAirtableModal(true)}
       />
 
       {/* User Account & Subscription Modals - Always Mounted */}
