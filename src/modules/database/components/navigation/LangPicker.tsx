@@ -47,21 +47,21 @@ export const LangPicker: React.FC<LangPickerProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            backgroundColor: isOpen ? '#eff6ff' : 'transparent',
+            backgroundColor: isOpen ? '#F4F4F5' : 'transparent',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '6px',
             padding: '5px 10px',
             fontSize: '13px',
-            color: isOpen ? '#2563eb' : '#475569',
+            color: isOpen ? '#3F6212' : '#44403C',
             fontWeight: isOpen ? 600 : 500,
             whiteSpace: 'nowrap',
             transition: 'all 0.15s ease'
           }}
           title="介面語言 / Language"
         >
-          <Globe size={15} color={isOpen ? '#2563eb' : '#64748b'} className="header__filter-icon" />
-          <span style={{ color: isOpen ? '#2563eb' : '#475569' }}>{visibleLanguageName}</span>
-          <ChevronDown size={14} color="#64748b" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+          <Globe size={15} color={isOpen ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+          <span style={{ color: isOpen ? '#3F6212' : '#44403C' }}>{visibleLanguageName}</span>
+          <ChevronDown size={14} color="#78716C" style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
         </button>
 
         <LangSwitcherDropdown

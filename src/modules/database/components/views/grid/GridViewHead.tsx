@@ -196,7 +196,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               cursor: isHoveringResize || isResizingThis ? 'col-resize' : 'grab',
               backgroundColor: isDraggingThis ? '#e0f2fe' : 'var(--bg-secondary, #ffffff)',
               opacity: isDraggingThis ? 0.6 : 1,
-              boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 #2563eb' : undefined),
+              boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 #3F6212' : undefined),
               borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid #e2e8f0',
               borderBottom: '1px solid #e2e8f0',
               boxSizing: 'border-box',
@@ -213,8 +213,8 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, pointerEvents: 'none' }}>
-              <IconComponent style={{ width: '14px', height: '14px', color: isSorted ? '#2563eb' : '#64748b', flexShrink: 0 }} />
-              <span style={{ fontSize: '13px', fontWeight: isSorted ? 600 : 500, color: isSorted ? '#2563eb' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <IconComponent style={{ width: '14px', height: '14px', color: isSorted ? '#3F6212' : '#64748b', flexShrink: 0 }} />
+              <span style={{ fontSize: '13px', fontWeight: isSorted ? 600 : 500, color: isSorted ? '#3F6212' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {field.name}
               </span>
             </div>
@@ -222,8 +222,8 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
               {isSorted && (
                 sortOrder === 'asc' 
-                  ? <ArrowUp style={{ width: '12px', height: '12px', color: '#2563eb', flexShrink: 0 }} /> 
-                  : <ArrowDown style={{ width: '12px', height: '12px', color: '#2563eb', flexShrink: 0 }} />
+                  ? <ArrowUp style={{ width: '12px', height: '12px', color: '#18181B', flexShrink: 0 }} /> 
+                  : <ArrowDown style={{ width: '12px', height: '12px', color: '#18181B', flexShrink: 0 }} />
               )}
               <ChevronDown 
                 style={{ width: '12px', height: '12px', color: '#94a3b8', flexShrink: 0, marginLeft: '2px', cursor: 'pointer' }} 
@@ -335,8 +335,8 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
                   width: (isHoveringResize || isResizingThis) ? '4px' : '2px',
                   height: (isHoveringResize || isResizingThis) ? '24px' : '100%',
                   borderRadius: (isHoveringResize || isResizingThis) ? '4px' : '0px',
-                  backgroundColor: (isHoveringResize || isResizingThis) ? '#2563eb' : 'transparent',
-                  boxShadow: (isHoveringResize || isResizingThis) ? '0 0 8px rgba(37, 99, 235, 0.6)' : 'none',
+                  backgroundColor: (isHoveringResize || isResizingThis) ? '#3F6212' : 'transparent',
+                  boxShadow: (isHoveringResize || isResizingThis) ? '0 0 8px rgba(63, 98, 18, 0.6)' : 'none',
                   transition: 'all 0.15s ease',
                   pointerEvents: 'none'
                 }}

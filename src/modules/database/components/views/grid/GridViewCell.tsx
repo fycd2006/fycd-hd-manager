@@ -3,18 +3,19 @@ import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, Star } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
+import RowEditModal from '../../modals/RowEditModal';
 
 
 const BASEROW_PALETTE = [
   { bg: '#fee2e2', text: '#991b1b' }, // Soft Red
-  { bg: '#dbeafe', text: '#1e40af' }, // Soft Blue
+  { bg: '#F4F4F5', text: '#1e40af' }, // Soft Blue
   { bg: '#dcfce7', text: '#166534' }, // Soft Green
   { bg: '#fef3c7', text: '#92400e' }, // Soft Yellow
   { bg: '#f3e8ff', text: '#6b21a8' }, // Soft Purple
   { bg: '#fce7f3', text: '#9d174d' }, // Soft Pink
   { bg: '#ffedd5', text: '#9a3412' }, // Soft Orange
   { bg: '#ccfbf1', text: '#115e59' }, // Soft Teal
-  { bg: '#e0e7ff', text: '#3730a3' }, // Soft Indigo
+  { bg: '#F4F4F5', text: '#3730a3' }, // Soft Indigo
   { bg: '#cffafe', text: '#155e75' }, // Soft Cyan
 ];
 
@@ -474,6 +475,34 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const [targetFields, setTargetFields] = useState<TableField[]>([]);
   const [relationLoading, setRelationLoading] = useState(false);
 
+  // Detail view state for inspecting linked target rows
+  const [activeDetailRow, setActiveDetailRow] = useState<{ row: any; fields: TableField[] } | null>(null);
+
+  const openRowDetail = async (rowId: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    if (!targetTableId) return;
+    try {
+      const [fieldsRes, rowsRes] = await Promise.all([
+        fetch(`/api/tables/${targetTableId}/fields`),
+        fetch(`/api/tables/${targetTableId}/rows?page=1&pageSize=100`)
+      ]);
+      const fieldsData = await fieldsRes.json();
+      const rowsData = await rowsRes.json();
+      const rowsArray = Array.isArray(rowsData) ? rowsData : (rowsData.rows || []);
+      const targetRow = rowsArray.find((r: any) => r.id === rowId);
+
+      if (targetRow && Array.isArray(fieldsData)) {
+        setActiveDetailRow({ row: targetRow, fields: fieldsData });
+      }
+    } catch (err) {
+      console.error('[Open Linked Row Detail Error]:', err);
+    }
+  };
+
+
   const fieldOptions = React.useMemo(() => {
     if (!field.options) return {};
     try {
@@ -484,6 +513,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   }, [field.options]);
 
   const targetTableId = fieldOptions?.targetTableId;
+
 
   // Fetch target table fields & rows when link_row cell starts editing
   useEffect(() => {
@@ -605,6 +635,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           });
         };
 
+        const allowMultiple = fieldOptions?.allowMultiple !== false;
         const currentIds = tempSelectedItems.map(i => i.id);
 
         const toggleRowSelection = (targetRow: any) => {
@@ -616,7 +647,44 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             const primaryField = targetFields[0];
             const primaryKey = primaryField ? `field_${primaryField.id}` : Object.keys(targetRow.data || {})[0];
             const primaryVal = String(targetRow.data?.[primaryKey] ?? `列 ID: ${targetId}`);
-            setTempSelectedItems(prev => [...prev, { id: targetId, value: primaryVal }]);
+            if (allowMultiple) {
+              setTempSelectedItems(prev => [...prev, { id: targetId, value: primaryVal }]);
+            } else {
+              setTempSelectedItems([{ id: targetId, value: primaryVal }]);
+            }
+          }
+        };
+
+        const handleCreateNewRow = async () => {
+          if (!targetTableId) return;
+          try {
+            setRelationLoading(true);
+            const primaryField = targetFields[0];
+            const initialData: Record<string, any> = {};
+            if (primaryField && relationSearch.trim()) {
+              initialData[`field_${primaryField.id}`] = relationSearch.trim();
+            }
+            const res = await fetch(`/api/tables/${targetTableId}/rows`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: initialData }),
+            });
+            if (!res.ok) throw new Error('新增列失敗');
+            const newRow = await res.json();
+
+            setRelationRows(prev => [newRow, ...prev]);
+            const primaryKey = primaryField ? `field_${primaryField.id}` : Object.keys(newRow.data || {})[0];
+            const primaryVal = String(newRow.data?.[primaryKey] || relationSearch.trim() || `列 ID: ${newRow.id}`);
+
+            if (allowMultiple) {
+              setTempSelectedItems(prev => [...prev, { id: newRow.id, value: primaryVal }]);
+            } else {
+              setTempSelectedItems([{ id: newRow.id, value: primaryVal }]);
+            }
+          } catch (err) {
+            console.error('[Create New Row Error]:', err);
+          } finally {
+            setRelationLoading(false);
           }
         };
 
@@ -665,7 +733,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             >
               {/* Modal Top Bar */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '400px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, maxWidth: '420px' }}>
                   <span style={{ fontSize: '14px', color: '#64748b' }}>🔍</span>
                   <input
                     type="text"
@@ -674,10 +742,30 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                     onChange={e => setRelationSearch(e.target.value)}
                     style={{ flex: 1, padding: '6px 12px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
                   />
+                  <button
+                    type="button"
+                    onClick={handleCreateNewRow}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#18181B',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    ＋ 新增列
+                  </button>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '12px', color: '#64748b' }}>
-                    已選擇 {currentIds.length} 項
+                    已選擇 {currentIds.length} 項{!allowMultiple && ' (單選)'}
                   </span>
                   <button
                     onClick={() => handleConfirmRelation()}
@@ -687,6 +775,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   </button>
                 </div>
               </div>
+
 
               {/* Table Grid View Body */}
               <div style={{ flex: 1, overflow: 'auto', background: '#ffffff' }}>
@@ -772,7 +861,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
                 <button
                   onClick={() => handleConfirmRelation()}
-                  style={{ padding: '6px 16px', background: '#6366f1', border: 'none', borderRadius: '6px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '6px 16px', background: '#18181B', border: 'none', borderRadius: '6px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   確認
                 </button>
@@ -786,7 +875,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
       if (field.type === 'boolean') {
         return (
-          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', zIndex: 10 }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', boxShadow: 'inset 0 0 0 2px #3F6212', zIndex: 10 }}>
             <input
               type="checkbox"
               checked={localVal === 'true' || localVal === '1' || localVal === 'yes'}
@@ -795,7 +884,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 setLocalVal(checked);
                 onUpdate(checked);
               }}
-              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+              className="w-4 h-4 text-[#3F6212] rounded border-slate-300 focus:ring-[#3F6212]"
             />
           </div>
         );
@@ -825,7 +914,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               }}
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-                background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', 
+                background: '#fff', boxShadow: 'inset 0 0 0 2px #3F6212', 
                 zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
                 alignItems: 'center', padding: '0 8px'
               }}
@@ -943,9 +1032,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           onUpdate(comboSearch);
                           onCancelEdit();
                         }}
-                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#2563eb', fontWeight: 500, background: '#eff6ff' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#dbeafe'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#eff6ff'}
+                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#F4F4F5'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#F4F4F5'}
                       >
                         + 建立 "{comboSearch}"
                       </div>
@@ -993,7 +1082,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               }}
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', minHeight: '100%', 
-                background: '#fff', boxShadow: 'inset 0 0 0 2px #2563eb', 
+                background: '#fff', boxShadow: 'inset 0 0 0 2px #3F6212', 
                 zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
                 flexWrap: 'wrap', gap: '4px', padding: '4px 8px', alignItems: 'center'
               }}
@@ -1142,9 +1231,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           onUpdate(nextVal);
                           setComboSearch('');
                         }}
-                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#2563eb', fontWeight: 500, background: '#eff6ff' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#dbeafe'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#eff6ff'}
+                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#F4F4F5'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#F4F4F5'}
                       >
                         + 建立 "{comboSearch}"
                       </div>
@@ -1292,7 +1381,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 width: popoverPos ? popoverPos.width : Math.max(400, cellWidth),
                 minHeight: '140px',
                 background: '#ffffff',
-                border: '2px solid #2563eb',
+                border: '2px solid #3F6212',
                 borderRadius: '6px',
                 boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
                 zIndex: 999999,
@@ -1440,7 +1529,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             height: '100%',
             boxSizing: 'border-box',
             border: 'none',
-            boxShadow: 'inset 0 0 0 2px #2563eb',
+            boxShadow: 'inset 0 0 0 2px #3F6212',
             outline: 'none',
             background: '#ffffff',
             fontSize: '13px',
@@ -1528,7 +1617,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         return (
           <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
             {collabItems.map((item, i) => (
-              <span key={i} style={{ background: '#e0e7ff', color: '#4338ca', border: '1px solid #a5b4fc', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500, flexShrink: 0 }}>
+              <span key={i} style={{ background: '#F4F4F5', color: '#4338ca', border: '1px solid #a3e635', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 500, flexShrink: 0 }}>
                 {item.username}
               </span>
             ))}
@@ -1591,23 +1680,31 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           {linkItems.map((item, i) => (
             <span 
               key={i} 
+              onClick={(e) => openRowDetail(item.id, e)}
               style={{ 
-                background: '#f1f5f9', 
+                background: '#e2e8f0', 
                 color: '#1e293b', 
                 padding: '2px 8px', 
                 borderRadius: '6px', 
-                fontSize: '13px', 
+                fontSize: '12px', 
                 fontWeight: 500,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
                 display: 'inline-flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                transition: 'background 0.15s ease',
               }}
-              title={item.value}
+              title={`${item.value} (點擊查看詳情)`}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#cbd5e1')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#e2e8f0')}
             >
-              {item.value}
+              <span>{item.value}</span>
+              <span style={{ fontSize: '10px', color: '#64748b' }}>🔍</span>
             </span>
           ))}
+
 
         </div>
       );
@@ -1657,7 +1754,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               <Star
                 size={14}
                 fill={starNum <= ratingVal ? '#f59e0b' : '#e2e8f0'}
-                color={starNum <= ratingVal ? '#d97706' : '#cbd5e1'}
+                color={starNum <= ratingVal ? '#F59E0B' : '#E4E4E7'}
               />
             </span>
           ))}
@@ -1677,7 +1774,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            style={{ color: '#2563eb', textDecoration: 'underline', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', maxHeight: '100%' }}
+            style={{ color: '#18181B', textDecoration: 'underline', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', maxHeight: '100%' }}
           >
             🔗 {urlStr}
           </a>
@@ -1693,7 +1790,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           <a
             href={`mailto:${emailStr}`}
             onClick={(e) => e.stopPropagation()}
-            style={{ color: '#2563eb', textDecoration: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', maxHeight: '100%' }}
+            style={{ color: '#18181B', textDecoration: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', fontSize: '13px', maxHeight: '100%' }}
           >
             ✉️ {emailStr}
           </a>
@@ -1767,13 +1864,13 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               width: '16px',
               height: '16px',
               borderRadius: '4px',
-              border: isChecked ? '1px solid #2563eb' : '1px solid #cbd5e1',
-              backgroundColor: isChecked ? '#2563eb' : '#ffffff',
+              border: isChecked ? '1px solid #3F6212' : '1px solid #cbd5e1',
+              backgroundColor: isChecked ? '#3F6212' : '#ffffff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               transition: 'all 0.15s ease',
-              boxShadow: isChecked ? '0 1px 2px rgba(37, 99, 235, 0.2)' : 'none'
+              boxShadow: isChecked ? '0 1px 2px rgba(63, 98, 18, 0.2)' : 'none'
             }}
           >
             {isChecked && (
@@ -1833,7 +1930,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       if (!isCellHovered) return null;
       return (
         <div style={{ padding: '0 8px', display: 'flex', alignItems: 'center' }}>
-          <span style={{ padding: '2px 8px', fontSize: '12px', color: '#2563eb', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
+          <span style={{ padding: '2px 8px', fontSize: '12px', color: '#18181B', background: '#F4F4F5', border: '1px solid #E4E4E7', borderRadius: '4px' }}>
             Expand row ↗
           </span>
         </div>
@@ -1873,11 +1970,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   let cellBg: string | undefined = undefined;
 
   if (isInRange) {
-    cellBg = 'rgba(37, 99, 235, 0.12)';
+    cellBg = 'rgba(63, 98, 18, 0.12)';
   } else if (isRowSelected) {
-    cellBg = isCellHovered ? 'rgba(37, 99, 235, 0.12)' : 'rgba(37, 99, 235, 0.08)';
+    cellBg = isCellHovered ? 'rgba(63, 98, 18, 0.12)' : 'rgba(63, 98, 18, 0.08)';
   } else if (isSelected) {
-    cellBg = 'rgba(37, 99, 235, 0.04)';
+    cellBg = 'rgba(63, 98, 18, 0.04)';
   } else if (isCellHovered) {
     cellBg = 'rgba(226, 232, 240, 0.7)';
   } else if (isRowHovered) {
@@ -1889,14 +1986,14 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     cellShadow = undefined;
   } else if (isInRange && rangeEdges) {
     const borders: string[] = [];
-    if (rangeEdges.top) borders.push('inset 0 2px 0 0 #2563eb');
-    if (rangeEdges.bottom) borders.push('inset 0 -2px 0 0 #2563eb');
-    if (rangeEdges.left) borders.push('inset 2px 0 0 0 #2563eb');
-    if (rangeEdges.right) borders.push('inset -2px 0 0 0 #2563eb');
+    if (rangeEdges.top) borders.push('inset 0 2px 0 0 #3F6212');
+    if (rangeEdges.bottom) borders.push('inset 0 -2px 0 0 #3F6212');
+    if (rangeEdges.left) borders.push('inset 2px 0 0 0 #3F6212');
+    if (rangeEdges.right) borders.push('inset -2px 0 0 0 #3F6212');
     cellShadow = borders.length > 0 ? borders.join(', ') : undefined;
   } else if (isSelected) {
     // Single selected cell focus outline
-    cellShadow = 'inset 0 0 0 2px #2563eb';
+    cellShadow = 'inset 0 0 0 2px #3F6212';
   }
 
   // Combine selection shadow with primary column shadow if isPrimary
@@ -1967,9 +2064,41 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             e.stopPropagation();
             onStartAutofill?.(e);
           }}
-          style={{ position: 'absolute', right: '-1px', bottom: '-1px', width: '6px', height: '6px', backgroundColor: '#2563eb', cursor: 'crosshair', zIndex: 20 }}
+          style={{ position: 'absolute', right: '-1px', bottom: '-1px', width: '6px', height: '6px', backgroundColor: '#18181B', cursor: 'crosshair', zIndex: 20 }}
         />
       )}
+
+      {/* Row Edit Modal for viewing linked target row details */}
+      {activeDetailRow && typeof document !== 'undefined' && createPortal(
+        <RowEditModal
+          show={Boolean(activeDetailRow)}
+          row={activeDetailRow.row}
+          fields={activeDetailRow.fields}
+          onClose={() => setActiveDetailRow(null)}
+          onUpdateCell={async (rowId, fieldKey, val) => {
+            if (!targetTableId) return;
+            try {
+              await fetch(`/api/tables/${targetTableId}/rows`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rowId, fieldKey, value: val }),
+              });
+              setActiveDetailRow(prev => prev ? {
+                ...prev,
+                row: {
+                  ...prev.row,
+                  data: { ...(prev.row.data || {}), [fieldKey]: val }
+                }
+              } : null);
+            } catch (err) {
+              console.error('[Update Linked Row Detail Error]:', err);
+            }
+          }}
+        />,
+        document.body
+      )}
+
     </div>
   );
 };
+

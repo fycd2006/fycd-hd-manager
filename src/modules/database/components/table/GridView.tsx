@@ -78,7 +78,7 @@ export default function GridView({
   if (gridLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', width: '100%', padding: '32px' }}>
-        <div style={{ width: '24px', height: '24px', border: '3px solid #e2e8f0', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: '24px', height: '24px', border: '3px solid #e2e8f0', borderTopColor: '#18181B', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       </div>
     )
   }

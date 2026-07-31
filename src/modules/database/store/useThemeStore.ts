@@ -1,9 +1,9 @@
 /**
  * Database Module - Theme Store Hook
- * Manages theme and dark reader settings
+ * Manages theme and dark reader settings with optimized caching & smooth switching
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Theme, DarkReaderSettings } from '../types'
 
 export interface ThemeState {
@@ -20,6 +20,33 @@ export interface ThemeActions {
   updateDarkReaderSettings: (settings: Partial<DarkReaderSettings>) => void
 }
 
+const DEFAULT_SETTINGS: DarkReaderSettings = { brightness: 100, contrast: 100, sepia: 0, grayscale: 0 }
+
+function loadSettings(prefix: string): DarkReaderSettings {
+  if (typeof window === 'undefined') return DEFAULT_SETTINGS
+  try {
+    const raw = localStorage.getItem(`${prefix}-settings`)
+    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+  } catch {
+    // fallback
+  }
+  return {
+    brightness: Number(localStorage.getItem(`${prefix}-brightness`)) || 100,
+    contrast: Number(localStorage.getItem(`${prefix}-contrast`)) || 100,
+    sepia: Number(localStorage.getItem(`${prefix}-sepia`)) || 0,
+    grayscale: Number(localStorage.getItem(`${prefix}-grayscale`)) || 0,
+  }
+}
+
+function saveSettings(prefix: string, settings: DarkReaderSettings) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(`${prefix}-settings`, JSON.stringify(settings))
+  } catch {
+    // fallback
+  }
+}
+
 export const useThemeStore = (): [ThemeState, ThemeActions] => {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window === 'undefined') return 'light'
@@ -27,45 +54,25 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
   })
 
   const [showDarkReaderPanel, setShowDarkReaderPanel] = useState(false)
+  const [lightReaderSettings, setLightReaderSettingsState] = useState<DarkReaderSettings>(() => loadSettings('lightreader'))
+  const [darkReaderSettings, setDarkReaderSettingsState] = useState<DarkReaderSettings>(() => loadSettings('darkreader'))
 
-  const [lightReaderSettings, setLightReaderSettingsState] = useState<DarkReaderSettings>(() => {
-    if (typeof window === 'undefined') {
-      return { brightness: 100, contrast: 100, sepia: 0, grayscale: 0 }
-    }
-    return {
-      brightness: Number(localStorage.getItem('lightreader-brightness')) || 100,
-      contrast: Number(localStorage.getItem('lightreader-contrast')) || 100,
-      sepia: Number(localStorage.getItem('lightreader-sepia')) || 0,
-      grayscale: Number(localStorage.getItem('lightreader-grayscale')) || 0,
-    }
-  })
+  // Cached DarkReader Module Singleton Reference
+  const darkReaderRef = useRef<any>(null)
 
-  const [darkReaderSettings, setDarkReaderSettingsState] = useState<DarkReaderSettings>(() => {
-    if (typeof window === 'undefined') {
-      return { brightness: 100, contrast: 100, sepia: 0, grayscale: 0 }
-    }
-    return {
-      brightness: Number(localStorage.getItem('darkreader-brightness')) || 100,
-      contrast: Number(localStorage.getItem('darkreader-contrast')) || 100,
-      sepia: Number(localStorage.getItem('darkreader-sepia')) || 0,
-      grayscale: Number(localStorage.getItem('darkreader-grayscale')) || 0,
-    }
-  })
-
-  // Get active settings corresponding to current theme (Light vs Dark)
+  // Active settings depending on theme mode
   const activeSettings = useMemo(() => {
     return theme === 'dark' ? darkReaderSettings : lightReaderSettings
   }, [theme, darkReaderSettings, lightReaderSettings])
 
-  // Apply native CSS theme & DarkReader engine to document
+  // Apply native CSS theme attributes & DarkReader engine
   useEffect(() => {
     if (typeof window === 'undefined') return
 
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
 
-    // Safely load DarkReader on client-side: enable ONLY when theme === 'dark'
-    import('darkreader').then(DarkReader => {
+    const applyTheme = (DarkReader: any) => {
       if (typeof window !== 'undefined' && window.fetch) {
         DarkReader.setFetchMethod(window.fetch)
       }
@@ -79,12 +86,22 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
       } else {
         DarkReader.disable()
       }
-    }).catch(err => console.error('Failed to load DarkReader dynamically', err))
+    }
 
-    document.documentElement.style.setProperty('--darkreader-brightness', `${activeSettings.brightness}%`)
-    document.documentElement.style.setProperty('--darkreader-contrast', `${activeSettings.contrast}%`)
-    document.documentElement.style.setProperty('--darkreader-sepia', `${activeSettings.sepia}%`)
-    document.documentElement.style.setProperty('--darkreader-grayscale', `${activeSettings.grayscale}%`)
+    if (darkReaderRef.current) {
+      applyTheme(darkReaderRef.current)
+    } else {
+      import('darkreader').then(DarkReader => {
+        darkReaderRef.current = DarkReader
+        applyTheme(DarkReader)
+      }).catch(err => console.error('Failed to load DarkReader dynamically', err))
+    }
+
+    const rootStyle = document.documentElement.style
+    rootStyle.setProperty('--darkreader-brightness', `${activeSettings.brightness}%`)
+    rootStyle.setProperty('--darkreader-contrast', `${activeSettings.contrast}%`)
+    rootStyle.setProperty('--darkreader-sepia', `${activeSettings.sepia}%`)
+    rootStyle.setProperty('--darkreader-grayscale', `${activeSettings.grayscale}%`)
   }, [theme, activeSettings])
 
   const toggleTheme = useCallback(() => {
@@ -99,26 +116,20 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     if (theme === 'dark') {
       const updated = { ...darkReaderSettings, ...newSettings }
       setDarkReaderSettingsState(updated)
-      localStorage.setItem('darkreader-brightness', String(updated.brightness))
-      localStorage.setItem('darkreader-contrast', String(updated.contrast))
-      localStorage.setItem('darkreader-sepia', String(updated.sepia))
-      localStorage.setItem('darkreader-grayscale', String(updated.grayscale))
+      saveSettings('darkreader', updated)
     } else {
       const updated = { ...lightReaderSettings, ...newSettings }
       setLightReaderSettingsState(updated)
-      localStorage.setItem('lightreader-brightness', String(updated.brightness))
-      localStorage.setItem('lightreader-contrast', String(updated.contrast))
-      localStorage.setItem('lightreader-sepia', String(updated.sepia))
-      localStorage.setItem('lightreader-grayscale', String(updated.grayscale))
+      saveSettings('lightreader', updated)
     }
   }, [theme, darkReaderSettings, lightReaderSettings])
 
-  const state: ThemeState = {
+  const state: ThemeState = useMemo(() => ({
     theme,
     showDarkReaderPanel,
     darkReaderSettings: activeSettings,
     lightReaderSettings,
-  }
+  }), [theme, showDarkReaderPanel, activeSettings, lightReaderSettings])
 
   const actions: ThemeActions = useMemo(() => ({
     toggleTheme,
@@ -129,3 +140,4 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
 
   return [state, actions]
 }
+

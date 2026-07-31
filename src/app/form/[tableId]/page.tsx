@@ -213,7 +213,7 @@ export default function PublicFormPage() {
   if (submitted) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f0f23', color: 'white', fontFamily: 'sans-serif', padding: '20px' }}>
-        <div style={{ background: '#1a1a2e', padding: '40px', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.2)', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}>
+        <div style={{ background: '#1a1a2e', padding: '40px', borderRadius: '12px', border: '1px solid rgba(63, 98, 18, 0.2)', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}>
           <div style={{ width: '56px', height: '56px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: '24px', fontWeight: 'bold' }}>✓</div>
           <h2 style={{ fontSize: '20px', marginBottom: '12px' }}>提交成功！</h2>
           <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '24px', lineHeight: 1.6 }}>
@@ -232,7 +232,7 @@ export default function PublicFormPage() {
               })
               setFormData(resetData)
             }}
-            style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: 'none', color: 'white', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}
+            style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #3F6212, #8b5cf6)', border: 'none', color: 'white', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}
           >
             再次填寫
           </button>
@@ -245,9 +245,9 @@ export default function PublicFormPage() {
     <div style={{ minHeight: '100vh', background: '#0f0f23', color: '#e2e8f0', fontFamily: 'sans-serif', padding: '40px 20px', display: 'flex', justifyContent: 'center' }}>
       <div style={{ maxWidth: '880px', width: '100%' }}>
         {/* Form Container */}
-        <div style={{ background: '#1a1a2e', borderRadius: '12px', border: '1px solid rgba(99, 102, 241, 0.15)', overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}>
+        <div style={{ background: '#1a1a2e', borderRadius: '12px', border: '1px solid rgba(63, 98, 18, 0.15)', overflow: 'hidden', boxShadow: '0 8px 30px rgba(0,0,0,0.3)' }}>
           {/* Accent header stripe */}
-          <div style={{ height: '8px', background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa)' }} />
+          <div style={{ height: '8px', background: 'linear-gradient(90deg, #3F6212, #8b5cf6, #a78bfa)' }} />
           
           <div style={{ padding: '32px' }}>
             <h1 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 8px 0', color: 'white' }}>{tableName}</h1>
@@ -286,9 +286,9 @@ export default function PublicFormPage() {
                         onChange={e => handleInputChange(key, e.target.value)}
                         required={isRequired}
                         placeholder={formViewSettings?.placeholders?.[field.id] || ""}
-                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '6px', color: 'white', outline: 'none', transition: 'border-color 0.15s' }}
-                        onFocus={e => e.target.style.borderColor = '#6366f1'}
-                        onBlur={e => e.target.style.borderColor = 'rgba(99,102,241,0.15)'}
+                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none', transition: 'border-color 0.15s' }}
+                        onFocus={e => e.target.style.borderColor = '#3F6212'}
+                        onBlur={e => e.target.style.borderColor = 'rgba(63, 98, 18,0.15)'}
                       />
                     )}
 
@@ -300,9 +300,9 @@ export default function PublicFormPage() {
                         onChange={e => handleInputChange(key, e.target.value)}
                         required={isRequired}
                         placeholder={formViewSettings?.placeholders?.[field.id] || ""}
-                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '6px', color: 'white', outline: 'none', resize: 'vertical' }}
-                        onFocus={e => e.target.style.borderColor = '#6366f1'}
-                        onBlur={e => e.target.style.borderColor = 'rgba(99,102,241,0.15)'}
+                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none', resize: 'vertical' }}
+                        onFocus={e => e.target.style.borderColor = '#3F6212'}
+                        onBlur={e => e.target.style.borderColor = 'rgba(63, 98, 18,0.15)'}
                       />
                     )}
 
@@ -314,9 +314,9 @@ export default function PublicFormPage() {
                         onChange={e => handleInputChange(key, e.target.value === '' ? null : Number(e.target.value))}
                         required={isRequired}
                         placeholder={formViewSettings?.placeholders?.[field.id] || ""}
-                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '6px', color: 'white', outline: 'none' }}
-                        onFocus={e => e.target.style.borderColor = '#6366f1'}
-                        onBlur={e => e.target.style.borderColor = 'rgba(99,102,241,0.15)'}
+                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none' }}
+                        onFocus={e => e.target.style.borderColor = '#3F6212'}
+                        onBlur={e => e.target.style.borderColor = 'rgba(63, 98, 18,0.15)'}
                       />
                     )}
 
@@ -327,9 +327,9 @@ export default function PublicFormPage() {
                         value={val == null ? '' : val}
                         onChange={e => handleInputChange(key, e.target.value)}
                         required={isRequired}
-                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '6px', color: 'white', outline: 'none' }}
-                        onFocus={e => e.target.style.borderColor = '#6366f1'}
-                        onBlur={e => e.target.style.borderColor = 'rgba(99,102,241,0.15)'}
+                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none' }}
+                        onFocus={e => e.target.style.borderColor = '#3F6212'}
+                        onBlur={e => e.target.style.borderColor = 'rgba(63, 98, 18,0.15)'}
                       />
                     )}
 
@@ -342,7 +342,7 @@ export default function PublicFormPage() {
                           onChange={e => handleInputChange(key, e.target.checked)}
                           required={isRequired}
                           id={`form_chk_${field.id}`}
-                          style={{ width: '16px', height: '16px', accentColor: '#6366f1', cursor: 'pointer' }}
+                          style={{ width: '16px', height: '16px', accentColor: '#18181B', cursor: 'pointer' }}
                         />
                         <label htmlFor={`form_chk_${field.id}`} style={{ fontSize: '13px', color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }}>
                           是 / 同意
@@ -356,7 +356,7 @@ export default function PublicFormPage() {
                         value={val == null ? '' : val}
                         onChange={e => handleInputChange(key, e.target.value)}
                         required={isRequired}
-                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '6px', color: 'white', outline: 'none', cursor: 'pointer' }}
+                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none', cursor: 'pointer' }}
                       >
                         <option value="">（未選擇）</option>
                         {options.choices?.map((c: string) => (
@@ -370,7 +370,7 @@ export default function PublicFormPage() {
 
               <button
                 type="submit"
-                style={{ marginTop: '12px', padding: '12px', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', border: 'none', color: 'white', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 600, boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)' }}
+                style={{ marginTop: '12px', padding: '12px', background: 'linear-gradient(135deg, #3F6212, #8b5cf6)', border: 'none', color: 'white', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 600, boxShadow: '0 4px 15px rgba(63, 98, 18, 0.3)' }}
               >
                 提交表單
               </button>

@@ -81,8 +81,8 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
       role="menu"
       aria-label="Language selection menu"
     >
-      <div style={{ padding: '6px 10px 4px 10px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Globe size={13} color="#2563eb" />
+      <div style={{ padding: '6px 10px 4px 10px', fontSize: '11px', fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Globe size={13} color="#3F6212" />
         <span>介面語言 (Language)</span>
       </div>
 
@@ -102,11 +102,11 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
                 width: '100%',
                 textAlign: 'left',
                 padding: '8px 12px',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 fontSize: '13px',
                 fontWeight: isSelected ? 600 : 400,
-                color: isSelected ? '#2563eb' : '#0f172a',
-                backgroundColor: isSelected ? '#eff6ff' : 'transparent',
+                color: isSelected ? '#3F6212' : '#1C1917',
+                backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
                 border: 'none',
                 display: 'flex',
                 alignItems: 'center',
@@ -115,14 +115,14 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
                 transition: 'background-color 0.15s ease'
               }}
               onMouseEnter={(e) => {
-                if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc'
+                if (!isSelected) e.currentTarget.style.backgroundColor = '#FAFAF9'
               }}
               onMouseLeave={(e) => {
                 if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'
               }}
             >
               <span>{loc.name}</span>
-              {isSelected && <Check size={16} color="#2563eb" style={{ flexShrink: 0 }} />}
+              {isSelected && <Check size={16} color="#3F6212" style={{ flexShrink: 0 }} />}
             </button>
           )
         })}

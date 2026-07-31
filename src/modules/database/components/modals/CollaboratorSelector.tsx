@@ -112,12 +112,12 @@ export const CollaboratorSelector: React.FC<CollaboratorSelectorProps> = ({
                   gap: '6px',
                   fontSize: '12px',
                   cursor: readOnly ? 'default' : 'pointer',
-                  background: isSelected ? '#eff6ff' : '#f8fafc',
+                  background: isSelected ? '#F4F4F5' : '#f8fafc',
                   border: `1px solid ${isSelected ? '#818cf8' : '#e2e8f0'}`,
                   padding: '5px 12px',
                   borderRadius: '20px',
                   userSelect: 'none',
-                  color: isSelected ? '#4f46e5' : '#475569',
+                  color: isSelected ? '#3F6212' : '#475569',
                   fontWeight: isSelected ? 600 : 500,
                   transition: 'all 0.15s ease',
                   boxShadow: isSelected ? '0 2px 6px rgba(79,70,229,0.1)' : 'none',
@@ -128,7 +128,7 @@ export const CollaboratorSelector: React.FC<CollaboratorSelectorProps> = ({
                     width: '18px',
                     height: '18px',
                     borderRadius: '50%',
-                    backgroundColor: isSelected ? '#4f46e5' : '#cbd5e1',
+                    backgroundColor: isSelected ? '#3F6212' : '#cbd5e1',
                     color: '#ffffff',
                     display: 'flex',
                     alignItems: 'center',
@@ -141,7 +141,7 @@ export const CollaboratorSelector: React.FC<CollaboratorSelectorProps> = ({
                 </span>
                 <span>{user.username}</span>
                 {isSelected && (
-                  <span style={{ fontSize: '11px', marginLeft: '2px', color: '#4f46e5', fontWeight: 700 }}>✓</span>
+                  <span style={{ fontSize: '11px', marginLeft: '2px', color: '#18181B', fontWeight: 700 }}>✓</span>
                 )}
               </label>
             )

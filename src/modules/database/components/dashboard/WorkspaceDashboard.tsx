@@ -110,7 +110,7 @@ export default function WorkspaceDashboard({
                 style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #e4e4e7', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }} 
               />
               <div>
-                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#2563eb' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#18181B' }}>
                   FYCD HD Manager
                 </span>
                 <h1 style={{
@@ -237,8 +237,8 @@ export default function WorkspaceDashboard({
               width: '44px',
               height: '44px',
               borderRadius: '10px',
-              backgroundColor: '#eff6ff',
-              color: '#2563eb',
+              backgroundColor: '#F4F4F5',
+              color: '#18181B',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -303,7 +303,7 @@ export default function WorkspaceDashboard({
               gap: '8px',
               letterSpacing: '-0.01em'
             }}>
-              <Layers size={18} color="#2563eb" /> 資料庫清單 ({filteredDatabases.length})
+              <Layers size={18} color="#3F6212" /> 資料庫清單 ({filteredDatabases.length})
             </h2>
 
             {/* Clean Command Search Bar */}
@@ -328,8 +328,8 @@ export default function WorkspaceDashboard({
                   transition: 'all 0.15s ease'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#2563eb'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.1)'
+                  e.currentTarget.style.borderColor = '#3F6212'
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.1)'
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = '#e4e4e7'
@@ -378,7 +378,7 @@ export default function WorkspaceDashboard({
                     height: '36px',
                     padding: '0 16px',
                     borderRadius: '8px',
-                    backgroundColor: '#2563eb',
+                    backgroundColor: '#18181B',
                     color: '#ffffff',
                     border: 'none',
                     fontSize: '13px',
@@ -426,14 +426,14 @@ export default function WorkspaceDashboard({
                         width: '38px',
                         height: '38px',
                         borderRadius: '10px',
-                        backgroundColor: '#eff6ff',
-                        color: '#2563eb',
+                        backgroundColor: '#F4F4F5',
+                        color: '#18181B',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        <DatabaseIcon size={18} color="#2563eb" />
+                        <DatabaseIcon size={18} color="#3F6212" />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -485,7 +485,7 @@ export default function WorkspaceDashboard({
                                 justifyContent: 'center',
                                 flexShrink: 0
                               }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = '#2563eb')}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#3F6212')}
                               onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
                             >
                               <Pencil size={13} />
@@ -519,9 +519,9 @@ export default function WorkspaceDashboard({
                           transition: 'all 0.15s ease'
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#eff6ff'
-                          e.currentTarget.style.borderColor = '#bfdbfe'
-                          e.currentTarget.style.color = '#2563eb'
+                          e.currentTarget.style.backgroundColor = '#F4F4F5'
+                          e.currentTarget.style.borderColor = '#E4E4E7'
+                          e.currentTarget.style.color = '#3F6212'
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = '#f1f5f9'
@@ -573,9 +573,9 @@ export default function WorkspaceDashboard({
                             transition: 'all 0.12s ease'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#eff6ff'
-                            e.currentTarget.style.borderColor = '#dbeafe'
-                            e.currentTarget.style.color = '#1d4ed8'
+                            e.currentTarget.style.backgroundColor = '#F4F4F5'
+                            e.currentTarget.style.borderColor = '#F4F4F5'
+                            e.currentTarget.style.color = '#2d470d'
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.backgroundColor = '#fafafa'
@@ -585,7 +585,7 @@ export default function WorkspaceDashboard({
                           title={`${table.name} (雙擊或點擊圖示可重新命名)`}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                            <TableIcon size={14} color="#3b82f6" style={{ flexShrink: 0 }} />
+                            <TableIcon size={14} color="#3F6212" style={{ flexShrink: 0 }} />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {table.name}
                             </span>
@@ -613,7 +613,7 @@ export default function WorkspaceDashboard({
                                   alignItems: 'center',
                                   justifyContent: 'center'
                                 }}
-                                onMouseEnter={(e) => (e.currentTarget.style.color = '#2563eb')}
+                                onMouseEnter={(e) => (e.currentTarget.style.color = '#3F6212')}
                                 onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
                               >
                                 <Pencil size={13} />

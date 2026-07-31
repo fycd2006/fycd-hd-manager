@@ -138,7 +138,7 @@ function WorkspaceInvitationContent() {
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{ width: '40px', height: '40px', border: '3px solid #cbd5e1', borderTopColor: '#2563eb', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <div style={{ width: '40px', height: '40px', border: '3px solid #cbd5e1', borderTopColor: '#18181B', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
         <p style={{ marginTop: '16px', color: '#64748b', fontSize: '14px' }}>正在驗證工作區邀請連結...</p>
         <style dangerouslySetInnerHTML={{ __html: `@keyframes spin { to { transform: rotate(360deg); } }` }} />
       </div>
@@ -146,19 +146,19 @@ function WorkspaceInvitationContent() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 50%, #e0e7ff 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #F4F4F5 0%, #f8fafc 50%, #F4F4F5 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ width: '100%', maxWidth: '480px', background: '#ffffff', borderRadius: '16px', boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.12), 0 10px 20px -5px rgba(0, 0, 0, 0.04)', border: '1px solid #e2e8f0', padding: '36px', boxSizing: 'border-box' }}>
         
         {/* Header Icon */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(37,99,235,0.25)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, #3F6212, #2d470d)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(63, 98, 18,0.25)' }}>
             <Building2 size={32} color="#ffffff" />
           </div>
         </div>
 
         {/* Title */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#2563eb', background: '#eff6ff', padding: '4px 12px', borderRadius: '12px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', color: '#18181B', background: '#F4F4F5', padding: '4px 12px', borderRadius: '12px' }}>
             工作區成員邀請 (Invitation)
           </span>
           <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#0f172a', margin: '12px 0 6px 0' }}>
@@ -187,7 +187,7 @@ function WorkspaceInvitationContent() {
         {currentUser ? (
           <div>
             <div style={{ padding: '12px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <UserCheck size={18} color="#2563eb" />
+              <UserCheck size={18} color="#3F6212" />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {currentUser.username}
@@ -207,7 +207,7 @@ function WorkspaceInvitationContent() {
               style={{
                 width: '100%',
                 padding: '12px 20px',
-                backgroundColor: accepting ? '#93c5fd' : '#2563eb',
+                backgroundColor: accepting ? '#93c5fd' : '#3F6212',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
@@ -218,7 +218,7 @@ function WorkspaceInvitationContent() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 4px 12px rgba(37,99,235,0.3)',
+                boxShadow: '0 4px 12px rgba(63, 98, 18,0.3)',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -345,7 +345,7 @@ function WorkspaceInvitationContent() {
                   marginTop: '6px',
                   width: '100%',
                   padding: '12px 20px',
-                  backgroundColor: authLoading ? '#93c5fd' : '#2563eb',
+                  backgroundColor: authLoading ? '#93c5fd' : '#3F6212',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '10px',
@@ -356,7 +356,7 @@ function WorkspaceInvitationContent() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
+                  boxShadow: '0 4px 12px rgba(63, 98, 18,0.25)'
                 }}
               >
                 {authLoading ? '正在驗證並加入...' : (authMode === 'register' ? '完成註冊並加入工作區' : '登入並加入工作區')}

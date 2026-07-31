@@ -13,13 +13,14 @@ export interface AttachmentFile {
 interface AdvancedFieldInputsProps {
   field: TableField
   value: any
-  onChange: (fieldKey: string, nextValue: any) => void
+  onChange: (value: any) => void
+  onUpdateField?: (fieldId: number, updates: Partial<TableField>) => Promise<void>
   readOnly?: boolean
 }
 
 const getTagStyle = (idx: number) => {
   const colors = [
-    { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
+    { bg: '#F4F4F5', border: '#E4E4E7', text: '#2d470d' },
     { bg: '#ecfdf5', border: '#a7f3d0', text: '#047857' },
     { bg: '#fffbeb', border: '#fde68a', text: '#b45309' },
     { bg: '#fef2f2', border: '#fecaca', text: '#b91c1c' },
@@ -33,6 +34,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
   field,
   value,
   onChange,
+  onUpdateField,
   readOnly = false,
 }) => {
   const fieldKey = `field_${field.id}`
@@ -268,10 +270,10 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
     const selected = parseSelectValues(value)
     if (isMulti) {
       const next = selected.includes(choice) ? selected.filter(s => s !== choice) : [...selected, choice]
-      onChange(fieldKey, next)
+      onChange(next)
     } else {
       const next = selected.includes(choice) ? [] : [choice]
-      onChange(fieldKey, next.length ? next[0] : '')
+      onChange(next.length ? next[0] : '')
     }
   }
 
@@ -283,14 +285,14 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
 
     if (isLinked) {
       const nextItems = currentItems.filter(i => i.id !== targetId)
-      onChange(fieldKey, nextItems)
+      onChange(nextItems)
     } else {
       const primaryField = targetFields[0]
       const primaryKey = primaryField ? `field_${primaryField.id}` : Object.keys(targetRow.data || {})[0]
       const primaryVal = String(targetRow.data?.[primaryKey] ?? `列 ID: ${targetId}`)
 
       const nextItems = [...currentItems, { id: targetId, value: primaryVal }]
-      onChange(fieldKey, nextItems)
+      onChange(nextItems)
     }
   }
 
@@ -298,16 +300,39 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
     if (readOnly) return
     const currentItems = parseLinkRowItems(value)
     const nextItems = currentItems.filter(i => i.id !== targetId)
-    onChange(fieldKey, nextItems)
+    onChange(nextItems)
   }
 
   const [newTagInput, setNewTagInput] = useState('')
   const [isAddingTag, setIsAddingTag] = useState(false)
 
-  const handleAddNewTag = (isMulti: boolean) => {
+  const handleAddNewTag = async (isMulti: boolean) => {
     if (!newTagInput.trim() || readOnly) return
     const tagVal = newTagInput.trim()
+
+    // 1. Select the new tag immediately
     toggleSelectOption(tagVal, isMulti)
+
+    // 2. Persist new option choice back to Field options schema if onUpdateField is provided
+    if (onUpdateField) {
+      let currentChoices = getSelectChoices()
+      if (!currentChoices.includes(tagVal)) {
+        const updatedChoices = [...currentChoices, tagVal]
+        let currentOptions: any = {}
+        try {
+          if (field.options) {
+            currentOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+          }
+        } catch {}
+
+        const newOptions = typeof field.options === 'string'
+          ? JSON.stringify({ ...currentOptions, choices: updatedChoices })
+          : { ...currentOptions, choices: updatedChoices }
+
+        await onUpdateField(field.id, { options: newOptions as any })
+      }
+    }
+
     setNewTagInput('')
     setIsAddingTag(false)
   }
@@ -373,7 +398,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   style={{
                     padding: '4px 10px',
                     fontSize: '12px',
-                    border: '1px solid #6366f1',
+                    border: '1px solid #E4E4E7',
                     borderRadius: '16px',
                     outline: 'none',
                     width: '120px',
@@ -384,7 +409,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   type="button"
                   onClick={() => handleAddNewTag(isMulti)}
                   style={{
-                    background: '#4f46e5',
+                    background: '#18181B',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '12px',
@@ -428,11 +453,12 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}
-                className="hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50"
+                className="hover:border-indigo-400 hover:text-[#3F6212] hover:bg-[#F4F4F5]/50"
               >
                 <Plus size={12} />
-                <span>新增選項</span>
+                <span>+ Choose an option</span>
               </button>
+
             )
           )}
         </div>
@@ -479,13 +505,13 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
         size: f.size
       }))
       const nextFiles = [...files, ...uploadedFiles]
-      onChange(fieldKey, nextFiles)
+      onChange(nextFiles)
     }
 
     const removeFile = (idx: number) => {
       if (readOnly) return
       const nextFiles = files.filter((_, i) => i !== idx)
-      onChange(fieldKey, nextFiles)
+      onChange(nextFiles)
     }
 
     return (
@@ -510,12 +536,12 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   fontWeight: 500
                 }}
               >
-                <Paperclip size={14} color="#6366f1" />
+                <Paperclip size={14} color="#3F6212" />
                 <a
                   href={file.url}
                   target="_blank"
                   rel="noreferrer"
-                  style={{ color: '#4f46e5', textDecoration: 'underline', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  style={{ color: '#18181B', textDecoration: 'underline', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                 >
                   {file.name}
                 </a>
@@ -540,12 +566,12 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
               alignItems: 'center',
               gap: '6px',
               padding: '6px 14px',
-              background: '#eff6ff',
-              border: '1px solid #bfdbfe',
+              background: '#F4F4F5',
+              border: '1px solid #E4E4E7',
               borderRadius: '10px',
               fontSize: '12px',
               fontWeight: 600,
-              color: '#2563eb',
+              color: '#18181B',
               cursor: 'pointer',
               alignSelf: 'flex-start',
               transition: 'all 0.15s ease'
@@ -594,11 +620,11 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   alignItems: 'center',
                   gap: '6px',
                   padding: '5px 12px',
-                  background: '#eff6ff',
+                  background: '#F4F4F5',
                   border: 'none',
                   borderRadius: '20px',
                   fontSize: '12px',
-                  color: '#4f46e5',
+                  color: '#18181B',
                   fontWeight: 600,
                 }}
 
@@ -614,7 +640,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                     style={{
                       border: 'none',
                       background: 'none',
-                      color: '#3b82f6',
+                      color: '#18181B',
                       cursor: 'pointer',
                       padding: '0',
                       display: 'inline-flex',
@@ -638,12 +664,12 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                 alignItems: 'center',
                 gap: '6px',
                 padding: '6px 14px',
-                background: '#eff6ff',
-                border: '1px solid #bfdbfe',
+                background: '#F4F4F5',
+                border: '1px solid #E4E4E7',
                 borderRadius: '20px',
                 fontSize: '12px',
                 fontWeight: 600,
-                color: '#2563eb',
+                color: '#18181B',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -651,8 +677,9 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
               title="選擇關聯項目"
             >
               <Plus size={13} />
-              <span>選擇關聯項目</span>
+              <span>Choose an option</span>
             </button>
+
           )}
         </div>
 
@@ -717,7 +744,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#4f46e5', background: '#eff6ff', padding: '4px 10px', borderRadius: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#18181B', background: '#F4F4F5', padding: '4px 10px', borderRadius: '12px' }}>
                     已選擇 {parseLinkRowIds(value).length} 項
                   </span>
                   <button
@@ -765,7 +792,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                               onClick={() => toggleLinkRow(r)}
                               style={{
                                 borderBottom: '1px solid #f1f5f9',
-                                background: isLinked ? '#eff6ff' : 'transparent',
+                                background: isLinked ? '#F4F4F5' : 'transparent',
                                 cursor: 'pointer',
                                 transition: 'background 0.15s ease',
                               }}
@@ -775,7 +802,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                                   type="checkbox"
                                   checked={isLinked}
                                   onChange={() => {}}
-                                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#4f46e5' }}
+                                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#18181B' }}
                                 />
                               </td>
                               {targetFields.map(f => {
@@ -802,7 +829,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
               <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
                 <button
                   onClick={() => setIsRelationOpen(false)}
-                  style={{ padding: '8px 20px', background: '#4f46e5', border: 'none', borderRadius: '10px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{ padding: '8px 20px', background: '#18181B', border: 'none', borderRadius: '10px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
                 >
                   確認
                 </button>

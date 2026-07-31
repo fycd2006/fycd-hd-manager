@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./theme.css";
 import "@/styles/baserow/default.scss";
 
 export const metadata: Metadata = {

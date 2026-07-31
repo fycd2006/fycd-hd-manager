@@ -110,26 +110,26 @@ export function CustomSelect({
           justifyContent: 'space-between',
           padding: '6px 10px',
           borderRadius: '10px',
-          border: isOpen ? '1px solid #6366f1' : '1px solid #cbd5e1',
-          backgroundColor: isOpen ? '#ffffff' : '#f8fafc',
-          boxShadow: isOpen ? '0 0 0 3.5px rgba(99, 102, 241, 0.15)' : 'none',
+          border: isOpen ? '1px solid #3F6212' : '1px solid #E7E5E4',
+          backgroundColor: isOpen ? '#ffffff' : '#FAFAF9',
+          boxShadow: isOpen ? '0 0 0 3px rgba(63, 98, 18, 0.12)' : 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.6 : 1,
-          transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: 'all 0.18s ease',
           fontSize: '13px',
-          color: selectedOption ? '#0f172a' : '#94a3b8',
+          color: selectedOption ? '#1C1917' : '#78716C',
           fontWeight: selectedOption ? 500 : 400,
         }}
         onMouseEnter={(e) => {
           if (!isOpen && !disabled) {
             e.currentTarget.style.backgroundColor = '#ffffff'
-            e.currentTarget.style.borderColor = '#94a3b8'
+            e.currentTarget.style.borderColor = '#D6D3D1'
           }
         }}
         onMouseLeave={(e) => {
           if (!isOpen && !disabled) {
-            e.currentTarget.style.backgroundColor = '#f8fafc'
-            e.currentTarget.style.borderColor = '#cbd5e1'
+            e.currentTarget.style.backgroundColor = '#FAFAF9'
+            e.currentTarget.style.borderColor = '#E7E5E4'
           }
         }}
       >
@@ -139,7 +139,7 @@ export function CustomSelect({
         </span>
         <ChevronDown
           size={14}
-          color="#64748b"
+          color="#78716C"
           style={{
             marginLeft: '6px',
             flexShrink: 0,
@@ -149,7 +149,7 @@ export function CustomSelect({
         />
       </div>
 
-      {/* Floating Options Menu via React Portal (Prevents overflow clipping by parent containers) */}
+      {/* Floating Options Menu via React Portal */}
       {isOpen && popoverCoords && createPortal(
         <div
           style={{
@@ -174,9 +174,9 @@ export function CustomSelect({
               width: `${popoverCoords.width}px`,
               minWidth: '150px',
               backgroundColor: '#ffffff',
-              borderRadius: '12px',
-              border: '1px solid #e2e8f0',
-              boxShadow: '0 16px 36px -8px rgba(15, 23, 42, 0.18)',
+              borderRadius: '8px',
+              border: '1px solid #E7E5E4',
+              boxShadow: '0 12px 24px -4px rgba(28, 25, 23, 0.08)',
               zIndex: 99999999,
               padding: '4px',
               maxHeight: '220px',
@@ -199,18 +199,18 @@ export function CustomSelect({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '7px 10px',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     cursor: 'pointer',
                     fontSize: '13px',
-                    backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                    color: isSelected ? '#4f46e5' : '#1e293b',
+                    backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
+                    color: isSelected ? '#3F6212' : '#1C1917',
                     fontWeight: isSelected ? 600 : 400,
                     transition: 'background-color 0.12s ease',
                     marginBottom: '2px',
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = '#f8fafc'
+                      e.currentTarget.style.backgroundColor = '#FAFAF9'
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -223,7 +223,7 @@ export function CustomSelect({
                     {opt.icon}
                     {opt.label}
                   </span>
-                  {isSelected && <Check size={14} color="#4f46e5" style={{ flexShrink: 0, marginLeft: '6px' }} />}
+                  {isSelected && <Check size={14} color="#3F6212" style={{ flexShrink: 0, marginLeft: '6px' }} />}
                 </div>
               )
             })}

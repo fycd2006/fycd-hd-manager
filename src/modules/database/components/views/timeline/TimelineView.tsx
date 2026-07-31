@@ -86,7 +86,7 @@ export default function TimelineView({
   if (!dateField) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '60px', color: 'var(--text-muted)' }}>
-        <div style={{ width: '48px', height: '48px', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.25)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+        <div style={{ width: '48px', height: '48px', background: 'rgba(63, 98, 18, 0.1)', border: '1px solid rgba(63, 98, 18, 0.25)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" strokeWidth="2">
             <rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h8"/>
           </svg>
@@ -105,7 +105,7 @@ export default function TimelineView({
 
   // Color options for tasks (cyclic)
   const taskColors = [
-    { bg: 'rgba(99, 102, 241, 0.08)', border: 'rgba(99, 102, 241, 0.4)', text: 'var(--accent-secondary)' }, // Indigo
+    { bg: 'rgba(63, 98, 18, 0.08)', border: 'rgba(63, 98, 18, 0.4)', text: 'var(--accent-secondary)' }, // Indigo
     { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.4)', text: 'var(--success)' }, // Green
     { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.4)', text: 'var(--warning)' }, // Yellow
     { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.4)', text: 'var(--danger)' }, // Red
@@ -306,7 +306,7 @@ export default function TimelineView({
                     fontSize: '11px',
                     fontWeight: isToday ? 700 : 500,
                     color: isToday ? 'var(--accent-secondary)' : 'var(--text-muted)',
-                    background: isToday ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
+                    background: isToday ? 'rgba(63, 98, 18, 0.05)' : 'transparent',
                     flexShrink: 0
                   }}
                 >
@@ -336,7 +336,7 @@ export default function TimelineView({
                       width: `${colWidth}px`, 
                       height: '100%', 
                       borderRight: '1px solid rgba(255,255,255,0.02)', 
-                      borderRightColor: isToday ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255,255,255,0.02)',
+                      borderRightColor: isToday ? 'rgba(63, 98, 18, 0.15)' : 'rgba(255,255,255,0.02)',
                       flexShrink: 0 
                     }}
                   />
@@ -489,7 +489,7 @@ export default function TimelineView({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
+            boxShadow: '0 4px 14px rgba(63, 98, 18,0.4)',
             cursor: 'pointer',
             zIndex: 100,
             transition: 'transform 0.15s'

@@ -124,8 +124,8 @@ export default function NotificationsModal({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bell size={18} color="#2563eb" />
+            <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bell size={18} color="#3F6212" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
               站內通知與邀請 {unreadCount > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', backgroundColor: '#ef4444', color: '#fff', fontWeight: 800, marginLeft: '6px' }}>{unreadCount}</span>}
@@ -170,7 +170,7 @@ export default function NotificationsModal({
                   style={{
                     borderRadius: '16px',
                     padding: '16px',
-                    backgroundColor: n.read ? '#f8fafc' : '#eff6ff',
+                    backgroundColor: n.read ? '#f8fafc' : '#F4F4F5',
                     border: 'none',
                     transition: 'all 0.15s ease'
                   }}
@@ -211,14 +211,14 @@ export default function NotificationsModal({
                         disabled={processingId === n.id}
                         style={{
                           padding: '7px 16px',
-                          backgroundColor: '#2563eb',
+                          backgroundColor: '#18181B',
                           color: '#ffffff',
                           border: 'none',
                           borderRadius: '10px',
                           fontSize: '12px',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          boxShadow: '0 4px 12px rgba(37,99,235,0.25)'
+                          boxShadow: '0 4px 12px rgba(63, 98, 18,0.25)'
                         }}
                       >
                         {processingId === n.id ? '處理中...' : '接受邀請'}

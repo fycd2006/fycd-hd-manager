@@ -401,14 +401,14 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
                     boxSizing: 'border-box',
                     cursor: 'pointer',
                     textAlign: 'left',
-                    border: isSelected ? '1.5px solid #3b82f6' : '1px solid #cbd5e1',
-                    backgroundColor: isSelected ? '#eff6ff' : '#f8fafc',
-                    color: isSelected ? '#1d4ed8' : '#334155',
+                    border: isSelected ? '1.5px solid #3F6212' : '1px solid #cbd5e1',
+                    backgroundColor: isSelected ? '#F4F4F5' : '#f8fafc',
+                    color: isSelected ? '#2d470d' : '#334155',
                     fontWeight: isSelected ? 600 : 500,
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <Icon size={16} style={{ color: isSelected ? '#2563eb' : '#94a3b8', flexShrink: 0 }} />
+                  <Icon size={16} style={{ color: isSelected ? '#3F6212' : '#94a3b8', flexShrink: 0 }} />
                   <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{v.label}</span>
                 </button>
               );
@@ -524,9 +524,14 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     }
   }
 
+  const [createRelatedField, setCreateRelatedField] = useState<boolean>(true)
+  const [allowMultiple, setAllowMultiple] = useState<boolean>(true)
+
+
   useEffect(() => {
     if (show) {
       if (editField) {
+
         setName(editField.name || '')
         setType(editField.type || 'text')
         setTypeDropdownOpen(false)
@@ -543,6 +548,9 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             else if (parsed && Array.isArray(parsed.select_options)) choices = parsed.select_options.map((o: any) => typeof o === 'object' ? o.value || o.name || String(o) : String(o))
 
             if (parsed && typeof parsed === 'object') {
+              if (parsed.targetTableId) setTargetTableId(Number(parsed.targetTableId))
+              if (typeof parsed.createRelatedField === 'boolean') setCreateRelatedField(parsed.createRelatedField)
+              if (typeof parsed.allowMultiple === 'boolean') setAllowMultiple(parsed.allowMultiple)
               if (parsed.formula) {
                 formulaStr = String(parsed.formula)
               }
@@ -572,6 +580,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         setNumberFormat('thousands')
         setNumberPrefix('')
         setNumberSuffix('')
+        setCreateRelatedField(true)
+        setAllowMultiple(true)
       }
     }
   }, [editField, show])
@@ -619,14 +629,14 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
       setNameError(true)
       return
     }
-    
+
     setLoading(true)
     try {
       let parsedOptions: any = null
       if (type === 'single_select' || type === 'multiple_select') {
         parsedOptions = { choices: optionsList }
       } else if (type === 'link_row' && targetTableId) {
-        parsedOptions = { targetTableId }
+        parsedOptions = { targetTableId, createRelatedField, allowMultiple }
       } else if ((type === 'lookup' || type === 'rollup') && relationFieldId) {
         parsedOptions = {
           relationFieldId,
@@ -654,6 +664,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     }
   }
 
+
   return (
     <Modal show={show} onClose={onClose} title="" size={type === 'formula' ? 'medium' : 'small'} overflowVisible={true}>
       <form onSubmit={handleSubmit}>
@@ -667,8 +678,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               border: 'none',
               background: 'none',
               fontWeight: activeTab === 'basic' ? 600 : 400,
-              color: activeTab === 'basic' ? '#2563eb' : '#64748b',
-              borderBottom: activeTab === 'basic' ? '2px solid #2563eb' : '2px solid transparent',
+              color: activeTab === 'basic' ? '#18181B' : '#71717A',
+              borderBottom: activeTab === 'basic' ? '2px solid #18181B' : '2px solid transparent',
               marginBottom: '-1px',
               cursor: 'pointer',
               fontSize: '14px'
@@ -684,8 +695,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               border: 'none',
               background: 'none',
               fontWeight: activeTab === 'advanced' ? 600 : 400,
-              color: activeTab === 'advanced' ? '#2563eb' : '#64748b',
-              borderBottom: activeTab === 'advanced' ? '2px solid #2563eb' : '2px solid transparent',
+              color: activeTab === 'advanced' ? '#18181B' : '#71717A',
+              borderBottom: activeTab === 'advanced' ? '2px solid #18181B' : '2px solid transparent',
               marginBottom: '-1px',
               cursor: 'pointer',
               fontSize: '14px'
@@ -946,7 +957,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         setNewOptionText('')
                       }
                     }}
-                    style={{ padding: '6px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}
+                    style={{ padding: '6px 12px', background: '#18181B', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}
                   >
                     Add
                   </button>
@@ -955,22 +966,47 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             )}
 
             {type === 'link_row' && (
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>
-                  Target Table
-                </label>
-                <select
-                  value={targetTableId || ''}
-                  onChange={(e) => setTargetTableId(Number(e.target.value) || null)}
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
-                >
-                  <option value="">Select a table...</option>
-                  {tables?.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+              <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>
+                    Target Table (目標表格)
+                  </label>
+                  <select
+                    value={targetTableId || ''}
+                    onChange={(e) => setTargetTableId(Number(e.target.value) || null)}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
+                  >
+                    <option value="">Select a table...</option>
+                    {tables?.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={createRelatedField}
+                      onChange={(e) => setCreateRelatedField(e.target.checked)}
+                      style={{ width: '16px', height: '16px', borderRadius: '4px', cursor: 'pointer' }}
+                    />
+                    <span>自動在目標表格建立反向關聯欄位 (Create reverse link field)</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={allowMultiple}
+                      onChange={(e) => setAllowMultiple(e.target.checked)}
+                      style={{ width: '16px', height: '16px', borderRadius: '4px', cursor: 'pointer' }}
+                    />
+                    <span>允許關聯多筆資料 (Allow multiple linked rows)</span>
+                  </label>
+                </div>
               </div>
             )}
+
 
             {(type === 'lookup' || type === 'rollup') && (
               <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1066,8 +1102,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         border: 'none',
                         background: formulaTab === 'fields' ? '#ffffff' : 'transparent',
                         fontWeight: formulaTab === 'fields' ? 600 : 400,
-                        color: formulaTab === 'fields' ? '#2563eb' : '#64748b',
-                        borderBottom: formulaTab === 'fields' ? '2px solid #2563eb' : 'none',
+                        color: formulaTab === 'fields' ? '#3F6212' : '#64748b',
+                        borderBottom: formulaTab === 'fields' ? '2px solid #3F6212' : 'none',
                         cursor: 'pointer'
                       }}
                     >
@@ -1081,8 +1117,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         border: 'none',
                         background: formulaTab === 'functions' ? '#ffffff' : 'transparent',
                         fontWeight: formulaTab === 'functions' ? 600 : 400,
-                        color: formulaTab === 'functions' ? '#2563eb' : '#64748b',
-                        borderBottom: formulaTab === 'functions' ? '2px solid #2563eb' : 'none',
+                        color: formulaTab === 'functions' ? '#3F6212' : '#64748b',
+                        borderBottom: formulaTab === 'functions' ? '2px solid #3F6212' : 'none',
                         cursor: 'pointer'
                       }}
                     >
@@ -1096,8 +1132,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         border: 'none',
                         background: formulaTab === 'operators' ? '#ffffff' : 'transparent',
                         fontWeight: formulaTab === 'operators' ? 600 : 400,
-                        color: formulaTab === 'operators' ? '#2563eb' : '#64748b',
-                        borderBottom: formulaTab === 'operators' ? '2px solid #2563eb' : 'none',
+                        color: formulaTab === 'operators' ? '#3F6212' : '#64748b',
+                        borderBottom: formulaTab === 'operators' ? '2px solid #3F6212' : 'none',
                         cursor: 'pointer'
                       }}
                     >
@@ -1128,12 +1164,12 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                                   color: '#334155',
                                   transition: 'all 0.15s'
                                 }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#93c5fd'; }}
+                                onMouseEnter={(e) => { e.currentTarget.style.background = '#F4F4F5'; e.currentTarget.style.borderColor = '#93c5fd'; }}
                                 onMouseLeave={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.borderColor = '#e2e8f0'; }}
                                 title={`插入短代號 ${shortAlias} (${f.name})`}
                               >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ fontFamily: 'monospace', color: '#2563eb', background: '#dbeafe', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>
+                                  <span style={{ fontFamily: 'monospace', color: '#18181B', background: '#F4F4F5', padding: '1px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 700 }}>
                                     {shortAlias}
                                   </span>
                                   <span style={{ fontWeight: 500 }}>{f.name}</span>
@@ -1193,21 +1229,21 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                                       setSelectedHelpFunc(fn)
                                     }}
                                     onMouseEnter={(e) => {
-                                      e.currentTarget.style.background = '#dbeafe'
+                                      e.currentTarget.style.background = '#F4F4F5'
                                       setActiveHoverFunc(fn)
                                     }}
                                     onMouseLeave={(e) => {
-                                      e.currentTarget.style.background = isSelected ? '#eff6ff' : '#f8fafc'
+                                      e.currentTarget.style.background = isSelected ? '#F4F4F5' : '#f8fafc'
                                     }}
                                     style={{
                                       padding: '3px 8px',
                                       borderRadius: '4px',
-                                      border: isSelected ? '1px solid #3b82f6' : '1px solid #cbd5e1',
-                                      background: isSelected ? '#eff6ff' : '#f8fafc',
+                                      border: isSelected ? '1px solid #3F6212' : '1px solid #cbd5e1',
+                                      background: isSelected ? '#F4F4F5' : '#f8fafc',
                                       cursor: 'pointer',
                                       fontSize: '12px',
                                       fontFamily: 'monospace',
-                                      color: isSelected ? '#1d4ed8' : '#2563eb',
+                                      color: isSelected ? '#2d470d' : '#3F6212',
                                       fontWeight: isSelected ? 700 : 500
                                     }}
                                   >
@@ -1269,7 +1305,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                                 fontFamily: 'monospace',
                                 fontSize: '14px',
                                 fontWeight: 700,
-                                background: '#3b82f6',
+                                background: '#18181B',
                                 color: '#ffffff',
                                 padding: '2px 8px',
                                 borderRadius: '4px'
@@ -1288,7 +1324,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                               style={{
                                 fontSize: '11px',
                                 padding: '3px 10px',
-                                background: '#2563eb',
+                                background: '#18181B',
                                 color: '#ffffff',
                                 border: 'none',
                                 borderRadius: '4px',
@@ -1323,7 +1359,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                               border: '1px solid #cbd5e1',
                               padding: '6px 10px',
                               borderRadius: '4px',
-                              color: '#2563eb',
+                              color: '#18181B',
                               fontWeight: 600,
                               wordBreak: 'break-all'
                             }}>

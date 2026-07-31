@@ -26,7 +26,7 @@ export default function SubscriptionModal({
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <CreditCard size={20} color="#2563eb" />
+            <CreditCard size={20} color="#3F6212" />
             <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Subscriptions (訂閱與資源用量)</h3>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
@@ -38,13 +38,13 @@ export default function SubscriptionModal({
         <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Current Plan Banner */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'linear-gradient(135deg, #F4F4F5 0%, #F4F4F5 100%)', borderRadius: '12px', border: '1px solid #E4E4E7' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={16} color="#2563eb" />
+                <Sparkles size={16} color="#3F6212" />
                 <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e40af' }}>Enterprise Pro Plan (企業版)</span>
               </div>
-              <span style={{ fontSize: '12px', color: '#3b82f6', fontWeight: 500 }}>
+              <span style={{ fontSize: '12px', color: '#18181B', fontWeight: 500 }}>
                 【{workspace.name}】工作區目前享有無限資源與進階權限
               </span>
             </div>
@@ -94,7 +94,7 @@ export default function SubscriptionModal({
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
             <button
               onClick={onClose}
-              style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.25)' }}
+              style={{ padding: '10px 20px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(24, 24, 27, 0.25)' }}
             >
               關閉
             </button>

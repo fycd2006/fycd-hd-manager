@@ -98,7 +98,7 @@ export default function AuthScreen({
               borderRadius: '50%',
               objectFit: 'cover',
               marginBottom: '16px',
-              boxShadow: '0 8px 24px rgba(37,99,235,0.18)',
+              boxShadow: '0 8px 24px rgba(63, 98, 18,0.18)',
               border: '3px solid #ffffff',
               outline: '1px solid #e4e4e7'
             }}
@@ -171,9 +171,9 @@ export default function AuthScreen({
                   transition: 'all 0.15s ease'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#2563eb'
+                  e.currentTarget.style.borderColor = '#3F6212'
                   e.currentTarget.style.backgroundColor = '#ffffff'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.12)'
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = '#e4e4e7'
@@ -211,9 +211,9 @@ export default function AuthScreen({
                     transition: 'all 0.15s ease'
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#2563eb'
+                    e.currentTarget.style.borderColor = '#3F6212'
                     e.currentTarget.style.backgroundColor = '#ffffff'
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.12)'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = '#e4e4e7'
@@ -251,9 +251,9 @@ export default function AuthScreen({
                   transition: 'all 0.15s ease'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#2563eb'
+                  e.currentTarget.style.borderColor = '#3F6212'
                   e.currentTarget.style.backgroundColor = '#ffffff'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.12)'
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = '#e4e4e7'
@@ -294,7 +294,7 @@ export default function AuthScreen({
             style={{
               marginTop: '8px',
               height: '46px',
-              backgroundColor: submitting ? '#93c5fd' : '#2563eb',
+              backgroundColor: submitting ? '#93c5fd' : '#3F6212',
               color: '#ffffff',
               border: 'none',
               borderRadius: '12px',
@@ -305,18 +305,18 @@ export default function AuthScreen({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: submitting ? 'none' : '0 8px 20px rgba(37,99,235,0.25)',
+              boxShadow: submitting ? 'none' : '0 8px 20px rgba(63, 98, 18,0.25)',
               transition: 'all 0.15s ease'
             }}
             onMouseEnter={(e) => {
               if (!submitting) {
-                e.currentTarget.style.backgroundColor = '#1d4ed8'
+                e.currentTarget.style.backgroundColor = '#2d470d'
                 e.currentTarget.style.transform = 'translateY(-1px)'
               }
             }}
             onMouseLeave={(e) => {
               if (!submitting) {
-                e.currentTarget.style.backgroundColor = '#2563eb'
+                e.currentTarget.style.backgroundColor = '#3F6212'
                 e.currentTarget.style.transform = 'translateY(0)'
               }
             }}
@@ -346,7 +346,7 @@ export default function AuthScreen({
                 type="button"
                 onClick={() => onAuthModeChange('register')}
                 style={{
-                  color: '#2563eb',
+                  color: '#18181B',
                   fontWeight: 700,
                   background: 'none',
                   border: 'none',
@@ -365,7 +365,7 @@ export default function AuthScreen({
                 type="button"
                 onClick={() => onAuthModeChange('login')}
                 style={{
-                  color: '#2563eb',
+                  color: '#18181B',
                   fontWeight: 700,
                   background: 'none',
                   border: 'none',

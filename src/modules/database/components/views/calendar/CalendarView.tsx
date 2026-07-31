@@ -264,7 +264,7 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
                   <button
                     onClick={() => setExpandedDate({ dateStr: day.dateStr, rows: dayRows })}
                     style={{
-                      background: 'rgba(99, 102, 241, 0.15)',
+                      background: 'rgba(63, 98, 18, 0.15)',
                       border: '1px dashed var(--accent-color)',
                       color: 'var(--accent-color)',
                       borderRadius: '4px',

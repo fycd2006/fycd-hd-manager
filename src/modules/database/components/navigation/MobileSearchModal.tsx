@@ -95,8 +95,8 @@ export default function MobileSearchModal({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Search size={18} color="#2563eb" />
+            <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Search size={18} color="#3F6212" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
               搜尋紀錄
@@ -206,8 +206,8 @@ export default function MobileSearchModal({
                         style={{
                           padding: '4px 9px',
                           borderRadius: '8px',
-                          backgroundColor: '#dbeafe',
-                          color: '#1d4ed8',
+                          backgroundColor: '#F4F4F5',
+                          color: '#18181B',
                           fontWeight: 700,
                           fontSize: '12px',
                           flexShrink: 0

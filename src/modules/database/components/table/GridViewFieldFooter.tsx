@@ -106,7 +106,7 @@ export default function GridViewFieldFooter({
         alignItems: 'center',
         justifyContent: 'space-between',
         cursor: 'pointer',
-        background: isMenuOpen ? '#eff6ff' : '#f8fafc',
+        background: isMenuOpen ? '#F4F4F5' : '#FAFAF9',
         transition: 'background 0.15s ease',
       }}
       onClick={(e) => {
@@ -121,16 +121,16 @@ export default function GridViewFieldFooter({
       title="點擊切換欄位統計方式"
     >
       {currentMode !== 'none' && displayText ? (
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 600, color: '#4f46e5' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 600, color: '#18181B', fontFamily: 'monospace' }}>
           {displayText}
         </span>
       ) : (
-        <span style={{ fontSize: '12px', color: '#94a3b8', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '12px', color: '#78716C', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <Plus size={12} />
           統計
         </span>
       )}
-      <ChevronDown size={12} color="#64748b" style={{ marginLeft: '4px', flexShrink: 0 }} />
+      <ChevronDown size={12} color="#78716C" style={{ marginLeft: '4px', flexShrink: 0 }} />
 
       {/* React Portal Popover Menu with Backdrop Dismiss */}
       {isMenuOpen && createPortal(
@@ -169,9 +169,9 @@ export default function GridViewFieldFooter({
                 style={{
                   padding: '6px 12px',
                   cursor: 'pointer',
-                  background: currentMode === item.key ? '#eff6ff' : 'transparent',
+                  background: currentMode === item.key ? '#F4F4F5' : 'transparent',
                   fontWeight: currentMode === item.key ? 600 : 400,
-                  color: currentMode === item.key ? '#4f46e5' : '#334155',
+                  color: currentMode === item.key ? '#3F6212' : '#334155',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -180,7 +180,7 @@ export default function GridViewFieldFooter({
                 onMouseLeave={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = 'transparent' }}
               >
                 <span>{item.label}</span>
-                {currentMode === item.key && <Check size={14} color="#4f46e5" />}
+                {currentMode === item.key && <Check size={14} color="#3F6212" />}
               </div>
             ))}
           </div>

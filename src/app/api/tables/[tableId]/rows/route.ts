@@ -5,6 +5,7 @@ import { getSessionUser } from '@/lib/auth'
 import { evaluateFormula } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
+import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
 
 async function getSessionUsername() {
   const user = await getSessionUser()
@@ -586,6 +587,26 @@ export async function PATCH(
             currentData = {}
           }
         }
+
+        // Detect link_row field changes to trigger bi-directional synchronization
+        const linkRowFields = fields.filter(f => f.type === 'link_row')
+        const linkRowSyncTasks: Promise<void>[] = []
+
+        linkRowFields.forEach(f => {
+          const key = `field_${f.id}`
+          if (key in updateMap) {
+            const oldVal = currentData[key]
+            const newVal = updateMap[key]
+
+            const oldIds = parseLinkRowIds(oldVal)
+            const newIds = parseLinkRowIds(newVal)
+
+            linkRowSyncTasks.push(
+              syncBiDirectionalLinkRow(tid, rid, f.id, newIds, oldIds)
+            )
+          }
+        })
+
         entries.forEach(([k, val]) => {
           currentData[k] = val ?? null
         })
@@ -623,6 +644,15 @@ export async function PATCH(
             updatedAt: new Date()
           }
         })
+
+        // Execute bi-directional link_row sync tasks asynchronously after row update
+        if (linkRowSyncTasks.length > 0) {
+          try {
+            await Promise.all(linkRowSyncTasks)
+          } catch (syncErr) {
+            console.warn('[Bi-directional Sync Warning]:', syncErr)
+          }
+        }
       }
     }
 
@@ -664,6 +694,13 @@ export async function DELETE(
     const rid = parseInt(rowIdStr)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
 
+    // Cleanup bi-directional reverse link references before soft-deleting row
+    try {
+      await cleanupRowLinkRowRelations(tid, rid)
+    } catch (cleanupErr) {
+      console.warn('[Link Row Cleanup Warning]:', cleanupErr)
+    }
+
     await prisma.tableRow.update({
       where: { id: rid, tableId: tid },
       data: { deletedAt: new Date() }
@@ -674,6 +711,7 @@ export async function DELETE(
     return NextResponse.json({ error: error.message || '刪除資料列失敗' }, { status: 500 })
   }
 }
+
 
 export async function PUT(
   request: Request,

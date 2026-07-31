@@ -214,7 +214,7 @@ export default function KanbanView({
                         gap: '8px',
                         overflowY: 'auto',
                         scrollbarWidth: 'thin',
-                        background: snapshot.isDraggingOver ? 'rgba(37, 99, 235, 0.05)' : 'transparent',
+                        background: snapshot.isDraggingOver ? 'rgba(63, 98, 18, 0.05)' : 'transparent',
                         transition: 'background-color 0.2s ease',
                       }}
                     >

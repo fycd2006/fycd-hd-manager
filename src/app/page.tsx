@@ -11,6 +11,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo'
 import { AuthScreen } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
+import { AirtableImportModal } from '@/modules/database/components/import/AirtableImportModal'
 import MembersModal from '@/modules/database/components/modals/MembersModal'
 import NotificationsModal from '@/modules/database/components/modals/NotificationsModal'
 import UserSettingsModal from '@/modules/database/components/modals/UserSettingsModal'
@@ -174,6 +175,7 @@ export default function Home() {
   const [showTableModal, setShowTableModal] = useState(false)
   const [modalDbIdForTable, setModalDbIdForTable] = useState<number | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [showAirtableModal, setShowAirtableModal] = useState(false)
 
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -1045,7 +1047,7 @@ export default function Home() {
                 fontSize: '13px',
                 fontWeight: 600,
                 color: '#ffffff',
-                backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#2563eb',
+                backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#3F6212',
                 boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
                 border: '1px solid rgba(255,255,255,0.25)'
               }}
@@ -1258,7 +1260,7 @@ export default function Home() {
               fontSize: '13px',
               fontWeight: 600,
               color: '#ffffff',
-              backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#2563eb',
+              backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#3F6212',
               boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
               border: '1px solid rgba(255,255,255,0.25)'
             }}
@@ -1427,6 +1429,7 @@ export default function Home() {
                 handleExportCSV={handleExportCSV}
                 handleCSVImport={handleCSVImport}
                 csvInputRef={csvInputRef}
+                onImportAirtable={() => setShowAirtableModal(true)}
               />
 
               {/* View content */}
@@ -1596,6 +1599,16 @@ export default function Home() {
         darkReaderSettings={themeState.darkReaderSettings}
         onUpdateDarkReaderSettings={themeActions.updateDarkReaderSettings}
         onToast={uiActions.addToast}
+      />
+
+      <AirtableImportModal
+        isOpen={showAirtableModal}
+        onClose={() => setShowAirtableModal(false)}
+        activeWorkspaceId={wsState.activeWorkspaceId}
+        onSuccess={async () => {
+          uiActions.addToast('Airtable 匯入成功！', 'success')
+          await wsActions.fetchWorkspaces()
+        }}
       />
     </div>
   )

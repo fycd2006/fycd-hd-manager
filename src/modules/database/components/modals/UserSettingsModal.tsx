@@ -117,8 +117,8 @@ export default function UserSettingsModal({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: isDark ? '#1e293b' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <User size={18} color="#2563eb" />
+            <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <User size={18} color="#3F6212" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
               {t('userSettings.title')}
@@ -150,7 +150,7 @@ export default function UserSettingsModal({
           {/* Quick System & Display Options Section */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-              <Palette size={13} color="#2563eb" />
+              <Palette size={13} color="#3F6212" />
               <span>{t('userSettings.systemOptions')}</span>
             </label>
 
@@ -177,7 +177,7 @@ export default function UserSettingsModal({
                   textAlign: 'left'
                 }}
               >
-                {isDark ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#2563eb" />}
+                {isDark ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#3F6212" />}
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>{isDark ? '切換明亮模式' : '切換深色模式'}</span>
                   <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>{isDark ? 'Light Theme' : 'Dark Theme'}</span>
@@ -206,7 +206,7 @@ export default function UserSettingsModal({
                   textAlign: 'left'
                 }}
               >
-                <Sliders size={18} color="#2563eb" />
+                <Sliders size={18} color="#3F6212" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>色彩濾鏡微調</span>
                   <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>Contrast & Filters</span>
@@ -259,7 +259,7 @@ export default function UserSettingsModal({
             {/* Password Section */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Key size={14} color="#2563eb" />
+                <Key size={14} color="#3F6212" />
                 <span>{t('userSettings.changePassword')}</span>
               </label>
 
@@ -368,14 +368,14 @@ export default function UserSettingsModal({
                 disabled={saving}
                 style={{
                   padding: '8px 18px',
-                  backgroundColor: '#2563eb',
+                  backgroundColor: '#18181B',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '10px',
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(37,99,235,0.25)',
+                  boxShadow: '0 4px 12px rgba(63, 98, 18,0.25)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'

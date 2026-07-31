@@ -42,7 +42,7 @@ const WORKSPACE_ROLES = [
     uid: 'admin',
     name: 'Admin (建立者 / 系統管理員)',
     description: '可完整配置工作區、建立與修改資料庫、資料表、欄位，並管理成員與權限設定。',
-    badgeColor: '#2563eb'
+    badgecolor: '#18181B'
   },
   {
     uid: 'editor',
@@ -54,7 +54,7 @@ const WORKSPACE_ROLES = [
     uid: 'commenter',
     name: 'Commenter (評論者)',
     description: '可檢視所有資料庫內容並新增備註或評論，但無法修改欄位結構或編輯資料列。',
-    badgeColor: '#d97706'
+    badgeColor: '#E4E4E7'
   },
   {
     uid: 'viewer',
@@ -335,7 +335,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
           align-items: center;
           gap: 6px;
           padding: 9px 18px;
-          background-color: #2563eb;
+          background-color: #3F6212;
           color: #ffffff;
           border: none;
           border-radius: 10px;
@@ -343,7 +343,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
-          box-shadow: 0 2px 6px rgba(37,99,235,0.2);
+          box-shadow: 0 2px 6px rgba(63, 98, 18,0.2);
         }
 
         @media (max-width: 640px) {
@@ -383,8 +383,8 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 paddingBottom: '8px',
                 fontSize: '14px',
                 fontWeight: activeTab === 'members' ? 700 : 500,
-                color: activeTab === 'members' ? '#2563eb' : '#64748b',
-                borderBottom: activeTab === 'members' ? '2px solid #2563eb' : '2px solid transparent',
+                color: activeTab === 'members' ? '#18181B' : '#71717A',
+                borderBottom: activeTab === 'members' ? '2px solid #18181B' : '2px solid transparent',
                 background: 'none',
                 borderTop: 'none',
                 borderLeft: 'none',
@@ -401,8 +401,8 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 paddingBottom: '8px',
                 fontSize: '14px',
                 fontWeight: activeTab === 'invites' ? 700 : 500,
-                color: activeTab === 'invites' ? '#2563eb' : '#64748b',
-                borderBottom: activeTab === 'invites' ? '2px solid #2563eb' : '2px solid transparent',
+                color: activeTab === 'invites' ? '#18181B' : '#71717A',
+                borderBottom: activeTab === 'invites' ? '2px solid #18181B' : '2px solid transparent',
                 background: 'none',
                 borderTop: 'none',
                 borderLeft: 'none',
@@ -419,8 +419,8 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 paddingBottom: '8px',
                 fontSize: '14px',
                 fontWeight: activeTab === 'teams' ? 700 : 500,
-                color: activeTab === 'teams' ? '#2563eb' : '#64748b',
-                borderBottom: activeTab === 'teams' ? '2px solid #2563eb' : '2px solid transparent',
+                color: activeTab === 'teams' ? '#18181B' : '#71717A',
+                borderBottom: activeTab === 'teams' ? '2px solid #18181B' : '2px solid transparent',
                 background: 'none',
                 borderTop: 'none',
                 borderLeft: 'none',
@@ -498,21 +498,21 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                       filteredMembers.map((m, index) => {
                         const isCreator = index === 0 || m.role === 'owner'
                         const currentRoleObj = isCreator
-                          ? { uid: 'admin', name: 'Admin (建立者)', description: '工作區建立者，具備最高權限且不可變更', badgeColor: '#2563eb' }
-                          : (WORKSPACE_ROLES.find(r => r.uid === m.role) || { uid: m.role, name: m.role.toUpperCase(), description: '', badgeColor: '#2563eb' })
+                          ? { uid: 'admin', name: 'Admin (建立者)', description: '工作區建立者，具備最高權限且不可變更', badgecolor: '#18181B' }
+                          : (WORKSPACE_ROLES.find(r => r.uid === m.role) || { uid: m.role, name: m.role.toUpperCase(), description: '', badgecolor: '#18181B' })
 
                         return (
                           <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             {/* Name */}
                             <td style={{ padding: '14px 18px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isCreator ? '#1d4ed8' : '#2563eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isCreator ? '#2d470d' : '#3F6212', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
                                   {m.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                                   <span>{m.name}</span>
                                   {isCreator && (
-                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#1d4ed8', backgroundColor: '#dbeafe', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap', display: 'inline-block', flexShrink: 0 }}>
+                                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#18181B', backgroundColor: '#F4F4F5', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap', display: 'inline-block', flexShrink: 0 }}>
                                       建立者
                                     </span>
                                   )}
@@ -543,16 +543,16 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                                   cursor: isCreator ? 'not-allowed' : 'pointer',
                                   padding: '4px 10px',
                                   borderRadius: '8px',
-                                  backgroundColor: isCreator ? '#eff6ff' : '#f8fafc',
-                                  border: isCreator ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
+                                  backgroundColor: isCreator ? '#F4F4F5' : '#f8fafc',
+                                  border: isCreator ? '1px solid #E4E4E7' : '1px solid #e2e8f0',
                                   opacity: isCreator ? 0.9 : 1,
                                   whiteSpace: 'nowrap'
                                 }}
                               >
-                                <span style={{ fontWeight: 600, color: isCreator ? '#1d4ed8' : '#0f172a', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontWeight: 600, color: isCreator ? '#18181B' : '#0f172a', fontSize: '13px', whiteSpace: 'nowrap' }}>
                                   {currentRoleObj.name}
                                 </span>
-                                {isCreator ? <Lock size={13} color="#2563eb" /> : <ChevronDown size={14} color="#64748b" />}
+                                {isCreator ? <Lock size={13} color="#71717A" /> : <ChevronDown size={14} color="#64748b" />}
                               </div>
                             </td>
 
@@ -584,7 +584,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                                       }}
                                       style={{ width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                                     >
-                                      <Shield size={14} color="#3b82f6" /> 編輯角色權限
+                                      <Shield size={14} color="#3F6212" /> 編輯角色權限
                                     </button>
                                   )}
                                   {!isCreator ? (
@@ -703,7 +703,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                     <div key={t.id} style={{ border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{t.name}</h3>
-                        <span style={{ padding: '2px 8px', borderRadius: '12px', backgroundColor: '#eff6ff', color: '#2563eb', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        <span style={{ padding: '2px 8px', borderRadius: '12px', backgroundColor: '#F4F4F5', color: '#18181B', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                           {t.memberCount} members
                         </span>
                       </div>
@@ -738,13 +738,13 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 <div
                   key={role.uid}
                   onClick={() => handleUpdateRole(activeRoleContextMember.userId, role.uid)}
-                  style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', border: isSelected ? '1px solid #93c5fd' : '1px solid transparent', backgroundColor: isSelected ? '#eff6ff' : 'transparent', transition: 'all 0.15s ease', display: 'flex', flexDirection: 'column', gap: '4px' }}
+                  style={{ padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', border: isSelected ? '1.5px solid #18181B' : '1px solid transparent', backgroundColor: isSelected ? '#F4F4F5' : 'transparent', transition: 'all 0.15s ease', display: 'flex', flexDirection: 'column', gap: '4px' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? '#1e40af' : '#0f172a' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? '#18181B' : '#0f172a' }}>
                       {role.name}
                     </span>
-                    {isSelected && <Check size={16} color="#2563eb" />}
+                    {isSelected && <Check size={16} color="#18181B" />}
                   </div>
                   <p style={{ fontSize: '11px', color: '#64748b', margin: 0, lineHeight: 1.4 }}>
                     {role.description}
@@ -811,9 +811,9 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                           setInviteRole(role.uid)
                           setShowInviteRoleDropdown(false)
                         }}
-                        style={{ padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', backgroundColor: inviteRole === role.uid ? '#eff6ff' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                        style={{ padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', backgroundColor: inviteRole === role.uid ? '#F4F4F5' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px' }}
                       >
-                        <span style={{ fontWeight: 700, fontSize: '13px', color: inviteRole === role.uid ? '#2563eb' : '#0f172a' }}>{role.name}</span>
+                        <span style={{ fontWeight: 700, fontSize: '13px', color: inviteRole === role.uid ? '#3F6212' : '#0f172a' }}>{role.name}</span>
                         <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{role.description}</p>
                       </div>
                     ))}
@@ -825,7 +825,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 <button
                   type="button"
                   onClick={handleCopyInviteLink}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#2563eb', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: '#18181B', fontSize: '13px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                 >
                   <Copy size={14} /> 複製邀請連結
                 </button>
@@ -833,7 +833,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 <button
                   type="submit"
                   disabled={inviting}
-                  style={{ padding: '10px 24px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.25)', whiteSpace: 'nowrap' }}
+                  style={{ padding: '10px 24px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(24,24,27,0.25)', whiteSpace: 'nowrap' }}
                 >
                   {inviting ? 'Sending invite...' : 'Send invite'}
                 </button>
@@ -881,7 +881,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 <button
                   type="submit"
                   disabled={creatingTeam}
-                  style={{ padding: '10px 20px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  style={{ padding: '10px 20px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                 >
                   {creatingTeam ? 'Creating...' : 'Create team'}
                 </button>

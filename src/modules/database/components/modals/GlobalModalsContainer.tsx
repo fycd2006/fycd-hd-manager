@@ -116,20 +116,41 @@ export default function GlobalModalsContainer({
   return (
     <>
       {/* WorkspaceModal */}
-      {wsState.showNewWorkspaceModal && (
+      {wsState.showWorkspaceModal && (
         <WorkspaceModal
-          show={wsState.showNewWorkspaceModal}
-          onClose={() => wsActions.setShowNewWorkspaceModal(false)}
-          onSubmit={wsActions.handleCreateWorkspace}
+          show={wsState.showWorkspaceModal}
+          onClose={() => wsActions.setShowWorkspaceModal(false)}
+          onSubmit={async (name) => {
+            const res = await wsActions.createWorkspace(name)
+            if (res.ok) {
+              uiActions.addToast('工作區建立成功！', 'success')
+              wsActions.setShowWorkspaceModal(false)
+            } else {
+              uiActions.addToast(res.error || '建立失敗', 'error')
+            }
+          }}
         />
       )}
 
       {/* DatabaseModal */}
-      {wsState.showNewDatabaseModal && (
+      {wsState.showDatabaseModal && (
         <DatabaseModal
-          show={wsState.showNewDatabaseModal}
-          onClose={() => wsActions.setShowNewDatabaseModal(false)}
-          onSubmit={wsActions.handleCreateDatabase}
+          show={wsState.showDatabaseModal}
+          onClose={() => wsActions.setShowDatabaseModal(false)}
+          onSubmit={async (name) => {
+            const wsId = wsState.modalWsId || wsState.activeWorkspaceId
+            if (!wsId) {
+              uiActions.addToast('請先選擇一個工作區', 'error')
+              return
+            }
+            const res = await wsActions.createDatabase(wsId, name)
+            if (res.ok) {
+              uiActions.addToast('資料庫建立成功！', 'success')
+              wsActions.setShowDatabaseModal(false)
+            } else {
+              uiActions.addToast(res.error || '建立失敗', 'error')
+            }
+          }}
         />
       )}
 
@@ -218,6 +239,7 @@ export default function GlobalModalsContainer({
             setSelectedRow(null)
           }}
           onUpdateCell={updateCell}
+          onUpdateField={handleUpdateField}
           onNavigatePrevious={() => {
             const idx = displayRows.findIndex((r) => r.id === selectedRow.id)
             if (idx > 0) setSelectedRow(displayRows[idx - 1])

@@ -48,15 +48,60 @@ export async function POST(
       }
     }
 
+    let parsedOptions = options ? (typeof options === 'object' ? options : JSON.parse(options)) : {}
+
+    // Create the primary field
     const field = await prisma.tableField.create({
       data: {
         tableId: id,
         name,
         type: type || 'text',
         order: insertOrder,
-        options: options ? JSON.stringify(options) : null,
+        options: parsedOptions ? JSON.stringify(parsedOptions) : null,
       },
     })
+
+    // Bi-directional link_row handling: auto-create reverse field on target table
+    if (type === 'link_row' && parsedOptions?.targetTableId && parsedOptions?.createRelatedField !== false) {
+      try {
+        const targetTableId = Number(parsedOptions.targetTableId)
+        const sourceTable = await prisma.databaseTable.findUnique({ where: { id } })
+        const targetTable = await prisma.databaseTable.findUnique({ where: { id: targetTableId } })
+
+        if (sourceTable && targetTable) {
+          const reverseFieldName = parsedOptions.relatedFieldName || `${sourceTable.name}`
+
+          const existingTargetFields = await prisma.tableField.findMany({
+            where: { tableId: targetTableId, deletedAt: null }
+          })
+
+          const reverseField = await prisma.tableField.create({
+            data: {
+              tableId: targetTableId,
+              name: reverseFieldName,
+              type: 'link_row',
+              order: existingTargetFields.length,
+              options: JSON.stringify({
+                targetTableId: id,
+                relatedFieldId: field.id,
+                allowMultiple: parsedOptions.allowMultiple ?? true,
+              })
+            }
+          })
+
+          // Update original field with the reverse field ID
+          parsedOptions.relatedFieldId = reverseField.id
+          await prisma.tableField.update({
+            where: { id: field.id },
+            data: { options: JSON.stringify(parsedOptions) }
+          })
+
+          field.options = JSON.stringify(parsedOptions)
+        }
+      } catch (err) {
+        console.warn('[Bi-directional Field Creation Warning]:', err)
+      }
+    }
 
     const allFields = [...existingFields]
     allFields.splice(insertOrder, 0, field)
@@ -75,3 +120,4 @@ export async function POST(
     return NextResponse.json({ error: error.message || '新增欄位失敗' }, { status: 500 })
   }
 }
+

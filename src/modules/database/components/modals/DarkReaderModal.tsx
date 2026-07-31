@@ -42,7 +42,7 @@ export default function DarkReaderModal({
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Sliders size={20} color="#2563eb" />
+            <Sliders size={20} color="#3F6212" />
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0 }}>色彩與顯示客製化調整</h3>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
@@ -56,7 +56,7 @@ export default function DarkReaderModal({
           {/* Light / Dark Mode Quick Switch */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={15} color="#2563eb" /> 主題深淺模式 (Theme Mode)
+              <Sparkles size={15} color="#3F6212" /> 主題深淺模式 (Theme Mode)
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
@@ -65,15 +65,15 @@ export default function DarkReaderModal({
                 style={{
                   padding: '12px',
                   borderRadius: '10px',
-                  border: theme === 'light' ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                  backgroundColor: theme === 'light' ? '#eff6ff' : '#f8fafc',
+                  border: theme === 'light' ? '2px solid #3F6212' : '1px solid #cbd5e1',
+                  backgroundColor: theme === 'light' ? '#F4F4F5' : '#f8fafc',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
                   fontWeight: 600,
                   fontSize: '13px',
-                  color: theme === 'light' ? '#2563eb' : '#64748b',
+                  color: theme === 'light' ? '#3F6212' : '#64748b',
                   cursor: 'pointer'
                 }}
               >
@@ -87,7 +87,7 @@ export default function DarkReaderModal({
                 style={{
                   padding: '12px',
                   borderRadius: '10px',
-                  border: theme === 'dark' ? '2px solid #4f46e5' : '1px solid #cbd5e1',
+                  border: theme === 'dark' ? '2px solid #3F6212' : '1px solid #cbd5e1',
                   backgroundColor: theme === 'dark' ? '#312e81' : '#f8fafc',
                   display: 'flex',
                   alignItems: 'center',
@@ -108,7 +108,7 @@ export default function DarkReaderModal({
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Eye size={15} color="#2563eb" /> 視覺與對比微調 (Filters - {theme === 'dark' ? '夜間模式' : '明亮模式'})
+                <Eye size={15} color="#3F6212" /> 視覺與對比微調 (Filters - {theme === 'dark' ? '夜間模式' : '明亮模式'})
               </span>
               <button
                 type="button"
@@ -132,7 +132,7 @@ export default function DarkReaderModal({
                 max="150"
                 value={darkReaderSettings.brightness}
                 onChange={e => onUpdateDarkReaderSettings({ brightness: Number(e.target.value) })}
-                style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                style={{ width: '100%', accentColor: '#18181B', cursor: 'pointer' }}
               />
             </div>
 
@@ -148,7 +148,7 @@ export default function DarkReaderModal({
                 max="150"
                 value={darkReaderSettings.contrast}
                 onChange={e => onUpdateDarkReaderSettings({ contrast: Number(e.target.value) })}
-                style={{ width: '100%', accentColor: '#2563eb', cursor: 'pointer' }}
+                style={{ width: '100%', accentColor: '#18181B', cursor: 'pointer' }}
               />
             </div>
 
@@ -164,7 +164,7 @@ export default function DarkReaderModal({
                 max="100"
                 value={darkReaderSettings.sepia}
                 onChange={e => onUpdateDarkReaderSettings({ sepia: Number(e.target.value) })}
-                style={{ width: '100%', accentColor: '#d97706', cursor: 'pointer' }}
+                style={{ width: '100%', accentColor: '#18181B', cursor: 'pointer' }}
               />
             </div>
 
@@ -190,7 +190,7 @@ export default function DarkReaderModal({
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
             <button
               onClick={onClose}
-              style={{ padding: '10px 22px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.25)' }}
+              style={{ padding: '10px 22px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(24, 24, 27, 0.25)' }}
             >
               完成與關閉
             </button>

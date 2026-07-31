@@ -78,7 +78,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
     const COLOR_MAP: Record<string, string> = {
       red: '#fef2f2',
       green: '#f0fdf4',
-      blue: '#eff6ff',
+      blue: '#F4F4F5',
       yellow: '#fefce8',
       purple: '#faf5ff',
       orange: '#fff7ed'
@@ -92,10 +92,10 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       const targetVal = rule.value.toLowerCase();
 
       if (rule.operator === 'equals' && strVal === targetVal) {
-        return COLOR_MAP[rule.color] || '#eff6ff';
+        return COLOR_MAP[rule.color] || '#F4F4F5';
       }
       if (rule.operator === 'contains' && strVal.includes(targetVal)) {
-        return COLOR_MAP[rule.color] || '#eff6ff';
+        return COLOR_MAP[rule.color] || '#F4F4F5';
       }
     }
     return null;
@@ -128,7 +128,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         height: 'var(--row-height, 32px)',
         maxHeight: 'var(--row-height, 32px)',
         overflow: 'visible',
-        borderTop: isDragTarget ? '2px solid #2563eb' : undefined,
+        borderTop: isDragTarget ? '2px solid #3F6212' : undefined,
         boxSizing: 'border-box',
         background: matchedColorBg || undefined,
       }}
@@ -147,10 +147,10 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           left: 0,
           zIndex: 15,
           background: isRowSelected 
-            ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' 
-            : (isHovered ? '#f1f5f9' : (matchedColorBg || '#ffffff')),
-          borderRight: '1px solid var(--border-color, #e2e8f0)',
-          borderLeft: isRowSelected ? '3px solid #2563eb' : (isHovered ? '3px solid #94a3b8' : 'none'),
+            ? '#F4F4F5' 
+            : (isHovered ? '#F5F5F4' : (matchedColorBg || '#ffffff')),
+          borderRight: '1px solid var(--border-color, #E7E5E4)',
+          borderLeft: isRowSelected ? '3px solid #3F6212' : (isHovered ? '3px solid #A8A29E' : 'none'),
           transition: 'background-color 0.12s ease, border-left-color 0.12s ease',
           padding: '0 4px',
           display: 'flex',
@@ -204,7 +204,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             />
           </div>
         ) : (
-          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: isRowSelected ? '#2563eb' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: isRowSelected ? '#3F6212' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
             {rowIndex + 1}
           </span>
         )}
@@ -266,7 +266,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           flexShrink: 0,
           borderRight: '1px solid var(--border-color, #e2e8f0)',
           boxSizing: 'border-box',
-          background: isRowSelected ? 'linear-gradient(rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.08)), #ffffff' : (matchedColorBg || '#ffffff')
+          background: isRowSelected ? '#F4F4F5' : (matchedColorBg || '#ffffff')
         }}
       />
     </div>

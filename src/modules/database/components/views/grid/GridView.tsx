@@ -979,7 +979,7 @@ export const GridView: React.FC<GridViewProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#2563eb',
+                  color: '#18181B',
                   boxSizing: 'border-box',
                 }}
               >
@@ -994,7 +994,7 @@ export const GridView: React.FC<GridViewProps> = ({
                   alignItems: 'center',
                   paddingLeft: '12px',
                   fontSize: '13px',
-                  color: '#2563eb',
+                  color: '#18181B',
                   fontWeight: 500,
                   borderRight: '1px solid var(--border-color, #e2e8f0)',
                   boxSizing: 'border-box',
@@ -1059,7 +1059,7 @@ export const GridView: React.FC<GridViewProps> = ({
             fontWeight: 600,
             borderRight: '2px solid #cbd5e1',
             background: '#f8fafc',
-            color: '#4f46e5'
+            color: '#18181B'
           }}>
             {rows.length} 筆
           </div>
@@ -1176,7 +1176,7 @@ export const GridView: React.FC<GridViewProps> = ({
                   cursor: 'pointer',
                   background: currentMode === item.key ? '#f1f5f9' : 'transparent',
                   fontWeight: currentMode === item.key ? 600 : 400,
-                  color: currentMode === item.key ? '#2563eb' : '#334155',
+                  color: currentMode === item.key ? '#3F6212' : '#334155',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -1185,7 +1185,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 onMouseLeave={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = 'transparent'; }}
               >
                 <span>{item.label}</span>
-                {currentMode === item.key && <span style={{ color: '#2563eb', fontWeight: 'bold' }}>✓</span>}
+                {currentMode === item.key && <span style={{ color: '#18181B', fontWeight: 'bold' }}>✓</span>}
               </div>
             ))}
           </div>,

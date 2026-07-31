@@ -15,21 +15,23 @@ export function extractAirtableId(urlOrId: string): { type: 'share' | 'base' | '
   if (!urlOrId) return { type: 'unknown', id: '' }
   const trimmed = urlOrId.trim()
   
+  // Direct ID input — prioritize Base ID over Share ID
+  if (trimmed.startsWith('app')) {
+    return { type: 'base', id: trimmed }
+  }
   if (trimmed.startsWith('shr')) {
     return { type: 'share', id: trimmed }
   }
-  if (trimmed.startsWith('app')) {
-    return { type: 'base', id: trimmed }
+
+  // URL parsing — always extract Base ID (app...) first
+  const baseMatch = trimmed.match(/airtable\.com\/(app[a-zA-Z0-9]+)/)
+  if (baseMatch) {
+    return { type: 'base', id: baseMatch[1] }
   }
 
   const shareMatch = trimmed.match(/airtable\.com\/(shr[a-zA-Z0-9]+)/)
   if (shareMatch) {
     return { type: 'share', id: shareMatch[1] }
-  }
-
-  const baseMatch = trimmed.match(/airtable\.com\/(app[a-zA-Z0-9]+)/)
-  if (baseMatch) {
-    return { type: 'base', id: baseMatch[1] }
   }
 
   return { type: 'unknown', id: trimmed }

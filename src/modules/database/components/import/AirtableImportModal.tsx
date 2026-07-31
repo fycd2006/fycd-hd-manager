@@ -8,9 +8,10 @@ interface AirtableImportModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: (data: any) => void
+  activeWorkspaceId: number | null
 }
 
-export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImportModalProps) {
+export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspaceId }: AirtableImportModalProps) {
   const [tab, setTab] = useState<'url' | 'token' | 'json'>('url')
   const [shareUrl, setShareUrl] = useState('')
   const [token, setToken] = useState('')
@@ -20,6 +21,19 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
   const [error, setError] = useState<string | null>(null)
   const [resultStats, setResultStats] = useState<{ tableCount: number; rowCount: number } | null>(null)
 
+  // Reset modal state when opened
+  React.useEffect(() => {
+    if (isOpen) {
+      setShareUrl('')
+      setToken('')
+      setJsonText('')
+      setError(null)
+      setResultStats(null)
+      setLoading(false)
+      setProgress(0)
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const handleImport = async () => {
@@ -28,22 +42,26 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
     setProgress(20)
 
     try {
-      let bodyData: any = {}
+      if (!activeWorkspaceId) {
+        throw new Error('未選擇作用中的工作區，請先選擇或建立工作區。')
+      }
+
+      let bodyData: any = { workspaceId: activeWorkspaceId }
 
       if (tab === 'url') {
         if (!shareUrl.trim()) throw new Error('請輸入 Airtable 共享網址')
-        bodyData = { shareUrl: shareUrl.trim() }
+        bodyData = { ...bodyData, shareUrl: shareUrl.trim() }
       } else if (tab === 'token') {
         if (!token.trim()) throw new Error('請輸入 Personal Access Token (PAT)')
         if (!shareUrl.trim()) throw new Error('請輸入 Base ID 或網址')
-        bodyData = { token: token.trim(), shareUrl: shareUrl.trim() }
+        bodyData = { ...bodyData, token: token.trim(), shareUrl: shareUrl.trim() }
       } else if (tab === 'json') {
         if (!jsonText.trim()) throw new Error('請貼上或選擇 JSON 結構內容')
         try {
           const parsed = JSON.parse(jsonText)
-          bodyData = { rawPayload: parsed }
+          bodyData = { ...bodyData, rawPayload: parsed }
         } catch {
-          throw new Error('無效的 JSON 格式')
+          throw new Error('無效 JSON 格式')
         }
       }
 
@@ -117,8 +135,8 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
                 width: '36px',
                 height: '36px',
                 borderRadius: '10px',
-                backgroundColor: '#eff6ff',
-                color: '#2563eb',
+                backgroundColor: '#F4F4F5',
+                color: '#18181B',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -173,9 +191,9 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
                   padding: '10px 14px',
                   fontSize: '13px',
                   fontWeight: active ? 600 : 500,
-                  color: active ? '#2563eb' : '#64748b',
+                  color: active ? '#3F6212' : '#64748b',
                   border: 'none',
-                  borderBottom: active ? '2px solid #2563eb' : '2px solid transparent',
+                  borderBottom: active ? '2px solid #3F6212' : '2px solid transparent',
                   background: 'none',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
@@ -200,12 +218,12 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
                 color: '#dc2626',
                 fontSize: '13px',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: '8px',
               }}
             >
-              <AlertCircle size={16} style={{ flexShrink: 0 }} />
-              <span>{error}</span>
+              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span style={{ lineHeight: '1.5' }}>{error}</span>
             </div>
           )}
 
@@ -234,27 +252,42 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
           ) : (
             <>
               {tab === 'url' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#334155', marginBottom: '6px' }}>
-                    Airtable Shared Base URL
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://airtable.com/shr..."
-                    value={shareUrl}
-                    onChange={(e) => setShareUrl(e.target.value)}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div
                     style={{
-                      width: '100%',
                       padding: '10px 14px',
                       borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13px',
-                      outline: 'none',
+                      backgroundColor: '#F4F4F5',
+                      border: '1px solid #E4E4E7',
+                      color: '#1e40af',
+                      fontSize: '12px',
+                      lineHeight: '1.5',
                     }}
-                  />
-                  <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
-                    貼上 Airtable 的「Share base」公開連結
-                  </span>
+                  >
+                    💡 此方式不需要 API Key，但需要該 Base 已設定為公開共享（Share base → Create a shared link）。
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#334155', marginBottom: '6px' }}>
+                      Airtable Shared Base URL
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="https://airtable.com/appXXX/shrXXX 或 https://airtable.com/shrXXX"
+                      value={shareUrl}
+                      onChange={(e) => setShareUrl(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        outline: 'none',
+                      }}
+                    />
+                    <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                      貼上 Airtable 的「Share base」或「Share view」公開連結
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -336,7 +369,7 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
                       style={{
                         width: `${progress}%`,
                         height: '100%',
-                        backgroundColor: '#2563eb',
+                        backgroundColor: '#18181B',
                         transition: 'width 0.3s ease',
                       }}
                     />
@@ -381,7 +414,7 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess }: AirtableImpo
                 padding: '8px 20px',
                 borderRadius: '8px',
                 border: 'none',
-                backgroundColor: loading ? '#93c5fd' : '#2563eb',
+                backgroundColor: loading ? '#93c5fd' : '#3F6212',
                 color: '#ffffff',
                 fontSize: '13px',
                 fontWeight: 600,

@@ -447,15 +447,15 @@ export default function MobileBottomNav({
         .ui-ux-mobile-bottom-nav-portal { display: flex !important; }
 
         @keyframes liv-bubble-pulse-dark {
-          0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45); }
-          70% { box-shadow: 0 0 0 16px rgba(59, 130, 246, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+          0% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0.45); }
+          70% { box-shadow: 0 0 0 16px rgba(63, 98, 18, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0); }
         }
 
         @keyframes liv-bubble-pulse-light {
-          0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
-          70% { box-shadow: 0 0 0 16px rgba(37, 99, 235, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+          0% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0.35); }
+          70% { box-shadow: 0 0 0 16px rgba(63, 98, 18, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0); }
         }
       `}</style>
 
@@ -517,7 +517,7 @@ export default function MobileBottomNav({
                   height: '44px',
                   borderRadius: '9999px',
                   backgroundColor: isActive
-                    ? '#2563eb'
+                    ? '#3F6212'
                     : isDark
                     ? 'rgba(15, 23, 42, 0.94)'
                     : 'rgba(255, 255, 255, 0.96)',
@@ -529,7 +529,7 @@ export default function MobileBottomNav({
                     ? '1px solid rgba(255, 255, 255, 0.25)'
                     : '1px solid rgba(203, 213, 225, 0.9)',
                   boxShadow: isActive
-                    ? '0 10px 25px rgba(37, 99, 235, 0.45), 0 0 15px rgba(37, 99, 235, 0.4)'
+                    ? '0 10px 25px rgba(63, 98, 18, 0.45), 0 0 15px rgba(63, 98, 18, 0.4)'
                     : isDark
                     ? '0 8px 20px rgba(0, 0, 0, 0.4)'
                     : '0 8px 22px rgba(15, 23, 42, 0.14)',
@@ -596,26 +596,26 @@ export default function MobileBottomNav({
               height: '52px',
               borderRadius: '9999px',
               backgroundColor: isBubbleMenuOpen
-                ? '#2563eb'
+                ? '#3F6212'
                 : isDark
-                ? 'rgba(15, 23, 42, 0.94)'
-                : 'rgba(255, 255, 255, 0.96)',
+                ? '#1C1917'
+                : '#ffffff',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               border: isBubbleMenuOpen
                 ? '2px solid #ffffff'
                 : isDark
                 ? '1.5px solid rgba(255, 255, 255, 0.35)'
-                : '1.5px solid rgba(37, 99, 235, 0.35)',
+                : '1.5px solid #E7E5E4',
               boxShadow: isDraggingBubble
                 ? isDark
-                  ? '0 20px 45px rgba(0, 0, 0, 0.45), 0 0 25px rgba(59, 130, 246, 0.6)'
-                  : '0 20px 45px rgba(15, 23, 42, 0.25), 0 0 25px rgba(37, 99, 235, 0.5)'
+                  ? '0 20px 45px rgba(0, 0, 0, 0.45), 0 0 25px rgba(63, 98, 18, 0.6)'
+                  : '0 20px 45px rgba(15, 23, 42, 0.25), 0 0 25px rgba(63, 98, 18, 0.5)'
                 : isBubbleMenuOpen
-                ? '0 12px 35px rgba(37, 99, 235, 0.5), 0 0 20px rgba(37, 99, 235, 0.5)'
+                ? '0 12px 35px rgba(63, 98, 18, 0.5), 0 0 20px rgba(63, 98, 18, 0.5)'
                 : isDark
-                ? '0 12px 35px rgba(0, 0, 0, 0.35), 0 0 15px rgba(59, 130, 246, 0.3)'
-                : '0 12px 35px rgba(15, 23, 42, 0.16), 0 0 15px rgba(37, 99, 235, 0.25)',
+                ? '0 12px 35px rgba(0, 0, 0, 0.35), 0 0 15px rgba(63, 98, 18, 0.3)'
+                : '0 12px 35px rgba(15, 23, 42, 0.16), 0 0 15px rgba(63, 98, 18, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -633,7 +633,7 @@ export default function MobileBottomNav({
             {isBubbleMenuOpen ? (
               <Plus size={26} color="#ffffff" style={{ pointerEvents: 'none' }} />
             ) : (
-              <Compass size={26} color={isDark ? '#60a5fa' : '#2563eb'} style={{ pointerEvents: 'none' }} />
+              <Compass size={26} color={isDark ? '#60a5fa' : '#3F6212'} style={{ pointerEvents: 'none' }} />
             )}
           </div>
         </div>
@@ -710,14 +710,14 @@ export default function MobileBottomNav({
                 padding: '5px 2px',
                 borderRadius: '14px',
                 border: 'none',
-                backgroundColor: activeTab === 'home' ? (isDark ? '#1e3a8a' : '#eff6ff') : 'transparent',
-                color: activeTab === 'home' ? '#2563eb' : isDark ? '#94a3b8' : '#64748b',
+                backgroundColor: activeTab === 'home' ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
+                color: activeTab === 'home' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <Home size={18} color={activeTab === 'home' ? '#2563eb' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Home size={18} color={activeTab === 'home' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'home' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 首頁
               </span>
@@ -745,14 +745,14 @@ export default function MobileBottomNav({
                 padding: '5px 2px',
                 borderRadius: '14px',
                 border: 'none',
-                backgroundColor: (activeTab === 'database' || showDbModal) ? (isDark ? '#1e3a8a' : '#eff6ff') : 'transparent',
-                color: (activeTab === 'database' || showDbModal) ? '#2563eb' : isDark ? '#94a3b8' : '#64748b',
+                backgroundColor: (activeTab === 'database' || showDbModal) ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
+                color: (activeTab === 'database' || showDbModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <DatabaseIcon size={18} color={(activeTab === 'database' || showDbModal) ? '#2563eb' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <DatabaseIcon size={18} color={(activeTab === 'database' || showDbModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: (activeTab === 'database' || showDbModal) ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 資料庫
               </span>
@@ -780,14 +780,14 @@ export default function MobileBottomNav({
                 padding: '5px 2px',
                 borderRadius: '14px',
                 border: 'none',
-                backgroundColor: (activeTab === 'search' || showSearchModal) ? (isDark ? '#1e3a8a' : '#eff6ff') : 'transparent',
-                color: (activeTab === 'search' || showSearchModal) ? '#2563eb' : isDark ? '#94a3b8' : '#64748b',
+                backgroundColor: (activeTab === 'search' || showSearchModal) ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
+                color: (activeTab === 'search' || showSearchModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <Search size={18} color={(activeTab === 'search' || showSearchModal) ? '#2563eb' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Search size={18} color={(activeTab === 'search' || showSearchModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: (activeTab === 'search' || showSearchModal) ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 搜尋
               </span>
@@ -816,15 +816,15 @@ export default function MobileBottomNav({
                 padding: '5px 2px',
                 borderRadius: '14px',
                 border: 'none',
-                backgroundColor: activeTab === 'alerts' ? (isDark ? '#1e3a8a' : '#eff6ff') : 'transparent',
-                color: activeTab === 'alerts' ? '#2563eb' : isDark ? '#94a3b8' : '#64748b',
+                backgroundColor: activeTab === 'alerts' ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
+                color: activeTab === 'alerts' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation',
                 position: 'relative'
               }}
             >
-              <Bell size={18} color={activeTab === 'alerts' ? '#2563eb' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Bell size={18} color={activeTab === 'alerts' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'alerts' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 通知
               </span>
@@ -858,14 +858,14 @@ export default function MobileBottomNav({
                 padding: '5px 2px',
                 borderRadius: '14px',
                 border: 'none',
-                backgroundColor: activeTab === 'settings' ? (isDark ? '#1e3a8a' : '#eff6ff') : 'transparent',
-                color: activeTab === 'settings' ? '#2563eb' : isDark ? '#94a3b8' : '#64748b',
+                backgroundColor: activeTab === 'settings' ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
+                color: activeTab === 'settings' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <Settings size={18} color={activeTab === 'settings' ? '#2563eb' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Settings size={18} color={activeTab === 'settings' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'settings' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 設定
               </span>
@@ -955,8 +955,8 @@ export default function MobileBottomNav({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: isDark ? '#1e293b' : '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <DatabaseIcon size={18} color="#2563eb" />
+                <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <DatabaseIcon size={18} color="#3F6212" />
                 </div>
                 <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
                   資料庫與資料表
@@ -975,8 +975,8 @@ export default function MobileBottomNav({
                     gap: '6px',
                     padding: '6px 12px',
                     borderRadius: '10px',
-                    backgroundColor: '#eff6ff',
-                    color: '#2563eb',
+                    backgroundColor: '#F4F4F5',
+                    color: '#18181B',
                     border: 'none',
                     fontSize: '12px',
                     fontWeight: 600,
@@ -1026,7 +1026,7 @@ export default function MobileBottomNav({
                           fontWeight: 600,
                           whiteSpace: 'nowrap',
                           cursor: 'pointer',
-                          backgroundColor: activeWorkspaceId === ws.id ? '#2563eb' : isDark ? '#1e293b' : '#f1f5f9',
+                          backgroundColor: activeWorkspaceId === ws.id ? '#3F6212' : isDark ? '#1e293b' : '#f1f5f9',
                           color: activeWorkspaceId === ws.id ? '#ffffff' : isDark ? '#cbd5e1' : '#475569',
                           border: 'none'
                         }}
@@ -1039,7 +1039,7 @@ export default function MobileBottomNav({
               )}
 
               {isCreatingDb && (
-                <form onSubmit={handleCreateDbSubmit} style={{ marginBottom: '14px', padding: '12px', backgroundColor: isDark ? '#1e293b' : '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '14px', display: 'flex', gap: '8px' }}>
+                <form onSubmit={handleCreateDbSubmit} style={{ marginBottom: '14px', padding: '12px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', border: '1px solid #E4E4E7', borderRadius: '14px', display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
                     autoFocus
@@ -1051,7 +1051,7 @@ export default function MobileBottomNav({
                   <button
                     type="submit"
                     disabled={creatingDbLoading || !newDbName.trim()}
-                    style={{ padding: '8px 14px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingDbLoading ? 0.6 : 1 }}
+                    style={{ padding: '8px 14px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingDbLoading ? 0.6 : 1 }}
                   >
                     {creatingDbLoading ? '建立中...' : '建立'}
                   </button>
@@ -1071,7 +1071,7 @@ export default function MobileBottomNav({
                     <div key={db.id} style={{ backgroundColor: isDark ? '#1e293b' : '#f8fafc', border: 'none', borderRadius: '16px', padding: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', padding: '0 2px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <DatabaseIcon size={16} color="#2563eb" />
+                          <DatabaseIcon size={16} color="#3F6212" />
                           <h4 style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0 }}>{db.name}</h4>
                         </div>
                         <button
@@ -1087,7 +1087,7 @@ export default function MobileBottomNav({
                             padding: '4px 10px',
                             borderRadius: '8px',
                             backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                            color: '#2563eb',
+                            color: '#18181B',
                             border: '1px solid #cbd5e1',
                             fontSize: '11px',
                             fontWeight: 600,
@@ -1112,7 +1112,7 @@ export default function MobileBottomNav({
                           <button
                             type="submit"
                             disabled={creatingTableLoading || !newTableName.trim()}
-                            style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingTableLoading ? 0.6 : 1 }}
+                            style={{ padding: '6px 12px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingTableLoading ? 0.6 : 1 }}
                           >
                             {creatingTableLoading ? '建立中...' : '建立'}
                           </button>
@@ -1149,14 +1149,14 @@ export default function MobileBottomNav({
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease',
-                                backgroundColor: isSelected ? '#2563eb' : isDark ? '#0f172a' : '#ffffff',
+                                backgroundColor: isSelected ? '#3F6212' : isDark ? '#0f172a' : '#ffffff',
                                 color: isSelected ? '#ffffff' : isDark ? '#e2e8f0' : '#334155',
                                 border: 'none',
-                                boxShadow: isSelected ? '0 4px 12px rgba(37,99,235,0.25)' : 'none'
+                                boxShadow: isSelected ? '0 4px 12px rgba(63, 98, 18,0.25)' : 'none'
                               }}
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                                <TableIcon size={16} color={isSelected ? '#ffffff' : '#2563eb'} />
+                                <TableIcon size={16} color={isSelected ? '#ffffff' : '#3F6212'} />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{table.name}</span>
                               </div>
                               {isSelected ? (

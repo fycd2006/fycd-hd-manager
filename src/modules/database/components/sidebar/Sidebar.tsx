@@ -153,8 +153,8 @@ export default function Sidebar({
         .sidebar-hover-icon { transition: all 0.15s ease; }
         .sidebar-hover-icon:hover { background-color: rgba(15, 23, 42, 0.08) !important; color: #0f172a !important; }
         .sidebar-active-table {
-          background-color: #eff6ff !important;
-          color: #1d4ed8 !important;
+          background-color: #F4F4F5 !important;
+          color: #2d470d !important;
           font-weight: 600 !important;
         }
         .sidebar-active-table::before {
@@ -164,7 +164,7 @@ export default function Sidebar({
           top: 4px;
           bottom: 4px;
           width: 3px;
-          background-color: #2563eb;
+          background-color: #3F6212;
           border-radius: 0 4px 4px 0;
         }
       `}</style>
@@ -214,7 +214,7 @@ export default function Sidebar({
                 <img
                   src="/logo.jpg"
                   alt="FYCD HD Manager Logo"
-                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #2563eb', boxShadow: '0 2px 6px rgba(37,99,235,0.2)' }}
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #3F6212', boxShadow: '0 2px 6px rgba(63, 98, 18,0.2)' }}
                 />
               </button>
 
@@ -225,9 +225,9 @@ export default function Sidebar({
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  backgroundColor: '#eff6ff',
-                  border: '1px solid #bfdbfe',
-                  color: '#2563eb',
+                  backgroundColor: '#F4F4F5',
+                  border: '1px solid #E4E4E7',
+                  color: '#18181B',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -235,11 +235,11 @@ export default function Sidebar({
                   transition: 'all 0.15s ease'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#dbeafe'
+                  e.currentTarget.style.backgroundColor = '#F4F4F5'
                   e.currentTarget.style.transform = 'scale(1.05)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#eff6ff'
+                  e.currentTarget.style.backgroundColor = '#F4F4F5'
                   e.currentTarget.style.transform = 'scale(1)'
                 }}
               >
@@ -258,9 +258,9 @@ export default function Sidebar({
                     width: '36px',
                     height: '36px',
                     borderRadius: '10px',
-                    backgroundColor: activeTableId === 0 ? '#eff6ff' : 'transparent',
-                    border: activeTableId === 0 ? '1px solid #bfdbfe' : '1px solid transparent',
-                    color: activeTableId === 0 ? '#2563eb' : '#64748b',
+                    backgroundColor: activeTableId === 0 ? '#F4F4F5' : 'transparent',
+                    border: activeTableId === 0 ? '1px solid #E4E4E7' : '1px solid transparent',
+                    color: activeTableId === 0 ? '#3F6212' : '#64748b',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -286,7 +286,7 @@ export default function Sidebar({
                   width: '32px',
                   height: '32px',
                   borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  background: '#18181B',
                   color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
@@ -294,7 +294,7 @@ export default function Sidebar({
                   fontWeight: 700,
                   fontSize: '13px',
                   cursor: 'pointer',
-                  boxShadow: '0 3px 10px rgba(99, 102, 241, 0.35)',
+                  boxShadow: '0 3px 10px rgba(63, 98, 18, 0.35)',
                   transition: 'transform 0.15s ease',
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
@@ -365,20 +365,8 @@ export default function Sidebar({
               />
             )}
 
-            {/* Brand Header (52px height - matches ViewToolbar height 52px) */}
-            <div style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', padding: '0 14px', gap: '10px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#ffffff', boxSizing: 'border-box' }}>
-              <img
-                src="/logo.jpg"
-                alt="FYCD HD Manager Logo"
-                style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0' }}
-              />
-              <span style={{ fontSize: '14px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                FYCD HD Manager
-              </span>
-            </div>
-
-            {/* Workspace Header Selector Bar (36px height - matches Table Header height 36px) */}
-            <div style={{ height: '36px', minHeight: '36px', maxHeight: '36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px', borderBottom: '1px solid #e2e8f0', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', overflow: 'hidden' }}>
+            {/* Layer 1: Topmost Workspace Header Selector Bar (Image 3 Content - 52px height aligned with toolbar) */}
+            <div style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid #e2e8f0', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', overflow: 'hidden' }}>
 
               <div
                 className="sidebar-hover-item"
@@ -390,20 +378,20 @@ export default function Sidebar({
                   }
                 }}
                 title="切換工作區"
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, height: '28px', padding: '0 6px', borderRadius: '6px', cursor: 'pointer', overflow: 'hidden', boxSizing: 'border-box' }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, height: '38px', padding: '0 8px', borderRadius: '8px', cursor: 'pointer', boxSizing: 'border-box' }}
               >
-                <div style={{ width: '22px', height: '22px', borderRadius: '6px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px', flexShrink: 0, boxShadow: '0 1px 4px rgba(99, 102, 241, 0.25)' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#18181B', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0, boxShadow: '0 1px 4px rgba(24, 24, 27, 0.2)' }}>
                   {activeWorkspaceName.charAt(0).toUpperCase()}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.1' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
                     {activeWorkspaceName}
                   </span>
-                  <span style={{ fontSize: '9.5px', color: 'var(--text-muted)', fontWeight: 500, lineHeight: '1' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500, lineHeight: '1' }}>
                     工作區
                   </span>
                 </div>
-                <ChevronsUpDown size={13} color="#64748b" style={{ flexShrink: 0 }} />
+                <ChevronsUpDown size={14} color="#64748b" style={{ flexShrink: 0 }} />
               </div>
 
               {onToggleSidebarCollapse && (
@@ -411,15 +399,15 @@ export default function Sidebar({
                   onClick={onToggleSidebarCollapse}
                   title="收合側邊欄"
                   className="sidebar-hover-icon"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '2px', flexShrink: 0 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px', flexShrink: 0 }}
                 >
-                  <PanelLeftClose size={15} />
+                  <PanelLeftClose size={16} />
                 </button>
               )}
             </div>
 
 
-            {/* Workspace Switcher Dropdown (Positioned cleanly below selector bar at top: 90px) */}
+            {/* Workspace Switcher Dropdown (Positioned cleanly below top 52px bar at top: 56px) */}
             {activeMenuKey === 'workspace-selector' && (() => {
               const filteredWorkspaces = workspaces.filter(w =>
                 w.name.toLowerCase().includes(workspaceSearchQuery.toLowerCase())
@@ -429,7 +417,7 @@ export default function Sidebar({
                 <div
                   ref={popoverRef}
                   style={{
-                    position: 'absolute', top: '90px', left: '10px', right: '10px', zIndex: 100000,
+                    position: 'absolute', top: '56px', left: '6px', right: '6px', zIndex: 100000,
                     background: '#ffffff', boxShadow: '0 20px 45px -8px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(0,0,0,0.04)', borderRadius: '14px',
                     border: '1px solid #e2e8f0', padding: '6px', animation: 'fadeIn 0.15s ease-out'
                   }}
@@ -476,17 +464,17 @@ export default function Sidebar({
                           }}
                           style={{
                             padding: '7px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            cursor: 'pointer', fontSize: '13px', backgroundColor: isActive ? '#eff6ff' : 'transparent',
+                            cursor: 'pointer', fontSize: '13px', backgroundColor: isActive ? '#F4F4F5' : 'transparent',
                             borderRadius: '8px', marginBottom: '2px', transition: 'background-color 0.12s ease'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
                             <div style={{
                               width: '26px', height: '26px', borderRadius: '7px',
-                              background: isActive ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : '#eff6ff',
-                              color: isActive ? '#ffffff' : '#4f46e5',
-                              border: isActive ? 'none' : '1px solid #bfdbfe',
-                              boxShadow: isActive ? '0 2px 6px rgba(99, 102, 241, 0.25)' : 'none',
+                              background: isActive ? '#3F6212' : '#F4F4F5',
+                              color: isActive ? '#ffffff' : '#3F6212',
+                              border: isActive ? 'none' : '1px solid #E4E4E7',
+                              boxShadow: isActive ? '0 2px 6px rgba(63, 98, 18, 0.25)' : 'none',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               fontSize: '11px', fontWeight: 700, flexShrink: 0
                             }}>
@@ -527,7 +515,7 @@ export default function Sidebar({
                                 <Pencil size={13} />
                               </button>
                             )}
-                            {isActive && <Check size={16} color="#4f46e5" />}
+                            {isActive && <Check size={16} color="#3F6212" />}
                           </div>
                         </div>
                       )
@@ -547,15 +535,15 @@ export default function Sidebar({
                         }}
                         style={{
                           padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '10px',
-                          cursor: 'pointer', fontSize: '13px', color: '#4f46e5', fontWeight: 600,
-                          border: '1.5px dashed #a5b4fc', borderRadius: '10px', backgroundColor: '#eff6ff',
+                          cursor: 'pointer', fontSize: '13px', color: '#18181B', fontWeight: 600,
+                          border: '1.5px dashed #E4E4E7', borderRadius: '10px', backgroundColor: '#F4F4F5',
                           transition: 'all 0.15s ease'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e0e7ff'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F4F4F5'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#F4F4F5'}
                       >
                         <div style={{ width: '22px', height: '22px', borderRadius: '6px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                          <Plus size={14} color="#4f46e5" />
+                          <Plus size={14} color="#3F6212" />
                         </div>
                         <span>Add new workspace</span>
                       </div>
@@ -630,13 +618,13 @@ export default function Sidebar({
                       cursor: 'pointer',
                       fontSize: '13px',
                       fontWeight: activeTableId === null || activeTableId === 0 ? 600 : 500,
-                      backgroundColor: activeTableId === null || activeTableId === 0 ? '#eff6ff' : 'transparent',
-                      color: activeTableId === null || activeTableId === 0 ? '#4f46e5' : '#334155',
-                      boxShadow: activeTableId === null || activeTableId === 0 ? 'inset 0 0 0 1px rgba(99, 102, 241, 0.18)' : 'none',
+                      backgroundColor: activeTableId === null || activeTableId === 0 ? '#F4F4F5' : 'transparent',
+                      color: activeTableId === null || activeTableId === 0 ? '#3F6212' : '#334155',
+                      boxShadow: activeTableId === null || activeTableId === 0 ? 'inset 0 0 0 1px rgba(63, 98, 18, 0.18)' : 'none',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <Home size={16} color={activeTableId === null || activeTableId === 0 ? '#4f46e5' : '#64748b'} />
+                    <Home size={16} color={activeTableId === null || activeTableId === 0 ? '#3F6212' : '#64748b'} />
                     <span>首頁</span>
                   </div>
                   <div
@@ -664,7 +652,7 @@ export default function Sidebar({
                       <Users size={16} color="#64748b" />
                       <span>成員列表</span>
                     </div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#4f46e5', backgroundColor: '#eff6ff', border: '1px solid #dbeafe', padding: '1px 7px', borderRadius: '10px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#18181B', backgroundColor: '#F4F4F5', border: '1px solid #F4F4F5', padding: '1px 7px', borderRadius: '10px' }}>
                       {memberCount ?? 1}
                     </span>
                   </div>
@@ -683,18 +671,42 @@ export default function Sidebar({
 
 
                 {/* Databases Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 8px 8px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <div 
+                  onClick={() => {
+                    const wsId = activeWorkspace?.id || activeWorkspaceId
+                    if (wsId) onShowDatabaseModal(wsId)
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', borderRadius: '6px', userSelect: 'none' }}
+                  className="sidebar-hover-item"
+                  title="點擊建立新資料庫"
+                >
                   <span>資料庫 (DATABASES)</span>
-                  {canManageStructure && (
-                    <button
-                      title="建立資料庫"
-                      onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-                      className="sidebar-hover-icon"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Plus size={14} />
-                    </button>
-                  )}
+                  <button
+                    title="建立新資料庫"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      const wsId = activeWorkspace?.id || activeWorkspaceId
+                      if (wsId) onShowDatabaseModal(wsId)
+                    }}
+                    style={{
+                      background: '#18181B',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#ffffff',
+                      padding: '4px',
+                      borderRadius: '5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                      transition: 'transform 0.1s ease'
+                    }}
+                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.92)'}
+                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <Plus size={14} color="#ffffff" />
+                  </button>
                 </div>
 
                 {/* Databases Tree */}
@@ -734,7 +746,7 @@ export default function Sidebar({
                                 transform: !isDbCollapsed ? 'rotate(90deg)' : 'none'
                               }}
                             />
-                            <DatabaseIcon size={15} color="#2563eb" style={{ flexShrink: 0 }} />
+                            <DatabaseIcon size={15} color="#3F6212" style={{ flexShrink: 0 }} />
                             <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {db.name}
                             </span>
@@ -825,8 +837,8 @@ export default function Sidebar({
                                   title={`${table.name} (雙擊可重新命名)`}
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                                    <TableIcon size={14} color={isActive ? '#4f46e5' : '#64748b'} style={{ flexShrink: 0 }} />
-                                    <span style={{ fontSize: '13px', color: isActive ? '#4f46e5' : '#334155', fontWeight: isActive ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    <TableIcon size={14} color={isActive ? '#3F6212' : '#64748b'} style={{ flexShrink: 0 }} />
+                                    <span style={{ fontSize: '13px', color: isActive ? '#3F6212' : '#334155', fontWeight: isActive ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                       {table.name}
                                     </span>
                                   </div>
@@ -920,18 +932,14 @@ export default function Sidebar({
             {/* Sidebar Footer */}
             <div style={{ marginTop: 'auto', height: '44px', minHeight: '44px', maxHeight: '44px', borderTop: '1px solid #e2e8f0', padding: '0 12px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-
-                <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#3b82f6', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px', flexShrink: 0 }}>
-                  {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {currentUser?.username || 'User'}
-                  </span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                    {currentUser?.role || 'Member'}
-                  </span>
-                </div>
+                <img
+                  src="/logo.jpg"
+                  alt="FYCD HD Manager Logo"
+                  style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0', flexShrink: 0 }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  FYCD HD Manager
+                </span>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
