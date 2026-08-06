@@ -320,6 +320,26 @@ export default function Home() {
     }
   }, [wsState.activeTableId, fetchTableData])
 
+  // Auto-sync active table data quietly in background every 8 seconds (without full grid spinner)
+  useEffect(() => {
+    const tableId = wsState.activeTableId
+    if (!tableId) return
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !editingCell) {
+        Promise.all([
+          fieldService.fetchFields(tableId),
+          rowService.fetchRows(tableId),
+        ]).then(([fieldsData, rowsData]) => {
+          setFields(fieldsData)
+          setRows(rowsData)
+        }).catch(() => {})
+      }
+    }, 8000)
+
+    return () => clearInterval(interval)
+  }, [wsState.activeTableId, editingCell])
+
   const applyViewConfig = (view: TableView) => {
     setCurrentView(view.type)
     setSortField(view.sortField)
@@ -1502,9 +1522,9 @@ export default function Home() {
               {/* View content */}
               <PullToRefresh
                 onRefresh={async () => {
-                  if (wsState.activeTableId) {
-                    await fetchTableData(wsState.activeTableId)
-                    uiActions.addToast('已為您更新最新表格資料', 'success')
+                  if (typeof window !== 'undefined') {
+                    uiActions.addToast('正在重新載入全網頁與最新版本...', 'info')
+                    window.location.reload()
                   }
                 }}
               >
