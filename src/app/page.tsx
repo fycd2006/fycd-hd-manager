@@ -320,26 +320,6 @@ export default function Home() {
     }
   }, [wsState.activeTableId, fetchTableData])
 
-  // Auto-sync active table data quietly in background every 8 seconds (without full grid spinner)
-  useEffect(() => {
-    const tableId = wsState.activeTableId
-    if (!tableId) return
-
-    const interval = setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && !editingCell) {
-        Promise.all([
-          fieldService.fetchFields(tableId),
-          rowService.fetchRows(tableId),
-        ]).then(([fieldsData, rowsData]) => {
-          setFields(fieldsData)
-          setRows(rowsData)
-        }).catch(() => {})
-      }
-    }, 8000)
-
-    return () => clearInterval(interval)
-  }, [wsState.activeTableId, editingCell])
-
   const applyViewConfig = (view: TableView) => {
     setCurrentView(view.type)
     setSortField(view.sortField)
