@@ -44,6 +44,15 @@ export default function RowEditModal({
   const focusValuesRef = useRef<Record<string, any>>({})
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [mobileTab, setMobileTab] = useState<'form' | 'comments'>('form')
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     if (row) {
@@ -148,12 +157,21 @@ export default function RowEditModal({
           transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
-        {/* Left Section: Main Row Fields Form */}
-        <div className="row-edit-modal-left" style={{ flex: isSidebarCollapsed ? '1 1 100%' : '1 1 62%', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0, background: '#ffffff', transition: 'flex 0.25s ease' }}>
-          {/* Header */}
-          <div className="row-edit-modal-header" style={{ padding: '24px 32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9' }}>
+        <div 
+          className="row-edit-modal-left" 
+          style={{ 
+            flex: isSidebarCollapsed ? '1 1 100%' : '1 1 62%', 
+            display: (isMobile && mobileTab !== 'form') ? 'none' : 'flex', 
+            flexDirection: 'column', 
+            height: '100%', 
+            minWidth: 0, 
+            background: '#ffffff', 
+            transition: 'flex 0.25s ease' 
+          }}
+        >
+          <div className="row-edit-modal-header" style={{ padding: isMobile ? '16px 18px 12px' : '24px 32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
-              <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <h2 style={{ margin: 0, fontSize: isMobile ? '18px' : '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {rowTitle}
               </h2>
               {rowIndex !== undefined && totalRows !== undefined && (
@@ -164,7 +182,6 @@ export default function RowEditModal({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* Prev / Next Navigation Controls */}
               <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '2px', gap: '2px' }}>
                 <button
                   type="button"
@@ -204,28 +221,28 @@ export default function RowEditModal({
                 </button>
               </div>
 
-              {/* Sidebar Collapse Toggle (>> / <<) */}
-              <button
-                type="button"
-                onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  borderRadius: '6px',
-                  transition: 'background 0.15s ease',
-                }}
-                className="hover:bg-slate-100"
-                title={isSidebarCollapsed ? '展開右側留言欄 (<<)' : '收闔右側留言欄 (>>)'}
-              >
-                {isSidebarCollapsed ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
-              </button>
+              {!isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(prev => !prev)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    padding: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderRadius: '6px',
+                    transition: 'background 0.15s ease',
+                  }}
+                  className="hover:bg-slate-100"
+                  title={isSidebarCollapsed ? '展開右側留言欄 (<<)' : '收闔右側留言欄 (>>)'}
+                >
+                  {isSidebarCollapsed ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
+                </button>
+              )}
 
-              {/* Close Button */}
               <button
                 type="button"
                 onClick={onClose}
@@ -247,8 +264,50 @@ export default function RowEditModal({
             </div>
           </div>
 
-          {/* Form Scroll Area */}
-          <div className="row-edit-modal-form-body" style={{ flex: 1, overflowY: 'auto', padding: '24px 32px 32px' }}>
+          {isMobile && (
+            <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', padding: '0 12px' }}>
+              <button
+                type="button"
+                onClick={() => setMobileTab('form')}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  fontWeight: mobileTab === 'form' ? 700 : 500,
+                  color: mobileTab === 'form' ? '#EA580C' : '#64748b',
+                  borderBottom: mobileTab === 'form' ? '2.5px solid #EA580C' : '2.5px solid transparent',
+                  background: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderTop: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                📝 詳細內容
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('comments')}
+                style={{
+                  flex: 1,
+                  padding: '10px 0',
+                  fontWeight: mobileTab === 'comments' ? 700 : 500,
+                  color: mobileTab === 'comments' ? '#EA580C' : '#64748b',
+                  borderBottom: mobileTab === 'comments' ? '2.5px solid #EA580C' : '2.5px solid transparent',
+                  background: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderTop: 'none',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                💬 留言紀錄 ({activityLog.length})
+              </button>
+            </div>
+          )}
+
+          <div className="row-edit-modal-form-body" style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 18px 24px' : '24px 32px 32px' }}>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '22px' }}>
               {fields.filter(field => field.type !== 'activity_log').map(field => {
                 const fieldKey = `field_${field.id}`
@@ -257,13 +316,10 @@ export default function RowEditModal({
 
                 return (
                   <li key={field.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {/* Field Header Label */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, color: '#334155' }}>
-                        <span style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {renderFieldIcon(field.type)}
-                        </span>
-                        <span>{field.name}</span>
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {FIELD_TYPE_ICONS[field.type] ? FIELD_TYPE_ICONS[field.type]() : <Info size={14} />}
+                        {field.name}
                       </label>
                       <button
                         type="button"

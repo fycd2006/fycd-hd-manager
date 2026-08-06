@@ -446,7 +446,12 @@ export default function MobileBottomNav({
   const portalContent = (
     <>
       <style>{`
-        .ui-ux-mobile-bottom-nav-portal { display: flex !important; }
+        @media (min-width: 1024px) {
+          .ui-ux-mobile-bottom-nav-portal { display: none !important; }
+        }
+        @media (max-width: 1023px) {
+          .ui-ux-mobile-bottom-nav-portal { display: flex !important; }
+        }
 
         @keyframes liv-bubble-pulse-dark {
           0% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0.45); }

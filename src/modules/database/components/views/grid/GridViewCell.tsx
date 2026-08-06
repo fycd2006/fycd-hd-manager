@@ -2383,6 +2383,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           onUpdateField?.(field.id, {});
         } else if (!['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber'].includes(field.type)) {
           onStartEdit();
+          if (typeof window !== 'undefined' && window.innerWidth < 768 && cellRef.current) {
+            cellRef.current.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+          }
         }
       }}
       style={{ 
