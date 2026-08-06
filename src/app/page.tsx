@@ -38,6 +38,7 @@ const getViewIcon = (type: string, props: any) => {
 // ============================================
 import WorkspaceDashboard from '@/modules/database/components/dashboard/WorkspaceDashboard'
 import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
+import PullToRefresh from '@/components/ui/PullToRefresh'
 import {
   useAuthStore,
   useThemeStore,
@@ -1499,58 +1500,67 @@ export default function Home() {
               />
 
               {/* View content */}
-              <div
-                className="layout__col-2-2 content"
-                style={{
-                  '--row-height': rowHeightSize === 'medium' ? '44px' : rowHeightSize === 'large' ? '60px' : rowHeightSize === 'extra' ? '80px' : '32px'
-                } as any}
+              <PullToRefresh
+                onRefresh={async () => {
+                  if (wsState.activeTableId) {
+                    await fetchTableData(wsState.activeTableId)
+                    uiActions.addToast('已為您更新最新表格資料', 'success')
+                  }
+                }}
               >
-                <DatabaseViewRouter
-                  currentView={currentView}
-                  fields={fields}
-                  hiddenFieldKeys={hiddenFieldKeys}
-                  displayRows={displayRows}
-                  gridLoading={gridLoading}
-                  readOnly={!currentUserRolePermissions.canEditData}
-                  frozenColumnsCount={frozenColumnsCount}
-                  columnWidths={columnWidths}
-                  sortField={sortField}
-                  sortOrder={sortOrder}
-                  groupByField={groupByField}
-                  rowColorRules={rowColorRules}
-                  editingFieldId={editingFieldId}
-                  editingFieldName={editingFieldName}
-                  editingCell={editingCell}
-                  editInputRef={editInputRef}
-                  searchQuery={searchQuery}
-                  filterRules={filterRules}
-                  groupedRows={groupedRows}
-                  getRowBgColorClass={getRowBgColorClass}
-                  updateCell={updateCell}
-                  toggleSort={toggleSort}
-                  setEditingFieldId={setEditingFieldId}
-                  setEditingFieldName={setEditingFieldName}
-                  handleColumnDragStart={handleColumnDragStart}
-                  handleColumnDragOver={handleColumnDragOver}
-                  handleColumnDrop={handleColumnDrop}
-                  setColumnWidths={setColumnWidths}
-                  activeTableId={wsState.activeTableId}
-                  activeViewId={wsState.activeViewId}
-                  updateViewConfig={viewService.updateViewConfig}
-                  setContextMenu={setContextMenu}
-                  setSelectedRow={setSelectedRow}
-                  setShowDetailModal={setShowDetailModal}
-                  duplicateRow={duplicateRow}
-                  deleteRow={deleteRow}
-                  addRow={addRow}
-                  setShowNewFieldModal={setShowNewFieldModal}
-                  handleUpdateField={handleUpdateField}
-                  setFieldContextMenu={setFieldContextMenu}
-                  onUndo={undo}
-                  onRedo={redo}
-                  onReorderRows={handleReorderRows}
-                />
-              </div>
+                <div
+                  className="layout__col-2-2 content"
+                  style={{
+                    '--row-height': rowHeightSize === 'medium' ? '44px' : rowHeightSize === 'large' ? '60px' : rowHeightSize === 'extra' ? '80px' : '32px'
+                  } as any}
+                >
+                  <DatabaseViewRouter
+                    currentView={currentView}
+                    fields={fields}
+                    hiddenFieldKeys={hiddenFieldKeys}
+                    displayRows={displayRows}
+                    gridLoading={gridLoading}
+                    readOnly={!currentUserRolePermissions.canEditData}
+                    frozenColumnsCount={frozenColumnsCount}
+                    columnWidths={columnWidths}
+                    sortField={sortField}
+                    sortOrder={sortOrder}
+                    groupByField={groupByField}
+                    rowColorRules={rowColorRules}
+                    editingFieldId={editingFieldId}
+                    editingFieldName={editingFieldName}
+                    editingCell={editingCell}
+                    editInputRef={editInputRef}
+                    searchQuery={searchQuery}
+                    filterRules={filterRules}
+                    groupedRows={groupedRows}
+                    getRowBgColorClass={getRowBgColorClass}
+                    updateCell={updateCell}
+                    toggleSort={toggleSort}
+                    setEditingFieldId={setEditingFieldId}
+                    setEditingFieldName={setEditingFieldName}
+                    handleColumnDragStart={handleColumnDragStart}
+                    handleColumnDragOver={handleColumnDragOver}
+                    handleColumnDrop={handleColumnDrop}
+                    setColumnWidths={setColumnWidths}
+                    activeTableId={wsState.activeTableId}
+                    activeViewId={wsState.activeViewId}
+                    updateViewConfig={viewService.updateViewConfig}
+                    setContextMenu={setContextMenu}
+                    setSelectedRow={setSelectedRow}
+                    setShowDetailModal={setShowDetailModal}
+                    duplicateRow={duplicateRow}
+                    deleteRow={deleteRow}
+                    addRow={addRow}
+                    setShowNewFieldModal={setShowNewFieldModal}
+                    handleUpdateField={handleUpdateField}
+                    setFieldContextMenu={setFieldContextMenu}
+                    onUndo={undo}
+                    onRedo={redo}
+                    onReorderRows={handleReorderRows}
+                  />
+                </div>
+              </PullToRefresh>
             </>
           )}
 
