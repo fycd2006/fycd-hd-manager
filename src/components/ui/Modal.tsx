@@ -54,12 +54,14 @@ export default function Modal({
 
   const mousedownOnBackdropRef = useRef<boolean>(false)
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     mousedownOnBackdropRef.current = (e.target === modalRef.current)
   }
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     if (closeOnOutsideClick && e.target === modalRef.current && mousedownOnBackdropRef.current) {
+      e.stopPropagation()
+      e.preventDefault()
       onClose()
     }
     mousedownOnBackdropRef.current = false
@@ -94,7 +96,8 @@ export default function Modal({
         boxSizing: 'border-box'
       }}
       onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
+      onTouchStart={handleMouseDown as any}
+      onClick={handleClick}
     >
       <div
         className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 transition-all duration-200 animate-in fade-in zoom-in-95"

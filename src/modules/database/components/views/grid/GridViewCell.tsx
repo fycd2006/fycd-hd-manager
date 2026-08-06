@@ -54,12 +54,14 @@ export const LatestCommentModal: React.FC<{
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
 
-  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+  const handleBackdropMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     mousedownOnBackdropRef.current = (e.target === overlayRef.current)
   }
 
-  const handleBackdropMouseUp = (e: React.MouseEvent) => {
+  const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+      e.stopPropagation()
+      e.preventDefault()
       onClose()
     }
     mousedownOnBackdropRef.current = false
@@ -115,7 +117,8 @@ export const LatestCommentModal: React.FC<{
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
       onMouseDown={handleBackdropMouseDown}
-      onMouseUp={handleBackdropMouseUp}
+      onTouchStart={handleBackdropMouseDown as any}
+      onClick={handleBackdropClick}
     >
       <div
         className="animate-in zoom-in-95 duration-150"
@@ -1244,11 +1247,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 <div 
                   data-select-portal="true"
                   style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
-                  onMouseDown={() => {
-                    onUpdate(localVal);
-                    onCancelEdit();
-                  }}
-                  onTouchStart={() => {
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
                     onUpdate(localVal);
                     onCancelEdit();
                   }}
@@ -1427,11 +1430,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 <div 
                   data-select-portal="true"
                   style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
-                  onMouseDown={() => {
-                    onUpdate(localVal);
-                    onCancelEdit();
-                  }}
-                  onTouchStart={() => {
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
                     onUpdate(localVal);
                     onCancelEdit();
                   }}
@@ -1680,11 +1683,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             <div
               data-longtext-portal="true"
               style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
-              onMouseDown={() => {
-                onUpdate(localVal);
-                onCancelEdit();
-              }}
-              onTouchStart={() => {
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 onUpdate(localVal);
                 onCancelEdit();
               }}
@@ -2371,17 +2374,23 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     (isInRange && Boolean(rangeEdges?.bottom && rangeEdges?.right))
   );
 
+  const wasSelectedRef = useRef(isSelected);
+
   return (
     <div
       ref={cellRef}
       onMouseDown={(e) => {
+        wasSelectedRef.current = isSelected;
         if (!isEditing && e.button === 0) {
           onSelect(e);
         }
       }}
+      onTouchStart={() => {
+        wasSelectedRef.current = isSelected;
+      }}
       onClick={() => {
-        // Mobile: single tap on already-selected cell enters edit mode
-        if (typeof window !== 'undefined' && window.innerWidth < 768 && isSelected && !isEditing) {
+        // Mobile: 1st tap selects cell, 2nd tap on already-selected cell enters edit mode
+        if (typeof window !== 'undefined' && window.innerWidth < 768 && wasSelectedRef.current && !isEditing) {
           const readOnlyTypes = ['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'formula'];
           if (!readOnlyTypes.includes(field.type)) {
             if (field.type === 'boolean') {

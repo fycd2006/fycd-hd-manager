@@ -107,12 +107,14 @@ export default function RowEditModal({
   const overlayRef = useRef<HTMLDivElement>(null)
   const mousedownOnBackdropRef = useRef<boolean>(false)
 
-  const handleBackdropMouseDown = (e: React.MouseEvent) => {
+  const handleBackdropMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     mousedownOnBackdropRef.current = (e.target === overlayRef.current)
   }
 
-  const handleBackdropMouseUp = (e: React.MouseEvent) => {
+  const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+      e.stopPropagation()
+      e.preventDefault()
       onClose()
     }
     mousedownOnBackdropRef.current = false
@@ -137,9 +139,8 @@ export default function RowEditModal({
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
       onMouseDown={handleBackdropMouseDown}
-      onMouseUp={handleBackdropMouseUp}
       onTouchStart={handleBackdropMouseDown as any}
-      onTouchEnd={handleBackdropMouseUp as any}
+      onClick={handleBackdropClick}
     >
       <div
         className="row-edit-modal row-edit-modal-card animate-in zoom-in-95 duration-150"
