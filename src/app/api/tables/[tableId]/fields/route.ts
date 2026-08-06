@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
+import { getSessionUser } from '@/lib/auth'
 
 export async function GET(
   request: Request,
@@ -60,6 +61,42 @@ export async function POST(
         options: parsedOptions ? JSON.stringify(parsedOptions) : null,
       },
     })
+
+    // Audit fields backfill: populate existing rows with default user/date
+    if (['created_by', 'last_modified_by', 'created_on', 'last_modified_on'].includes(type)) {
+      try {
+        const sessionUser = await getSessionUser()
+        const currentUsername = sessionUser?.username || '系統 (System)'
+        const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
+        const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
+
+        const existingRows = await prisma.tableRow.findMany({
+          where: { tableId: id, deletedAt: null }
+        })
+
+        if (existingRows.length > 0) {
+          const key = `field_${field.id}`
+          const updates = existingRows.map(r => {
+            let dataObj: Record<string, any> = {}
+            try { dataObj = JSON.parse(r.data || '{}') } catch {}
+            if (!dataObj[key]) {
+              if (type === 'created_by' || type === 'last_modified_by') {
+                dataObj[key] = currentUsername
+              } else {
+                dataObj[key] = new Date(r.createdAt || Date.now()).toLocaleDateString('zh-TW', dateOpt) || nowStr
+              }
+            }
+            return prisma.tableRow.update({
+              where: { id: r.id },
+              data: { data: JSON.stringify(dataObj) }
+            })
+          })
+          await prisma.$transaction(updates)
+        }
+      } catch (err) {
+        console.warn('[Audit Field Backfill Warning]:', err)
+      }
+    }
 
     // Bi-directional link_row handling: auto-create reverse field on target table
     if (type === 'link_row' && parsedOptions?.targetTableId && parsedOptions?.createRelatedField !== false) {

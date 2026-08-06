@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
+import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 
 export async function PATCH(
   request: Request,
@@ -61,6 +62,7 @@ export async function DELETE(
       where: { id: fid },
       data: { deletedAt: new Date() }
     })
+    await cleanupFieldDependencies(fid)
     return NextResponse.json({ message: '欄位已刪除' })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '刪除欄位失敗' }, { status: 500 })

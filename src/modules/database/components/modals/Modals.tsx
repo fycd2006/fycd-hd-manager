@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { TableField } from '@/modules/database/types'
 import { parseFormula, getSupportedFunctions } from '@/lib/formula'
+import { safeJsonParse } from '@/lib/json-utils'
 
 // ============================================
 // Workspace Modal
@@ -478,7 +479,7 @@ interface FieldModalProps {
   show: boolean
   onClose: () => void
   onSubmit: (name: string, type: string, options?: any) => Promise<void>
-  tables?: Array<{ id: number; name: string }>
+  tables?: Array<{ id: number; name: string; fields?: any[] }>
   fields?: any[]
   editField?: TableField | null
 }
@@ -518,6 +519,34 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   const [numberFormat, setNumberFormat] = useState<string>('thousands')
   const [numberPrefix, setNumberPrefix] = useState<string>('')
   const [numberSuffix, setNumberSuffix] = useState<string>('')
+
+  const [fetchedTargetFields, setFetchedTargetFields] = useState<any[]>([])
+
+  const selectedRelationField = fields?.find((f: any) => f.id === relationFieldId)
+  const relOpts = typeof selectedRelationField?.options === 'object'
+    ? selectedRelationField.options
+    : safeJsonParse<Record<string, any>>(selectedRelationField?.options, {})
+  const targetTableIdFromRel = Number(
+    relOpts?.targetTableId ?? relOpts?.link_row_table_id ?? relOpts?.target_table_id ?? (selectedRelationField as any)?.targetTableId
+  ) || null
+  const targetTableObj = tables?.find((t: any) => t.id === targetTableIdFromRel)
+
+  useEffect(() => {
+    if (!targetTableIdFromRel) {
+      setFetchedTargetFields([])
+      return
+    }
+    if (targetTableObj?.fields && targetTableObj.fields.length > 0) {
+      setFetchedTargetFields(targetTableObj.fields)
+    } else {
+      fetch(`/api/tables/${targetTableIdFromRel}/fields`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setFetchedTargetFields(data)
+        })
+        .catch(() => setFetchedTargetFields([]))
+    }
+  }, [targetTableIdFromRel, targetTableObj])
 
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -585,6 +614,9 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
 
             if (parsed && typeof parsed === 'object') {
               if (parsed.targetTableId) setTargetTableId(Number(parsed.targetTableId))
+              if (parsed.relationFieldId) setRelationFieldId(Number(parsed.relationFieldId))
+              if (parsed.targetFieldId) setTargetFieldId(Number(parsed.targetFieldId))
+              if (parsed.rollupFunction) setRollupFunction(parsed.rollupFunction)
               if (typeof parsed.createRelatedField === 'boolean') setCreateRelatedField(parsed.createRelatedField)
               if (typeof parsed.allowMultiple === 'boolean') setAllowMultiple(parsed.allowMultiple)
               if (parsed.formula) {
@@ -612,6 +644,9 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         setTypeSearch('')
         setOptionsList([])
         setFormula('')
+        setRelationFieldId(null)
+        setTargetFieldId(null)
+        setRollupFunction('sum')
         setNumberDecimalPlaces(0)
         setNumberFormat('thousands')
         setNumberPrefix('')
@@ -1049,11 +1084,14 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
-                    Relation Field
+                    Relation Field (關聯欄位)
                   </label>
                   <select
                     value={relationFieldId || ''}
-                    onChange={(e) => setRelationFieldId(Number(e.target.value) || null)}
+                    onChange={(e) => {
+                      setRelationFieldId(Number(e.target.value) || null)
+                      setTargetFieldId(null)
+                    }}
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
                   >
                     <option value="">Select relation field...</option>
@@ -1062,6 +1100,24 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                     ))}
                   </select>
                 </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
+                    Target Field (目標欄位)
+                  </label>
+                  <select
+                    value={targetFieldId || ''}
+                    onChange={(e) => setTargetFieldId(Number(e.target.value) || null)}
+                    style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
+                    disabled={!relationFieldId || fetchedTargetFields.length === 0}
+                  >
+                    <option value="">Select target field...</option>
+                    {fetchedTargetFields.map((f: any) => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
+
                 {type === 'rollup' && (
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>

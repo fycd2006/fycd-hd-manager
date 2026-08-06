@@ -111,3 +111,33 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
     await prisma.$transaction(updateOperations)
   }
 }
+
+/**
+ * Clean up dependent lookup/rollup fields when a field is deleted
+ */
+export async function cleanupFieldDependencies(deletedFieldId: number) {
+  const lookupRollupFields = await prisma.tableField.findMany({
+    where: {
+      type: { in: ['lookup', 'rollup'] },
+      deletedAt: null,
+    }
+  })
+
+  for (const field of lookupRollupFields) {
+    if (!field.options) continue
+    try {
+      const opts = JSON.parse(field.options)
+      if (Number(opts.relationFieldId) === deletedFieldId || Number(opts.targetFieldId) === deletedFieldId) {
+        const newOpts = {
+          ...opts,
+          ...(Number(opts.relationFieldId) === deletedFieldId ? { relationFieldId: null } : {}),
+          ...(Number(opts.targetFieldId) === deletedFieldId ? { targetFieldId: null } : {}),
+        }
+        await prisma.tableField.update({
+          where: { id: field.id },
+          data: { options: JSON.stringify(newOpts) }
+        })
+      }
+    } catch {}
+  }
+}

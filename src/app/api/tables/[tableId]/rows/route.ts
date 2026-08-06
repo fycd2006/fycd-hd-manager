@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 import { getSessionUser } from '@/lib/auth'
 import { evaluateFormula } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
+import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
+import { safeJsonParse } from '@/lib/json-utils'
 
 async function getSessionUsername() {
   const user = await getSessionUser()
@@ -26,417 +27,23 @@ export async function GET(
     const sortOrder = searchParams.get('order') || 'asc'
     const filterParam = searchParams.get('filter')
     const searchQuery = searchParams.get('search')?.trim()
-
-    // 1. Fetch fields to identify link_row, lookup, and rollup fields
-    const fields = await prisma.tableField.findMany({
-      where: { tableId: id, deletedAt: null },
-      orderBy: { order: 'asc' }
-    })
-
-    const linkRowFields = fields.filter(f => f.type === 'link_row')
-    const lookupFields = fields.filter(f => f.type === 'lookup')
-    const rollupFields = fields.filter(f => f.type === 'rollup')
-    const formulaFields = fields.filter(f => f.type === 'formula')
-    const collaboratorFields = fields.filter(f => f.type === 'collaborator')
-    const auditFields = fields.filter(f => ['created_on', 'last_modified_on', 'created_by', 'last_modified_by'].includes(f.type))
-
-    // Query system users for collaborator name mapping (only if collaborator fields exist)
-    const userMap = new Map<number, string>()
-    if (collaboratorFields.length > 0) {
-      const allUsers = await prisma.user.findMany({
-        select: { id: true, username: true }
-      })
-      allUsers.forEach(u => userMap.set(u.id, u.username))
-    }
-
-    // 2. Fetch rows (with server-side DB search across table fields)
-    let whereCondition: any = { tableId: id, deletedAt: null }
-    if (searchQuery) {
-      const sanitized = searchQuery.slice(0, 100).trim()
-      if (sanitized) {
-        whereCondition = {
-          tableId: id,
-          deletedAt: null,
-          data: {
-            contains: sanitized
-          }
-        }
-      }
-    }
-
-    const rows = await prisma.tableRow.findMany({
-      where: whereCondition,
-      orderBy: { order: 'asc' },
-    })
-
-    // Parse JSON data
-    let parsed = rows.map(r => ({ ...r, data: JSON.parse(r.data || '{}') }))
-
-    // Helper to safely parse target row IDs from link_row values in any format
-    const parseLinkRowIds = (val: any): number[] => {
-      if (val === null || val === undefined) return []
-      let list: any[] = []
-      if (Array.isArray(val)) {
-        list = val
-      } else if (typeof val === 'string' && val.trim()) {
-        try {
-          const parsed = JSON.parse(val)
-          if (Array.isArray(parsed)) list = parsed
-          else list = [parsed]
-        } catch {
-          list = val.split(',').map(s => s.trim()).filter(Boolean)
-        }
-      } else {
-        list = [val]
-      }
-      return list.map(item => {
-        if (typeof item === 'object' && item !== null) {
-          return Number(item.id)
-        }
-        return Number(item)
-      }).filter(n => !isNaN(n) && n > 0)
-    }
-
-    // 3. Collect all target row IDs from link_row fields to query them in bulk
-    const targetRowIds = new Set<number>()
-    parsed.forEach(row => {
-      linkRowFields.forEach(f => {
-        const key = `field_${f.id}`
-        const ids = parseLinkRowIds(row.data[key])
-        ids.forEach(id => targetRowIds.add(id))
-      })
-    })
-
-    // We also need target rows for lookup/rollup evaluation
-    // Let's check which relation fields are referenced by lookup/rollup fields
-    const activeRelationFields: Record<number, { relationFieldId: number; targetFieldId: number; type: string; rollupFunction?: string }> = {}
-    
-    lookupFields.forEach(lf => {
-      try {
-        const opts = lf.options ? JSON.parse(lf.options) : {}
-        if (opts.relationFieldId && opts.targetFieldId) {
-          activeRelationFields[lf.id] = {
-            relationFieldId: opts.relationFieldId,
-            targetFieldId: opts.targetFieldId,
-            type: 'lookup'
-          }
-        }
-      } catch (e) {}
-    })
-
-    rollupFields.forEach(rf => {
-      try {
-        const opts = rf.options ? JSON.parse(rf.options) : {}
-        if (opts.relationFieldId && opts.targetFieldId) {
-          activeRelationFields[rf.id] = {
-            relationFieldId: opts.relationFieldId,
-            targetFieldId: opts.targetFieldId,
-            type: 'rollup',
-            rollupFunction: opts.rollupFunction || 'sum'
-          }
-        }
-      } catch (e) {}
-    })
-
-    // Add targetRowIds for any relation list in lookup/rollup
-    parsed.forEach(row => {
-      Object.values(activeRelationFields).forEach(ref => {
-        const key = `field_${ref.relationFieldId}`
-        const ids = parseLinkRowIds(row.data[key])
-        ids.forEach(id => targetRowIds.add(id))
-      })
-    })
-
-    // 4. Query all referenced target rows in bulk
-    let targetRowsMap = new Map<number, Record<string, any>>()
-    let targetDisplayMap = new Map<number, string>()
-
-    if (targetRowIds.size > 0) {
-      const targetRows = await prisma.tableRow.findMany({
-        where: { id: { in: Array.from(targetRowIds) }, deletedAt: null },
-      })
-
-      // Fetch fields of all referenced target tables to accurately determine their Primary Field (min order)
-      const targetTableIds = Array.from(new Set(targetRows.map(tr => tr.tableId)))
-      const targetFields = await prisma.tableField.findMany({
-        where: { tableId: { in: targetTableIds }, deletedAt: null },
-        orderBy: { order: 'asc' }
-      })
-
-      // Map targetTableId -> primaryFieldKey (e.g. field_12)
-      const targetPrimaryFieldMap = new Map<number, string>()
-      targetTableIds.forEach(tid => {
-        const tfList = targetFields.filter(f => f.tableId === tid)
-        if (tfList.length > 0) {
-          targetPrimaryFieldMap.set(tid, `field_${tfList[0].id}`)
-        }
-      })
-
-      targetRows.forEach(tr => {
-        try {
-          const trData = JSON.parse(tr.data || '{}')
-          targetRowsMap.set(tr.id, trData)
-          
-          const primaryKey = targetPrimaryFieldMap.get(tr.tableId)
-          let primaryVal = primaryKey ? trData[primaryKey] : null
-
-          // Fallback if primary value is empty: search other text values before falling back to row ID
-          if (primaryVal == null || primaryVal === '') {
-            const firstNonEmpty = Object.values(trData).find(v => v != null && v !== '' && typeof v !== 'object')
-            primaryVal = firstNonEmpty ?? `列 ID: ${tr.id}`
-          }
-
-          targetDisplayMap.set(tr.id, String(primaryVal))
-        } catch {
-          targetDisplayMap.set(tr.id, `列 ID: ${tr.id}`)
-        }
-      })
-    }
-
-    // 5. Populate and compute final values (link_row, lookup, rollup)
-    parsed = parsed.map(row => {
-      const newData = { ...row.data }
-
-      // A. Populate link_row display structures
-      linkRowFields.forEach(f => {
-        const key = `field_${f.id}`
-        const val = newData[key]
-        const ids = parseLinkRowIds(val)
-        newData[key] = ids.map(id => {
-          const displayLabel = targetDisplayMap.get(id)
-          let existingLabel = ''
-          if (Array.isArray(val)) {
-            const foundObj = val.find((item: any) => typeof item === 'object' && item !== null && Number(item.id) === id)
-            if (foundObj && foundObj.value && !String(foundObj.value).startsWith('列 ID:')) {
-              existingLabel = String(foundObj.value)
-            }
-          }
-          const finalLabel = (displayLabel && !displayLabel.startsWith('列 ID:')) ? displayLabel : (existingLabel || displayLabel || `列 ID: ${id}`)
-          return {
-            id,
-            value: finalLabel
-          }
-        })
-      })
-      // C. Populate collaborator display structures
-      collaboratorFields.forEach(f => {
-        const key = `field_${f.id}`
-        const val = newData[key]
-        let list: number[] = []
-        if (Array.isArray(val)) {
-          list = val.map(item => {
-            if (typeof item === 'object' && item !== null && 'id' in item) {
-              return Number(item.id)
-            }
-            return Number(item)
-          }).filter(n => !isNaN(n))
-        } else if (typeof val === 'string' && val.trim()) {
-          try {
-            const parsedList = JSON.parse(val)
-            if (Array.isArray(parsedList)) {
-              list = parsedList.map((item: any) => {
-                if (typeof item === 'object' && item !== null && 'id' in item) {
-                  return Number(item.id)
-                }
-                return Number(item)
-              }).filter(n => !isNaN(n))
-            } else {
-              list = val.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
-            }
-          } catch {
-            list = val.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
-          }
-        } else if (typeof val === 'number') {
-          list = [val]
-        }
-        
-        newData[key] = list.map(uid => ({
-          id: uid,
-          username: userMap.get(uid) || `用戶 ID: ${uid}`
-        }))
-      })
-
-      // B. Compute Lookup & Rollup columns
-      Object.entries(activeRelationFields).forEach(([fieldIdStr, ref]) => {
-        const destKey = `field_${fieldIdStr}`
-        const relationKey = `field_${ref.relationFieldId}`
-        
-        // Raw array of target row IDs
-        // Note: row.data has the original raw list, newData has the populated list of objects
-        const rawRelationIds = row.data[relationKey]
-        const relationIds = Array.isArray(rawRelationIds) ? rawRelationIds : []
-
-        // Extract values of the target column from target rows
-        const values: any[] = []
-        relationIds.forEach(id => {
-          const trData = targetRowsMap.get(Number(id))
-          if (trData) {
-            const targetVal = trData[`field_${ref.targetFieldId}`]
-            if (targetVal != null && targetVal !== '') {
-              values.push(targetVal)
-            }
-          }
-        })
-
-        if (ref.type === 'lookup') {
-          // Lookup returns a list of values
-          newData[destKey] = values.join(', ')
-        } else if (ref.type === 'rollup') {
-          // Rollup aggregates the list of numeric values
-          const numValues = values.map(Number).filter(n => !isNaN(n))
-          if (numValues.length === 0) {
-            newData[destKey] = 0
-            return
-          }
-
-          if (ref.rollupFunction === 'sum') {
-            newData[destKey] = numValues.reduce((a, b) => a + b, 0)
-          } else if (ref.rollupFunction === 'count') {
-            newData[destKey] = numValues.length
-          } else if (ref.rollupFunction === 'average') {
-            newData[destKey] = numValues.reduce((a, b) => a + b, 0) / numValues.length
-          } else {
-            newData[destKey] = 0
-          }
-        }
-      })
-
-      // D. Compute Formulas dynamically (Safe AST Evaluation)
-      formulaFields.forEach(ff => {
-        const destKey = `field_${ff.id}`
-        let expr = ff.options // options holds formula string or JSON object
-        if (!expr) {
-          newData[destKey] = ''
-          return
-        }
-
-        if (typeof expr === 'string' && (expr.startsWith('{') || expr.startsWith('"'))) {
-          try {
-            let parsed = JSON.parse(expr)
-            if (typeof parsed === 'string') {
-              try { parsed = JSON.parse(parsed) } catch {}
-            }
-            if (parsed && typeof parsed === 'object' && parsed.formula) {
-              expr = parsed.formula
-            }
-          } catch {}
-        }
-
-        try {
-          const fieldOrder = fields.map(f => f.id)
-          const result = evaluateFormula(String(expr), newData, fieldOrder)
-          newData[destKey] = result != null ? String(result) : ''
-        } catch (e) {
-          newData[destKey] = '#VALUE!'
-        }
-      })
-
-      // E. Populate Audit Auto-fields dynamically
-      auditFields.forEach(af => {
-        const destKey = `field_${af.id}`
-        const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-        
-        switch (af.type) {
-          case 'created_on':
-            newData[destKey] = new Date(row.createdAt).toLocaleDateString('zh-TW', dateOpt)
-            break
-          case 'last_modified_on':
-            newData[destKey] = new Date(row.updatedAt).toLocaleDateString('zh-TW', dateOpt)
-            break
-          case 'created_by':
-            newData[destKey] = row.data[destKey] || '系統管理員'
-            break
-          case 'last_modified_by':
-            newData[destKey] = row.data[destKey] || '系統管理員'
-            break
-        }
-      })
-
-      return { ...row, data: newData }
-    })
-
-    // Apply filters
-    if (filterParam) {
-      const parts = filterParam.split(':')
-      if (parts.length >= 3) {
-        const [fieldKey, operator, ...rest] = parts
-        const filterValue = rest.join(':')
-        parsed = parsed.filter(row => {
-          const cellValue = String(row.data[fieldKey] ?? '')
-          switch (operator) {
-            case 'contains': return cellValue.toLowerCase().includes(filterValue.toLowerCase())
-            case 'not_contains': return !cellValue.toLowerCase().includes(filterValue.toLowerCase())
-            case 'equals': return cellValue === filterValue
-            case 'not_equals': return cellValue !== filterValue
-            case 'higher_than': return !isNaN(Number(cellValue)) && Number(cellValue) > Number(filterValue)
-            case 'higher_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) >= Number(filterValue)
-            case 'lower_than': return !isNaN(Number(cellValue)) && Number(cellValue) < Number(filterValue)
-            case 'lower_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) <= Number(filterValue)
-            case 'date_equal': {
-              const d1 = new Date(cellValue).getTime()
-              const d2 = new Date(filterValue).getTime()
-              return !isNaN(d1) && !isNaN(d2) && new Date(d1).toDateString() === new Date(d2).toDateString()
-            }
-            case 'date_before': {
-              const d1 = new Date(cellValue).getTime()
-              const d2 = new Date(filterValue).getTime()
-              return !isNaN(d1) && !isNaN(d2) && d1 < d2
-            }
-            case 'date_after': {
-              const d1 = new Date(cellValue).getTime()
-              const d2 = new Date(filterValue).getTime()
-              return !isNaN(d1) && !isNaN(d2) && d1 > d2
-            }
-            case 'not_empty': return cellValue !== '' && cellValue !== 'null' && cellValue !== 'undefined'
-            case 'empty': return cellValue === '' || cellValue === 'null' || cellValue === 'undefined'
-            default: return true
-          }
-        })
-      }
-    }
-
-    // Apply sort
-    if (sortField) {
-      parsed.sort((a, b) => {
-        const va = a.data[sortField] ?? ''
-        const vb = b.data[sortField] ?? ''
-        const numA = Number(va)
-        const numB = Number(vb)
-        if (!isNaN(numA) && !isNaN(numB)) {
-          return sortOrder === 'asc' ? numA - numB : numB - numA
-        }
-        return sortOrder === 'asc'
-          ? String(va).localeCompare(String(vb))
-          : String(vb).localeCompare(String(va))
-      })
-    }
-
     const pageParam = searchParams.get('page')
     const pageSizeParam = searchParams.get('pageSize')
-    const totalRows = parsed.length
 
-    if (pageSizeParam === 'all') {
-      return NextResponse.json(parsed)
+    const result = await getPopulatedTableRows(id, {
+      sortField,
+      sortOrder,
+      filterParam,
+      searchQuery,
+      pageParam,
+      pageSizeParam
+    })
+
+    if (result.isPaginated) {
+      return NextResponse.json(result.data)
     }
 
-    if (pageParam || pageSizeParam) {
-      const page = Math.max(1, parseInt(pageParam || '1'))
-      const pageSize = Math.max(1, parseInt(pageSizeParam || '50'))
-      const startIndex = (page - 1) * pageSize
-      const paginatedRows = parsed.slice(startIndex, startIndex + pageSize)
-
-      return NextResponse.json({
-        rows: paginatedRows,
-        pagination: {
-          page,
-          pageSize,
-          totalRows,
-          totalPages: Math.ceil(totalRows / pageSize)
-        }
-      })
-    }
-
-    return NextResponse.json(parsed)
+    return NextResponse.json(result.rows)
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '查詢資料列失敗' }, { status: 500 })
   }
@@ -526,7 +133,7 @@ export async function POST(
       timeout: 10000
     })
 
-    return NextResponse.json({ ...row, data: JSON.parse(row.data || '{}') }, { status: 201 })
+    return NextResponse.json({ ...row, data: safeJsonParse(row.data, {}) }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '新增資料列失敗' }, { status: 500 })
   }
@@ -669,7 +276,7 @@ export async function PATCH(
 
     if (!updated) return NextResponse.json({ error: '找不到該列' }, { status: 404 })
 
-    return NextResponse.json({ ...updated, data: JSON.parse(updated.data || '{}') })
+    return NextResponse.json({ ...updated, data: safeJsonParse(updated.data, {}) })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '更新資料列失敗' }, { status: 500 })
   }
