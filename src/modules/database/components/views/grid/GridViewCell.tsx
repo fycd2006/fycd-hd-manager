@@ -103,6 +103,7 @@ export const LatestCommentModal: React.FC<{
   const modalContent = (
     <div
       ref={overlayRef}
+      data-comment-portal="true"
       className="modal-overlay animate-in fade-in duration-150"
       style={{
         position: 'fixed',
@@ -121,9 +122,11 @@ export const LatestCommentModal: React.FC<{
       onClick={handleBackdropClick}
     >
       <div
+        data-comment-portal="true"
         className="animate-in zoom-in-95 duration-150"
         onMouseDown={e => e.stopPropagation()}
         onMouseUp={e => e.stopPropagation()}
+        onTouchStart={e => e.stopPropagation()}
         onPointerDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
         style={{
@@ -1259,6 +1262,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 <div
                   data-select-portal="true"
                   onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     position: 'fixed',
@@ -1315,7 +1319,15 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       return (
                         <div 
                           key={i} 
+                          onTouchStart={(e) => e.stopPropagation()}
                           onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLocalVal(opt);
+                            onUpdate(opt);
+                            onCancelEdit();
+                          }}
+                          onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             setLocalVal(opt);
@@ -1442,6 +1454,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 <div
                   data-select-portal="true"
                   onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                   style={{
                     position: 'fixed',
@@ -1503,7 +1516,12 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       return (
                         <div 
                           key={i} 
+                          onTouchStart={(e) => e.stopPropagation()}
                           onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
                             let nextItems = [...currentItems];
@@ -1535,7 +1553,12 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                     })}
                     {comboSearch && !isExactMatch && !searchAlreadySelected && (
                       <div 
+                        onTouchStart={(e) => e.stopPropagation()}
                         onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           if (onUpdateField) {

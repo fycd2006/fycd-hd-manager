@@ -125,6 +125,7 @@ export default function RowEditModal({
   const modalContent = (
     <div
       ref={overlayRef}
+      data-row-edit-portal="true"
       className="modal-overlay animate-in fade-in duration-150"
       style={{
         position: 'fixed',
@@ -143,7 +144,10 @@ export default function RowEditModal({
       onClick={handleBackdropClick}
     >
       <div
+        data-row-edit-portal="true"
         className="row-edit-modal row-edit-modal-card animate-in zoom-in-95 duration-150"
+        onMouseDown={e => e.stopPropagation()}
+        onTouchStart={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
         style={{
           width: isSidebarCollapsed ? '720px' : '1040px',
