@@ -138,6 +138,8 @@ export default function RowEditModal({
       }}
       onMouseDown={handleBackdropMouseDown}
       onMouseUp={handleBackdropMouseUp}
+      onTouchStart={handleBackdropMouseDown as any}
+      onTouchEnd={handleBackdropMouseUp as any}
     >
       <div
         className="row-edit-modal row-edit-modal-card animate-in zoom-in-95 duration-150"

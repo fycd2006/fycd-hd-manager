@@ -1034,6 +1034,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 overflow: 'hidden',
               }}
               onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
               onClick={e => e.stopPropagation()}
             >
               {/* Modal Top Bar */}
@@ -1247,6 +1248,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                     onUpdate(localVal);
                     onCancelEdit();
                   }}
+                  onTouchStart={() => {
+                    onUpdate(localVal);
+                    onCancelEdit();
+                  }}
                 />
                 <div
                   data-select-portal="true"
@@ -1423,6 +1428,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   data-select-portal="true"
                   style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
                   onMouseDown={() => {
+                    onUpdate(localVal);
+                    onCancelEdit();
+                  }}
+                  onTouchStart={() => {
                     onUpdate(localVal);
                     onCancelEdit();
                   }}
@@ -1672,6 +1681,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               data-longtext-portal="true"
               style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
               onMouseDown={() => {
+                onUpdate(localVal);
+                onCancelEdit();
+              }}
+              onTouchStart={() => {
                 onUpdate(localVal);
                 onCancelEdit();
               }}
@@ -2366,6 +2379,23 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           onSelect(e);
         }
       }}
+      onClick={() => {
+        // Mobile: single tap on already-selected cell enters edit mode
+        if (typeof window !== 'undefined' && window.innerWidth < 768 && isSelected && !isEditing) {
+          const readOnlyTypes = ['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'formula'];
+          if (!readOnlyTypes.includes(field.type)) {
+            if (field.type === 'boolean') {
+              const isChecked = Boolean(value === true || value === 'true' || value === 1 || value === '1');
+              onUpdate(!isChecked);
+            } else {
+              onStartEdit();
+              if (cellRef.current) {
+                cellRef.current.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+              }
+            }
+          }
+        }
+      }}
       onMouseEnter={() => {
         setIsCellHovered(true);
         if (!isEditing) {
@@ -2403,6 +2433,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         maxHeight: 'var(--row-height, 32px)',
         overflow: 'hidden',
         userSelect: 'none',
+        touchAction: 'manipulation',
         zIndex: isEditing ? 100 : (isPrimary ? 14 : (isSelected || isInRange ? 10 : undefined))
       }}
       className={`grid-view__column ${isSelected || isInRange ? 'active' : ''}`}
