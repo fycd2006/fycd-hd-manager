@@ -16,9 +16,10 @@ export function useOnClickOutside(ref: React.RefObject<HTMLElement | null>, hand
         !ref.current ||
         ref.current.contains(target as Node) ||
         (mousedownTarget && ref.current.contains(mousedownTarget)) ||
-        target?.closest?.('[data-relation-modal="true"]') ||
+        target?.closest?.('[data-portal-root="true"]') ||
         target?.closest?.('.portal-modal') ||
         target?.closest?.('.modal-overlay') ||
+        target?.closest?.('[data-relation-modal="true"]') ||
         target?.closest?.('[data-longtext-portal="true"]') ||
         target?.closest?.('[data-grid-portal="true"]') ||
         target?.closest?.('[data-select-portal="true"]') ||

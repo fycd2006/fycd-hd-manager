@@ -4,6 +4,8 @@ import { Maximize2, Minimize2, Star, Search, Link2, Mail, Clock, Sparkles, Alert
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
 import RowEditModal from '../../modals/RowEditModal';
+import ModalOverlay from '@/components/ui/ModalOverlay';
+import PopoverPortal from '@/components/ui/PopoverPortal';
 
 
 const BASEROW_PALETTE = [
@@ -46,26 +48,10 @@ export const LatestCommentModal: React.FC<{
   onClose: () => void
   readOnly?: boolean
 }> = ({ show, value, fieldName = '最新留言紀錄', onChange, onClose, readOnly = false }) => {
-  const overlayRef = useRef<HTMLDivElement>(null)
-  const mousedownOnBackdropRef = useRef<boolean>(false)
-
   const entries = parseLatestCommentEntries(value)
   const [newText, setNewText] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
-
-  const handleBackdropMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
-    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
-  }
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
-      e.stopPropagation()
-      e.preventDefault()
-      onClose()
-    }
-    mousedownOnBackdropRef.current = false
-  }
 
   const handleAdd = (e?: React.MouseEvent) => {
     e?.stopPropagation()
@@ -98,37 +84,15 @@ export const LatestCommentModal: React.FC<{
     onChange(updated)
   }
 
-  if (!show) return null
-
-  const modalContent = (
-    <div
-      ref={overlayRef}
-      data-comment-portal="true"
-      className="modal-overlay animate-in fade-in duration-150"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 999999,
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-      onMouseDown={handleBackdropMouseDown}
-      onTouchStart={handleBackdropMouseDown as any}
-      onClick={handleBackdropClick}
+  return (
+    <ModalOverlay
+      show={show}
+      onClose={onClose}
+      className="animate-in fade-in duration-150"
+      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
     >
       <div
-        data-comment-portal="true"
         className="animate-in zoom-in-95 duration-150"
-        onMouseDown={e => e.stopPropagation()}
-        onMouseUp={e => e.stopPropagation()}
-        onTouchStart={e => e.stopPropagation()}
-        onPointerDown={e => e.stopPropagation()}
-        onClick={e => e.stopPropagation()}
         style={{
           width: '560px',
           maxWidth: '92vw',
@@ -318,10 +282,8 @@ export const LatestCommentModal: React.FC<{
           </div>
         )}
       </div>
-    </div>
+    </ModalOverlay>
   )
-
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent
 }
 
 const getOptionColor = (str: string, allOptions?: string[]) => {
@@ -1004,29 +966,16 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           onCancelEdit();
         };
 
-        const modalContent = (
-          <div
-            data-relation-modal="true"
-            className="portal-modal"
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 99999,
-              backgroundColor: 'rgba(0, 0, 0, 0.45)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleConfirmRelation();
-            }}
+        return (
+          <ModalOverlay
+            show={true}
+            onClose={handleConfirmRelation}
+            zIndex={99999}
+            blur={false}
+            lockScroll={false}
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.45)' }}
           >
             <div
-              data-relation-modal="true"
-              className="portal-modal"
               style={{
                 width: '780px',
                 maxWidth: '92vw',
@@ -1039,9 +988,6 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 flexDirection: 'column',
                 overflow: 'hidden',
               }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onClick={e => e.stopPropagation()}
             >
               {/* Modal Top Bar */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
@@ -1179,10 +1125,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                 </button>
               </div>
             </div>
-          </div>
+          </ModalOverlay>
         );
-
-        return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
       }
 
       if (field.type === 'boolean') {
@@ -1245,41 +1189,24 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               </div>
             </div>
 
-            {typeof document !== 'undefined' && createPortal(
-              <>
-                <div 
-                  data-select-portal="true"
-                  style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onUpdate(localVal);
-                    onCancelEdit();
-                  }}
-                />
-                <div
-                  data-select-portal="true"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'fixed',
-                    top: popoverPos ? popoverPos.top : 0,
-                    left: popoverPos ? popoverPos.left : 0,
-                    minWidth: popoverPos ? popoverPos.width : 220,
-                    background: '#fff',
-                    border: '1px solid #cbd5e1',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)', 
-                    borderRadius: '8px',
-                    maxHeight: '260px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    zIndex: 999999,
-                    overflow: 'hidden'
-                  }}
-                >
+            <PopoverPortal
+              show={true}
+              onClose={() => {
+                onUpdate(localVal);
+                onCancelEdit();
+              }}
+              position={popoverPos}
+              style={{
+                background: '#fff',
+                border: '1px solid #cbd5e1',
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)', 
+                borderRadius: '8px',
+                maxHeight: '260px',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
                   <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="11" cy="11" r="8"></circle>
@@ -1368,10 +1295,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       <div style={{ padding: '12px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
                     )}
                   </div>
-                </div>
-              </>,
-              document.body
-            )}
+            </PopoverPortal>
           </>
         );
       }
@@ -1437,41 +1361,24 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               </div>
             </div>
 
-            {typeof document !== 'undefined' && createPortal(
-              <>
-                <div 
-                  data-select-portal="true"
-                  style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    onUpdate(localVal);
-                    onCancelEdit();
-                  }}
-                />
-                <div
-                  data-select-portal="true"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    position: 'fixed',
-                    top: popoverPos ? popoverPos.top : 0,
-                    left: popoverPos ? popoverPos.left : 0,
-                    minWidth: popoverPos ? popoverPos.width : 220,
-                    background: '#fff',
-                    border: '1px solid #cbd5e1',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)', 
-                    borderRadius: '8px',
-                    maxHeight: '260px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    zIndex: 999999,
-                    overflow: 'hidden'
-                  }}
-                >
+            <PopoverPortal
+              show={true}
+              onClose={() => {
+                onUpdate(localVal);
+                onCancelEdit();
+              }}
+              position={popoverPos}
+              style={{
+                background: '#fff',
+                border: '1px solid #cbd5e1',
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)', 
+                borderRadius: '8px',
+                maxHeight: '260px',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+            >
                   <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="11" cy="11" r="8"></circle>
@@ -1582,10 +1489,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       <div style={{ padding: '12px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
                     )}
                   </div>
-                </div>
-              </>,
-              document.body
-            )}
+            </PopoverPortal>
           </>
         );
       }
@@ -1597,25 +1501,17 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
         if (isLongTextExpanded) {
           // Fullscreen modal overlay
-          return typeof document !== 'undefined' && createPortal(
-            <div
-              data-longtext-portal="true"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 999998,
-                background: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+          return (
+            <ModalOverlay
+              show={true}
+              onClose={() => {
+                onUpdate(localVal);
+                setIsLongTextExpanded(false);
+                onCancelEdit();
               }}
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) {
-                  onUpdate(localVal);
-                  setIsLongTextExpanded(false);
-                  onCancelEdit();
-                }
-              }}
+              zIndex={999998}
+              blur={false}
+              style={{ background: 'rgba(0, 0, 0, 0.5)' }}
             >
               <div
                 style={{
@@ -1694,106 +1590,89 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   <span style={{ fontSize: '11px', color: '#94a3b8' }}>自動儲存</span>
                 </div>
               </div>
-            </div>,
-            document.body
+            </ModalOverlay>
           );
         }
 
         // Inline expanded editor (portal over cell)
-        return typeof document !== 'undefined' && createPortal(
-          <>
-            {/* Invisible backdrop to catch click-outside */}
-            <div
-              data-longtext-portal="true"
-              style={{ position: 'fixed', inset: 0, zIndex: 999998 }}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                onUpdate(localVal);
-                onCancelEdit();
+        return (
+          <PopoverPortal
+            show={true}
+            onClose={() => {
+              onUpdate(localVal);
+              onCancelEdit();
+            }}
+            position={popoverPos}
+            style={{
+              width: popoverPos ? popoverPos.width : Math.max(400, cellWidth),
+              minHeight: '140px',
+              background: '#ffffff',
+              border: '2px solid #3F6212',
+              borderRadius: '6px',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxSizing: 'border-box',
+              resize: 'both',
+              overflow: 'auto',
+            }}
+          >
+            <textarea
+              ref={longTextRef}
+              value={localVal}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLocalVal(v);
+                onUpdate(v);
               }}
-            />
-            {/* Editor container */}
-            <div
-              data-longtext-portal="true"
+              onKeyDown={handleLongTextKeyDown}
               style={{
-                position: 'fixed',
-                top: popoverPos ? popoverPos.top - 1 : 0,
-                left: popoverPos ? popoverPos.left - 1 : 0,
-                width: popoverPos ? popoverPos.width : Math.max(400, cellWidth),
-                minHeight: '140px',
-                background: '#ffffff',
-                border: '2px solid #3F6212',
-                borderRadius: '6px',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
-                zIndex: 999999,
-                display: 'flex',
-                flexDirection: 'column',
-                boxSizing: 'border-box',
-                resize: 'both',
-                overflow: 'auto',
+                flex: 1,
+                minHeight: '100px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+                color: '#0f172a',
+                padding: '8px 10px',
+                outline: 'none',
+                border: 'none',
+                resize: 'none',
+                lineHeight: 1.5,
+                background: 'transparent',
               }}
-            >
-              <textarea
-                ref={longTextRef}
-                value={localVal}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setLocalVal(v);
-                  onUpdate(v);
+              placeholder="輸入多行文字..."
+            />
+            {/* Bottom bar: char count + expand button */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '4px 8px',
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              borderRadius: '0 0 4px 4px',
+              flexShrink: 0,
+            }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                {charCount} 字元
+              </span>
+              <button
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsLongTextExpanded(true);
                 }}
-                onKeyDown={handleLongTextKeyDown}
                 style={{
-                  flex: 1,
-                  minHeight: '100px',
-                  fontSize: '13px',
-                  fontFamily: 'inherit',
-                  color: '#0f172a',
-                  padding: '8px 10px',
-                  outline: 'none',
-                  border: 'none',
-                  resize: 'none',
-                  lineHeight: 1.5,
-                  background: 'transparent',
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  padding: '2px 6px', border: '1px solid #cbd5e1', borderRadius: '4px',
+                  background: '#fff', cursor: 'pointer', fontSize: '11px', color: '#475569',
                 }}
-                placeholder="輸入多行文字..."
-              />
-              {/* Bottom bar: char count + expand button */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '4px 8px',
-                borderTop: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                borderRadius: '0 0 4px 4px',
-                flexShrink: 0,
-              }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                  {charCount} 字元
-                </span>
-                <button
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setIsLongTextExpanded(true);
-                  }}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '4px',
-                    padding: '2px 6px', border: '1px solid #cbd5e1', borderRadius: '4px',
-                    background: '#fff', cursor: 'pointer', fontSize: '11px', color: '#475569',
-                  }}
-                  title="展開全螢幕"
-                >
-                  <Maximize2 size={12} />
-                  展開
-                </button>
-              </div>
+                title="展開全螢幕"
+              >
+                <Maximize2 size={12} />
+                展開
+              </button>
             </div>
-          </>,
-          document.body
+          </PopoverPortal>
         );
       }
 

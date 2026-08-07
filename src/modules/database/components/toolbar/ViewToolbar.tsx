@@ -181,14 +181,16 @@ export function ViewToolbar({
       }
     }
     const handleScrollOrResize = (e: Event) => {
-      // Do not close popup menu if scrolling inside popover menu itself
-      if (
-        e.type === 'scroll' &&
-        popoverMenuRef.current &&
-        e.target &&
-        popoverMenuRef.current.contains(e.target as Node)
-      ) {
-        return
+      // Do not close popup menu if scrolling inside popover menu itself (desktop or mobile)
+      if (e.type === 'scroll' && e.target) {
+        const targetNode = e.target as Node
+        const targetEl = e.target as HTMLElement
+        if (
+          (popoverMenuRef.current && popoverMenuRef.current.contains(targetNode)) ||
+          (targetEl.closest && (targetEl.closest('.toolbar-popover-card') || targetEl.closest('[data-portal-root="true"]')))
+        ) {
+          return
+        }
       }
 
       // Ignore resize events when user is typing in an input/textarea (e.g. mobile soft keyboard popup)
@@ -606,6 +608,8 @@ export function ViewToolbar({
         >
           <div
             ref={popoverMenuRef}
+            className="toolbar-popover-card"
+            data-portal-root="true"
             style={{
               position: 'fixed',
               top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`,
@@ -845,6 +849,8 @@ export function ViewToolbar({
           onClick={() => setShowViewContext(false)}
         >
           <div
+            className="toolbar-popover-card"
+            data-portal-root="true"
             style={{
               position: 'fixed',
               top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`,
@@ -957,6 +963,8 @@ export function ViewToolbar({
           onClick={() => setActiveHeaderMenu(null)}
         >
           <div
+            className="toolbar-popover-card"
+            data-portal-root="true"
             style={{
               width: '100%',
               maxWidth: '420px',
@@ -1426,6 +1434,8 @@ export function ViewToolbar({
           onClick={() => setShowViewContext(false)}
         >
           <div
+            className="toolbar-popover-card"
+            data-portal-root="true"
             style={{
               width: '100%',
               maxWidth: '380px',

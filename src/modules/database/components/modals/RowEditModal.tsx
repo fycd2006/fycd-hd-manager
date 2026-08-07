@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { ChevronsRight, ChevronsLeft, ChevronUp, ChevronDown, X, Info, Plus } from 'lucide-react'
 import type { TableField, TableRow } from '@/modules/database/types'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -10,6 +9,7 @@ import CollaboratorSelector from './CollaboratorSelector'
 import AdvancedFieldInputs from './AdvancedFieldInputs'
 import { formatDateValue } from '@/modules/database/utils'
 import { renderFormulaCell } from '../views/grid/GridViewCell'
+import ModalOverlay from '@/components/ui/ModalOverlay'
 
 interface RowEditModalProps {
   show: boolean
@@ -104,51 +104,17 @@ export default function RowEditModal({
     return <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Τ</span>
   }
 
-  const overlayRef = useRef<HTMLDivElement>(null)
-  const mousedownOnBackdropRef = useRef<boolean>(false)
-
-  const handleBackdropMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
-    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
-  }
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
-      e.stopPropagation()
-      e.preventDefault()
-      onClose()
-    }
-    mousedownOnBackdropRef.current = false
-  }
-
   if (!show || !row) return null
 
-  const modalContent = (
-    <div
-      ref={overlayRef}
-      data-row-edit-portal="true"
-      className="modal-overlay animate-in fade-in duration-150"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 999999,
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-      onMouseDown={handleBackdropMouseDown}
-      onTouchStart={handleBackdropMouseDown as any}
-      onClick={handleBackdropClick}
+  return (
+    <ModalOverlay
+      show={show}
+      onClose={onClose}
+      className="animate-in fade-in duration-150"
+      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
     >
       <div
-        data-row-edit-portal="true"
         className="row-edit-modal row-edit-modal-card animate-in zoom-in-95 duration-150"
-        onMouseDown={e => e.stopPropagation()}
-        onTouchStart={e => e.stopPropagation()}
-        onClick={e => e.stopPropagation()}
         style={{
           width: isSidebarCollapsed ? '720px' : '1040px',
           maxWidth: '96vw',
@@ -448,8 +414,6 @@ export default function RowEditModal({
           </div>
         )}
       </div>
-    </div>
+    </ModalOverlay>
   )
-
-  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent
 }
