@@ -3,6 +3,7 @@
 import React from 'react'
 import { X, Sliders, Sun, Moon, RotateCcw, Eye, Sparkles } from 'lucide-react'
 import type { Theme, DarkReaderSettings } from '@/modules/database/types'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface DarkReaderModalProps {
   show: boolean
@@ -23,6 +24,8 @@ export default function DarkReaderModal({
   onUpdateDarkReaderSettings,
   onToast
 }: DarkReaderModalProps) {
+  const { t } = useI18n()
+
   if (!show) return null
 
   const handleReset = () => {
@@ -32,7 +35,7 @@ export default function DarkReaderModal({
       sepia: 0,
       grayscale: 0
     })
-    onToast?.('色彩與濾鏡設定已恢復為系統預設值', 'info')
+    onToast?.(t('darkReader.resetSuccess'), 'info')
   }
 
   return (
@@ -43,7 +46,7 @@ export default function DarkReaderModal({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Sliders size={20} color="#3F6212" />
-            <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0 }}>色彩與顯示客製化調整</h3>
+            <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{t('darkReader.title')}</h3>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
             <X size={20} />
@@ -56,7 +59,7 @@ export default function DarkReaderModal({
           {/* Light / Dark Mode Quick Switch */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={15} color="#3F6212" /> 主題深淺模式 (Theme Mode)
+              <Sparkles size={15} color="#3F6212" /> {t('darkReader.themeMode')}
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
@@ -78,7 +81,7 @@ export default function DarkReaderModal({
                 }}
               >
                 <Sun size={16} />
-                <span>明亮模式 (Light)</span>
+                <span>{t('darkReader.lightMode')}</span>
               </button>
 
               <button
@@ -100,7 +103,7 @@ export default function DarkReaderModal({
                 }}
               >
                 <Moon size={16} />
-                <span>夜間模式 (Dark)</span>
+                <span>{t('darkReader.darkMode')}</span>
               </button>
             </div>
           </div>
@@ -108,7 +111,7 @@ export default function DarkReaderModal({
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Eye size={15} color="#3F6212" /> 視覺與對比微調 (Filters - {theme === 'dark' ? '夜間模式' : '明亮模式'})
+                <Eye size={15} color="#3F6212" /> {t('darkReader.visualAdjustment')}
               </span>
               <button
                 type="button"
@@ -116,14 +119,14 @@ export default function DarkReaderModal({
                 style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 500 }}
               >
                 <RotateCcw size={12} />
-                <span>重設{theme === 'dark' ? '夜間' : '明亮'}預設值</span>
+                <span>{t('darkReader.resetDefaults')}</span>
               </button>
             </div>
 
             {/* Brightness Slider */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', fontWeight: 500 }}>
-                <span>亮度 (Brightness)</span>
+                <span>{t('darkReader.brightness')}</span>
                 <span>{darkReaderSettings.brightness}%</span>
               </div>
               <input
@@ -139,7 +142,7 @@ export default function DarkReaderModal({
             {/* Contrast Slider */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', fontWeight: 500 }}>
-                <span>對比度 (Contrast)</span>
+                <span>{t('darkReader.contrast')}</span>
                 <span>{darkReaderSettings.contrast}%</span>
               </div>
               <input
@@ -155,7 +158,7 @@ export default function DarkReaderModal({
             {/* Warmth / Sepia Slider */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', fontWeight: 500 }}>
-                <span>護眼暖色 (Warmth / Sepia)</span>
+                <span>{t('darkReader.warmth')}</span>
                 <span>{darkReaderSettings.sepia}%</span>
               </div>
               <input
@@ -171,7 +174,7 @@ export default function DarkReaderModal({
             {/* Grayscale Slider */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#475569', fontWeight: 500 }}>
-                <span>灰階 (Grayscale)</span>
+                <span>{t('darkReader.grayscale')}</span>
                 <span>{darkReaderSettings.grayscale}%</span>
               </div>
               <input
@@ -192,7 +195,7 @@ export default function DarkReaderModal({
               onClick={onClose}
               style={{ padding: '10px 22px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 12px rgba(24, 24, 27, 0.25)' }}
             >
-              完成與關閉
+              {t('common.close')}
             </button>
           </div>
 
@@ -201,3 +204,4 @@ export default function DarkReaderModal({
     </div>
   )
 }
+

@@ -298,54 +298,56 @@ export interface FormulaFunctionDoc {
   snippet: string
 }
 
-export function getSupportedFunctions(): { category: string; funcs: FormulaFunctionDoc[] }[] {
+export function getSupportedFunctions(locale: string = 'zh-TW'): { category: string; funcs: FormulaFunctionDoc[] }[] {
+  const isEn = locale === 'en'
+
   return [
     {
-      category: '數學與統計 (Math & Stat)',
+      category: isEn ? 'Math & Statistics' : '數學與統計',
       funcs: [
-        { name: 'SUM', category: 'Math', doc: '計算參數總和。範例: SUM(F1, F2, 100)', snippet: 'SUM(' },
-        { name: 'AVERAGE', category: 'Math', doc: '計算平均值。範例: AVERAGE(F1, F2)', snippet: 'AVERAGE(' },
-        { name: 'COUNT', category: 'Math', doc: '計算數字個數。範例: COUNT(F1, F2)', snippet: 'COUNT(' },
-        { name: 'MAX', category: 'Math', doc: '取得最大值。範例: MAX(F1, 100)', snippet: 'MAX(' },
-        { name: 'MIN', category: 'Math', doc: '取得最小值。範例: MIN(F1, 0)', snippet: 'MIN(' },
-        { name: 'ROUND', category: 'Math', doc: '四捨五入至指定位數。範例: ROUND(F1, 2)', snippet: 'ROUND(' },
-        { name: 'ABS', category: 'Math', doc: '計算絕對值。範例: ABS(F1)', snippet: 'ABS(' },
+        { name: 'SUM', category: 'Math', doc: isEn ? 'Calculate sum of arguments. Example: SUM(F1, F2, 100)' : '計算參數總和。範例: SUM(F1, F2, 100)', snippet: 'SUM(' },
+        { name: 'AVERAGE', category: 'Math', doc: isEn ? 'Calculate average of arguments. Example: AVERAGE(F1, F2)' : '計算平均值。範例: AVERAGE(F1, F2)', snippet: 'AVERAGE(' },
+        { name: 'COUNT', category: 'Math', doc: isEn ? 'Count numeric values. Example: COUNT(F1, F2)' : '計算數字個數。範例: COUNT(F1, F2)', snippet: 'COUNT(' },
+        { name: 'MAX', category: 'Math', doc: isEn ? 'Get maximum value. Example: MAX(F1, 100)' : '取得最大值。範例: MAX(F1, 100)', snippet: 'MAX(' },
+        { name: 'MIN', category: 'Math', doc: isEn ? 'Get minimum value. Example: MIN(F1, 0)' : '取得最小值。範例: MIN(F1, 0)', snippet: 'MIN(' },
+        { name: 'ROUND', category: 'Math', doc: isEn ? 'Round to specified decimal places. Example: ROUND(F1, 2)' : '四捨五入至指定位數。範例: ROUND(F1, 2)', snippet: 'ROUND(' },
+        { name: 'ABS', category: 'Math', doc: isEn ? 'Calculate absolute value. Example: ABS(F1)' : '計算絕對值。範例: ABS(F1)', snippet: 'ABS(' },
       ]
     },
     {
-      category: '邏輯與判斷 (Logical)',
+      category: isEn ? 'Logical & Conditional' : '邏輯與判斷',
       funcs: [
-        { name: 'IF', category: 'Logical', doc: '邏輯判斷。範例: IF(F1 > 100, F2 * 0.9, F2)', snippet: 'IF(' },
-        { name: 'AND', category: 'Logical', doc: '所有條件皆為真時回傳 TRUE。範例: AND(F1 > 0, F2 > 0)', snippet: 'AND(' },
-        { name: 'OR', category: 'Logical', doc: '任一條件為真時回傳 TRUE。範例: OR(F1 = 1, F2 = 1)', snippet: 'OR(' },
-        { name: 'NOT', category: 'Logical', doc: '反轉布林值。範例: NOT(F1)', snippet: 'NOT(' },
-        { name: 'IFERROR', category: 'Logical', doc: '當計算發生錯誤時回傳預設值。範例: IFERROR(F1 / F2, 0)', snippet: 'IFERROR(' },
-        { name: 'ISBLANK', category: 'Logical', doc: '檢查單元格是否為空。範例: ISBLANK(F1)', snippet: 'ISBLANK(' },
+        { name: 'IF', category: 'Logical', doc: isEn ? 'Logical condition evaluation. Example: IF(F1 > 100, F2 * 0.9, F2)' : '邏輯判斷。範例: IF(F1 > 100, F2 * 0.9, F2)', snippet: 'IF(' },
+        { name: 'AND', category: 'Logical', doc: isEn ? 'Returns TRUE if all conditions are met. Example: AND(F1 > 0, F2 > 0)' : '所有條件皆為真時回傳 TRUE。範例: AND(F1 > 0, F2 > 0)', snippet: 'AND(' },
+        { name: 'OR', category: 'Logical', doc: isEn ? 'Returns TRUE if any condition is met. Example: OR(F1 = 1, F2 = 1)' : '任一條件為真時回傳 TRUE。範例: OR(F1 = 1, F2 = 1)', snippet: 'OR(' },
+        { name: 'NOT', category: 'Logical', doc: isEn ? 'Reverse boolean value. Example: NOT(F1)' : '反轉布林值。範例: NOT(F1)', snippet: 'NOT(' },
+        { name: 'IFERROR', category: 'Logical', doc: isEn ? 'Returns fallback value if expression causes error. Example: IFERROR(F1 / F2, 0)' : '當計算發生錯誤時回傳預設值。範例: IFERROR(F1 / F2, 0)', snippet: 'IFERROR(' },
+        { name: 'ISBLANK', category: 'Logical', doc: isEn ? 'Check if cell value is blank. Example: ISBLANK(F1)' : '檢查單元格是否為空。範例: ISBLANK(F1)', snippet: 'ISBLANK(' },
       ]
     },
     {
-      category: '文字處理 (Text)',
+      category: isEn ? 'Text Processing' : '文字處理',
       funcs: [
-        { name: 'CONCAT', category: 'Text', doc: '連接多個字串。範例: CONCAT(F1, " ", F2)', snippet: 'CONCAT(' },
-        { name: 'LEFT', category: 'Text', doc: '截取左側字串。範例: LEFT(F1, 3)', snippet: 'LEFT(' },
-        { name: 'RIGHT', category: 'Text', doc: '截取右側字串。範例: RIGHT(F1, 3)', snippet: 'RIGHT(' },
-        { name: 'MID', category: 'Text', doc: '截取中間字串。範例: MID(F1, 2, 5)', snippet: 'MID(' },
-        { name: 'LEN', category: 'Text', doc: '計算字串長度。範例: LEN(F1)', snippet: 'LEN(' },
-        { name: 'UPPER', category: 'Text', doc: '轉為大寫。範例: UPPER(F1)', snippet: 'UPPER(' },
-        { name: 'LOWER', category: 'Text', doc: '轉為小寫。範例: LOWER(F1)', snippet: 'LOWER(' },
-        { name: 'CONTAINS', category: 'Text', doc: '檢查是否包含關鍵字。範例: CONTAINS(F1, "VIP")', snippet: 'CONTAINS(' },
+        { name: 'CONCAT', category: 'Text', doc: isEn ? 'Concatenate multiple text strings. Example: CONCAT(F1, " ", F2)' : '連接多個字串。範例: CONCAT(F1, " ", F2)', snippet: 'CONCAT(' },
+        { name: 'LEFT', category: 'Text', doc: isEn ? 'Extract characters from left. Example: LEFT(F1, 3)' : '截取左側字串。範例: LEFT(F1, 3)', snippet: 'LEFT(' },
+        { name: 'RIGHT', category: 'Text', doc: isEn ? 'Extract characters from right. Example: RIGHT(F1, 3)' : '截取右側字串。範例: RIGHT(F1, 3)', snippet: 'RIGHT(' },
+        { name: 'MID', category: 'Text', doc: isEn ? 'Extract characters from middle. Example: MID(F1, 2, 5)' : '截取中間字串。範例: MID(F1, 2, 5)', snippet: 'MID(' },
+        { name: 'LEN', category: 'Text', doc: isEn ? 'Calculate text length. Example: LEN(F1)' : '計算字串長度。範例: LEN(F1)', snippet: 'LEN(' },
+        { name: 'UPPER', category: 'Text', doc: isEn ? 'Convert text to uppercase. Example: UPPER(F1)' : '轉為大寫。範例: UPPER(F1)', snippet: 'UPPER(' },
+        { name: 'LOWER', category: 'Text', doc: isEn ? 'Convert text to lowercase. Example: LOWER(F1)' : '轉為小寫。範例: LOWER(F1)', snippet: 'LOWER(' },
+        { name: 'CONTAINS', category: 'Text', doc: isEn ? 'Check if text contains keyword. Example: CONTAINS(F1, "VIP")' : '檢查是否包含關鍵字。範例: CONTAINS(F1, "VIP")', snippet: 'CONTAINS(' },
       ]
     },
     {
-      category: '日期與時間 (Date & Time)',
+      category: isEn ? 'Date & Time' : '日期與時間',
       funcs: [
-        { name: 'DATE', category: 'Date', doc: '建立日期物件。範例: DATE(2026, 7, 30)', snippet: 'DATE(' },
-        { name: 'TODAY', category: 'Date', doc: '取得今日日期。範例: TODAY()', snippet: 'TODAY()' },
-        { name: 'NOW', category: 'Date', doc: '取得當前時間。範例: NOW()', snippet: 'NOW()' },
-        { name: 'YEAR', category: 'Date', doc: '取得年份。範例: YEAR(F1)', snippet: 'YEAR(' },
-        { name: 'MONTH', category: 'Date', doc: '取得月份。範例: MONTH(F1)', snippet: 'MONTH(' },
-        { name: 'DAY', category: 'Date', doc: '取得日期。範例: DAY(F1)', snippet: 'DAY(' },
-        { name: 'DATE_DIFF', category: 'Date', doc: '計算兩日期差距天數。範例: DATE_DIFF(F1, F2)', snippet: 'DATE_DIFF(' },
+        { name: 'DATE', category: 'Date', doc: isEn ? 'Create a date object. Example: DATE(2026, 7, 30)' : '建立日期物件。範例: DATE(2026, 7, 30)', snippet: 'DATE(' },
+        { name: 'TODAY', category: 'Date', doc: isEn ? 'Get today date. Example: TODAY()' : '取得今日日期。範例: TODAY()', snippet: 'TODAY()' },
+        { name: 'NOW', category: 'Date', doc: isEn ? 'Get current date & time. Example: NOW()' : '取得當前時間。範例: NOW()', snippet: 'NOW()' },
+        { name: 'YEAR', category: 'Date', doc: isEn ? 'Extract year from date. Example: YEAR(F1)' : '取得年份。範例: YEAR(F1)', snippet: 'YEAR(' },
+        { name: 'MONTH', category: 'Date', doc: isEn ? 'Extract month from date. Example: MONTH(F1)' : '取得月份。範例: MONTH(F1)', snippet: 'MONTH(' },
+        { name: 'DAY', category: 'Date', doc: isEn ? 'Extract day from date. Example: DAY(F1)' : '取得日期。範例: DAY(F1)', snippet: 'DAY(' },
+        { name: 'DATE_DIFF', category: 'Date', doc: isEn ? 'Calculate difference in days between two dates. Example: DATE_DIFF(F1, F2)' : '計算兩日期差距天數。範例: DATE_DIFF(F1, F2)', snippet: 'DATE_DIFF(' },
       ]
     }
   ]

@@ -9,6 +9,7 @@ import { FilterMenu } from './menu/FilterMenu'
 import { SortMenu } from './menu/SortMenu'
 import { ColorMenu } from './menu/ColorMenu'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 
 interface ViewToolbarProps {
@@ -109,6 +110,7 @@ export function ViewToolbar({
   canUndo = false,
   canRedo = false
 }: ViewToolbarProps) {
+  const { t } = useI18n()
   const safeRowColorRules = Array.isArray(rowColorRules) ? rowColorRules : [];
   const safeFilterRules = Array.isArray(filterRules) ? filterRules : [];
   const safeFields = Array.isArray(fields) ? fields : [];
@@ -321,7 +323,7 @@ export function ViewToolbar({
                             e.currentTarget.style.backgroundColor = 'transparent'
                             e.currentTarget.style.color = '#94a3b8'
                           }}
-                          title="視圖選項 (View options)"
+                          title={t('toolbar.viewOptions')}
                         >
                           <MoreVertical size={14} />
                         </button>
@@ -388,7 +390,7 @@ export function ViewToolbar({
           >
             <Filter size={16} color={filterRules.length > 0 ? '#3F6212' : activeHeaderMenu === 'filter' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
             <span className="header__filter-name" style={{ color: filterRules.length > 0 ? '#3F6212' : '#44403C', fontWeight: filterRules.length > 0 ? 600 : 500 }}>
-              {filterRules.length > 0 ? `${filterRules.length} filter${filterRules.length > 1 ? 's' : ''}` : 'Filter'}
+              {filterRules.length > 0 ? `${filterRules.length} ${t('toolbar.filter')}` : t('toolbar.filter')}
             </span>
           </a>
         </li>
@@ -411,7 +413,7 @@ export function ViewToolbar({
           >
             <ArrowDownAZ size={16} color={sortField ? '#3F6212' : activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
             <span className="header__filter-name" style={{ color: sortField ? '#3F6212' : '#44403C', fontWeight: sortField ? 600 : 500 }}>
-              {sortField ? '1 sort' : 'Sort'}
+              {sortField ? `1 ${t('toolbar.sort')}` : t('toolbar.sort')}
             </span>
           </a>
         </li>
@@ -423,7 +425,7 @@ export function ViewToolbar({
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Palette size={16} color={safeRowColorRules.length > 0 ? '#3F6212' : activeHeaderMenu === 'color' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 ? '#3F6212' : '#44403C' }}>{safeRowColorRules.length > 0 ? `${safeRowColorRules.length} colored` : 'Color'}</span>
+            <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 ? '#3F6212' : '#44403C' }}>{safeRowColorRules.length > 0 ? `${safeRowColorRules.length} ${t('toolbar.color')}` : t('toolbar.color')}</span>
           </a>
         </li>
 
@@ -434,7 +436,7 @@ export function ViewToolbar({
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <Layers size={16} color={groupByField || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: groupByField ? '#3F6212' : '#44403C' }}>Group</span>
+            <span className="header__filter-name" style={{ color: groupByField ? '#3F6212' : '#44403C' }}>{t('toolbar.group')}</span>
           </a>
         </li>
       </ul>
@@ -448,7 +450,7 @@ export function ViewToolbar({
           >
             <EyeOff size={16} color={actualHiddenCount > 0 ? '#3F6212' : activeHeaderMenu === 'hide' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
             <span className="header__filter-name" style={{ color: actualHiddenCount > 0 ? '#3F6212' : '#44403C' }}>
-              {actualHiddenCount > 0 ? `${actualHiddenCount} hidden` : 'Hide fields'}
+              {actualHiddenCount > 0 ? `${actualHiddenCount} ${t('toolbar.hideFields')}` : t('toolbar.hideFields')}
             </span>
           </a>
         </li>
@@ -460,7 +462,7 @@ export function ViewToolbar({
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <AlignJustify size={16} color={rowHeightSize !== 'small' ? '#3F6212' : activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b'} className="header__filter-icon" />
-            <span className="header__filter-name">Row height</span>
+            <span className="header__filter-name">{t('toolbar.rowHeight')}</span>
           </a>
         </li>
 
@@ -470,7 +472,7 @@ export function ViewToolbar({
             type="button"
             onClick={onUndo}
             disabled={!canUndo}
-            title="復原 (Undo - Ctrl+Z)"
+            title={t('toolbar.undoTooltip')}
             style={{
               background: 'none',
               border: 'none',
@@ -496,7 +498,7 @@ export function ViewToolbar({
             type="button"
             onClick={onRedo}
             disabled={!canRedo}
-            title="重做 (Redo - Ctrl+Y)"
+            title={t('toolbar.redoTooltip')}
             style={{
               background: 'none',
               border: 'none',
@@ -526,7 +528,7 @@ export function ViewToolbar({
               ref={searchInputRef}
               type="text"
               className="soft-input"
-              placeholder="搜尋記錄 (Ctrl+K)..."
+              placeholder={t('toolbar.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ 
@@ -569,7 +571,7 @@ export function ViewToolbar({
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fef2f2'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                title="清除搜尋"
+                title={t('toolbar.clearSearch')}
               >
                 <X size={13} />
               </span>
@@ -982,12 +984,12 @@ export function ViewToolbar({
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                {activeHeaderMenu === 'filter' && '篩選條件 (Filters)'}
-                {activeHeaderMenu === 'sort' && '排序設定 (Sorting)'}
-                {activeHeaderMenu === 'color' && '色彩塗色 (Row Colors)'}
-                {activeHeaderMenu === 'group' && '分組欄位 (Grouping)'}
-                {activeHeaderMenu === 'hide' && '隱藏欄位 (Hide Fields)'}
-                {activeHeaderMenu === 'rowHeight' && '列高設定 (Row Height)'}
+                {activeHeaderMenu === 'filter' && t('filter.title')}
+                {activeHeaderMenu === 'sort' && t('sort.title')}
+                {activeHeaderMenu === 'color' && t('color.title')}
+                {activeHeaderMenu === 'group' && t('group.title')}
+                {activeHeaderMenu === 'hide' && t('hideFields.title')}
+                {activeHeaderMenu === 'rowHeight' && t('toolbar.rowHeight')}
               </h3>
               <button
                 type="button"
@@ -1002,7 +1004,7 @@ export function ViewToolbar({
             {activeHeaderMenu === 'filter' && (
               filterRules.length === 0 ? (
                 <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '24px 0' }}>
-                  此視圖尚未設定任何篩選條件
+                  {t('filter.noRules')}
                   <div style={{ marginTop: '14px' }}>
                     <button
                       type="button"
@@ -1012,7 +1014,7 @@ export function ViewToolbar({
                       }}
                       style={{ padding: '8px 16px', backgroundColor: '#18181B', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                     >
-                      + 新增篩選條件
+                      + {t('filter.addRule')}
                     </button>
                   </div>
                 </div>
@@ -1021,7 +1023,7 @@ export function ViewToolbar({
                   {filterRules.map((rule, idx) => (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{idx === 0 ? 'Where' : 'And'}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{idx === 0 ? t('filter.where') : t('filter.and')}</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -1030,7 +1032,7 @@ export function ViewToolbar({
                           }}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '12px' }}
                         >
-                          刪除
+                          {t('common.remove')}
                         </button>
                       </div>
                       <select
@@ -1053,12 +1055,12 @@ export function ViewToolbar({
                         }}
                         style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                       >
-                        <option value="contains">包含 (contains)</option>
-                        <option value="not_contains">不包含 (not contains)</option>
-                        <option value="equals">等於 (equals)</option>
-                        <option value="not_equals">不等於 (not equals)</option>
-                        <option value="empty">為空 (is empty)</option>
-                        <option value="not_empty">不為空 (is not empty)</option>
+                        <option value="contains">{t('filter.contains')}</option>
+                        <option value="not_contains">{t('filter.notContains')}</option>
+                        <option value="equals">{t('filter.equals')}</option>
+                        <option value="not_equals">{t('filter.notEquals')}</option>
+                        <option value="empty">{t('filter.isEmpty')}</option>
+                        <option value="not_empty">{t('filter.isNotEmpty')}</option>
                       </select>
                       {rule.operator !== 'empty' && rule.operator !== 'not_empty' && (
                         <input
@@ -1238,12 +1240,12 @@ export function ViewToolbar({
                         }}
                         style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                       >
-                        <option value="red">紅色 (Red)</option>
-                        <option value="green">綠色 (Green)</option>
-                        <option value="blue">藍色 (Blue)</option>
-                        <option value="yellow">黃色 (Yellow)</option>
-                        <option value="purple">紫色 (Purple)</option>
-                        <option value="orange">橘色 (Orange)</option>
+                        <option value="red">{t('color.red')}</option>
+                        <option value="green">{t('color.green')}</option>
+                        <option value="blue">{t('color.blue')}</option>
+                        <option value="yellow">{t('color.yellow')}</option>
+                        <option value="purple">{t('color.purple')}</option>
+                        <option value="orange">{t('color.orange')}</option>
                       </select>
                     </div>
                   ))}
@@ -1263,7 +1265,7 @@ export function ViewToolbar({
                       }}
                       style={{ padding: '8px 14px', backgroundColor: '#F4F4F5', color: '#18181B', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                     >
-                      + 新增塗色條件
+                      + {t('color.addRule')}
                     </button>
                     <button
                       type="button"
@@ -1273,7 +1275,7 @@ export function ViewToolbar({
                       }}
                       style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                     >
-                      清除全部
+                      {t('common.remove')}
                     </button>
                   </div>
                 </div>
@@ -1301,7 +1303,7 @@ export function ViewToolbar({
                     justifyContent: 'space-between'
                   }}
                 >
-                  <span>(無分組)</span>
+                  <span>({t('toolbar.noGrouping')})</span>
                   {!groupByField && <Check size={16} color="#3F6212" />}
                 </div>
                 {fields.map(f => {
@@ -1366,7 +1368,7 @@ export function ViewToolbar({
                     >
                       <span>{f.name}</span>
                       <span style={{ fontSize: '11px', fontWeight: 700, color: isHidden ? '#ef4444' : '#10b981' }}>
-                        {isHidden ? '已隱藏' : '顯示中'}
+                        {isHidden ? 'Hidden' : 'Visible'}
                       </span>
                     </div>
                   )
@@ -1378,10 +1380,10 @@ export function ViewToolbar({
             {activeHeaderMenu === 'rowHeight' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
-                  { id: 'small', label: '緊湊 (Small)' },
-                  { id: 'medium', label: '適中 (Medium)' },
-                  { id: 'large', label: '寬鬆 (Large)' },
-                  { id: 'extra', label: '超寬 (Extra)' }
+                  { id: 'small', label: t('toolbar.rowHeightSmall') },
+                  { id: 'medium', label: t('toolbar.rowHeightMedium') },
+                  { id: 'large', label: t('toolbar.rowHeightLarge') },
+                  { id: 'extra', label: t('toolbar.rowHeightExtra') }
                 ].map(opt => (
                   <button
                     key={opt.id}

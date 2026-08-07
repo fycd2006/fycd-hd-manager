@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react'
 import type { User, Workspace } from '@/modules/database/types'
+import { useI18n } from '@/lib/i18n/i18nContext'
 import {
   ChevronsUpDown,
   Plus,
@@ -109,6 +110,7 @@ export default function Sidebar({
   onMoveTableToDatabase,
   onReorderDatabases
 }: SidebarProps) {
+  const { t } = useI18n()
   const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null)
   
   // Drag and Drop State
@@ -262,7 +264,7 @@ export default function Sidebar({
               {onSelectDashboard && (
                 <button
                   onClick={onSelectDashboard}
-                  title="首頁"
+                  title={t('nav.home')}
 
                   style={{
                     width: '36px',
@@ -290,7 +292,7 @@ export default function Sidebar({
 
               {/* Workspace Badge Icon */}
               <div
-                title={`工作區: ${activeWorkspaceName}`}
+                title={`${t('nav.workspaces')}: ${activeWorkspaceName}`}
                 onClick={onToggleSidebarCollapse}
                 style={{
                   width: '32px',
@@ -319,7 +321,7 @@ export default function Sidebar({
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
               <button
                 onClick={onToggleTheme}
-                title={theme === 'dark' ? '切換亮色模式' : '切換暗色模式'}
+                title={theme === 'dark' ? t('nav.toggleLightMode') : t('nav.toggleDarkMode')}
                 style={{
                   width: '36px',
                   height: '36px',
@@ -341,7 +343,7 @@ export default function Sidebar({
 
               <button
                 onClick={onLogout}
-                title="登出"
+                title={t('nav.logout')}
                 style={{
                   width: '36px',
                   height: '36px',
@@ -387,7 +389,7 @@ export default function Sidebar({
                     toggleMenu('workspace-selector', e)
                   }
                 }}
-                title="切換工作區"
+                title={t('nav.switchWorkspace')}
                 style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, height: '38px', padding: '0 8px', borderRadius: '8px', cursor: 'pointer', boxSizing: 'border-box' }}
               >
                 <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#18181B', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0, boxShadow: '0 1px 4px rgba(24, 24, 27, 0.2)' }}>
@@ -407,7 +409,7 @@ export default function Sidebar({
               {onToggleSidebarCollapse && (
                 <button
                   onClick={onToggleSidebarCollapse}
-                  title="收合側邊欄"
+                  title={t('nav.collapseSidebar')}
                   className="sidebar-hover-icon"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px', flexShrink: 0 }}
                 >
@@ -498,7 +500,7 @@ export default function Sidebar({
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {canManageStructure && (
                               <button
-                                title="重新命名工作區"
+                                title={t('nav.renameWorkspace')}
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   closeMenu()
@@ -555,7 +557,7 @@ export default function Sidebar({
                         <div style={{ width: '22px', height: '22px', borderRadius: '6px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                           <Plus size={14} color="#3F6212" />
                         </div>
-                        <span>Add new workspace</span>
+                        <span>{t('nav.createWorkspace')}</span>
                       </div>
                     </div>
                   )}
@@ -577,7 +579,7 @@ export default function Sidebar({
                       style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}
                     >
                       <UserIcon size={16} color="#64748b" />
-                      <span>My settings</span>
+                      <span>{t('nav.accountSettings')}</span>
                     </div>
 
                     <div
@@ -590,7 +592,7 @@ export default function Sidebar({
                       style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}
                     >
                       <FileText size={16} color="#64748b" />
-                      <span>Subscriptions</span>
+                      <span>{t('common.settings')}</span>
                     </div>
 
                     <div
@@ -603,7 +605,7 @@ export default function Sidebar({
                       style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#ef4444', fontWeight: 500 }}
                     >
                       <LogOut size={16} color="#ef4444" />
-                      <span>Log out</span>
+                      <span>{t('nav.logout')}</span>
                     </div>
                   </div>
                 </div>
@@ -635,7 +637,7 @@ export default function Sidebar({
                     }}
                   >
                     <Home size={16} color={activeTableId === null || activeTableId === 0 ? '#3F6212' : '#64748b'} />
-                    <span>首頁</span>
+                    <span>{t('nav.home')}</span>
                   </div>
                   <div
                     onClick={() => onShowNotificationsModal?.()}
@@ -644,7 +646,7 @@ export default function Sidebar({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Bell size={16} color="#64748b" />
-                      <span>站內通知</span>
+                      <span>{t('nav.notifications')}</span>
                     </div>
                     {notificationCount > 0 && (
                       <span style={{ fontSize: '11px', fontWeight: 700, color: '#ef4444', backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '1px 7px', borderRadius: '10px' }}>
@@ -660,7 +662,7 @@ export default function Sidebar({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <Users size={16} color="#64748b" />
-                      <span>成員列表</span>
+                      <span>{t('nav.members')}</span>
                     </div>
                     <span style={{ fontSize: '11px', fontWeight: 700, color: '#18181B', backgroundColor: '#F4F4F5', border: '1px solid #F4F4F5', padding: '1px 7px', borderRadius: '10px' }}>
                       {memberCount ?? 1}
@@ -674,7 +676,7 @@ export default function Sidebar({
                       style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
                     >
                       <UserPlus size={16} color="#64748b" />
-                      <span>邀請新成員</span>
+                      <span>{t('members.inviteMember')}</span>
                     </div>
                   )}
                 </div>
@@ -688,11 +690,11 @@ export default function Sidebar({
                   }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', borderRadius: '6px', userSelect: 'none' }}
                   className="sidebar-hover-item"
-                  title="點擊建立新資料庫"
+                  title={t('nav.createDatabase')}
                 >
-                  <span>資料庫 (DATABASES)</span>
+                  <span>{t('nav.createDatabase')}</span>
                   <button
-                    title="建立新資料庫"
+                    title={t('nav.createDatabase')}
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
@@ -792,7 +794,7 @@ export default function Sidebar({
                                 onShowRenameModal()
                               }
                             }}
-                            title={`${db.name} (雙擊可重新命名)`}
+                            title={`${db.name} (${t('nav.doubleClickRename')})`}
                             style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden' }}
                           >
                             <ChevronRight
@@ -814,7 +816,7 @@ export default function Sidebar({
                             <button
                               onClick={(e) => toggleMenu(dbMenuKey, e)}
                               className="sidebar-hover-icon"
-                              title="資料庫選項"
+                              title={t('nav.databaseOptions')}
                               style={{ background: 'none', border: 'none', padding: '3px', borderRadius: '4px', color: '#64748b', display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
                             >
                               <MoreVertical size={14} />
@@ -839,7 +841,7 @@ export default function Sidebar({
                                     style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
                                   >
                                     <Pencil size={14} />
-                                    <span>重新命名</span>
+                                    <span>{t('common.rename')}</span>
                                   </div>
                                 </li>
                                 <li>
@@ -853,7 +855,7 @@ export default function Sidebar({
                                     style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
                                   >
                                     <Trash2 size={14} />
-                                    <span>刪除資料庫</span>
+                                    <span>{t('nav.deleteDatabase')}</span>
                                   </div>
                                 </li>
                               </ul>
@@ -923,7 +925,7 @@ export default function Sidebar({
                                       onShowRenameModal()
                                     }
                                   }}
-                                  title={`${table.name} (雙擊可重新命名)`}
+                                  title={`${table.name} (${t('nav.doubleClickRename')})`}
                                 >
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
                                     <TableIcon size={14} color={isActive ? '#3F6212' : '#64748b'} style={{ flexShrink: 0 }} />
@@ -936,7 +938,7 @@ export default function Sidebar({
                                   {canManageStructure && (
                                     <button
                                       className="sidebar-hover-icon"
-                                      title="資料表選項"
+                                      title={t('nav.tableOptions')}
                                       onClick={(e) => toggleMenu(tblMenuKey, e)}
                                       style={{
                                         background: 'none',
@@ -973,7 +975,7 @@ export default function Sidebar({
                                             style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
                                           >
                                             <Pencil size={14} />
-                                            <span>重新命名</span>
+                                            <span>{t('common.rename')}</span>
                                           </div>
                                         </li>
                                         {onDeleteTable && (
@@ -988,7 +990,7 @@ export default function Sidebar({
                                               style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
                                             >
                                               <Trash2 size={14} />
-                                              <span>刪除資料表</span>
+                                              <span>{t('nav.deleteTable')}</span>
                                             </div>
                                           </li>
                                         )}
@@ -1006,7 +1008,7 @@ export default function Sidebar({
                                 style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', color: '#64748b', fontSize: '12px', cursor: 'pointer', fontWeight: 500, borderRadius: '6px', marginTop: '2px' }}
                               >
                                 <Plus size={14} />
-                                <span>新增資料表</span>
+                                <span>{t('nav.createTable')}</span>
                               </div>
                             )}
                           </div>
@@ -1034,7 +1036,7 @@ export default function Sidebar({
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                 <button
                   onClick={onToggleTheme}
-                  title={theme === 'dark' ? '切換為明亮模式' : '切換為深色模式'}
+                  title={theme === 'dark' ? t('nav.toggleLightMode') : t('nav.toggleDarkMode')}
                   className="sidebar-hover-icon"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
@@ -1043,7 +1045,7 @@ export default function Sidebar({
 
                 <button
                   onClick={onToggleDarkReaderPanel}
-                  title="調整色彩與濾鏡設定"
+                  title={t('nav.filterSettings')}
                   className="sidebar-hover-icon"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
@@ -1052,7 +1054,7 @@ export default function Sidebar({
 
                 <button
                   onClick={onLogout}
-                  title="登出系統"
+                  title={t('nav.logout')}
                   className="sidebar-hover-icon"
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >

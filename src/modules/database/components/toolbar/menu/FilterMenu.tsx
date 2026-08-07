@@ -2,6 +2,7 @@ import React from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import type { TableField, FilterRule } from '@/modules/database/types'
 import { CustomSelect } from '@/components/ui/CustomSelect'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface FilterMenuProps {
   fields: TableField[]
@@ -9,18 +10,19 @@ interface FilterMenuProps {
   setFilterRules: (rules: FilterRule[]) => void
 }
 
-const OPERATOR_OPTIONS = [
-  { value: 'contains', label: '包含 (contains)' },
-  { value: 'not_contains', label: '不包含 (not contains)' },
-  { value: 'equals', label: '等於 (equals)' },
-  { value: 'not_equals', label: '不等於 (not equals)' },
-  { value: 'empty', label: '為空 (is empty)' },
-  { value: 'not_empty', label: '不為空 (is not empty)' },
-]
-
 export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuProps) {
+  const { t } = useI18n()
   const safeFields = Array.isArray(fields) ? fields : []
   const safeFilterRules = Array.isArray(filterRules) ? filterRules : []
+
+  const operatorOptions = [
+    { value: 'contains', label: t('filter.contains') },
+    { value: 'not_contains', label: t('filter.notContains') },
+    { value: 'equals', label: t('filter.equals') },
+    { value: 'not_equals', label: t('filter.notEquals') },
+    { value: 'empty', label: t('filter.isEmpty') },
+    { value: 'not_empty', label: t('filter.isNotEmpty') },
+  ]
 
   const fieldOptions = safeFields.map((f) => ({
     value: `field_${f.id}`,
@@ -30,7 +32,7 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
   if (safeFilterRules.length === 0) {
     return (
       <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '16px 0' }}>
-        此視圖尚未設定任何篩選條件
+        {t('filter.noRules')}
         <div style={{ marginTop: '12px' }}>
           <button 
             onClick={() => {
@@ -53,7 +55,7 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
             }}
           >
             <Plus size={14} />
-            新增篩選條件
+            {t('filter.addRule')}
           </button>
         </div>
       </div>
@@ -64,7 +66,9 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {safeFilterRules.map((rule, idx) => (
         <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '12px', color: '#64748b', width: '38px', fontWeight: 600, flexShrink: 0 }}>{idx === 0 ? 'Where' : 'And'}</span>
+          <span style={{ fontSize: '12px', color: '#64748b', width: '38px', fontWeight: 600, flexShrink: 0 }}>
+            {idx === 0 ? t('filter.where') : t('filter.and')}
+          </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <CustomSelect
               value={rule.fieldKey}
@@ -74,19 +78,19 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
                 newRules[idx].fieldKey = val
                 setFilterRules(newRules)
               }}
-              placeholder="選擇欄位"
+              placeholder={t('filter.selectField')}
             />
           </div>
           <div style={{ width: '135px', flexShrink: 0 }}>
             <CustomSelect
               value={rule.operator}
-              options={OPERATOR_OPTIONS}
+              options={operatorOptions}
               onChange={(val) => {
                 const newRules = [...safeFilterRules]
                 newRules[idx].operator = val as FilterRule['operator']
                 setFilterRules(newRules)
               }}
-              placeholder="運算子"
+              placeholder={t('common.select')}
             />
           </div>
           {rule.operator !== 'empty' && rule.operator !== 'not_empty' && (
@@ -99,7 +103,7 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
                 newRules[idx].value = e.target.value
                 setFilterRules(newRules)
               }}
-              placeholder="值 (Value)..."
+              placeholder={t('filter.enterValue')}
               style={{ padding: '6px 10px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', flex: 1, minWidth: '80px', outline: 'none' }}
             />
           )}
@@ -109,7 +113,7 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
               setFilterRules(newRules)
             }}
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8', borderRadius: '6px', flexShrink: 0 }}
-            title="刪除條件"
+            title={t('common.delete')}
           >
             <Trash2 size={15} />
           </button>
@@ -137,9 +141,10 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
           }}
         >
           <Plus size={14} />
-          新增篩選條件
+          {t('filter.addRule')}
         </button>
       </div>
     </div>
   )
 }
+

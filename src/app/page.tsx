@@ -21,6 +21,7 @@ import { getRolePermissions } from '@/lib/permissions'
 import { evaluateFormula } from '@/lib/formula'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
+import { useI18n } from '@/lib/i18n/i18nContext'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
 const getViewIcon = (type: string, props: any) => {
   switch (type) {
@@ -71,6 +72,7 @@ import type {
 } from '@/modules/database/types'
 
 export default function Home() {
+  const { t } = useI18n()
   // ============================================
   // Use Modular Stores (Baserow Architecture)
   // ============================================
@@ -275,7 +277,7 @@ export default function Home() {
       fetchViews(tableId)
     } catch (error) {
       console.error('Failed to load table data:', error)
-      uiActions.addToast('無法載入資料表內容', 'error')
+      uiActions.addToast(t('toasts.loadTableFailed'), 'error')
     } finally {
       setGridLoading(false)
     }

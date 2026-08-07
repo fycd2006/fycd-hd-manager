@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface TableField {
   id: number
@@ -23,6 +24,7 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({ fields, rows, onExpandRow }: CalendarViewProps) {
+  const { t, locale } = useI18n()
   const [currentDate, setCurrentDate] = useState(new Date())
   
   // Find all date fields
@@ -44,9 +46,9 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
             <rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>
           </svg>
         </div>
-        <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>無法啟用日曆視圖</h4>
+        <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>{t('calendarView.noDateFieldsTitle')}</h4>
         <p style={{ margin: '8px 0 0 0', fontSize: '13px', textAlign: 'center', maxWidth: '320px', lineHeight: 1.4 }}>
-          此資料表中目前沒有任何「日期 (Date)」型別的欄位。請先新增一個日期欄位以便將資料投射在日曆上！
+          {t('calendarView.noDateFieldsDesc')}
         </p>
       </div>
     )
@@ -123,7 +125,19 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
     }
   })
 
-  const weekdayNames = ['週日', '週一', '週二', '週三', '週四', '週五', '週六']
+  const weekdayNames = [
+    t('calendarView.weekday0'),
+    t('calendarView.weekday1'),
+    t('calendarView.weekday2'),
+    t('calendarView.weekday3'),
+    t('calendarView.weekday4'),
+    t('calendarView.weekday5'),
+    t('calendarView.weekday6')
+  ]
+
+  const monthHeader = locale === 'zh-TW' 
+    ? `${year} 年 ${month + 1} 月`
+    : `${new Date(year, month).toLocaleString('en', { month: 'long' })} ${year}`
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', minHeight: 0, position: 'relative' }}>
@@ -131,12 +145,12 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700 }}>
-            {year} 年 {month + 1} 月
+            {monthHeader}
           </h3>
 
           {/* Date Field Anchor Switcher Dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>基準日期欄位：</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('timelineView.startDate')}</span>
             <select
               value={activeDateField.id}
               onChange={e => setSelectedDateFieldId(Number(e.target.value))}
@@ -160,7 +174,7 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
 
         <div style={{ display: 'flex', gap: '6px' }}>
           <button className="toolbar-btn" onClick={handleToday} style={{ padding: '4px 10px', fontSize: '11px' }}>
-            今天
+            {t('timelineView.today')}
           </button>
           <button className="toolbar-btn" onClick={handlePrevMonth} style={{ padding: '4px 8px' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -224,7 +238,7 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
                   {day.dayNum}
                 </span>
                 {dayRows.length > 0 && (
-                  <span style={{ fontSize: '9px', color: 'var(--accent-secondary)', fontWeight: 600 }}>{dayRows.length} 筆</span>
+                  <span style={{ fontSize: '9px', color: 'var(--accent-secondary)', fontWeight: 600 }}>{dayRows.length}</span>
                 )}
               </div>
 
@@ -232,7 +246,7 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', paddingRight: '2px' }}>
                 {visibleRows.map(row => {
                   const firstKey = Object.keys(row.data)[0]
-                  const title = String(row.data[firstKey] || `列 ID: ${row.id}`)
+                  const title = String(row.data[firstKey] || t('kanbanView.rowId', { id: row.id }))
 
                   return (
                     <div
@@ -275,7 +289,7 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
                       textAlign: 'center'
                     }}
                   >
-                    +{overflowCount} 筆更多...
+                    +{overflowCount} ...
                   </button>
                 )}
               </div>
@@ -289,13 +303,13 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '12px', width: '360px', maxHeight: '480px', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 32px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
             <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)' }}>{expandedDate.dateStr} 所有項目 ({expandedDate.rows.length})</h4>
+              <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-primary)' }}>{expandedDate.dateStr} ({expandedDate.rows.length})</h4>
               <button onClick={() => setExpandedDate(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px' }}>✕</button>
             </div>
             <div style={{ padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {expandedDate.rows.map(row => {
                 const firstKey = Object.keys(row.data)[0]
-                const title = String(row.data[firstKey] || `列 ID: ${row.id}`)
+                const title = String(row.data[firstKey] || t('kanbanView.rowId', { id: row.id }))
                 return (
                   <div
                     key={row.id}

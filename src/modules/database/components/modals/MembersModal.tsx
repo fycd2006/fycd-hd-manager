@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { X, Search, UserPlus, Shield, Trash2, MoreVertical, Copy, Plus, Check, ChevronDown, Lock } from 'lucide-react'
 import type { Workspace, User } from '@/modules/database/types'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface WorkspaceMember {
   id: number
@@ -37,34 +38,35 @@ interface MembersModalProps {
   onUpdateWorkspaceMemberCount?: (count: number) => void
 }
 
-const WORKSPACE_ROLES = [
-  {
-    uid: 'admin',
-    name: 'Admin (建立者 / 系統管理員)',
-    description: '可完整配置工作區、建立與修改資料庫、資料表、欄位，並管理成員與權限設定。',
-    badgecolor: '#18181B'
-  },
-  {
-    uid: 'editor',
-    name: 'Editor (編輯者)',
-    description: '可建立與修改資料庫、資料表、欄位、檢視表及資料列，但無法管理工作區成員。',
-    badgeColor: '#059669'
-  },
-  {
-    uid: 'commenter',
-    name: 'Commenter (評論者)',
-    description: '可檢視所有資料庫內容並新增備註或評論，但無法修改欄位結構或編輯資料列。',
-    badgeColor: '#E4E4E7'
-  },
-  {
-    uid: 'viewer',
-    name: 'Viewer (僅檢視者)',
-    description: '僅可瀏覽與搜尋資料庫與檢視表內容，無法進行任何編輯、刪除或評論動作。',
-    badgeColor: '#475569'
-  }
-]
-
 export default function MembersModal({ workspace, currentUser, onClose, onToast, onUpdateWorkspaceMemberCount }: MembersModalProps) {
+  const { t } = useI18n()
+  
+  const WORKSPACE_ROLES = [
+    {
+      uid: 'admin',
+      name: t('members.roles.adminName'),
+      description: t('members.roles.adminDesc'),
+      badgeColor: '#18181B'
+    },
+    {
+      uid: 'editor',
+      name: t('members.roles.editorName'),
+      description: t('members.roles.editorDesc'),
+      badgeColor: '#059669'
+    },
+    {
+      uid: 'commenter',
+      name: t('members.roles.commenterName'),
+      description: t('members.roles.commenterDesc'),
+      badgeColor: '#E4E4E7'
+    },
+    {
+      uid: 'viewer',
+      name: t('members.roles.viewerName'),
+      description: t('members.roles.viewerDesc'),
+      badgeColor: '#475569'
+    }
+  ]
   const [activeTab, setActiveTab] = useState<'members' | 'invites' | 'teams'>('members')
   const [members, setMembers] = useState<WorkspaceMember[]>([])
   const [invites, setInvites] = useState<WorkspaceInvite[]>([])
@@ -414,7 +416,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 whiteSpace: 'nowrap'
               }}
             >
-              Members ({members.length})
+              {t('members.tabMembers')} ({members.length})
             </button>
             <button
               onClick={() => setActiveTab('invites')}
@@ -432,7 +434,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 whiteSpace: 'nowrap'
               }}
             >
-              Invites ({invites.length})
+              {t('members.tabInvites')} ({invites.length})
             </button>
             <button
               onClick={() => setActiveTab('teams')}
@@ -450,7 +452,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                 whiteSpace: 'nowrap'
               }}
             >
-              Teams ({teams.length})
+              {t('members.tabTeams')} ({teams.length})
             </button>
           </div>
 
@@ -477,7 +479,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                     <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                     <input
                       type="text"
-                      placeholder="Search..."
+                      placeholder={t('common.search')}
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       style={{ padding: '8px 12px 8px 36px', width: '100%', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}

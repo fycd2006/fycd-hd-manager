@@ -18,7 +18,7 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
   align = 'left',
   anchorRect
 }) => {
-  const { locale, locales, setLocale } = useI18n()
+  const { locale, locales, setLocale, t } = useI18n()
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -83,7 +83,7 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
     >
       <div style={{ padding: '6px 10px 4px 10px', fontSize: '11px', fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Globe size={13} color="#3F6212" />
-        <span>介面語言 (Language)</span>
+        <span>{t('common.language')}</span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>

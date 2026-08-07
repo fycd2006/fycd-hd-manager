@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react'
 import { Eye, EyeOff, Lock, User as UserIcon, Mail, ArrowRight, ShieldCheck } from 'lucide-react'
+import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface AuthScreenProps {
   authMode: 'login' | 'register'
@@ -36,6 +38,7 @@ export default function AuthScreen({
   onLogin,
   onRegister
 }: AuthScreenProps) {
+  const { t } = useI18n()
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -57,59 +60,54 @@ export default function AuthScreen({
   return (
     <div style={{
       minHeight: '100vh',
-      width: '100vw',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'radial-gradient(circle at top, #eef4ff 0%, #f8fafc 50%, #e2e8f0 100%)',
+      backgroundColor: '#fafafa',
       fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      color: '#09090b',
       padding: '20px',
       boxSizing: 'border-box'
     }}>
+      {/* Container Card */}
       <div style={{
-        backgroundColor: '#ffffff',
-        padding: '44px 40px',
-        borderRadius: '24px',
-        border: '1px solid #e4e4e7',
-        maxWidth: '440px',
         width: '100%',
-        boxShadow: '0 24px 64px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(15, 23, 42, 0.03)',
+        maxWidth: '440px',
+        backgroundColor: '#ffffff',
+        borderRadius: '24px',
+        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.06)',
+        padding: '36px 32px',
+        boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        boxSizing: 'border-box'
+        position: 'relative'
       }}>
-        
-        {/* Brand Header */}
+        {/* Language Picker in top right */}
+        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
+          <LangPicker align="right" variant="subtle" />
+        </div>
+
+        {/* Brand / Logo Header */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          textAlign: 'center',
-          marginBottom: '32px'
+          gap: '8px',
+          marginBottom: '28px',
+          textAlign: 'center'
         }}>
-          <img
-            src="/logo.jpg"
-            alt="FYCD HD Manager Logo"
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              marginBottom: '16px',
-              boxShadow: '0 8px 24px rgba(63, 98, 18,0.18)',
-              border: '3px solid #ffffff',
-              outline: '1px solid #e4e4e7'
-            }}
+          <img 
+            src="/logo.jpg" 
+            alt="FYCD HD Manager Logo" 
+            style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e4e4e7', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
           />
           <h1 style={{
-            fontSize: '26px',
+            fontSize: '22px',
             fontWeight: 800,
-            margin: '0 0 6px 0',
             color: 'var(--brand-orange-main, #EA580C)',
             letterSpacing: '-0.03em',
-            lineHeight: 1.2
+            lineHeight: 1.2,
+            margin: '4px 0 0 0'
           }}>
             FYCD HD Manager
           </h1>
@@ -119,7 +117,7 @@ export default function AuthScreen({
             margin: 0,
             fontWeight: 500
           }}>
-            雲端資料庫與團隊工作區管理系統
+            {t('auth.systemTitle')}
           </p>
         </div>
 
@@ -148,13 +146,13 @@ export default function AuthScreen({
           {/* Username Input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>
-              {authMode === 'login' ? '帳號名稱或電子郵件 (Username / Email)' : '帳號名稱 (Username)'}
+              {authMode === 'login' ? t('auth.usernameOrEmailLabel') : t('auth.usernameLabel')}
             </label>
             <div style={{ position: 'relative', width: '100%' }}>
               <UserIcon size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder={authMode === 'login' ? '請輸入帳號或 Email' : '請設定帳號名稱'}
+                placeholder={authMode === 'login' ? t('auth.enterUsernameOrEmail') : t('auth.enterUsername')}
                 value={authUsername}
                 onChange={e => onAuthUsernameChange(e.target.value)}
                 style={{
@@ -189,12 +187,12 @@ export default function AuthScreen({
           {/* Email Input (Register only) */}
           {authMode === 'register' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>電子郵件 (Email)</label>
+              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.emailLabel')}</label>
               <div style={{ position: 'relative', width: '100%' }}>
                 <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="email"
-                  placeholder="例如：user@example.com"
+                  placeholder={t('auth.enterEmail')}
                   value={authEmail}
                   onChange={e => onAuthEmailChange(e.target.value)}
                   style={{
@@ -229,12 +227,12 @@ export default function AuthScreen({
 
           {/* Password Input with Show/Hide Toggle */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>登入密碼 (Password)</label>
+            <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.passwordLabel')}</label>
             <div style={{ position: 'relative', width: '100%' }}>
               <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="請輸入密碼"
+                placeholder={t('auth.enterPassword')}
                 value={authPassword}
                 onChange={e => onAuthPasswordChange(e.target.value)}
                 style={{
@@ -266,7 +264,6 @@ export default function AuthScreen({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
                 style={{
                   position: 'absolute',
                   right: '12px',
@@ -287,26 +284,28 @@ export default function AuthScreen({
             </div>
           </div>
 
-          {/* Submit Action Button */}
+          {/* Submit Button */}
           <button
             type="submit"
             disabled={submitting}
             style={{
-              marginTop: '8px',
-              height: '46px',
-              backgroundColor: submitting ? '#93c5fd' : '#3F6212',
+              width: '100%',
+              height: '44px',
+              backgroundColor: '#3F6212',
               color: '#ffffff',
               border: 'none',
               borderRadius: '12px',
-              fontSize: '14.5px',
+              fontSize: '14px',
               fontWeight: 700,
-              cursor: submitting ? 'wait' : 'pointer',
+              cursor: submitting ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              boxShadow: submitting ? 'none' : '0 8px 20px rgba(63, 98, 18,0.25)',
-              transition: 'all 0.15s ease'
+              marginTop: '6px',
+              boxShadow: '0 4px 14px rgba(63, 98, 18, 0.25)',
+              transition: 'all 0.15s ease',
+              opacity: submitting ? 0.7 : 1
             }}
             onMouseEnter={(e) => {
               if (!submitting) {
@@ -322,15 +321,15 @@ export default function AuthScreen({
             }}
           >
             {submitting ? (
-              <span>處理中...</span>
+              <span>{t('notifications.processing')}</span>
             ) : authMode === 'login' ? (
               <>
-                <span>登入系統</span>
+                <span>{t('auth.loginTitle')}</span>
                 <ArrowRight size={16} />
               </>
             ) : (
               <>
-                <span>註冊帳號</span>
+                <span>{t('auth.registerTitle')}</span>
                 <ArrowRight size={16} />
               </>
             )}
@@ -341,7 +340,7 @@ export default function AuthScreen({
         <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: '#71717a' }}>
           {authMode === 'login' ? (
             <span>
-              還沒有帳戶？{' '}
+              {t('auth.noAccountPrompt')}{' '}
               <button
                 type="button"
                 onClick={() => onAuthModeChange('register')}
@@ -355,12 +354,12 @@ export default function AuthScreen({
                   textDecoration: 'underline'
                 }}
               >
-                立即註冊
+                {t('auth.registerNow')}
               </button>
             </span>
           ) : (
             <span>
-              已經有帳戶了？{' '}
+              {t('auth.hasAccountPrompt')}{' '}
               <button
                 type="button"
                 onClick={() => onAuthModeChange('login')}
@@ -374,7 +373,7 @@ export default function AuthScreen({
                   textDecoration: 'underline'
                 }}
               >
-                立即登入
+                {t('auth.loginNow')}
               </button>
             </span>
           )}

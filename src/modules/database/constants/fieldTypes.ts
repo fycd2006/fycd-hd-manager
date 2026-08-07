@@ -5,43 +5,43 @@
 
 import React from 'react'
 import { 
-  Type, AlignLeft, Plug, Hash, Star, CheckCircle2, Calendar, Edit3, User, 
-  Plus, UserCheck, Clock, Link2, Mail, CheckCircle, List, Phone, Calculator, 
-  Grid, Box, Glasses, Users, Tag, Binary, Lock, FileEdit, Sparkles, MessageSquare
+  Type, AlignLeft, ArrowLeftRight, Hash, Star, CheckSquare, Calendar, History, UserCheck, 
+  CalendarPlus, UserPlus, Clock, Link2, Mail, ListFilter, Phone, Calculator, 
+  Sigma, Layers, Search, Users, Fingerprint, ListOrdered, Lock, ExternalLink, Sparkles, MessageSquare 
 } from 'lucide-react'
 
 /**
- * Map all 27 field types to their corresponding Lucide icons matching Baserow
+ * Map all 27 field types to clean, modern, high-end Lucide icons matching Baserow standards
  */
 export const FIELD_TYPE_ICONS: Record<string, () => React.ReactNode> = {
   text: () => React.createElement(Type, { size: 14 }),
   long_text: () => React.createElement(AlignLeft, { size: 14 }),
-  link_row: () => React.createElement(Plug, { size: 14 }),
+  link_row: () => React.createElement(ArrowLeftRight, { size: 14 }),
   number: () => React.createElement(Hash, { size: 14 }),
   rating: () => React.createElement(Star, { size: 14 }),
-  boolean: () => React.createElement(CheckCircle2, { size: 14 }),
+  boolean: () => React.createElement(CheckSquare, { size: 14 }),
   date: () => React.createElement(Calendar, { size: 14 }),
-  last_modified_on: () => React.createElement(Edit3, { size: 14 }),
-  last_modified_by: () => React.createElement(User, { size: 14 }),
-  created_on: () => React.createElement(Plus, { size: 14 }),
-  created_by: () => React.createElement(UserCheck, { size: 14 }),
+  last_modified_on: () => React.createElement(History, { size: 14 }),
+  last_modified_by: () => React.createElement(UserCheck, { size: 14 }),
+  created_on: () => React.createElement(CalendarPlus, { size: 14 }),
+  created_by: () => React.createElement(UserPlus, { size: 14 }),
   duration: () => React.createElement(Clock, { size: 14 }),
   url: () => React.createElement(Link2, { size: 14 }),
   email: () => React.createElement(Mail, { size: 14 }),
-  single_select: () => React.createElement(CheckCircle, { size: 14 }),
-  multiple_select: () => React.createElement(List, { size: 14 }),
+  single_select: () => React.createElement(CheckSquare, { size: 14 }),
+  multiple_select: () => React.createElement(ListFilter, { size: 14 }),
   phone: () => React.createElement(Phone, { size: 14 }),
   phone_number: () => React.createElement(Phone, { size: 14 }),
   formula: () => React.createElement(Calculator, { size: 14 }),
-  count: () => React.createElement(Grid, { size: 14 }),
-  rollup: () => React.createElement(Box, { size: 14 }),
-  lookup: () => React.createElement(Glasses, { size: 14 }),
+  count: () => React.createElement(Sigma, { size: 14 }),
+  rollup: () => React.createElement(Layers, { size: 14 }),
+  lookup: () => React.createElement(Search, { size: 14 }),
   collaborator: () => React.createElement(Users, { size: 14 }),
   collaborators: () => React.createElement(Users, { size: 14 }),
-  uuid: () => React.createElement(Tag, { size: 14 }),
-  autonumber: () => React.createElement(Binary, { size: 14 }),
+  uuid: () => React.createElement(Fingerprint, { size: 14 }),
+  autonumber: () => React.createElement(ListOrdered, { size: 14 }),
   password: () => React.createElement(Lock, { size: 14 }),
-  edit_row_link: () => React.createElement(FileEdit, { size: 14 }),
+  edit_row_link: () => React.createElement(ExternalLink, { size: 14 }),
   ai_prompt: () => React.createElement(Sparkles, { size: 14 }),
   latest_comment: () => React.createElement(MessageSquare, { size: 14 }),
 }
@@ -79,7 +79,7 @@ export const FIELD_TYPE_LABELS: Record<string, string> = {
   password: 'Password',
   edit_row_link: 'Edit row link',
   ai_prompt: 'AI prompt',
-  latest_comment: '最新留言紀錄 (Latest comment)',
+  latest_comment: 'Latest comment',
 }
 
 /**

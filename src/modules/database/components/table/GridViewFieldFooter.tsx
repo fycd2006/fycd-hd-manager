@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, Check, ChevronDown } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 export interface FieldSummaryData {
   count: number
@@ -26,16 +27,16 @@ interface GridViewFieldFooterProps {
   onSelectAggregationMode: (fieldId: number, mode: string) => void
 }
 
-export const AGGREGATION_OPTIONS = [
-  { key: 'none', label: '不顯示 (None)', category: 'common' },
-  { key: 'count', label: '已填寫筆數 (Count)', category: 'common' },
-  { key: 'empty_count', label: '未填寫筆數 (Empty)', category: 'common' },
-  { key: 'percent', label: '填寫百分比 (%)', category: 'common' },
-  { key: 'sum', label: '總和 (Sum)', category: 'numeric' },
-  { key: 'avg', label: '平均值 (Average)', category: 'numeric' },
-  { key: 'min', label: '最小值 (Min)', category: 'comparable' },
-  { key: 'max', label: '最大值 (Max)', category: 'comparable' },
-  { key: 'unique', label: '不重複項目數 (Unique)', category: 'text' },
+const AGGREGATION_KEYS = [
+  { key: 'none', category: 'common' },
+  { key: 'count', category: 'common' },
+  { key: 'empty_count', category: 'common' },
+  { key: 'percent', category: 'common' },
+  { key: 'sum', category: 'numeric' },
+  { key: 'avg', category: 'numeric' },
+  { key: 'min', category: 'comparable' },
+  { key: 'max', category: 'comparable' },
+  { key: 'unique', category: 'text' },
 ]
 
 export function isFieldCompatibleWithAggregation(field: TableField, aggKey: string): boolean {
@@ -66,6 +67,7 @@ export default function GridViewFieldFooter({
   aggregationMode,
   onSelectAggregationMode,
 }: GridViewFieldFooterProps) {
+  const { t } = useI18n()
   const [popoverPos, setPopoverPos] = useState<{ x: number; y: number } | null>(null)
   const isMenuOpen = popoverPos !== null
 
@@ -74,17 +76,19 @@ export default function GridViewFieldFooter({
   const isPrimary = fieldIndex === 0
 
   let displayText = ''
-  if (currentMode === 'count') displayText = `${summaryData?.count || 0} 筆填寫`
-  else if (currentMode === 'empty_count') displayText = `${summaryData?.emptyCount || 0} 筆空白`
-  else if (currentMode === 'percent') displayText = `${summaryData?.percentFilled || 0}% 填寫率`
-  else if (currentMode === 'sum') displayText = summaryData?.sum !== null ? `Σ ${summaryData.sum}` : `${summaryData?.count || 0} 筆`
-  else if (currentMode === 'avg') displayText = summaryData?.avg !== null ? `均 ${summaryData.avg}` : `${summaryData?.count || 0} 筆`
-  else if (currentMode === 'min') displayText = summaryData?.min !== null ? `小 ${summaryData.min}` : '-'
-  else if (currentMode === 'max') displayText = summaryData?.max !== null ? `大 ${summaryData.max}` : '-'
-  else if (currentMode === 'unique') displayText = `${summaryData?.uniqueCount || 0} 項不重複`
+  if (currentMode === 'count') displayText = `${summaryData?.count || 0}`
+  else if (currentMode === 'empty_count') displayText = `${summaryData?.emptyCount || 0}`
+  else if (currentMode === 'percent') displayText = `${summaryData?.percentFilled || 0}%`
+  else if (currentMode === 'sum') displayText = summaryData?.sum !== null ? `Σ ${summaryData.sum}` : `${summaryData?.count || 0}`
+  else if (currentMode === 'avg') displayText = summaryData?.avg !== null ? `x̄ ${summaryData.avg}` : `${summaryData?.count || 0}`
+  else if (currentMode === 'min') displayText = summaryData?.min !== null ? `Min ${summaryData.min}` : '-'
+  else if (currentMode === 'max') displayText = summaryData?.max !== null ? `Max ${summaryData.max}` : '-'
+  else if (currentMode === 'unique') displayText = `${summaryData?.uniqueCount || 0}`
   else if (currentMode === 'none') displayText = ''
 
-  const availableOptions = AGGREGATION_OPTIONS.filter(opt => isFieldCompatibleWithAggregation(field, opt.key))
+  const availableOptions = AGGREGATION_KEYS
+    .filter(opt => isFieldCompatibleWithAggregation(field, opt.key))
+    .map(opt => ({ ...opt, label: t(`footer.${opt.key}`) }))
 
   return (
     <div
@@ -118,7 +122,7 @@ export default function GridViewFieldFooter({
           setPopoverPos({ x: rect.left, y: rect.top })
         }
       }}
-      title="點擊切換欄位統計方式"
+      title={t('footer.count')}
     >
       {currentMode !== 'none' && displayText ? (
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 600, color: '#18181B', fontFamily: 'monospace' }}>
@@ -127,7 +131,7 @@ export default function GridViewFieldFooter({
       ) : (
         <span style={{ fontSize: '12px', color: '#78716C', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <Plus size={12} />
-          統計
+          {t('footer.none')}
         </span>
       )}
       <ChevronDown size={12} color="#78716C" style={{ marginLeft: '4px', flexShrink: 0 }} />
@@ -157,7 +161,7 @@ export default function GridViewFieldFooter({
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ padding: '6px 12px 6px 12px', fontSize: '11px', fontWeight: 700, color: '#64748b', borderBottom: '1px solid #f1f5f9', marginBottom: '4px' }}>
-              【{field.name}】統計方式
+              {field.name}
             </div>
             {availableOptions.map((item) => (
               <div
@@ -190,3 +194,4 @@ export default function GridViewFieldFooter({
     </div>
   )
 }
+

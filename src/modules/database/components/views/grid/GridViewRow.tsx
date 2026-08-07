@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { TableField, RowColorRule } from '@/modules/database/types';
 import { GridViewCell } from './GridViewCell';
 import { GripVertical, Maximize2 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/i18nContext';
 
 interface RowData {
   id: number;
@@ -61,6 +62,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   onReorderRows,
   onNavigateCell,
 }) => {
+  const { t } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
   const [isDragTarget, setIsDragTarget] = useState(false);
 
@@ -180,7 +182,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
                 e.dataTransfer.effectAllowed = 'move';
               }}
               style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab', padding: '2px', borderRadius: '4px' }}
-              title="按住並拖曳即可移動此列"
+              title={t('gridRow.dragRowTooltip')}
             >
               <GripVertical style={{ width: '14px', height: '14px', cursor: 'grab' }} />
             </span>

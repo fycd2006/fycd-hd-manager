@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface TableField {
   id: number
@@ -35,48 +36,47 @@ export default function TimelineView({
   onUpdateCell,
   onAddRow
 }: TimelineViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 3, 1))
-  const [startFieldId, setStartFieldId] = useState<number | null>(null)
+  const { t } = useI18n()
+  const dateField = fields.find(f => f.type === 'date')
+  const firstTextField = fields.find(f => f.type === 'text') || fields[0]
+
+  const [currentDate, setCurrentDate] = useState(() => new Date())
+  const [startFieldId, setStartFieldId] = useState<number>(dateField?.id || 0)
   const [endFieldId, setEndFieldId] = useState<number | null>(null)
   const [timescale, setTimescale] = useState<'days' | 'weeks' | 'months'>('days')
 
-  const dateField = fields.find(f => f.type === 'date')
-  const firstTextField = fields.find(f => f.type === 'text')
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Navigate months
-  const handlePrevMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
-  }
-
-  const handleNextMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
-  }
-
-  const handleToday = () => {
-    setCurrentDate(new Date())
-  }
-
-  // Get total days in month
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
-  const totalDays = new Date(year, month + 1, 0).getDate()
 
-  const dayColumns = Array.from({ length: totalDays }, (_, i) => i + 1)
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1)
   
-  // Format month name
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June', 
     'July', 'August', 'September', 'October', 'November', 'December'
   ]
   const formattedMonthStr = `${monthNames[month]} ${year}`
 
-  // Today indicators
+  const handlePrevMonth = () => {
+    setCurrentDate(new Date(year, month - 1, 1))
+  }
+
+  const handleNextMonth = () => {
+    setCurrentDate(new Date(year, month + 1, 1))
+  }
+
+  const handleToday = () => {
+    setCurrentDate(new Date())
+  }
+
   const today = new Date()
   const isTodayInView = today.getFullYear() === year && today.getMonth() === month
   const todayDay = today.getDate()
 
-  // Horizontal scroll to keep middle dates visible on load
+  const totalDays = dayColumns.length
+
   useEffect(() => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollLeft = 0
@@ -91,35 +91,31 @@ export default function TimelineView({
             <rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h8"/>
           </svg>
         </div>
-        <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px' }}>無法啟用時間軸視圖</h4>
+        <h4 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '16px' }}>{t('timelineView.noDateFieldsTitle')}</h4>
         <p style={{ margin: '8px 0 0 0', fontSize: '13px', textAlign: 'center', maxWidth: '320px', lineHeight: 1.4 }}>
-          此資料表中目前沒有任何「日期 (Date)」型別的欄位。請先新增一個日期欄位以便在時間軸上排程資料！
+          {t('timelineView.noDateFieldsDesc')}
         </p>
       </div>
     )
   }
 
-  // Pre-calculate colored bars mapping
   const activeFieldKey = `field_${dateField.id}`
   const nameFieldKey = firstTextField ? `field_${firstTextField.id}` : ''
 
-  // Color options for tasks (cyclic)
   const taskColors = [
-    { bg: 'rgba(63, 98, 18, 0.08)', border: 'rgba(63, 98, 18, 0.4)', text: 'var(--accent-secondary)' }, // Indigo
-    { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.4)', text: 'var(--success)' }, // Green
-    { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.4)', text: 'var(--warning)' }, // Yellow
-    { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.4)', text: 'var(--danger)' }, // Red
+    { bg: 'rgba(63, 98, 18, 0.08)', border: 'rgba(63, 98, 18, 0.4)', text: 'var(--accent-secondary)' },
+    { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.4)', text: 'var(--success)' },
+    { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.4)', text: 'var(--warning)' },
+    { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.4)', text: 'var(--danger)' },
   ]
   const dateFields = fields.filter(f => f.type === 'date')
   const startField = fields.find(f => f.id === startFieldId) || dateField
   const endField = fields.find(f => f.id === endFieldId)
 
-  // Column width based on timescale zoom level
   const colWidth = timescale === 'days' ? 50 : timescale === 'weeks' ? 120 : 200
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', overflow: 'hidden', background: 'var(--bg-primary)', position: 'relative' }}>
-      {/* Timeline Toolbar Header */}
       <div 
         style={{ 
           display: 'flex', 
@@ -156,27 +152,26 @@ export default function TimelineView({
             className="toolbar-btn" 
             style={{ padding: '4px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.03)' }}
           >
-            今日
+            {t('timelineView.today')}
           </button>
         </div>
 
-        {/* Timescale Zoom & Date Anchor Selectors */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12px', color: 'var(--text-secondary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>檢視縮放:</span>
+            <span>{t('timelineView.zoomLevel')}</span>
             <select
               value={timescale}
               onChange={e => setTimescale(e.target.value as any)}
               style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
             >
-              <option value="days">日 (Days)</option>
-              <option value="weeks">週 (Weeks)</option>
-              <option value="months">月 (Months)</option>
+              <option value="days">{t('timelineView.days')}</option>
+              <option value="weeks">{t('timelineView.weeks')}</option>
+              <option value="months">{t('timelineView.months')}</option>
             </select>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>開始日期:</span>
+            <span>{t('timelineView.startDate')}</span>
             <select
               value={startField.id}
               onChange={e => setStartFieldId(Number(e.target.value))}
@@ -189,13 +184,13 @@ export default function TimelineView({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>結束日期:</span>
+            <span>{t('timelineView.endDate')}</span>
             <select
               value={endFieldId || ''}
               onChange={e => setEndFieldId(e.target.value ? Number(e.target.value) : null)}
               style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
             >
-              <option value="">（無 / 固定長度）</option>
+              <option value="">{t('timelineView.noEndDate')}</option>
               {dateFields.map(df => (
                 <option key={df.id} value={df.id}>{df.name}</option>
               ))}
@@ -233,12 +228,12 @@ export default function TimelineView({
               letterSpacing: '0.5px'
             }}
           >
-            列記錄名稱
+            {t('timelineView.rowRecordName')}
           </div>
           
           {rows.map((row, idx) => {
             const label = nameFieldKey ? String(row.data[nameFieldKey] || '') : ''
-            const displayLabel = label.trim() || `列記錄 ID: ${row.id}`
+            const displayLabel = label.trim() || t('timelineView.rowRecordId', { id: row.id })
             
             return (
               <div 
@@ -358,7 +353,7 @@ export default function TimelineView({
                   zIndex: 5,
                   pointerEvents: 'none'
                 }}
-                title="今日"
+                title={t('timelineView.today')}
               />
             )}
 
@@ -388,7 +383,7 @@ export default function TimelineView({
 
               const taskColor = taskColors[idx % taskColors.length]
               const label = nameFieldKey ? String(row.data[nameFieldKey] || '') : ''
-              const displayLabel = label.trim() || `列記錄 ID: ${row.id}`
+              const displayLabel = label.trim() || t('timelineView.rowRecordId', { id: row.id })
 
               return (
                 <div 
@@ -420,7 +415,7 @@ export default function TimelineView({
                           cursor: 'pointer',
                           flexShrink: 0
                         }}
-                        title="雙擊此處可在此日期重新排程此項目"
+                        title={t('timelineView.doubleClickReschedule')}
                       />
                     )
                   })}
@@ -460,7 +455,7 @@ export default function TimelineView({
                         e.currentTarget.style.transform = 'none'
                         e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'
                       }}
-                      title={`${displayLabel} (雙擊網格其他位置重新排程 | 日期: ${startDateVal || ''})`}
+                      title={t('timelineView.doubleClickGridReschedule', { label: displayLabel, date: String(startDateVal || '') })}
                     >
                       {displayLabel}
                     </div>
@@ -496,7 +491,7 @@ export default function TimelineView({
           }}
           onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
           onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-          title="新增列記錄"
+          title={t('timelineView.addRowRecord')}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
             <line x1="12" x2="12" y1="5" y2="19"/>

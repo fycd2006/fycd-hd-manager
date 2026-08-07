@@ -6,6 +6,7 @@
 import React from 'react'
 import { AuthState, AuthActions } from '../../store/useAuthStore'
 import { ThemeState } from '../../store/useThemeStore'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface AuthPageProps {
   authState: AuthState
@@ -14,12 +15,14 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ authState, authActions, themeState }) => {
+  const { t } = useI18n()
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!authState.authUsername || !authState.authPassword) return
     const result = await authActions.login(authState.authUsername, authState.authPassword)
     if (!result.ok) {
-      console.error(result.error || '登入失敗')
+      console.error(result.error || t('auth.loginFailed'))
     }
   }
 
@@ -30,7 +33,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ authState, authActions, them
     if (result.ok) {
       authActions.setAuthPassword('')
     } else {
-      console.error(result.error || '註冊失敗')
+      console.error(result.error || t('auth.registerFailed'))
     }
   }
 
@@ -48,77 +51,77 @@ export const AuthPage: React.FC<AuthPageProps> = ({ authState, authActions, them
         
         {authState.authMode === 'login' ? (
           <form onSubmit={handleLogin} className="auth-form">
-            <h2>登入</h2>
+            <h2>{t('auth.login')}</h2>
             <div className="form-group">
-              <label>用戶名</label>
+              <label>{t('auth.usernameLabel')}</label>
               <input
                 type="text"
                 value={authState.authUsername}
                 onChange={(e) => authActions.setAuthUsername(e.target.value)}
-                placeholder="請輸入用戶名"
+                placeholder={t('auth.enterUsername')}
                 required
               />
             </div>
             <div className="form-group">
-              <label>密碼</label>
+              <label>{t('auth.passwordLabel')}</label>
               <input
                 type="password"
                 value={authState.authPassword}
                 onChange={(e) => authActions.setAuthPassword(e.target.value)}
-                placeholder="請輸入密碼"
+                placeholder={t('auth.enterPassword')}
                 required
               />
             </div>
             <button type="submit" disabled={authState.authLoading}>
-              {authState.authLoading ? '載入中...' : '登入'}
+              {authState.authLoading ? t('notifications.processing') : t('auth.login')}
             </button>
             <p className="auth-switch">
-              還沒有帳號？{' '}
+              {t('auth.noAccountPrompt')}{' '}
               <button type="button" onClick={() => authActions.setAuthMode('register')}>
-                註冊
+                {t('auth.register')}
               </button>
             </p>
           </form>
         ) : (
           <form onSubmit={handleRegister} className="auth-form">
-            <h2>註冊</h2>
+            <h2>{t('auth.register')}</h2>
             <div className="form-group">
-              <label>用戶名</label>
+              <label>{t('auth.usernameLabel')}</label>
               <input
                 type="text"
                 value={authState.authUsername}
                 onChange={(e) => authActions.setAuthUsername(e.target.value)}
-                placeholder="請輸入用戶名"
+                placeholder={t('auth.enterUsername')}
                 required
               />
             </div>
             <div className="form-group">
-              <label>電子郵件</label>
+              <label>{t('auth.emailLabel')}</label>
               <input
                 type="email"
                 value={authState.authEmail}
                 onChange={(e) => authActions.setAuthEmail(e.target.value)}
-                placeholder="請輸入電子郵件"
+                placeholder={t('auth.enterEmail')}
                 required
               />
             </div>
             <div className="form-group">
-              <label>密碼</label>
+              <label>{t('auth.passwordLabel')}</label>
               <input
                 type="password"
                 value={authState.authPassword}
                 onChange={(e) => authActions.setAuthPassword(e.target.value)}
-                placeholder="請輸入密碼"
+                placeholder={t('auth.enterPassword')}
                 required
               />
             </div>
             <button type="submit" disabled={authState.authLoading}>
-              {authState.authLoading ? '載入中...' : '註冊'}
+              {authState.authLoading ? t('notifications.processing') : t('auth.register')}
             </button>
             <p className="auth-switch">
-              已有帳號？{' '}
+              {t('auth.hasAccountPrompt')}{' '}
               <button type="button" onClick={() => authActions.setAuthMode('login')}>
-                登入
+                {t('auth.login')}
               </button>
             </p>
           </form>
@@ -127,3 +130,4 @@ export const AuthPage: React.FC<AuthPageProps> = ({ authState, authActions, them
     </div>
   )
 }
+

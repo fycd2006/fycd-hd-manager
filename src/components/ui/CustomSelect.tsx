@@ -24,7 +24,7 @@ export function CustomSelect({
   value,
   options,
   onChange,
-  placeholder = '請選擇...',
+  placeholder = 'Select...',
   style,
   width = '100%',
   disabled = false,

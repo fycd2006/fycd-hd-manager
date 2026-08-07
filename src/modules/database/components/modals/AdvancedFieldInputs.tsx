@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Plus, X, Search, Check, Link as LinkIcon, Paperclip } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
 import { LatestCommentModal, parseLatestCommentEntries } from '../views/grid/GridViewCell'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 export interface AttachmentFile {
   url: string
@@ -31,13 +32,14 @@ const getTagStyle = (idx: number) => {
   return colors[idx % colors.length]
 }
 
-export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
+export function AdvancedFieldInputs({
   field,
   value,
   onChange,
   onUpdateField,
   readOnly = false,
-}) => {
+}: AdvancedFieldInputsProps) {
+  const { t } = useI18n()
   const fieldKey = `field_${field.id}`
 
   // link_row states
@@ -378,7 +380,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
               </span>
             </div>
           ) : (
-            <span style={{ color: '#94a3b8', fontSize: '13px' }}>點擊開啟歷程彈窗與新增備註...</span>
+            <span style={{ color: '#94a3b8', fontSize: '13px' }}>{t('advancedInputs.openHistory')}</span>
           )}
         </button>
 
@@ -442,7 +444,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                 <input
                   type="text"
                   autoFocus
-                  placeholder="輸入新選項..."
+                  placeholder={t('modals.optionPlaceholder')}
                   value={newTagInput}
                   onChange={(e) => setNewTagInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -478,7 +480,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                     cursor: 'pointer'
                   }}
                 >
-                  新增
+                  {t('common.add')}
                 </button>
                 <button
                   type="button"
@@ -537,7 +539,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
           if (Array.isArray(parsed)) list = parsed
           else list = [parsed]
         } catch {
-          list = [{ url: val, name: val.split('/').pop() || '附件檔案' }]
+          list = [{ url: val, name: val.split('/').pop() || t('advancedInputs.attachment') }]
         }
       } else if (typeof val === 'object') {
         list = [val]
@@ -546,11 +548,11 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
         if (typeof item === 'object' && item !== null) {
           return {
             url: String(item.url || item.path || ''),
-            name: String(item.name || item.filename || item.url?.split('/').pop() || '附件檔案'),
+            name: String(item.name || item.filename || item.url?.split('/').pop() || t('advancedInputs.attachment')),
             size: item.size
           }
         }
-        return { url: String(item), name: String(item).split('/').pop() || '附件檔案' }
+        return { url: String(item), name: String(item).split('/').pop() || t('advancedInputs.attachment') }
       }).filter(f => Boolean(f.url || f.name))
     }
 
@@ -577,7 +579,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
       <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
           {files.length === 0 ? (
-            <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>尚無附件檔</span>
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>{t('modals.noAttachments')}</span>
           ) : (
             files.map((file, idx) => (
               <div
@@ -637,7 +639,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
             }}
           >
             <Plus size={13} />
-            <span>上傳附件檔案</span>
+            <span>{t('modals.uploadAttachment')}</span>
             <input type="file" multiple onChange={handleFileUpload} style={{ display: 'none' }} />
           </label>
         )}
@@ -668,7 +670,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
         >
           {linkedItems.length === 0 ? (
             <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', paddingRight: '4px' }}>
-              未選擇關聯項目
+              {t('modals.unlinked')}
             </span>
           ) : (
             linkedItems.map(item => (
@@ -706,7 +708,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
-                    title="移除關聯"
+                    title={t('modals.removeLink')}
                   >
                     <X size={12} />
                   </button>
@@ -733,7 +735,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                 transition: 'all 0.15s ease',
               }}
               className="hover:bg-blue-100 hover:border-blue-300 active:scale-[0.96]"
-              title="選擇關聯項目"
+              title={t('modals.selectLinkItem')}
             >
               <Plus size={13} />
               <span>Choose an option</span>
@@ -780,7 +782,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   <Search size={16} color="#64748b" />
                   <input
                     type="text"
-                    placeholder="搜尋關聯列 (支援全欄位比對)..."
+                    placeholder={t('modals.searchLinkRow')}
                     value={relationSearch}
                     onChange={e => setRelationSearch(e.target.value)}
                     style={{ flex: 1, padding: '8px 14px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '10px', outline: 'none', background: '#ffffff' }}
@@ -796,15 +798,15 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                       }}
                       style={{ padding: '8px 12px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '12px', outline: 'none', background: '#ffffff', color: '#1e293b', fontWeight: 600, cursor: 'pointer' }}
                     >
-                      {allTables.map(t => (
-                        <option key={t.id} value={t.id}>關聯表: {t.name}</option>
+                      {allTables.map(item => (
+                        <option key={item.id} value={item.id}>{t('advancedInputs.linkedTable', { name: item.name })}</option>
                       ))}
                     </select>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: '#18181B', background: '#F4F4F5', padding: '4px 10px', borderRadius: '12px' }}>
-                    已選擇 {parseLinkRowIds(value).length} 項
+                    {t('modals.selectedItemsCount', { count: parseLinkRowIds(value).length })}
                   </span>
                   <button
                     onClick={() => setIsRelationOpen(false)}
@@ -819,13 +821,13 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
               <div style={{ flex: 1, overflow: 'auto', background: '#ffffff' }}>
                 {relationLoading ? (
                   <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '13px' }}>
-                    載入關聯表格資料中...
+                    {t('modals.loadingLinkData')}
                   </div>
                 ) : (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                     <thead>
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                        <th style={{ width: '48px', padding: '12px', textAlign: 'center' }}>選取</th>
+                        <th style={{ width: '48px', padding: '12px', textAlign: 'center' }}>{t('modals.selectHeader')}</th>
                         {targetFields.map(f => (
                           <th key={f.id} style={{ padding: '12px 14px', fontWeight: 600, color: '#334155', borderRight: '1px solid #f1f5f9' }}>
                             {f.name}
@@ -837,7 +839,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                       {relationRows.length === 0 ? (
                         <tr>
                           <td colSpan={targetFields.length + 1} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontStyle: 'italic' }}>
-                            找不到符合條件的關聯列
+                            {t('modals.noMatchingLinkRow')}
                           </td>
                         </tr>
                       ) : (
@@ -890,7 +892,7 @@ export const AdvancedFieldInputs: React.FC<AdvancedFieldInputsProps> = ({
                   onClick={() => setIsRelationOpen(false)}
                   style={{ padding: '8px 20px', background: '#18181B', border: 'none', borderRadius: '10px', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  確認
+                  {t('common.confirm')}
                 </button>
               </div>
             </div>

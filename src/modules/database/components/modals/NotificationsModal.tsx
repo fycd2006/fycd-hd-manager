@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { X, Bell, Mail } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 export interface NotificationItem {
   id: number
@@ -27,6 +28,7 @@ export default function NotificationsModal({
   onToast,
   onRefreshWorkspaces
 }: NotificationsModalProps) {
+  const { t } = useI18n()
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [loading, setLoading] = useState(true)
   const [processingId, setProcessingId] = useState<number | null>(null)
@@ -67,16 +69,16 @@ export default function NotificationsModal({
       })
       const data = await res.json()
       if (res.ok) {
-        onToast(data.message || (action === 'accept' ? '已成功加入工作區！' : '已拒絕邀請'), 'success')
+        onToast(data.message || (action === 'accept' ? t('notifications.acceptSuccess') : t('notifications.declineSuccess')), 'success')
         setNotifications(prev => prev.filter(n => n.id !== notificationId))
         if (action === 'accept' && onRefreshWorkspaces) {
           onRefreshWorkspaces()
         }
       } else {
-        onToast(data.error || '處理失敗', 'error')
+        onToast(data.error || t('common.error'), 'error')
       }
     } catch {
-      onToast('處理失敗，請稍後再試', 'error')
+      onToast(t('notifications.actionFailed'), 'error')
     } finally {
       setProcessingId(null)
     }
@@ -144,7 +146,7 @@ export default function NotificationsModal({
               <Bell size={18} color="#3F6212" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
-              站內通知與邀請 {unreadCount > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', backgroundColor: '#ef4444', color: '#fff', fontWeight: 800, marginLeft: '6px' }}>{unreadCount}</span>}
+              {t('notifications.title')} {unreadCount > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', backgroundColor: '#ef4444', color: '#fff', fontWeight: 800, marginLeft: '6px' }}>{unreadCount}</span>}
             </h3>
           </div>
           <button
@@ -171,12 +173,12 @@ export default function NotificationsModal({
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 24px 24px 24px' }}>
           {loading ? (
             <div style={{ padding: '36px', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>
-              載入通知中...
+              {t('notifications.loading')}
             </div>
           ) : notifications.length === 0 ? (
             <div style={{ padding: '48px 20px', textAlign: 'center', color: '#94a3b8' }}>
               <Mail size={36} color="#cbd5e1" style={{ marginBottom: '10px' }} />
-              <p style={{ margin: 0, fontSize: '13px', fontWeight: 500 }}>目前沒有未讀的邀請或通知</p>
+              <p style={{ margin: 0, fontSize: '13px', fontWeight: 500 }}>{t('notifications.empty')}</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -220,7 +222,7 @@ export default function NotificationsModal({
                           cursor: 'pointer'
                         }}
                       >
-                        拒絕
+                        {t('notifications.decline')}
                       </button>
                       <button
                         onClick={() => handleAction(n.id, 'accept')}
@@ -237,7 +239,7 @@ export default function NotificationsModal({
                           boxShadow: '0 4px 12px rgba(63, 98, 18,0.25)'
                         }}
                       >
-                        {processingId === n.id ? '處理中...' : '接受邀請'}
+                        {processingId === n.id ? t('notifications.processing') : t('notifications.accept')}
                       </button>
                     </div>
                   )}

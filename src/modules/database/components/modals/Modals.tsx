@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { 
   LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput,
-  Type, AlignLeft, Plug, Hash, Star, CheckCircle2, Edit3, User,
+  Type, AlignLeft, Plug, Hash, Star, CheckCircle2, AlertCircle, Edit3, User,
   Plus, UserCheck, Link2, Mail, FileText, CheckCircle, List, Phone,
   Calculator, Grid, Box, Glasses, Users, Tag, Binary, Lock, FileEdit,
   Sparkles, Search, ChevronDown, X, Database, Table, UploadCloud, MessageSquare
@@ -49,7 +49,7 @@ export function WorkspaceModal({ show, onClose, onSubmit }: WorkspaceModalProps)
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
-            工作區名稱
+            {t('modals.workspaceName')}
           </label>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: '#94a3b8', zIndex: 2 }}>
@@ -73,14 +73,14 @@ export function WorkspaceModal({ show, onClose, onSubmit }: WorkspaceModalProps)
               }}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：行銷專案庫、團隊知識庫..."
+              placeholder={t('modals.workspacePlaceholder')}
               autoFocus
             />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingTop: '12px', boxSizing: 'border-box' }}>
           <div className="hidden sm:flex" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-            按 <kbd style={{ padding: '2px 6px', fontSize: '11px', fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #cbd5e1' }}>↵ Enter</kbd> 送出
+            {t('common.submitEnter')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
             <Button type="secondary" size="regular" onClick={onClose}>
@@ -131,7 +131,7 @@ export function DatabaseModal({ show, onClose, onSubmit, onOpenAirtableImport }:
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
-            資料庫名稱
+            {t('modals.databaseName')}
           </label>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: '#94a3b8', zIndex: 2 }}>
@@ -155,7 +155,7 @@ export function DatabaseModal({ show, onClose, onSubmit, onOpenAirtableImport }:
               }}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：客戶資料、產品目錄..."
+              placeholder={t('modals.databasePlaceholder')}
               autoFocus
             />
           </div>
@@ -163,7 +163,7 @@ export function DatabaseModal({ show, onClose, onSubmit, onOpenAirtableImport }:
 
         {onOpenAirtableImport && (
           <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>或匯入現有外部資料庫：</span>
+            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>{t('modals.importExternal')}</span>
             <button
               type="button"
               onClick={() => {
@@ -190,14 +190,14 @@ export function DatabaseModal({ show, onClose, onSubmit, onOpenAirtableImport }:
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFF7ED'}
             >
               <UploadCloud size={16} color="#EA580C" />
-              <span>從 Airtable 匯入資料庫</span>
+              <span>{t('modals.importAirtable')}</span>
             </button>
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingTop: '12px', boxSizing: 'border-box' }}>
           <div className="hidden sm:flex" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-            按 <kbd style={{ padding: '2px 6px', fontSize: '11px', fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #cbd5e1' }}>↵ Enter</kbd> 送出
+            {t('common.submitEnter')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
             <Button type="secondary" size="regular" onClick={onClose}>
@@ -226,6 +226,7 @@ interface RenameModalProps {
 }
 
 export function RenameModal({ show, type, initialValue, onClose, onSubmit }: RenameModalProps) {
+  const { t } = useI18n()
   const [name, setName] = useState(initialValue)
   const [loading, setLoading] = useState(false)
 
@@ -248,10 +249,10 @@ export function RenameModal({ show, type, initialValue, onClose, onSubmit }: Ren
 
   const getTitle = () => {
     switch (type) {
-      case 'workspace': return '重新命名工作區'
-      case 'database': return '重新命名資料庫'
-      case 'table': return '重新命名資料表'
-      default: return '重新命名'
+      case 'workspace': return t('nav.renameWorkspace')
+      case 'database': return t('nav.renameDatabase')
+      case 'table': return t('nav.renameTable')
+      default: return t('common.rename')
     }
   }
 
@@ -260,7 +261,7 @@ export function RenameModal({ show, type, initialValue, onClose, onSubmit }: Ren
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
-            新名稱
+            {t('modals.newName')}
           </label>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: '#94a3b8', zIndex: 2 }}>
@@ -284,14 +285,14 @@ export function RenameModal({ show, type, initialValue, onClose, onSubmit }: Ren
               }}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="請輸入新名稱..."
+              placeholder={t('modals.enterNewName')}
               autoFocus
             />
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingTop: '12px', boxSizing: 'border-box' }}>
           <div className="hidden sm:flex" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-            按 <kbd style={{ padding: '2px 6px', fontSize: '11px', fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #cbd5e1' }}>↵ Enter</kbd> 儲存
+            {t('common.saveEnter')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
             <Button type="secondary" size="regular" onClick={onClose}>
@@ -327,6 +328,7 @@ const DEFAULT_VIEW_NAMES: Record<string, string> = {
 }
 
 export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
+  const { t } = useI18n()
   const [type, setType] = useState<'grid' | 'kanban' | 'gallery' | 'calendar' | 'timeline' | 'form'>('grid')
   const [name, setName] = useState<string>('表格視圖')
   const [loading, setLoading] = useState(false)
@@ -373,11 +375,11 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
   }
 
   return (
-    <Modal show={show} onClose={onClose} title="新增視圖" size="medium">
+    <Modal show={show} onClose={onClose} title={t('views.addView')} size="medium">
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '22px', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
-            視圖名稱
+            {t('views.viewName')}
           </label>
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none', color: '#94a3b8', zIndex: 2 }}>
@@ -409,16 +411,16 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', boxSizing: 'border-box' }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', margin: 0, padding: 0 }}>
-            視圖類型
+            {t('views.viewType')}
           </label>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
             {[
-              { id: 'grid', label: '表格 (Grid)', icon: LayoutGrid },
-              { id: 'kanban', label: '看板 (Kanban)', icon: Kanban },
-              { id: 'gallery', label: '畫廊 (Gallery)', icon: LayoutTemplate },
-              { id: 'calendar', label: '日曆 (Calendar)', icon: Calendar },
-              { id: 'timeline', label: '時間軸 (Timeline)', icon: Clock },
-              { id: 'form', label: '表單 (Form)', icon: FormInput }
+              { id: 'grid', label: t('views.grid'), icon: LayoutGrid },
+              { id: 'kanban', label: t('views.kanban'), icon: Kanban },
+              { id: 'gallery', label: t('views.gallery'), icon: LayoutTemplate },
+              { id: 'calendar', label: t('views.calendar'), icon: Calendar },
+              { id: 'timeline', label: t('views.timeline'), icon: Clock },
+              { id: 'form', label: t('views.form'), icon: FormInput }
             ].map(v => {
               const isSelected = type === v.id;
               const Icon = v.icon;
@@ -455,7 +457,7 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
         
         <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingTop: '12px', boxSizing: 'border-box' }}>
           <div className="hidden sm:flex" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-            按 <kbd style={{ padding: '2px 6px', fontSize: '11px', fontFamily: 'monospace', backgroundColor: '#f1f5f9', color: '#64748b', borderRadius: '4px', border: '1px solid #cbd5e1' }}>↵ Enter</kbd> 建立
+            {t('common.createEnter')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
             <Button type="secondary" size="regular" onClick={onClose}>
@@ -494,6 +496,7 @@ const getOptionColor = (str: string) => {
 }
 
 export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], editField }: FieldModalProps) {
+  const { t, locale } = useI18n()
   const [activeTab, setActiveTab] = useState<'basic' | 'advanced'>('basic')
   const [name, setName] = useState('Single line text')
   const [nameError, setNameError] = useState(false)
@@ -658,34 +661,34 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   }, [editField, show])
 
   const fieldTypeItems = [
-    { key: 'text', label: 'Single line text', icon: <Type size={16} /> },
-    { key: 'long_text', label: 'Long text', icon: <AlignLeft size={16} /> },
-    { key: 'link_row', label: 'Link to table', icon: <Plug size={16} /> },
-    { key: 'number', label: 'Number', icon: <Hash size={16} /> },
-    { key: 'rating', label: 'Rating', icon: <Star size={16} /> },
-    { key: 'boolean', label: 'Boolean', icon: <CheckCircle2 size={16} /> },
-    { key: 'date', label: 'Date', icon: <Calendar size={16} /> },
-    { key: 'last_modified_on', label: 'Last modified', icon: <Edit3 size={16} /> },
-    { key: 'last_modified_by', label: 'Last modified by', icon: <User size={16} /> },
-    { key: 'created_on', label: 'Created on', icon: <Plus size={16} /> },
-    { key: 'created_by', label: 'Created by', icon: <UserCheck size={16} /> },
-    { key: 'duration', label: 'Duration', icon: <Clock size={16} /> },
-    { key: 'url', label: 'URL', icon: <Link2 size={16} /> },
-    { key: 'email', label: 'Email', icon: <Mail size={16} /> },
-    { key: 'single_select', label: 'Single select', icon: <CheckCircle size={16} /> },
-    { key: 'multiple_select', label: 'Multiple select', icon: <List size={16} /> },
-    { key: 'phone_number', label: 'Phone number', icon: <Phone size={16} /> },
-    { key: 'formula', label: 'Formula', icon: <Calculator size={16} /> },
-    { key: 'count', label: 'Count', icon: <Grid size={16} /> },
-    { key: 'rollup', label: 'Rollup', icon: <Box size={16} /> },
-    { key: 'lookup', label: 'Lookup', icon: <Glasses size={16} /> },
-    { key: 'collaborators', label: 'Collaborators', icon: <Users size={16} /> },
-    { key: 'uuid', label: 'UUID', icon: <Tag size={16} /> },
-    { key: 'autonumber', label: 'Autonumber', icon: <Binary size={16} /> },
-    { key: 'password', label: 'Password', icon: <Lock size={16} /> },
-    { key: 'edit_row_link', label: 'Edit row link', icon: <FileEdit size={16} /> },
-    { key: 'ai_prompt', label: 'AI prompt', icon: <Sparkles size={16} /> },
-    { key: 'latest_comment', label: '最新留言紀錄 (Latest comment)', icon: <MessageSquare size={16} /> }
+    { key: 'text', label: t('fieldTypes.text'), icon: <Type size={16} /> },
+    { key: 'long_text', label: t('fieldTypes.long_text'), icon: <AlignLeft size={16} /> },
+    { key: 'link_row', label: t('fieldTypes.link_row'), icon: <Plug size={16} /> },
+    { key: 'number', label: t('fieldTypes.number'), icon: <Hash size={16} /> },
+    { key: 'rating', label: t('fieldTypes.rating'), icon: <Star size={16} /> },
+    { key: 'boolean', label: t('fieldTypes.boolean'), icon: <CheckCircle2 size={16} /> },
+    { key: 'date', label: t('fieldTypes.date'), icon: <Calendar size={16} /> },
+    { key: 'last_modified_on', label: t('fieldTypes.last_modified_on'), icon: <Edit3 size={16} /> },
+    { key: 'last_modified_by', label: t('fieldTypes.last_modified_by'), icon: <User size={16} /> },
+    { key: 'created_on', label: t('fieldTypes.created_on'), icon: <Plus size={16} /> },
+    { key: 'created_by', label: t('fieldTypes.created_by'), icon: <UserCheck size={16} /> },
+    { key: 'duration', label: t('fieldTypes.duration'), icon: <Clock size={16} /> },
+    { key: 'url', label: t('fieldTypes.url'), icon: <Link2 size={16} /> },
+    { key: 'email', label: t('fieldTypes.email'), icon: <Mail size={16} /> },
+    { key: 'single_select', label: t('fieldTypes.single_select'), icon: <CheckCircle size={16} /> },
+    { key: 'multiple_select', label: t('fieldTypes.multiple_select'), icon: <List size={16} /> },
+    { key: 'phone_number', label: t('fieldTypes.phone_number'), icon: <Phone size={16} /> },
+    { key: 'formula', label: t('fieldTypes.formula'), icon: <Calculator size={16} /> },
+    { key: 'count', label: t('fieldTypes.count'), icon: <Grid size={16} /> },
+    { key: 'rollup', label: t('fieldTypes.rollup'), icon: <Box size={16} /> },
+    { key: 'lookup', label: t('fieldTypes.lookup'), icon: <Glasses size={16} /> },
+    { key: 'collaborators', label: t('fieldTypes.collaborators'), icon: <Users size={16} /> },
+    { key: 'uuid', label: t('fieldTypes.uuid'), icon: <Tag size={16} /> },
+    { key: 'autonumber', label: t('fieldTypes.autonumber'), icon: <Binary size={16} /> },
+    { key: 'password', label: t('fieldTypes.password'), icon: <Lock size={16} /> },
+    { key: 'edit_row_link', label: t('fieldTypes.edit_row_link'), icon: <FileEdit size={16} /> },
+    { key: 'ai_prompt', label: t('fieldTypes.ai_prompt'), icon: <Sparkles size={16} /> },
+    { key: 'latest_comment', label: t('fieldTypes.latest_comment'), icon: <MessageSquare size={16} /> }
   ]
 
   const filteredTypes = fieldTypeItems.filter(ft =>
@@ -740,7 +743,6 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
   return (
     <Modal show={show} onClose={onClose} title="" size={type === 'formula' ? 'medium' : 'small'} overflowVisible={true}>
       <form onSubmit={handleSubmit}>
-        {/* Header Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
           <button
             type="button"
@@ -757,7 +759,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               fontSize: '14px'
             }}
           >
-            Basic
+            {t('fieldModal.basicTab')}
           </button>
           <button
             type="button"
@@ -774,7 +776,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               fontSize: '14px'
             }}
           >
-            Advanced
+            {t('fieldModal.advancedTab')}
           </button>
         </div>
 
@@ -789,7 +791,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                   setName(e.target.value)
                   if (nameError) setNameError(false)
                 }}
-                placeholder="Name"
+                placeholder={t('fieldModal.namePlaceholder')}
                 autoFocus
                 style={{
                   width: '100%',
@@ -802,7 +804,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               />
               {nameError && (
                 <div style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px' }}>
-                  請輸入欄位名稱 (Field name is required)
+                  {t('fieldModal.nameRequired')}
                 </div>
               )}
             </div>
@@ -918,12 +920,12 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             {type === 'number' && (
               <div style={{ marginBottom: '16px', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#334155', borderBottom: '1px solid #e2e8f0', paddingBottom: '6px' }}>
-                  數字欄位設定 (Number Options)
+                  {t('modals.numberOptions')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
-                      小數位數 (Decimal Places)
+                      {t('modals.decimalPlaces')}
                     </label>
                     <select
                       value={numberDecimalPlaces}
@@ -940,15 +942,15 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
-                      格式 (Format)
+                      {t('modals.format')}
                     </label>
                     <select
                       value={numberFormat}
                       onChange={(e) => setNumberFormat(e.target.value)}
                       style={{ width: '100%', padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: '4px', fontSize: '13px', background: '#fff' }}
                     >
-                      <option value="thousands">千分位 (1,234.56)</option>
-                      <option value="standard">一般數字 (1234.56)</option>
+                      <option value="thousands">{t('modals.thousandsSeparator')}</option>
+                      <option value="standard">{t('modals.standardNumber')}</option>
                     </select>
                   </div>
                 </div>
@@ -1041,14 +1043,14 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>
-                    Target Table (目標表格)
+                    {t('fieldModal.targetField')}
                   </label>
                   <select
                     value={targetTableId || ''}
                     onChange={(e) => setTargetTableId(Number(e.target.value) || null)}
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
                   >
-                    <option value="">Select a table...</option>
+                    <option value="">{t('fieldModal.selectTable')}</option>
                     {tables?.map((t) => (
                       <option key={t.id} value={t.id}>{t.name}</option>
                     ))}
@@ -1063,7 +1065,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                       onChange={(e) => setCreateRelatedField(e.target.checked)}
                       style={{ width: '16px', height: '16px', borderRadius: '4px', cursor: 'pointer' }}
                     />
-                    <span>自動在目標表格建立反向關聯欄位 (Create reverse link field)</span>
+                    <span>{t('fieldModal.createReverseLink')}</span>
                   </label>
 
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
@@ -1073,7 +1075,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                       onChange={(e) => setAllowMultiple(e.target.checked)}
                       style={{ width: '16px', height: '16px', borderRadius: '4px', cursor: 'pointer' }}
                     />
-                    <span>允許關聯多筆資料 (Allow multiple linked rows)</span>
+                    <span>{t('fieldModal.allowMultipleLinked')}</span>
                   </label>
                 </div>
               </div>
@@ -1084,7 +1086,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
-                    Relation Field (關聯欄位)
+                    {t('fieldModal.relationField')}
                   </label>
                   <select
                     value={relationFieldId || ''}
@@ -1094,7 +1096,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                     }}
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
                   >
-                    <option value="">Select relation field...</option>
+                    <option value="">{t('fieldModal.selectRelationField')}</option>
                     {fields?.filter(f => f.type === 'link_row').map(f => (
                       <option key={f.id} value={f.id}>{f.name}</option>
                     ))}
@@ -1103,7 +1105,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
 
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
-                    Target Field (目標欄位)
+                    {t('fieldModal.targetField')}
                   </label>
                   <select
                     value={targetFieldId || ''}
@@ -1111,7 +1113,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                     style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px' }}
                     disabled={!relationFieldId || fetchedTargetFields.length === 0}
                   >
-                    <option value="">Select target field...</option>
+                    <option value="">{t('fieldModal.selectTargetField')}</option>
                     {fetchedTargetFields.map((f: any) => (
                       <option key={f.id} value={f.id}>{f.name}</option>
                     ))}
@@ -1121,7 +1123,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                 {type === 'rollup' && (
                   <div>
                     <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '4px', display: 'block' }}>
-                      Rollup Function
+                      {t('fieldModal.rollupFunction')}
                     </label>
                     <select
                       value={rollupFunction}
@@ -1144,12 +1146,12 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569' }}>
-                    公式表達式 (Formula Expression)
+                    {t('fieldModal.formulaExpression')}
                   </label>
                   {formula.trim() && (
                     <span style={{
                       fontSize: '11px',
-                      padding: '2px 8px',
+                      padding: '3px 8px',
                       borderRadius: '12px',
                       fontWeight: 600,
                       background: formulaSyntaxError ? '#fee2e2' : '#dcfce7',
@@ -1158,7 +1160,17 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                       alignItems: 'center',
                       gap: '4px'
                     }}>
-                      {formulaSyntaxError ? `⚠️ 語法錯誤: ${formulaSyntaxError}` : '✓ 語法正確 (Valid)'}
+                      {formulaSyntaxError ? (
+                        <>
+                          <AlertCircle size={13} style={{ color: '#ef4444' }} />
+                          <span>{t('fieldModal.formulaSyntaxError', { error: formulaSyntaxError })}</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={13} style={{ color: '#166534' }} />
+                          <span>{t('fieldModal.formulaSyntaxValid')}</span>
+                        </>
+                      )}
                     </span>
                   )}
                 </div>
@@ -1167,7 +1179,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                   ref={formulaTextareaRef}
                   value={formula}
                   onChange={(e) => setFormula(e.target.value)}
-                  placeholder="輸入公式，例如: field_1 + field_2 或 CONCAT(field_1, ' ', field_2)"
+                  placeholder={t('fieldModal.formulaPlaceholder')}
                   rows={3}
                   style={{
                     width: '100%',
@@ -1200,7 +1212,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         cursor: 'pointer'
                       }}
                     >
-                      可用欄位 (Fields)
+                      {t('fieldModal.availableFields')}
                     </button>
                     <button
                       type="button"
@@ -1215,7 +1227,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         cursor: 'pointer'
                       }}
                     >
-                      公式庫 (Functions)
+                      {t('fieldModal.formulaFunctions')}
                     </button>
                     <button
                       type="button"
@@ -1230,7 +1242,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         cursor: 'pointer'
                       }}
                     >
-                      運算子 (Operators)
+                      {t('fieldModal.operators')}
                     </button>
                   </div>
 
@@ -1296,7 +1308,7 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                             }}
                           />
                         </div>
-                        {getSupportedFunctions()
+                        {getSupportedFunctions(locale)
                           .map(cat => ({
                             ...cat,
                             funcs: cat.funcs.map(f => ({ ...f, category: cat.category })).filter(fn =>
@@ -1462,8 +1474,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
                         </div>
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '12px' }}>
-                          <span style={{ fontSize: '16px' }}>💡</span>
-                          <span>將滑鼠懸停於上方公式庫中的任何函數，或點擊函數，即可在此處查看詳細語法與範例說明。</span>
+                          <Sparkles size={16} style={{ color: '#3F6212', flexShrink: 0 }} />
+                          <span>{t('fieldModal.formulaHoverInfo')}</span>
                         </div>
                       )}
                     </div>
@@ -1492,10 +1504,10 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         {/* Footer Actions */}
         <div className="actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
           <Button type="secondary" size="large" onClick={onClose}>
-            Cancel
+            {t('fieldModal.cancel')}
           </Button>
           <Button type="primary" size="large" onClick={handleSubmit} loading={loading}>
-            {loading ? 'Creating...' : 'Create'}
+            {loading ? '...' : editField ? t('fieldModal.save') : t('fieldModal.create')}
           </Button>
         </div>
       </form>

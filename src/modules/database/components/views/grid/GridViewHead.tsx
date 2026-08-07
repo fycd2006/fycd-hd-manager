@@ -27,6 +27,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
+import { useI18n } from '@/lib/i18n/i18nContext';
 
 const FIELD_TYPE_ICONS: Record<string, React.ElementType> = {
   text: Type,
@@ -84,6 +85,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   onResizeColumnEnd,
   onReorderFields,
 }) => {
+  const { t } = useI18n();
   const [draggedFieldId, setDraggedFieldId] = React.useState<number | null>(null);
   const [dragOverFieldId, setDragOverFieldId] = React.useState<number | null>(null);
   const [resizingFieldId, setResizingFieldId] = React.useState<number | null>(null);
@@ -115,7 +117,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
           cursor: 'pointer',
           userSelect: 'none',
         }}
-        title="全選 / 取消全選所有列"
+        title={t('gridHead.selectAllTooltip')}
       >
 
         <input
@@ -366,7 +368,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
         onClick={onAddField}
         onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
         onMouseLeave={(e) => (e.currentTarget.style.background = '#f8fafc')}
-        title="新增欄位 (Add field)"
+        title={t('gridHead.addFieldTooltip')}
       >
         <Plus style={{ width: '15px', height: '15px', color: '#64748b' }} />
       </div>

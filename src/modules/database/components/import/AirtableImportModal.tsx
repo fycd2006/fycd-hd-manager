@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, UploadCloud, Link as LinkIcon, Key, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface AirtableImportModalProps {
   isOpen: boolean
@@ -10,6 +11,7 @@ interface AirtableImportModalProps {
 }
 
 export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspaceId }: AirtableImportModalProps) {
+  const { t } = useI18n()
   const [tab, setTab] = useState<'url' | 'token' | 'json'>('url')
   const [shareUrl, setShareUrl] = useState('')
   const [token, setToken] = useState('')
@@ -44,25 +46,25 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
 
     try {
       if (!activeWorkspaceId) {
-        throw new Error('未選擇作用中的工作區，請先選擇或建立工作區。')
+        throw new Error(t('import.noWorkspaceError'))
       }
 
       let bodyData: any = { workspaceId: activeWorkspaceId }
 
       if (tab === 'url') {
-        if (!shareUrl.trim()) throw new Error('請輸入 Airtable 共享網址')
+        if (!shareUrl.trim()) throw new Error(t('import.enterShareUrl'))
         bodyData = { ...bodyData, shareUrl: shareUrl.trim() }
       } else if (tab === 'token') {
-        if (!token.trim()) throw new Error('請輸入 Personal Access Token (PAT)')
-        if (!shareUrl.trim()) throw new Error('請輸入 Base ID 或網址')
+        if (!token.trim()) throw new Error(t('import.enterToken'))
+        if (!shareUrl.trim()) throw new Error(t('import.enterBaseId'))
         bodyData = { ...bodyData, token: token.trim(), shareUrl: shareUrl.trim() }
       } else if (tab === 'json') {
-        if (!jsonText.trim()) throw new Error('請貼上或選擇 JSON 結構內容')
+        if (!jsonText.trim()) throw new Error(t('import.enterJson'))
         try {
           const parsed = JSON.parse(jsonText)
           bodyData = { ...bodyData, rawPayload: parsed }
         } catch {
-          throw new Error('無效 JSON 格式')
+          throw new Error(t('import.invalidJson'))
         }
       }
 
@@ -77,14 +79,14 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || '匯入失敗')
+        throw new Error(data.error || t('import.importFailed'))
       }
 
       setProgress(100)
       setResultStats(data.stats)
       if (onSuccess) onSuccess(data)
     } catch (err: any) {
-      setError(err.message || '匯入過程發生未知錯誤')
+      setError(err.message || t('import.importUnknownError'))
     } finally {
       setLoading(false)
     }
@@ -160,10 +162,10 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#0f172a' }}>
-                從 Airtable 匯入
+                {t('import.title')}
               </h3>
               <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                匯入 Airtable 基礎架構、欄位型別與資料集
+                {t('import.subtitle')}
               </p>
             </div>
           </div>
@@ -188,16 +190,16 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
         {/* Navigation Tabs */}
         <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', padding: '4px 16px 0 16px', gap: '8px' }}>
           {[
-            { id: 'url', label: '共享網址', icon: LinkIcon },
-            { id: 'token', label: 'API Key / Token', icon: Key },
-            { id: 'json', label: 'JSON 結構上傳', icon: FileText },
-          ].map((t) => {
-            const Icon = t.icon
-            const active = tab === t.id
+            { id: 'url', label: t('import.tabUrl'), icon: LinkIcon },
+            { id: 'token', label: t('import.tabToken'), icon: Key },
+            { id: 'json', label: t('import.tabJson'), icon: FileText },
+          ].map((tItem) => {
+            const Icon = tItem.icon
+            const active = tab === tItem.id
             return (
               <button
-                key={t.id}
-                onClick={() => { setTab(t.id as any); setError(null); setResultStats(null); }}
+                key={tItem.id}
+                onClick={() => { setTab(tItem.id as any); setError(null); setResultStats(null); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -214,7 +216,7 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
                 }}
               >
                 <Icon size={14} />
-                {t.label}
+                {tItem.label}
               </button>
             )
           })}
@@ -257,10 +259,10 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
             >
               <CheckCircle2 size={36} color="#16a34a" />
               <h4 style={{ margin: 0, fontSize: '15px', color: '#15803d', fontWeight: 600 }}>
-                Airtable 資料匯入成功！
+                {t('import.successTitle')}
               </h4>
               <p style={{ margin: 0, fontSize: '13px', color: '#166534' }}>
-                成功建立 {resultStats.tableCount} 個表格與 {resultStats.rowCount} 筆紀錄。
+                {t('import.successStats', { tables: resultStats.tableCount, rows: resultStats.rowCount })}
               </p>
             </div>
           ) : (
@@ -278,15 +280,15 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
                       lineHeight: '1.5',
                     }}
                   >
-                    💡 此方式不需要 API Key，但需要該 Base 已設定為公開共享（Share base → Create a shared link）。
+                    💡 {t('import.shareUrlHint')}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#334155', marginBottom: '6px' }}>
-                      Airtable Shared Base URL
+                      {t('import.shareUrlLabel')}
                     </label>
                     <input
                       type="text"
-                      placeholder="https://airtable.com/appXXX/shrXXX 或 https://airtable.com/shrXXX"
+                      placeholder={t('import.shareUrlPlaceholder')}
                       value={shareUrl}
                       onChange={(e) => setShareUrl(e.target.value)}
                       style={{
@@ -298,9 +300,6 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
                         outline: 'none',
                       }}
                     />
-                    <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
-                      貼上 Airtable 的「Share base」或「Share view」公開連結
-                    </span>
                   </div>
                 </div>
               )}
@@ -309,11 +308,11 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#334155', marginBottom: '6px' }}>
-                      Personal Access Token (PAT)
+                      {t('import.tokenLabel')}
                     </label>
                     <input
                       type="password"
-                      placeholder="pat..."
+                      placeholder={t('import.tokenPlaceholder')}
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
                       style={{
@@ -325,14 +324,17 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
                         outline: 'none',
                       }}
                     />
+                    <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                      {t('import.tokenHint')}
+                    </span>
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#334155', marginBottom: '6px' }}>
-                      Base ID (例如 appXXXXXXXXXXXXXX)
+                      {t('import.baseIdLabel')}
                     </label>
                     <input
                       type="text"
-                      placeholder="app..."
+                      placeholder={t('import.baseIdPlaceholder')}
                       value={shareUrl}
                       onChange={(e) => setShareUrl(e.target.value)}
                       style={{
@@ -351,11 +353,11 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
               {tab === 'json' && (
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#334155', marginBottom: '6px' }}>
-                    Airtable JSON 結構內容
+                    {t('import.jsonLabel')}
                   </label>
                   <textarea
                     rows={5}
-                    placeholder='{"tables": [{ "name": "Table 1", "fields": [...], "records": [...] }]}'
+                    placeholder={t('import.jsonPlaceholder')}
                     value={jsonText}
                     onChange={(e) => setJsonText(e.target.value)}
                     style={{
@@ -375,7 +377,7 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
               {loading && (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>
-                    <span>正在解析 Airtable 結構與紀錄...</span>
+                    <span>{t('import.importing')}</span>
                     <span>{progress}%</span>
                   </div>
                   <div style={{ width: '100%', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
@@ -418,7 +420,7 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
               cursor: 'pointer',
             }}
           >
-            {resultStats ? '關閉' : '取消'}
+            {resultStats ? t('common.close') : t('common.cancel')}
           </button>
           {!resultStats && (
             <button
@@ -439,7 +441,7 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
               }}
             >
               {loading && <Loader2 size={14} className="animate-spin" />}
-              {loading ? '匯入中...' : '開始匯入'}
+              {loading ? t('import.importing') : t('import.startImport')}
             </button>
           )}
         </div>
@@ -452,3 +454,4 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
   }
   return modalContent
 }
+

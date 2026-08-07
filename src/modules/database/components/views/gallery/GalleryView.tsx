@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface TableField {
   id: number
@@ -31,14 +32,15 @@ export default function GalleryView({
   rows,
   onExpandRow,
 }: GalleryViewProps) {
+  const { t } = useI18n()
   const firstTextField = fields.find(f => f.type === 'text')
 
   if (rows.length === 0) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <h3>畫廊尚無資料</h3>
+        <h3>{t('galleryView.noDataTitle')}</h3>
         <p style={{ marginTop: '8px', fontSize: '13px' }}>
-          建立一些列數據來在畫廊中顯示。
+          {t('galleryView.noDataDesc')}
         </p>
       </div>
     )
@@ -61,7 +63,7 @@ export default function GalleryView({
       {rows.map(row => {
         // Title field
         const titleKey = firstTextField ? `field_${firstTextField.id}` : Object.keys(row.data)[0]
-        const title = row.data[titleKey] || `列 ID: ${row.id}`
+        const title = row.data[titleKey] || t('kanbanView.rowId', { id: row.id })
 
         return (
           <div

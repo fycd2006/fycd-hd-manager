@@ -1,6 +1,7 @@
 import React from 'react'
 import { Check } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface SortMenuProps {
   fields: TableField[]
@@ -21,12 +22,13 @@ export function SortMenu({
   activeViewId,
   saveViewConfig
 }: SortMenuProps) {
+  const { t } = useI18n()
   const safeFields = Array.isArray(fields) ? fields : []
 
   return (
     <div className="sortings">
       <div className="sortings__empty" style={{ padding: '4px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-        <div style={{ marginBottom: '8px', textAlign: 'left', fontWeight: 600 }}>在此視圖中的記錄將不會被排序</div>
+        <div style={{ marginBottom: '8px', textAlign: 'left', fontWeight: 600 }}>{t('sort.noSort')}</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '8px', maxHeight: '180px', overflowY: 'auto' }}>
           {safeFields.map(f => {
             const key = `field_${f.id}`
@@ -70,7 +72,7 @@ export function SortMenu({
               }}
               style={{ flex: 1, padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
             >
-              A-Z
+              {t('sort.asc')}
             </button>
             <button
               className={`button button--small ${sortOrder === 'desc' ? 'button--primary' : 'button--secondary'}`}
@@ -80,7 +82,7 @@ export function SortMenu({
               }}
               style={{ flex: 1, padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
             >
-              Z-A
+              {t('sort.desc')}
             </button>
           </div>
         )}
@@ -88,3 +90,4 @@ export function SortMenu({
     </div>
   )
 }
+

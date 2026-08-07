@@ -11,6 +11,7 @@ import {
   UploadCloud
 } from 'lucide-react'
 import type { TableView } from '@/modules/database/types'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface ViewContextMenuProps {
   view: TableView
@@ -35,23 +36,15 @@ export function ViewContextMenu({
   onRenameView,
   onDeleteView,
 }: ViewContextMenuProps) {
+  const { t } = useI18n()
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const viewTypeMap: Record<string, string> = {
-    grid: '表格視圖',
-    kanban: '看板視圖',
-    gallery: '畫廊視圖',
-    calendar: '日曆視圖',
-    timeline: '時間軸視圖',
-    form: '表單視圖'
-  }
-
-  const viewTypeLabel = viewTypeMap[view.type || 'grid'] || '視圖'
+  const viewTypeLabel = t(`viewContextMenu.${view.type || 'grid'}` as any)
 
   const menuItems = [
     ...(onRenameView ? [{
       id: 'rename',
-      label: '重命名視圖',
+      label: t('viewContextMenu.rename'),
       icon: Pencil,
       onClick: () => {
         onRenameView()
@@ -60,7 +53,7 @@ export function ViewContextMenu({
     }] : []),
     ...(onDuplicateView ? [{
       id: 'duplicate',
-      label: '複製視圖',
+      label: t('viewContextMenu.duplicate'),
       icon: Copy,
       onClick: () => {
         onDuplicateView()
@@ -69,7 +62,7 @@ export function ViewContextMenu({
     }] : []),
     ...(onExportView ? [{
       id: 'export',
-      label: '匯出 CSV 資料',
+      label: t('viewContextMenu.exportCsv'),
       icon: Upload,
       onClick: () => {
         onExportView()
@@ -78,7 +71,7 @@ export function ViewContextMenu({
     }] : []),
     ...(onImportFile ? [{
       id: 'import',
-      label: '匯入 CSV 資料',
+      label: t('viewContextMenu.importCsv'),
       icon: Download,
       onClick: () => {
         onImportFile()
@@ -88,7 +81,7 @@ export function ViewContextMenu({
 
     ...(onDeleteView ? [{
       id: 'delete',
-      label: '刪除視圖',
+      label: t('viewContextMenu.delete'),
       icon: Trash2,
       danger: true,
       onClick: () => {
@@ -125,12 +118,14 @@ export function ViewContextMenu({
         ref={menuRef}
         style={{
           ...style,
-          width: '200px',
-          backgroundColor: '#ffffff',
-          borderRadius: '10px',
-          border: '1px solid #e2e8f0',
-          boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
-          padding: '6px 0',
+          width: '210px',
+          backgroundColor: 'rgba(255, 255, 255, 0.96)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderRadius: '12px',
+          border: '1px solid rgba(226, 232, 240, 0.85)',
+          boxShadow: '0 20px 35px -10px rgba(15, 23, 42, 0.16), 0 8px 15px -6px rgba(15, 23, 42, 0.08)',
+          padding: '4px',
           userSelect: 'none',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -138,10 +133,12 @@ export function ViewContextMenu({
         {/* Header */}
         <div
           style={{
-            padding: '8px 14px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: '#64748b',
+            padding: '8px 10px 6px',
+            fontSize: '11px',
+            fontWeight: 700,
+            color: '#94a3b8',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
             borderBottom: '1px solid #f1f5f9',
             marginBottom: '4px',
           }}
@@ -150,7 +147,7 @@ export function ViewContextMenu({
         </div>
 
         {/* Menu List */}
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {menuItems.map((item) => {
             const Icon = item.icon
             return (
@@ -161,20 +158,23 @@ export function ViewContextMenu({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                  padding: '8px 14px',
+                  padding: '7px 10px',
+                  borderRadius: '6px',
                   fontSize: '13px',
-                  color: item.danger ? '#dc2626' : '#334155',
+                  color: item.danger ? '#ef4444' : '#334155',
                   cursor: 'pointer',
-                  transition: 'background 0.15s ease',
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = item.danger ? '#fef2f2' : '#f8fafc'
+                  e.currentTarget.style.backgroundColor = item.danger ? '#fef2f2' : '#f1f5f9'
+                  if (!item.danger) e.currentTarget.style.color = '#0f172a'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent'
+                  e.currentTarget.style.color = item.danger ? '#ef4444' : '#334155'
                 }}
               >
-                <Icon size={15} style={{ color: item.danger ? '#dc2626' : '#64748b', flexShrink: 0 }} />
+                <Icon size={15} style={{ color: item.danger ? '#ef4444' : '#64748b', strokeWidth: 1.75, flexShrink: 0 }} />
                 <span style={{ fontWeight: 500 }}>{item.label}</span>
               </div>
             )

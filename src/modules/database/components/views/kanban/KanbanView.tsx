@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface TableField {
   id: number
@@ -37,6 +38,7 @@ export default function KanbanView({
   onExpandRow,
   readOnly = false
 }: KanbanViewProps) {
+  const { t } = useI18n()
   const [isMounted, setIsMounted] = useState(false)
   
   useEffect(() => {
@@ -56,9 +58,9 @@ export default function KanbanView({
   if (singleSelectFields.length === 0) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <h3>沒有可用的單選欄位</h3>
+        <h3>{t('kanbanView.noSingleSelectTitle')}</h3>
         <p style={{ marginTop: '8px', fontSize: '13px' }}>
-          看板視圖需要至少一個「單選 (single_select)」類型的欄位來進行卡片分組。
+          {t('kanbanView.noSingleSelectDesc')}
         </p>
       </div>
     )
@@ -131,7 +133,7 @@ export default function KanbanView({
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', overflow: 'hidden' }}>
       {/* Select Field Selector */}
       <div style={{ padding: '12px 24px', background: 'var(--bg-toolbar)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>分組欄位：</span>
+        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t('kanbanView.groupField')}</span>
         <select
           value={selectedFieldId || ''}
           onChange={e => setSelectedFieldId(Number(e.target.value))}
@@ -157,7 +159,7 @@ export default function KanbanView({
           }}
         >
           {columns.map(col => {
-            const colTitle = col === '__unassigned__' ? '未指定狀態' : col
+            const colTitle = col === '__unassigned__' ? t('kanbanView.unassigned') : col
             const colRows = groupedRows[col] || []
 
             return (
@@ -222,7 +224,7 @@ export default function KanbanView({
                         // Get first text field or default value to display as title
                         const firstTextField = fields.find(f => f.type === 'text')
                         const cardTitleKey = firstTextField ? `field_${firstTextField.id}` : Object.keys(row.data)[0]
-                        const cardTitle = row.data[cardTitleKey] || `列 ID: ${row.id}`
+                        const cardTitle = row.data[cardTitleKey] || t('kanbanView.rowId', { id: row.id })
 
                         return (
                           <Draggable key={row.id} draggableId={`card-${row.id}`} index={index}>

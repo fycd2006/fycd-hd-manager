@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface TableField {
   id: number
@@ -32,17 +33,19 @@ export default function FormView({
   tableName,
   fields,
 }: FormViewProps) {
+  const { t } = useI18n()
+
   const submittableFieldIds = fields
     .filter(f => !['link_row', 'autonumber', 'formula', 'lookup', 'rollup', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by'].includes(f.type))
     .map(f => f.id)
 
   const [settings, setSettings] = useState<FormSettings>(() => {
     const defaults: FormSettings = {
-      description: '請填寫以下表單以提交資料。',
+      description: t('formView.defaultDescription'),
       activeFieldIds: submittableFieldIds,
       requiredFieldIds: [],
       submitAction: 'message',
-      successMessage: '感謝您的填寫！資料已成功送出。',
+      successMessage: t('formView.defaultSuccessMessage'),
       redirectUrl: ''
     }
 
@@ -59,7 +62,8 @@ export default function FormView({
         requiredFieldIds: parsed.requiredFieldIds ?? defaults.requiredFieldIds,
         submitAction: parsed.submitAction ?? defaults.submitAction,
         successMessage: parsed.successMessage ?? defaults.successMessage,
-        redirectUrl: parsed.redirectUrl ?? defaults.redirectUrl
+        redirectUrl: parsed.redirectUrl ?? defaults.redirectUrl,
+        placeholders: parsed.placeholders ?? {}
       }
     } catch {
       return defaults
@@ -68,39 +72,37 @@ export default function FormView({
 
   const saveSettings = (newSettings: FormSettings) => {
     setSettings(newSettings)
-    localStorage.setItem(`form-view-settings-${tableId}`, JSON.stringify(newSettings))
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`form-view-settings-${tableId}`, JSON.stringify(newSettings))
+    }
   }
 
   // Toggle field visibility on form
   const handleToggleFieldActive = (fieldId: number) => {
-    let updatedActive = [...settings.activeFieldIds]
-    if (updatedActive.includes(fieldId)) {
-      updatedActive = updatedActive.filter(id => id !== fieldId)
-    } else {
-      updatedActive.push(fieldId)
-    }
-    saveSettings({ ...settings, activeFieldIds: updatedActive })
+    const currentActive = settings.activeFieldIds
+    const nextActive = currentActive.includes(fieldId)
+      ? currentActive.filter(id => id !== fieldId)
+      : [...currentActive, fieldId]
+    saveSettings({ ...settings, activeFieldIds: nextActive })
   }
 
   // Toggle field required state on form
   const handleToggleFieldRequired = (fieldId: number) => {
-    let updatedRequired = [...settings.requiredFieldIds]
-    if (updatedRequired.includes(fieldId)) {
-      updatedRequired = updatedRequired.filter(id => id !== fieldId)
-    } else {
-      updatedRequired.push(fieldId)
-    }
-    saveSettings({ ...settings, requiredFieldIds: updatedRequired })
+    const currentReq = settings.requiredFieldIds
+    const nextReq = currentReq.includes(fieldId)
+      ? currentReq.filter(id => id !== fieldId)
+      : [...currentReq, fieldId]
+    saveSettings({ ...settings, requiredFieldIds: nextReq })
   }
 
   const submittableFields = fields.filter(f => !['link_row', 'autonumber', 'formula', 'lookup', 'rollup', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by'].includes(f.type))
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 100px)', overflow: 'hidden', background: 'var(--bg-primary)', width: '100%' }}>
+    <div style={{ display: 'flex', width: '100%', height: 'calc(100vh - 100px)', overflow: 'hidden', background: 'var(--bg-primary)' }}>
       {/* Left panel: Fields list configuration */}
       <div 
         style={{ 
-          width: '280px', 
+          width: '320px', 
           borderRight: '1px solid var(--border-color)', 
           background: 'var(--bg-secondary)', 
           display: 'flex', 
@@ -109,8 +111,8 @@ export default function FormView({
         }}
       >
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
-          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>表單欄位設定</h4>
-          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>選擇要加入此公開表單的欄位：</p>
+          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('formView.fieldSettingsTitle')}</h4>
+          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>{t('formView.fieldSettingsSub')}</p>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -151,7 +153,7 @@ export default function FormView({
           })}
           {submittableFields.length === 0 && (
             <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-              此表尚無可填寫欄位
+              {t('formView.noFieldsAvailable')}
             </div>
           )}
         </div>
@@ -161,7 +163,7 @@ export default function FormView({
           <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', background: 'rgba(245, 158, 11, 0.04)', border: '1px solid rgba(245, 158, 11, 0.15)', borderRadius: '8px', padding: '12px' }}>
             <span style={{ fontSize: '15px', color: 'var(--accent-secondary)' }}>💡</span>
             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              <strong>您知道嗎？</strong> 您可以藉由公開表單網址 prefill 參數（例如 <code>?prefill_欄位名=內容</code>）來預先填寫或隱藏特定表單欄位！
+              <strong>{t('formView.prefillTipTitle')}</strong> {t('formView.prefillTipContent')}
             </div>
           </div>
         </div>
@@ -190,7 +192,7 @@ export default function FormView({
             <textarea
               value={settings.description}
               onChange={e => saveSettings({ ...settings, description: e.target.value })}
-              placeholder="請填寫表單說明描述..."
+              placeholder={t('formView.descriptionPlaceholder')}
               style={{
                 width: '100%',
                 background: 'transparent',
@@ -230,7 +232,7 @@ export default function FormView({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ cursor: 'grab', color: 'var(--text-muted)', fontSize: '13px', userSelect: 'none' }} title="拖曳排序">⋮⋮</span>
+                      <span style={{ cursor: 'grab', color: 'var(--text-muted)', fontSize: '13px', userSelect: 'none' }} title={t('formView.dragToSort')}>⋮⋮</span>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
                         {field.name} {isRequired && <span style={{ color: 'var(--danger)' }}>*</span>}
                       </span>
@@ -243,12 +245,12 @@ export default function FormView({
                           onChange={() => handleToggleFieldRequired(field.id)}
                           style={{ cursor: 'pointer', width: '12px', height: '12px', accentColor: 'var(--accent-primary)' }}
                         />
-                        必填
+                        {t('formView.required')}
                       </label>
                       <button
                         onClick={() => handleToggleFieldActive(field.id)}
                         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', display: 'flex', alignItems: 'center' }}
-                        title="自表單隱藏"
+                        title={t('formView.hideFromForm')}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M18 6 6 18M6 6l12 12"/>
@@ -262,7 +264,7 @@ export default function FormView({
                       const updated = { ...(settings.placeholders || {}), [field.id]: e.target.value }
                       saveSettings({ ...settings, placeholders: updated })
                     }}
-                    placeholder={`輸入「${field.name}」的輸入提示文字 (Placeholder)...`}
+                    placeholder={t('formView.placeholderForField', { name: field.name })}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -280,7 +282,7 @@ export default function FormView({
 
             {settings.activeFieldIds.length === 0 && (
               <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                目前沒有啟用的欄位，請在左側面板勾選以顯示。
+                {t('formView.noFieldsEnabled')}
               </div>
             )}
 
@@ -299,7 +301,7 @@ export default function FormView({
                   opacity: 0.8
                 }}
               >
-                提交資料
+                {t('formView.submitData')}
               </button>
             </div>
           </div>
@@ -310,7 +312,7 @@ export default function FormView({
               ⚡ Powered by Baserow
             </span>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>
-              檢舉不當表單
+              {t('formView.reportAbuse')}
             </span>
           </div>
         </div>
@@ -331,7 +333,7 @@ export default function FormView({
           }}
         >
           <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-            提交成功後續動作設定
+            {t('formView.afterSubmitAction')}
           </h4>
 
           <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
@@ -343,7 +345,7 @@ export default function FormView({
                 onChange={() => saveSettings({ ...settings, submitAction: 'message' })}
                 style={{ cursor: 'pointer', width: '13px', height: '13px' }}
               />
-              顯示感謝訊息
+              {t('formView.showThankYouMsg')}
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
               <input
@@ -353,13 +355,13 @@ export default function FormView({
                 onChange={() => saveSettings({ ...settings, submitAction: 'redirect' })}
                 style={{ cursor: 'pointer', width: '13px', height: '13px' }}
               />
-              重新導向至外部網址 (URL)
+              {t('formView.redirectToUrl')}
             </label>
           </div>
 
           {settings.submitAction === 'message' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>成功訊息內容</label>
+              <label style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>{t('formView.thankYouMsgLabel')}</label>
               <textarea
                 value={settings.successMessage}
                 onChange={e => saveSettings({ ...settings, successMessage: e.target.value })}
@@ -380,7 +382,7 @@ export default function FormView({
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>導向網址連結 (URL)</label>
+              <label style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 500 }}>{t('formView.redirectUrlLabel')}</label>
               <input
                 type="text"
                 placeholder="https://example.com/thank-you"

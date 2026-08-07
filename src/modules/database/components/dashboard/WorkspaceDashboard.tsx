@@ -9,6 +9,7 @@ import {
   ArrowRight, Clock, Zap, Pencil, Trash2
 } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface WorkspaceDashboardProps {
   currentUser: User
@@ -48,6 +49,7 @@ export default function WorkspaceDashboard({
   onDeleteWorkspaceOrDb,
   onDeleteTable
 }: WorkspaceDashboardProps) {
+  const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
 
   // Calculate statistics
@@ -121,7 +123,7 @@ export default function WorkspaceDashboard({
                   color: '#09090b',
                   lineHeight: 1.2
                 }}>
-                  {activeWorkspace?.name || '雲端工作區'} 概覽
+                  {activeWorkspace?.name || t('dashboard.cloudWorkspace')} {t('dashboard.overview')}
                 </h1>
               </div>
             </div>
@@ -146,7 +148,7 @@ export default function WorkspaceDashboard({
                 backgroundColor: '#10b981',
                 display: 'inline-block'
               }} />
-              歡迎回來，{currentUser.username} ({currentUser.role === 'admin' ? '管理者' : '成員'})
+              {t('dashboard.welcomeBack', { username: currentUser.username, role: currentUser.role === 'admin' ? t('dashboard.adminRole') : t('dashboard.memberRole') })}
             </div>
             
             <p style={{
@@ -155,7 +157,7 @@ export default function WorkspaceDashboard({
               margin: 0,
               fontWeight: 400
             }}>
-              瀏覽與存取雲端資料庫、管理成員權限與資料表動態結構。
+              {t('dashboard.subtitle')}
             </p>
           </div>
 
@@ -191,7 +193,7 @@ export default function WorkspaceDashboard({
                   e.currentTarget.style.borderColor = '#e4e4e7'
                 }}
               >
-                <Users size={15} color="#52525b" /> 協作成員 ({memberCount})
+                <Users size={15} color="#52525b" /> {t('dashboard.membersCount', { count: memberCount })}
               </button>
             )}
 
@@ -201,7 +203,7 @@ export default function WorkspaceDashboard({
                 className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-indigo-500/25 flex items-center gap-2 cursor-pointer border-none whitespace-nowrap flex-shrink-0"
               >
                 <Plus className="w-4 h-4" />
-                <span>新增資料庫</span>
+                <span>{t('dashboard.addDatabase')}</span>
               </button>
             )}
           </div>
@@ -230,7 +232,7 @@ export default function WorkspaceDashboard({
               </div>
               <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em' }}>
                 {databases.length}
-                <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>個資料庫</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>{t('dashboard.databaseUnit')}</span>
               </div>
             </div>
             <div style={{
@@ -264,7 +266,7 @@ export default function WorkspaceDashboard({
               </div>
               <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em' }}>
                 {totalTablesCount}
-                <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>張資料表</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>{t('dashboard.tableUnit')}</span>
               </div>
             </div>
             <div style={{
@@ -303,7 +305,7 @@ export default function WorkspaceDashboard({
               gap: '8px',
               letterSpacing: '-0.01em'
             }}>
-              <Layers size={18} color="#3F6212" /> 資料庫清單 ({filteredDatabases.length})
+              <Layers size={18} color="#3F6212" /> {t('dashboard.databaseList', { count: filteredDatabases.length })}
             </h2>
 
             {/* Clean Command Search Bar */}
@@ -311,7 +313,7 @@ export default function WorkspaceDashboard({
               <Search size={15} color="#a1a1aa" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="搜尋資料庫或資料表..."
+                placeholder={t('dashboard.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -365,10 +367,10 @@ export default function WorkspaceDashboard({
                 <FolderPlus size={24} />
               </div>
               <div style={{ fontSize: '15px', fontWeight: 700, color: '#18181b' }}>
-                {searchQuery ? `找不到符合「${searchQuery}」的資料庫` : '工作區尚無資料庫'}
+                {searchQuery ? t('dashboard.noMatchTitle', { query: searchQuery }) : t('dashboard.emptyTitle')}
               </div>
               <div style={{ fontSize: '13px', color: '#71717a', maxWidth: '380px' }}>
-                {searchQuery ? '請嘗試更換搜尋關鍵字。' : '點擊上方按鈕建立第一個雲端資料庫。'}
+                {searchQuery ? t('dashboard.noMatchSub') : t('dashboard.emptySub')}
               </div>
               {activeWorkspace && onShowDatabaseModal && !searchQuery && (
                 <button
@@ -386,7 +388,7 @@ export default function WorkspaceDashboard({
                     cursor: 'pointer'
                   }}
                 >
-                  建立資料庫
+                  {t('dashboard.createDatabase')}
                 </button>
               )}
             </div>
@@ -449,7 +451,7 @@ export default function WorkspaceDashboard({
                               textOverflow: 'ellipsis',
                               cursor: 'pointer'
                             }}
-                            title={`${db.name} (雙擊或點擊圖示可重新命名)`}
+                            title={`${db.name} (${t('dashboard.doubleClickRename')})`}
                             onDoubleClick={(e) => {
                               e.stopPropagation()
                               if (onSetRenameType && onSetRenameId && onSetRenameNameValue && onShowRenameModal) {
@@ -465,7 +467,7 @@ export default function WorkspaceDashboard({
                           {onShowRenameModal && (
                             <button
                               type="button"
-                              title="重新命名資料庫"
+                              title={t('nav.renameDatabase')}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 onSetRenameType?.('database')
@@ -493,7 +495,7 @@ export default function WorkspaceDashboard({
                           )}
                         </div>
                         <span style={{ fontSize: '11.5px', color: '#64748b', fontWeight: 500, marginTop: '2px', whiteSpace: 'nowrap' }}>
-                          {db.tables?.length || 0} 張資料表
+                          {t('dashboard.tableCount', { count: db.tables?.length || 0 })}
                         </span>
                       </div>
                     </div>
@@ -530,7 +532,7 @@ export default function WorkspaceDashboard({
                         }}
                       >
                         <Plus size={14} />
-                        <span>新增資料表</span>
+                        <span>{t('dashboard.addTable')}</span>
                       </button>
                     )}
                   </div>
@@ -582,7 +584,7 @@ export default function WorkspaceDashboard({
                             e.currentTarget.style.borderColor = '#f4f4f5'
                             e.currentTarget.style.color = '#27272a'
                           }}
-                          title={`${table.name} (雙擊或點擊圖示可重新命名)`}
+                          title={`${table.name} (${t('dashboard.doubleClickRename')})`}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
                             <TableIcon size={14} color="#3F6212" style={{ flexShrink: 0 }} />
@@ -594,7 +596,7 @@ export default function WorkspaceDashboard({
                             {onShowRenameModal && (
                               <button
                                 type="button"
-                                title="重新命名資料表"
+                                title={t('nav.renameTable')}
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   onSetRenameType?.('table')
@@ -631,7 +633,7 @@ export default function WorkspaceDashboard({
                         textAlign: 'center',
                         fontStyle: 'italic'
                       }}>
-                        尚無資料表
+                        {t('dashboard.emptyTable')}
                       </div>
                     )}
                   </div>

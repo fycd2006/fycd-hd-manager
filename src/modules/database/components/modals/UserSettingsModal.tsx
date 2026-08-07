@@ -195,8 +195,7 @@ export default function UserSettingsModal({
               >
                 {isDark ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#3F6212" />}
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700 }}>{isDark ? '切換明亮模式' : '切換深色模式'}</span>
-                  <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>{isDark ? 'Light Theme' : 'Dark Theme'}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>{isDark ? t('nav.toggleLightMode') : t('nav.toggleDarkMode')}</span>
                 </div>
               </button>
 
@@ -224,8 +223,7 @@ export default function UserSettingsModal({
               >
                 <Sliders size={18} color="#3F6212" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700 }}>色彩濾鏡微調</span>
-                  <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 500 }}>Contrast & Filters</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700 }}>{t('nav.filterSettings')}</span>
                 </div>
               </button>
             </div>
