@@ -2,6 +2,7 @@ import React from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import type { TableField, RowColorRule } from '@/modules/database/types'
 import { CustomSelect } from '@/components/ui/CustomSelect'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface ColorMenuProps {
   fields: TableField[]
@@ -11,20 +12,6 @@ interface ColorMenuProps {
   saveViewConfig: (viewId: number, config: any) => void
 }
 
-const OPERATOR_OPTIONS = [
-  { value: 'contains', label: '包含 (contains)' },
-  { value: 'equals', label: '等於 (equals)' },
-]
-
-const COLOR_OPTIONS = [
-  { value: 'red', label: '紅色 (Red)' },
-  { value: 'green', label: '綠色 (Green)' },
-  { value: 'blue', label: '藍色 (Blue)' },
-  { value: 'yellow', label: '黃色 (Yellow)' },
-  { value: 'purple', label: '紫色 (Purple)' },
-  { value: 'orange', label: '橘色 (Orange)' },
-]
-
 export function ColorMenu({
   fields,
   rowColorRules,
@@ -32,8 +19,23 @@ export function ColorMenu({
   activeViewId,
   saveViewConfig
 }: ColorMenuProps) {
+  const { t } = useI18n()
   const safeFields = Array.isArray(fields) ? fields : []
   const safeRowColorRules = Array.isArray(rowColorRules) ? rowColorRules : []
+
+  const operatorOptions = [
+    { value: 'contains', label: t('filter.contains') },
+    { value: 'equals', label: t('filter.equals') },
+  ]
+
+  const colorOptions = [
+    { value: 'red', label: t('color.red') },
+    { value: 'green', label: t('color.green') },
+    { value: 'blue', label: t('color.blue') },
+    { value: 'yellow', label: t('color.yellow') },
+    { value: 'purple', label: t('color.purple') },
+    { value: 'orange', label: t('color.orange') },
+  ]
 
   const fieldOptions = safeFields.map((f) => ({
     value: `field_${f.id}`,
@@ -44,7 +46,7 @@ export function ColorMenu({
     <div className="colorings">
       {safeRowColorRules.length === 0 ? (
         <div style={{ padding: '8px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
-          <div style={{ marginBottom: '12px' }}>在此視圖中的記錄將根據塗色條件著色</div>
+          <div style={{ marginBottom: '12px' }}>{t('toolbar.noColorRules')}</div>
           <button
             onClick={() => {
               const newRule: RowColorRule = {
@@ -72,14 +74,14 @@ export function ColorMenu({
             }}
           >
             <Plus size={14} />
-            新增塗色條件
+            {t('color.addRule')}
           </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {safeRowColorRules.map((rule, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '12px', color: '#64748b', width: '38px', fontWeight: 600, flexShrink: 0 }}>{idx === 0 ? 'Where' : 'And'}</span>
+              <span style={{ fontSize: '12px', color: '#64748b', width: '38px', fontWeight: 600, flexShrink: 0 }}>{idx === 0 ? t('filter.where') : t('filter.and')}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <CustomSelect
                   value={rule.fieldKey}
@@ -90,27 +92,27 @@ export function ColorMenu({
                     setRowColorRules(updated)
                     if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) })
                   }}
-                  placeholder="選擇欄位"
+                  placeholder={t('filter.selectField')}
                 />
               </div>
               <div style={{ width: '135px', flexShrink: 0 }}>
                 <CustomSelect
                   value={rule.operator}
-                  options={OPERATOR_OPTIONS}
+                  options={operatorOptions}
                   onChange={(val) => {
                     const updated = [...safeRowColorRules]
                     updated[idx].operator = val as RowColorRule['operator']
                     setRowColorRules(updated)
                     if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) })
                   }}
-                  placeholder="運算子"
+                  placeholder={t('common.select')}
                 />
               </div>
               <input 
                 type="text" 
                 className="soft-input"
                 value={rule.value} 
-                placeholder="值 (Value)..."
+                placeholder={t('toolbar.enterValuePlaceholder')}
                 onChange={(e) => {
                   const updated = [...safeRowColorRules]
                   updated[idx].value = e.target.value
@@ -122,14 +124,14 @@ export function ColorMenu({
               <div style={{ width: '110px', flexShrink: 0 }}>
                 <CustomSelect
                   value={rule.color}
-                  options={COLOR_OPTIONS}
+                  options={colorOptions}
                   onChange={(val) => {
                     const updated = [...safeRowColorRules]
                     updated[idx].color = val as RowColorRule['color']
                     setRowColorRules(updated)
                     if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) })
                   }}
-                  placeholder="顏色"
+                  placeholder={t('color.title')}
                 />
               </div>
               <button
@@ -139,7 +141,7 @@ export function ColorMenu({
                   if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) })
                 }}
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', color: '#94a3b8', flexShrink: 0 }}
-                title="刪除條件"
+                title={t('common.delete')}
               >
                 <Trash2 size={15} />
               </button>
@@ -173,7 +175,7 @@ export function ColorMenu({
               }}
             >
               <Plus size={14} />
-              新增塗色條件
+              {t('color.addRule')}
             </button>
           </div>
         </div>

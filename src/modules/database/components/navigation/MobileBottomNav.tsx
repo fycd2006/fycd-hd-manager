@@ -6,6 +6,7 @@ import { Home, Database as DatabaseIcon, Search, Bell, Settings, X, Table as Tab
 import type { Workspace, User, TableField, TableRow } from '@/modules/database/types'
 import { useThemeStore } from '@/modules/database/store/useThemeStore'
 import { useWorkspaceStore } from '@/modules/database/store/useWorkspaceStore'
+import { useI18n } from '@/lib/i18n/i18nContext'
 import MobileSearchModal from './MobileSearchModal'
 
 interface MobileBottomNavProps {
@@ -58,6 +59,7 @@ export default function MobileBottomNav({
   onLogout,
   onImportAirtable
 }: MobileBottomNavProps) {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<'home' | 'database' | 'search' | 'alerts' | 'settings'>('home')
   const [showDbModal, setShowDbModal] = useState(false)
@@ -338,7 +340,7 @@ export default function MobileBottomNav({
   const radialMenuItems = [
     {
       id: 'home',
-      label: '首頁 (Home)',
+      label: t('mobileNav.home'),
       icon: Home,
       action: () => {
         setActiveTab('home')
@@ -349,7 +351,7 @@ export default function MobileBottomNav({
     },
     {
       id: 'database',
-      label: '資料庫 (Tables)',
+      label: t('mobileNav.databases'),
       icon: DatabaseIcon,
       action: () => {
         setActiveTab('database')
@@ -359,7 +361,7 @@ export default function MobileBottomNav({
     },
     {
       id: 'search',
-      label: '搜尋 (Search)',
+      label: t('mobileNav.search'),
       icon: Search,
       action: () => {
         setActiveTab('search')
@@ -369,7 +371,7 @@ export default function MobileBottomNav({
     },
     {
       id: 'alerts',
-      label: '通知 (Alerts)',
+      label: t('mobileNav.alerts'),
       icon: Bell,
       badge: notificationCount,
       action: () => {
@@ -381,7 +383,7 @@ export default function MobileBottomNav({
     },
     {
       id: 'settings',
-      label: '設定 (Settings)',
+      label: t('mobileNav.settings'),
       icon: Settings,
       action: () => {
         setActiveTab('settings')
@@ -635,7 +637,7 @@ export default function MobileBottomNav({
                   : 'liv-bubble-pulse-light 3s infinite'
                 : 'none'
             }}
-            title="點擊展開 LIVBubbleMenu 放射彈力選單，按住可自由拖曳擺放"
+            title={t('mobileNav.toggleLIVBubbleMenu')}
           >
             {isBubbleMenuOpen ? (
               <Plus size={26} color="#ffffff" style={{ pointerEvents: 'none' }} />
@@ -671,7 +673,7 @@ export default function MobileBottomNav({
             touchAction: 'none',
             userSelect: 'none',
           }}
-          aria-label="導向列"
+          aria-label={t('common.navigationBar')}
         >
           {/* Drag Grip Handle */}
           <div
@@ -687,7 +689,7 @@ export default function MobileBottomNav({
               color: isDark ? '#64748b' : '#94a3b8',
               flexShrink: 0
             }}
-            title="按住拖曳移動位置"
+            title={t('mobileNav.dragToMove')}
           >
             <GripVertical size={16} />
           </div>
@@ -726,7 +728,7 @@ export default function MobileBottomNav({
             >
               <Home size={18} color={activeTab === 'home' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'home' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                首頁
+                {t('mobileNav.home')}
               </span>
             </button>
 
@@ -761,7 +763,7 @@ export default function MobileBottomNav({
             >
               <DatabaseIcon size={18} color={(activeTab === 'database' || showDbModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: (activeTab === 'database' || showDbModal) ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                資料庫
+                {t('mobileNav.databases')}
               </span>
             </button>
 
@@ -796,7 +798,7 @@ export default function MobileBottomNav({
             >
               <Search size={18} color={(activeTab === 'search' || showSearchModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: (activeTab === 'search' || showSearchModal) ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                搜尋
+                {t('mobileNav.search')}
               </span>
             </button>
 
@@ -833,7 +835,7 @@ export default function MobileBottomNav({
             >
               <Bell size={18} color={activeTab === 'alerts' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'alerts' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                通知
+                {t('mobileNav.alerts')}
               </span>
               {notificationCount > 0 && (
                 <span className="absolute top-0.5 right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8.5px] font-extrabold flex items-center justify-center shadow-xs">
@@ -874,7 +876,7 @@ export default function MobileBottomNav({
             >
               <Settings size={18} color={activeTab === 'settings' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'settings' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
-                設定
+                {t('mobileNav.settings')}
               </span>
             </button>
           </div>
@@ -902,7 +904,7 @@ export default function MobileBottomNav({
               marginLeft: '2px',
               flexShrink: 0
             }}
-            title="切換至 LIVBubbleMenu 放射彈力懸浮球"
+            title={t('mobileNav.switchToLIVBubbleMenu')}
           >
             <ChevronDown size={16} />
           </button>
@@ -950,7 +952,7 @@ export default function MobileBottomNav({
             }}
             onClick={e => e.stopPropagation()}
             role="dialog"
-            aria-label="選擇資料庫與資料表"
+            aria-label={t('mobileNav.databasesAndTables')}
           >
             <div
               style={{
@@ -966,7 +968,7 @@ export default function MobileBottomNav({
                   <DatabaseIcon size={18} color="#3F6212" />
                 </div>
                 <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
-                  資料庫與資料表
+                  {t('mobileNav.databasesAndTables')}
                 </h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -991,7 +993,7 @@ export default function MobileBottomNav({
                   }}
                 >
                   <Plus size={14} />
-                  新增資料庫
+                  {t('mobileNav.createDatabase')}
                 </button>
 
                 {onImportAirtable && (
@@ -1015,7 +1017,7 @@ export default function MobileBottomNav({
                     }}
                   >
                     <UploadCloud size={14} />
-                    從 Airtable 匯入
+                    {t('mobileNav.importAirtable')}
                   </button>
                 )}
                 <button
@@ -1043,7 +1045,7 @@ export default function MobileBottomNav({
               {safeWorkspaces.length > 1 && (
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
-                    工作區 (Workspaces)
+                    {t('mobileNav.workspaces')}
                   </label>
                   <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
                     {safeWorkspaces.map(ws => (
@@ -1077,7 +1079,7 @@ export default function MobileBottomNav({
                     autoFocus
                     value={newDbName}
                     onChange={(e) => setNewDbName(e.target.value)}
-                    placeholder="輸入新資料庫名稱..."
+                    placeholder={t('mobileNav.enterDatabaseName')}
                     style={{ flex: 1, padding: '8px 12px', fontSize: '13px', borderRadius: '8px', border: '1px solid #cbd5e1', outline: 'none', background: isDark ? '#0f172a' : '#ffffff', color: isDark ? '#ffffff' : '#0f172a' }}
                   />
                   <button
@@ -1085,14 +1087,14 @@ export default function MobileBottomNav({
                     disabled={creatingDbLoading || !newDbName.trim()}
                     style={{ padding: '8px 14px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingDbLoading ? 0.6 : 1 }}
                   >
-                    {creatingDbLoading ? '建立中...' : '建立'}
+                    {creatingDbLoading ? t('common.loading') : t('common.create')}
                   </button>
                   <button
                     type="button"
                     onClick={() => { setIsCreatingDb(false); setNewDbName(''); }}
                     style={{ padding: '8px 10px', backgroundColor: 'transparent', color: '#64748b', border: 'none', fontSize: '12px', cursor: 'pointer' }}
                   >
-                    取消
+                    {t('common.cancel')}
                   </button>
                 </form>
               )}
@@ -1127,7 +1129,7 @@ export default function MobileBottomNav({
                           }}
                         >
                           <Plus size={12} />
-                          新增資料表
+                          {t('mobileNav.createTable')}
                         </button>
                       </div>
 
@@ -1138,7 +1140,7 @@ export default function MobileBottomNav({
                             autoFocus
                             value={newTableName}
                             onChange={(e) => setNewTableName(e.target.value)}
-                            placeholder="輸入新資料表名稱..."
+                            placeholder={t('mobileNav.enterTableName')}
                             style={{ flex: 1, padding: '6px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #cbd5e1', outline: 'none', background: isDark ? '#1e293b' : '#f8fafc', color: isDark ? '#ffffff' : '#0f172a' }}
                           />
                           <button
@@ -1146,14 +1148,14 @@ export default function MobileBottomNav({
                             disabled={creatingTableLoading || !newTableName.trim()}
                             style={{ padding: '6px 12px', backgroundColor: '#18181B', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', opacity: creatingTableLoading ? 0.6 : 1 }}
                           >
-                            {creatingTableLoading ? '建立中...' : '建立'}
+                            {creatingTableLoading ? t('common.loading') : t('common.create')}
                           </button>
                           <button
                             type="button"
                             onClick={() => { setCreatingTableForDbId(null); setNewTableName(''); }}
                             style={{ padding: '6px 8px', backgroundColor: 'transparent', color: '#64748b', border: 'none', fontSize: '12px', cursor: 'pointer' }}
                           >
-                            取消
+                            {t('common.cancel')}
                           </button>
                         </form>
                       )}
@@ -1204,7 +1206,7 @@ export default function MobileBottomNav({
                   ))
                 ) : (
                   <div style={{ textAlign: 'center', padding: '24px 0', color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>
-                    尚無資料庫或載入中...
+                    {t('mobileNav.noDatabasesOrLoading')}
                   </div>
                 )}
               </div>

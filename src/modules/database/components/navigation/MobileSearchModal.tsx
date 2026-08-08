@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { Search, X, ChevronRight } from 'lucide-react'
 import type { TableField, TableRow } from '@/modules/database/types'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface MobileSearchModalProps {
   show: boolean
@@ -20,6 +21,7 @@ export default function MobileSearchModal({
   rows = [],
   onSelectRow
 }: MobileSearchModalProps) {
+  const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -47,7 +49,7 @@ export default function MobileSearchModal({
       return String(row.data[firstTextField.name])
     }
     const anyVal = Object.values(row.data || {}).find(v => v !== null && v !== '')
-    return anyVal ? String(anyVal) : `紀錄 #${row.id}`
+    return anyVal ? String(anyVal) : `#${row.id}`
   }
 
   const modalContent = (
@@ -82,7 +84,7 @@ export default function MobileSearchModal({
         }}
         onClick={e => e.stopPropagation()}
         role="dialog"
-        aria-label="搜尋紀錄"
+        aria-label={t('mobileNav.searchRecords')}
       >
         {/* Header - Borderless Spacing */}
         <div
@@ -99,7 +101,7 @@ export default function MobileSearchModal({
               <Search size={18} color="#3F6212" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
-              搜尋紀錄
+              {t('mobileNav.searchRecords')}
             </h3>
           </div>
           <button
@@ -135,7 +137,7 @@ export default function MobileSearchModal({
               type="text"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder="輸入關鍵字搜尋紀錄..."
+              placeholder={t('mobileNav.searchRecordsPlaceholder')}
               autoFocus
               style={{
                 width: '100%',
@@ -232,12 +234,12 @@ export default function MobileSearchModal({
                 ))
               ) : (
                 <div style={{ padding: '36px 0', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>
-                  找不到包含「{searchTerm}」的紀錄
+                  {t('mobileNav.noSearchMatch')}
                 </div>
               )
             ) : (
               <div style={{ padding: '36px 0', textAlign: 'center', color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>
-                請輸入關鍵字開始搜尋紀錄
+                {t('mobileNav.enterKeywordToSearch')}
               </div>
             )}
           </div>

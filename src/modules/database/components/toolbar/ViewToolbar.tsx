@@ -243,7 +243,7 @@ export function ViewToolbar({
           >
             {getViewIcon(views.find(v => v.id === activeViewId)?.type || 'grid', { size: 16, color: '#64748b', className: 'header__filter-icon' })}
             <span className="header__filter-name header__filter-name--forced">
-              {views.find(v => v.id === activeViewId)?.name || '未命名視圖'}
+              {views.find(v => v.id === activeViewId)?.name || t('toolbar.unnamedView')}
             </span>
             <ChevronDown size={14} color="#64748b" className="header__sub-icon" style={{ marginLeft: '4px' }} />
           </a>
@@ -344,7 +344,7 @@ export function ViewToolbar({
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b' }}
                     >
                       <Plus size={14} style={{ marginRight: '8px' }} />
-                      新增視圖
+                      {t('toolbar.addView')}
                     </a>
                   </div>
                 )}
@@ -491,7 +491,7 @@ export function ViewToolbar({
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
           >
             <Undo2 size={15} />
-            <span>復原</span>
+            <span>{t('toolbar.undo')}</span>
           </button>
 
           <button
@@ -517,7 +517,7 @@ export function ViewToolbar({
             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
           >
             <Redo2 size={15} />
-            <span>重做</span>
+            <span>{t('toolbar.redo')}</span>
           </button>
         </li>
 
@@ -1071,7 +1071,7 @@ export function ViewToolbar({
                             newRules[idx].value = e.target.value;
                             setFilterRules(newRules);
                           }}
-                          placeholder="請輸入數值..."
+                          placeholder={t('toolbar.enterValuePlaceholder')}
                           style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                         />
                       )}
@@ -1085,7 +1085,7 @@ export function ViewToolbar({
                     }}
                     style={{ padding: '10px', backgroundColor: '#F4F4F5', color: '#18181B', border: 'none', borderRadius: '12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', marginTop: '6px' }}
                   >
-                    + 新增條件
+                    + {t('toolbar.addCondition')}
                   </button>
                 </div>
               )
@@ -1094,7 +1094,7 @@ export function ViewToolbar({
             {/* Sort Content */}
             {activeHeaderMenu === 'sort' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>選擇要進行排序的欄位：</div>
+                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>{t('toolbar.selectSortField')}</div>
                 {fields.map(f => {
                   const key = `field_${f.id}`
                   const isSelected = sortField === key
@@ -1133,7 +1133,7 @@ export function ViewToolbar({
                       }}
                       style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', backgroundColor: sortOrder === 'asc' ? '#3F6212' : '#f1f5f9', color: sortOrder === 'asc' ? '#fff' : '#475569', fontSize: '12px', fontWeight: 600 }}
                     >
-                      升冪 (A-Z)
+                      {t('sort.asc')}
                     </button>
                     <button
                       type="button"
@@ -1143,7 +1143,7 @@ export function ViewToolbar({
                       }}
                       style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', backgroundColor: sortOrder === 'desc' ? '#3F6212' : '#f1f5f9', color: sortOrder === 'desc' ? '#fff' : '#475569', fontSize: '12px', fontWeight: 600 }}
                     >
-                      降冪 (Z-A)
+                      {t('sort.desc')}
                     </button>
                   </div>
                 )}
@@ -1154,7 +1154,7 @@ export function ViewToolbar({
             {activeHeaderMenu === 'color' && (
               safeRowColorRules.length === 0 ? (
                 <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '24px 0' }}>
-                  此視圖尚未設定任何色彩塗色條件
+                  {t('toolbar.noColorRules')}
                   <div style={{ marginTop: '14px' }}>
                     <button
                       type="button"
@@ -1171,7 +1171,7 @@ export function ViewToolbar({
                       }}
                       style={{ padding: '8px 16px', backgroundColor: '#18181B', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                     >
-                      + 新增塗色條件
+                      + {t('color.addRule')}
                     </button>
                   </div>
                 </div>
@@ -1180,7 +1180,7 @@ export function ViewToolbar({
                   {safeRowColorRules.map((rule, idx) => (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{idx === 0 ? 'Where' : 'And'}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{idx === 0 ? t('filter.where') : t('filter.and')}</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -1190,7 +1190,7 @@ export function ViewToolbar({
                           }}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '12px' }}
                         >
-                          刪除
+                          {t('common.delete')}
                         </button>
                       </div>
                       <select
@@ -1215,13 +1215,13 @@ export function ViewToolbar({
                         }}
                         style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
                       >
-                        <option value="contains">包含 (contains)</option>
-                        <option value="equals">等於 (equals)</option>
+                        <option value="contains">{t('filter.contains')}</option>
+                        <option value="equals">{t('filter.equals')}</option>
                       </select>
                       <input
                         type="text"
                         value={rule.value}
-                        placeholder="值 (Value)..."
+                        placeholder={t('toolbar.enterValuePlaceholder')}
                         onChange={(e) => {
                           const updated = [...safeRowColorRules];
                           updated[idx].value = e.target.value;
@@ -1451,7 +1451,7 @@ export function ViewToolbar({
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>切換視圖 (Views)</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{t('toolbar.switchView')}</h3>
               <button
                 type="button"
                 onClick={() => setShowViewContext(false)}
@@ -1524,7 +1524,7 @@ export function ViewToolbar({
                   }}
                 >
                   <Plus size={16} color="#3F6212" />
-                  <span>新增視圖</span>
+                  <span>{t('toolbar.addView')}</span>
                 </button>
               </div>
             )}
