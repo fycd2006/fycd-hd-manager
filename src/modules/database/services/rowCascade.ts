@@ -74,41 +74,40 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
     fieldsByTableId.set(f.tableId, list)
   })
 
-  const updateOperations = affectedRows.map(depRow => {
-    const depFields = fieldsByTableId.get(depRow.tableId) || []
-    const depData = { ...depRow.data }
-    
-    const formulaMap: Record<string, string> = {}
-    depFields.forEach(f => {
-      if (f.type === 'formula' && f.options) formulaMap[`field_${f.id}`] = f.options
-    })
+  if (affectedRows.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const depRow of affectedRows) {
+        const depFields = fieldsByTableId.get(depRow.tableId) || []
+        const depData = { ...depRow.data }
+        
+        const formulaMap: Record<string, string> = {}
+        depFields.forEach(f => {
+          if (f.type === 'formula' && f.options) formulaMap[`field_${f.id}`] = f.options
+        })
 
-    depFields.forEach(f => {
-      const key = `field_${f.id}`
-      if (f.type === 'formula' && f.options) {
-        if (detectCircularDependency(key, formulaMap)) {
-          depData[key] = '#CIRCULAR!'
-        } else {
-          try {
-            const fieldOrder = depFields.map(f => f.id)
-            const res = evaluateFormula(f.options, depData, fieldOrder)
-            depData[key] = res != null ? String(res) : ''
-          } catch {
-            depData[key] = '#VALUE!'
+        depFields.forEach(f => {
+          const key = `field_${f.id}`
+          if (f.type === 'formula' && f.options) {
+            if (detectCircularDependency(key, formulaMap)) {
+              depData[key] = '#CIRCULAR!'
+            } else {
+              try {
+                const fieldOrder = depFields.map(f => f.id)
+                const res = evaluateFormula(f.options, depData, fieldOrder)
+                depData[key] = res != null ? String(res) : ''
+              } catch {
+                depData[key] = '#VALUE!'
+              }
+            }
           }
-        }
+        })
+
+        await tx.tableRow.update({
+          where: { id: depRow.id },
+          data: { data: JSON.stringify(depData) }
+        })
       }
     })
-
-    return prisma.tableRow.update({
-      where: { id: depRow.id },
-      data: { data: JSON.stringify(depData) }
-    })
-  })
-
-  // Execute all updates in a single batch transaction
-  if (updateOperations.length > 0) {
-    await prisma.$transaction(updateOperations)
   }
 }
 

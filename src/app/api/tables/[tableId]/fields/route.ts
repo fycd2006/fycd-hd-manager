@@ -83,22 +83,23 @@ export async function POST(
 
         if (existingRows.length > 0) {
           const key = `field_${field.id}`
-          const updates = existingRows.map(r => {
-            let dataObj: Record<string, any> = {}
-            try { dataObj = JSON.parse(r.data || '{}') } catch {}
-            if (!dataObj[key]) {
-              if (type === 'created_by' || type === 'last_modified_by') {
-                dataObj[key] = currentUsername
-              } else {
-                dataObj[key] = new Date(r.createdAt || Date.now()).toLocaleDateString('zh-TW', dateOpt) || nowStr
+          await prisma.$transaction(async (tx) => {
+            for (const r of existingRows) {
+              let dataObj: Record<string, any> = {}
+              try { dataObj = JSON.parse(r.data || '{}') } catch {}
+              if (!dataObj[key]) {
+                if (type === 'created_by' || type === 'last_modified_by') {
+                  dataObj[key] = currentUsername
+                } else {
+                  dataObj[key] = new Date(r.createdAt || Date.now()).toLocaleDateString('zh-TW', dateOpt) || nowStr
+                }
               }
+              await tx.tableRow.update({
+                where: { id: r.id },
+                data: { data: JSON.stringify(dataObj) }
+              })
             }
-            return prisma.tableRow.update({
-              where: { id: r.id },
-              data: { data: JSON.stringify(dataObj) }
-            })
           })
-          await prisma.$transaction(updates)
         }
       } catch (err) {
         console.warn('[Audit Field Backfill Warning]:', err)
@@ -150,14 +151,15 @@ export async function POST(
     const allFields = [...existingFields]
     allFields.splice(insertOrder, 0, field)
 
-    await prisma.$transaction(
-      allFields.map((f, i) =>
-        prisma.tableField.update({
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < allFields.length; i++) {
+        const f = allFields[i]
+        await tx.tableField.update({
           where: { id: f.id },
           data: { order: i },
         })
-      )
-    )
+      }
+    })
 
     return NextResponse.json({ ...field, order: insertOrder }, { status: 201 })
   } catch (error: any) {

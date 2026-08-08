@@ -19,15 +19,16 @@ export async function POST(
 
     const fieldIds: number[] = rawList.map((item: any) => typeof item === 'number' ? item : item.id)
 
-    // Batch update using transaction
-    await prisma.$transaction(
-      fieldIds.map((fieldId, index) =>
-        prisma.tableField.update({
+    // Batch update using interactive transaction
+    await prisma.$transaction(async (tx) => {
+      for (let index = 0; index < fieldIds.length; index++) {
+        const fieldId = fieldIds[index]
+        await tx.tableField.update({
           where: { id: fieldId, tableId: id },
           data: { order: index },
         })
-      )
-    )
+      }
+    })
 
     return NextResponse.json({ message: '欄位排序更新成功' })
   } catch (error: any) {

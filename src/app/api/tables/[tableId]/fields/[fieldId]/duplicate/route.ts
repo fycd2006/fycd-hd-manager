@@ -43,14 +43,15 @@ export async function POST(
     const allFields = [...existingFields]
     allFields.splice(insertOrder, 0, newField)
 
-    await prisma.$transaction(
-      allFields.map((f, i) =>
-        prisma.tableField.update({
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < allFields.length; i++) {
+        const f = allFields[i]
+        await tx.tableField.update({
           where: { id: f.id },
           data: { order: i }
         })
-      )
-    )
+      }
+    })
 
     // 2. Duplicate cell content across all rows in table
     const rows = await prisma.tableRow.findMany({
@@ -60,22 +61,22 @@ export async function POST(
     const srcKey = `field_${fid}`
     const newKey = `field_${newField.id}`
 
-    const rowUpdates = rows.map(r => {
-      let dataObj: Record<string, any> = {}
-      try {
-        dataObj = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {})
-      } catch {}
+    if (rows.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const r of rows) {
+          let dataObj: Record<string, any> = {}
+          try {
+            dataObj = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {})
+          } catch {}
 
-      dataObj[newKey] = dataObj[srcKey] !== undefined ? dataObj[srcKey] : null
+          dataObj[newKey] = dataObj[srcKey] !== undefined ? dataObj[srcKey] : null
 
-      return prisma.tableRow.update({
-        where: { id: r.id },
-        data: { data: JSON.stringify(dataObj) }
+          await tx.tableRow.update({
+            where: { id: r.id },
+            data: { data: JSON.stringify(dataObj) }
+          })
+        }
       })
-    })
-
-    if (rowUpdates.length > 0) {
-      await prisma.$transaction(rowUpdates)
     }
 
     return NextResponse.json(newField, { status: 201 })

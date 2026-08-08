@@ -61,19 +61,19 @@ export async function POST(request: Request) {
 
     if (pendingInvitations.length > 0) {
       // Auto-accept all pending invitations for this email in an atomic transaction
-      await prisma.$transaction([
-        prisma.workspaceUser.createMany({
+      await prisma.$transaction(async (tx) => {
+        await tx.workspaceUser.createMany({
           data: pendingInvitations.map((invite) => ({
             workspaceId: invite.workspaceId,
             userId: newUser.id,
             role: invite.role,
             twoFactor: false
           }))
-        }),
-        prisma.workspaceInvitation.deleteMany({
+        })
+        await tx.workspaceInvitation.deleteMany({
           where: { id: { in: pendingInvitations.map((invite) => invite.id) } }
         })
-      ])
+      })
     } else {
       // Auto-create a default personal workspace with a default table for the user
       let newWorkspace
