@@ -92,32 +92,38 @@ export async function POST(
     const rid = parseInt(rowId)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
 
-    const targetRow = await prisma.tableRow.findFirst({
-      where: { id: rid, tableId: tid, deletedAt: null },
-      select: { id: true }
-    })
-    if (!targetRow) {
-      return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
-    }
+    // Single transaction: check row exists + create comment = 1 connection
+    const newComment = await prisma.$transaction(async (tx) => {
+      const targetRow = await tx.tableRow.findFirst({
+        where: { id: rid, tableId: tid, deletedAt: null },
+        select: { id: true }
+      })
+      if (!targetRow) {
+        throw new Error('NOT_FOUND')
+      }
 
-    const newComment = await prisma.rowComment.create({
-      data: {
-        rowId: rid,
-        userId: user.id,
-        content: content.trim()
-      },
-      include: {
-        user: {
-          select: {
-            username: true,
-            role: true
+      return tx.rowComment.create({
+        data: {
+          rowId: rid,
+          userId: user.id,
+          content: content.trim()
+        },
+        include: {
+          user: {
+            select: {
+              username: true,
+              role: true
+            }
           }
         }
-      }
-    })
+      })
+    }, { maxWait: 5000, timeout: 10000 })
 
     return NextResponse.json(newComment, { status: 201 })
   } catch (error: any) {
+    if (error?.message === 'NOT_FOUND') {
+      return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
+    }
     console.error('[API POST /api/tables/[tableId]/rows/comments Error]:', error)
     return NextResponse.json({ error: error.message || '發送留言失敗' }, { status: 500 })
   }

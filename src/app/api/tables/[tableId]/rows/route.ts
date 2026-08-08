@@ -172,18 +172,22 @@ export async function PATCH(
     const rid = parseInt(rowId)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
 
-    const currentRow = await prisma.tableRow.findFirst({
-      where: { id: rid, tableId: tid, deletedAt: null },
-      select: { data: true }
-    })
+    // Consolidate into single transaction to use 1 connection instead of 4+
+    const { currentRow, fields } = await prisma.$transaction(async (tx) => {
+      const row = await tx.tableRow.findFirst({
+        where: { id: rid, tableId: tid, deletedAt: null },
+        select: { data: true }
+      })
+      const flds = await tx.tableField.findMany({ 
+        where: { tableId: tid, deletedAt: null },
+        orderBy: { order: 'asc' }
+      })
+      return { currentRow: row, fields: flds }
+    }, { maxWait: 5000, timeout: 10000 })
+
     if (!currentRow) {
       return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
     }
-
-    const fields = await prisma.tableField.findMany({ 
-      where: { tableId: tid, deletedAt: null },
-      orderBy: { order: 'asc' }
-    })
     const username = await getSessionUsername()
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
@@ -263,7 +267,7 @@ export async function PATCH(
           }
         })
 
-        await prisma.tableRow.update({
+        const updatedRow = await prisma.tableRow.update({
           where: { id: rid },
           data: {
             data: JSON.stringify(currentData),
@@ -271,23 +275,23 @@ export async function PATCH(
           }
         })
 
-        // Execute bi-directional link_row sync tasks asynchronously after row update
+        // Fire-and-forget: secondary effects don't block the response
         if (linkRowSyncTasks.length > 0) {
-          try {
-            await Promise.all(linkRowSyncTasks)
-          } catch (syncErr) {
-            console.warn('[Bi-directional Sync Warning]:', syncErr)
-          }
+          Promise.all(linkRowSyncTasks).catch(err =>
+            console.warn('[Bi-directional Sync Warning]:', err)
+          )
         }
+
+        // Return immediately with the already-updated row
+        return NextResponse.json({ ...updatedRow, data: currentData })
       }
 
-    // Task 3: Single-Level Cascade Recomputation (300 Rows Threshold)
-    try {
-      await cascadeRecomputeSingleLevel(tid, rid)
-    } catch (e) {
+    // Fire-and-forget: cascade recompute runs after response
+    cascadeRecomputeSingleLevel(tid, rid).catch(e =>
       console.warn('[Cascade Recompute Warning]:', e)
-    }
+    )
 
+    // If no fields were updated (entries.length === 0), re-fetch
     const updated = await prisma.tableRow.findUnique({
       where: { id: rid }
     })
