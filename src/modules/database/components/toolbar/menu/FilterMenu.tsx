@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import type { TableField, FilterRule } from '@/modules/database/types'
 import { CustomSelect } from '@/components/ui/CustomSelect'
@@ -15,19 +15,19 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
   const safeFields = Array.isArray(fields) ? fields : []
   const safeFilterRules = Array.isArray(filterRules) ? filterRules : []
 
-  const operatorOptions = [
+  const operatorOptions = useMemo(() => [
     { value: 'contains', label: t('filter.contains') },
     { value: 'not_contains', label: t('filter.notContains') },
     { value: 'equals', label: t('filter.equals') },
     { value: 'not_equals', label: t('filter.notEquals') },
     { value: 'empty', label: t('filter.isEmpty') },
     { value: 'not_empty', label: t('filter.isNotEmpty') },
-  ]
+  ], [t])
 
-  const fieldOptions = safeFields.map((f) => ({
+  const fieldOptions = useMemo(() => safeFields.map((f) => ({
     value: `field_${f.id}`,
     label: f.name,
-  }))
+  })), [safeFields])
 
   if (safeFilterRules.length === 0) {
     return (

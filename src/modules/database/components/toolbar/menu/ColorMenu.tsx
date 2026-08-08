@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Trash2, Plus } from 'lucide-react'
 import type { TableField, RowColorRule } from '@/modules/database/types'
 import { CustomSelect } from '@/components/ui/CustomSelect'
@@ -23,24 +23,24 @@ export function ColorMenu({
   const safeFields = Array.isArray(fields) ? fields : []
   const safeRowColorRules = Array.isArray(rowColorRules) ? rowColorRules : []
 
-  const operatorOptions = [
+  const operatorOptions = useMemo(() => [
     { value: 'contains', label: t('filter.contains') },
     { value: 'equals', label: t('filter.equals') },
-  ]
+  ], [t])
 
-  const colorOptions = [
+  const colorOptions = useMemo(() => [
     { value: 'red', label: t('color.red') },
     { value: 'green', label: t('color.green') },
     { value: 'blue', label: t('color.blue') },
     { value: 'yellow', label: t('color.yellow') },
     { value: 'purple', label: t('color.purple') },
     { value: 'orange', label: t('color.orange') },
-  ]
+  ], [t])
 
-  const fieldOptions = safeFields.map((f) => ({
+  const fieldOptions = useMemo(() => safeFields.map((f) => ({
     value: `field_${f.id}`,
     label: f.name,
-  }))
+  })), [safeFields])
 
   return (
     <div className="colorings">

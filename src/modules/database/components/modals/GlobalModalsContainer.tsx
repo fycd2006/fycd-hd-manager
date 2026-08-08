@@ -5,11 +5,12 @@ import MembersModal from './MembersModal'
 import NotificationsModal from './NotificationsModal'
 import { FieldContextMenu } from '../menu/FieldContextMenu'
 import type { TableField, TableRow, FilterRule } from '../../types'
+import type { WorkspaceState, WorkspaceActions } from '../../store/useWorkspaceStore'
 import * as fieldService from '../../services/field'
 
 interface GlobalModalsContainerProps {
-  wsState: any
-  wsActions: any
+  wsState: WorkspaceState
+  wsActions: WorkspaceActions
   uiActions: any
   showTableModal: boolean
   setShowTableModal: (show: boolean) => void
@@ -162,7 +163,35 @@ export default function GlobalModalsContainer({
         <TableModal
           show={showTableModal}
           onClose={() => setShowTableModal(false)}
-          onSubmit={(name) => wsActions.handleCreateTable(name, modalDbIdForTable || undefined)}
+          onSubmit={async (name) => {
+            let targetDbId = modalDbIdForTable || wsState.modalDbId
+            if (!targetDbId && wsState.workspaces) {
+              for (const ws of wsState.workspaces) {
+                for (const db of ws.databases || []) {
+                  if (wsState.activeTableId && (db.tables || []).some((t: any) => t.id === wsState.activeTableId)) {
+                    targetDbId = db.id
+                    break
+                  }
+                }
+                if (targetDbId) break
+              }
+              if (!targetDbId) {
+                const activeWs = wsState.workspaces.find((w: any) => w.id === wsState.activeWorkspaceId) || wsState.workspaces[0]
+                targetDbId = activeWs?.databases?.[0]?.id || null
+              }
+            }
+            if (!targetDbId) {
+              uiActions.addToast('請先建立或選擇一個資料庫', 'error')
+              return
+            }
+            const res = await wsActions.createTable(targetDbId, name)
+            if (res.ok) {
+              uiActions.addToast('資料表建立成功！', 'success')
+              setShowTableModal(false)
+            } else {
+              uiActions.addToast(res.error || '建立失敗', 'error')
+            }
+          }}
         />
       )}
 
