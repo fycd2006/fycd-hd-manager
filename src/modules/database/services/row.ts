@@ -33,7 +33,10 @@ export async function fetchRows(
     if (options?.filter) params.append('filter', options.filter)
 
     const queryString = params.toString() ? `?${params.toString()}` : ''
-    const res = await fetch(`/api/tables/${tableId}/rows${queryString}`)
+    const res = await fetch(`/api/tables/${tableId}/rows${queryString}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    })
     if (res.ok) {
       const data = await res.json()
       if (Array.isArray(data)) return data

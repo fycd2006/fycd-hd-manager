@@ -8,6 +8,9 @@ import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds }
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { safeJsonParse } from '@/lib/json-utils'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 async function getSessionUsername() {
   const user = await getSessionUser()
   return user?.username || '系統 (System)'
@@ -46,11 +49,17 @@ export async function GET(
       pageSizeParam
     })
 
-    if (result.isPaginated) {
-      return NextResponse.json(result.data)
+    const noCacheHeaders = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
     }
 
-    return NextResponse.json(result.rows)
+    if (result.isPaginated) {
+      return NextResponse.json(result.data, { headers: noCacheHeaders })
+    }
+
+    return NextResponse.json(result.rows, { headers: noCacheHeaders })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[API GET /api/tables/[tableId]/rows Error]:', error)
@@ -275,21 +284,24 @@ export async function PATCH(
           }
         })
 
-        // Fire-and-forget: secondary effects don't block the response
+        // Single-level cascade recomputation: computes dependent lookup/formula fields and returns affectedRows
+        let affectedRows: any[] = []
+        try {
+          affectedRows = (await cascadeRecomputeSingleLevel(tid, rid)) || []
+        } catch (e) {
+          console.warn('[Cascade Recompute Warning]:', e)
+        }
+
+        // Execute bi-directional link_row sync tasks asynchronously
         if (linkRowSyncTasks.length > 0) {
           Promise.all(linkRowSyncTasks).catch(err =>
             console.warn('[Bi-directional Sync Warning]:', err)
           )
         }
 
-        // Return immediately with the already-updated row
-        return NextResponse.json({ ...updatedRow, data: currentData })
+        // Return immediately with updated row and affected dependent rows
+        return NextResponse.json({ ...updatedRow, data: currentData, affectedRows })
       }
-
-    // Fire-and-forget: cascade recompute runs after response
-    cascadeRecomputeSingleLevel(tid, rid).catch(e =>
-      console.warn('[Cascade Recompute Warning]:', e)
-    )
 
     // If no fields were updated (entries.length === 0), re-fetch
     const updated = await prisma.tableRow.findUnique({

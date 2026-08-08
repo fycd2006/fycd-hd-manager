@@ -24,7 +24,7 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
     } catch {}
   })
 
-  if (dependentTableIds.size === 0) return
+  if (dependentTableIds.size === 0) return []
 
   const candidateRows = await prisma.tableRow.findMany({
     where: {
@@ -55,7 +55,7 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
 
   if (affectedRows.length > CASCADE_THRESHOLD) {
     console.warn(`[Cascade Recompute] Exceeded threshold (${affectedRows.length} > ${CASCADE_THRESHOLD}). Skipping synchronous cascade recompute.`)
-    return
+    return []
   }
 
   // Pre-fetch all fields for affected dependent tables in a single query (fixes N+1 DB query)
@@ -106,9 +106,12 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
           where: { id: depRow.id },
           data: { data: JSON.stringify(depData) }
         })
+        depRow.data = depData
       }
     })
   }
+
+  return affectedRows
 }
 
 /**

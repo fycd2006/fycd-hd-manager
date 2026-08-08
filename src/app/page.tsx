@@ -417,17 +417,46 @@ export default function Home() {
 
       if (result.ok) {
         if (result.row) {
-          // Merge server-calculated values (formulas, modified timestamps) with current optimistic UI state
-          // to prevent overwriting in-flight cell edits on the same row.
+          const serverData = typeof result.row.data === 'string'
+            ? (safeJsonParse(result.row.data, {}) as Record<string, any>)
+            : (result.row.data || {})
+
+          // Targeted Field Merging:
+          // 1. Explicitly update saved field with serverData
+          // 2. Explicitly update server-calculated fields (formulas, timestamps, autonumbers)
+          // 3. Preserve in-flight edits on unrelated fields of the same row
           setRows(prev => prev.map(r => {
             if (r.id !== rowId) return r
-            const serverData = typeof result.row!.data === 'string'
-              ? (safeJsonParse(result.row!.data, {}) as Record<string, any>)
-              : (result.row!.data || {})
-            const mergedData = { ...serverData, ...r.data }
-            return { ...result.row!, data: mergedData }
+            const mergedData = { ...r.data }
+            if (fieldKey in serverData) {
+              mergedData[fieldKey] = serverData[fieldKey]
+            }
+            fields.forEach(f => {
+              const key = `field_${f.id}`
+              if (['formula', 'lookup', 'rollup', 'last_modified_on', 'last_modified_by', 'created_on', 'created_by', 'autonumber'].includes(f.type)) {
+                if (key in serverData) {
+                  mergedData[key] = serverData[key]
+                }
+              }
+            })
+            return { ...r, data: mergedData }
           }))
         }
+
+        // Live sync dependent affected rows returned by server (formulas, lookups, rollups across rows)
+        const affectedRows = (result.row as any)?.affectedRows
+        if (Array.isArray(affectedRows) && affectedRows.length > 0) {
+          const affectedMap = new Map<number, Record<string, any>>()
+          affectedRows.forEach((ar: any) => affectedMap.set(ar.id, ar.data || {}))
+
+          setRows(prev => prev.map(r => {
+            if (affectedMap.has(r.id)) {
+              return { ...r, data: { ...r.data, ...affectedMap.get(r.id) } }
+            }
+            return r
+          }))
+        }
+
         if (!skipPushHistory) {
           pushEdit({
             rowId,
