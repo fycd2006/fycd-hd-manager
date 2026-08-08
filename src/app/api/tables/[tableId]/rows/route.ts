@@ -45,6 +45,7 @@ export async function GET(
 
     return NextResponse.json(result.rows)
   } catch (error: any) {
+    console.error('[API GET /api/tables/[tableId]/rows Error]:', error)
     return NextResponse.json({ error: error.message || '查詢資料列失敗' }, { status: 500 })
   }
 }

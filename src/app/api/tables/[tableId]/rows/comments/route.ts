@@ -56,6 +56,7 @@ export async function GET(
 
     return NextResponse.json(comments)
   } catch (error: any) {
+    console.error('[API GET /api/tables/[tableId]/rows/comments Error]:', error)
     return NextResponse.json({ error: error.message || '載入留言失敗' }, { status: 500 })
   }
 }
