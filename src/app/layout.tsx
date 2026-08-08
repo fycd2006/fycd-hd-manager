@@ -1,7 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./theme.css";
 import "@/styles/baserow/default.scss";
+
+export const viewport: Viewport = {
+  themeColor: "#EA580C",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
@@ -11,6 +19,11 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
     apple: "/logo.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FYCD HD",
   },
   openGraph: {
     title: "FYCD HD Manager",
