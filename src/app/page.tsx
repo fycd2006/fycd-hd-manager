@@ -20,7 +20,7 @@ import DarkReaderModal from '@/modules/database/components/modals/DarkReaderModa
 import { getRolePermissions } from '@/lib/permissions'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
-import { getPusherClient } from '@/lib/pusher-client'
+import { getPusherClient, getSocketId } from '@/lib/pusher-client'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -414,10 +414,47 @@ export default function Home() {
     setGroupByField(view.groupByField || null)
   }
 
-  // Cell update using new service
-  const updateCell = async (rowId: number, fieldKeyOrId: string | number, value: CellValue, skipPushHistory: boolean = false) => {
+  // Cell or multi-field row update using new service
+  const updateCell = async (rowId: number, fieldKeyOrId: any, value?: CellValue, skipPushHistory: boolean = false) => {
     if (!wsState.activeTableId) return
     try {
+      // Handle batch multi-field update for a row
+      if (typeof fieldKeyOrId === 'object' && fieldKeyOrId !== null) {
+        const dataMap: Record<string, any> = fieldKeyOrId
+        const socketId = getSocketId()
+        // Optimistically update all fields of this row in React state immediately
+        setRows(prev => prev.map(r => {
+          if (r.id !== rowId) return r
+          return { ...r, data: { ...r.data, ...dataMap } }
+        }))
+
+        const res = await fetch(`/api/tables/${wsState.activeTableId}/rows`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rowId, data: dataMap, socket_id: socketId }),
+        })
+        const result = await res.json()
+
+        if (res.ok && result.data) {
+          setRows(prev => prev.map(r => {
+            if (r.id !== rowId) return r
+            return { ...r, data: { ...r.data, ...result.data } }
+          }))
+
+          if (Array.isArray(result.affectedRows) && result.affectedRows.length > 0) {
+            const affectedMap = new Map<number, Record<string, any>>()
+            result.affectedRows.forEach((ar: any) => affectedMap.set(ar.id, ar.data || {}))
+            setRows(prev => prev.map(r => {
+              if (affectedMap.has(r.id)) {
+                return { ...r, data: { ...r.data, ...affectedMap.get(r.id) } }
+              }
+              return r
+            }))
+          }
+        }
+        return
+      }
+
       const fieldKey = typeof fieldKeyOrId === 'number'
         ? `field_${fieldKeyOrId}`
         : (String(fieldKeyOrId).startsWith('field_') ? String(fieldKeyOrId) : `field_${fieldKeyOrId}`)
@@ -425,7 +462,7 @@ export default function Home() {
       const fieldId = parseInt(fieldKey.replace('field_', ''))
       const field = fields.find(f => f.id === fieldId)
 
-      let payloadValue = value
+      let payloadValue: CellValue = value ?? null
       if ((field?.type === 'link_row' || field?.type === 'collaborator') && Array.isArray(value)) {
         payloadValue = value.map(item => {
           if (item && typeof item === 'object' && !Array.isArray(item)) {
@@ -439,10 +476,11 @@ export default function Home() {
       const oldValue = targetRow ? targetRow.data[fieldKey] : null
 
       // Optimistically update UI state immediately and recompute formulas locally
+      const safeVal = value ?? null
       const formulaFields = fields.filter(f => f.type === 'formula')
       setRows(prev => prev.map(r => {
         if (r.id !== rowId) return r
-        const updatedData = { ...r.data, [fieldKey]: value }
+        const updatedData = { ...r.data, [fieldKey]: safeVal }
         formulaFields.forEach(ff => {
           const destKey = `field_${ff.id}`
           let expr = ff.options

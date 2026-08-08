@@ -153,7 +153,8 @@ export async function POST(
     })
 
     const createdRow = { ...row, data: safeJsonParse(row.data, {}) }
-    triggerTableEvent(id, 'row-created', { row: createdRow })
+    const socketId = body?.socket_id || body?.data?.socket_id
+    triggerTableEvent(id, 'row-created', { row: createdRow }, socketId)
 
     return NextResponse.json(createdRow, { status: 201 })
   } catch (error: unknown) {
@@ -181,7 +182,7 @@ export async function PATCH(
       return NextResponse.json({ error: '無效的 JSON 請求內容' }, { status: 400 })
     }
 
-    const { rowId, data, fieldKey, value } = body
+    const { rowId, data, fieldKey, value, socket_id: socketId } = body
     const rid = parseInt(rowId)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
 
@@ -310,7 +311,7 @@ export async function PATCH(
           fieldKey,
           value,
           updatedAt: updatedRow.updatedAt
-        })
+        }, socketId)
 
         // Return immediately with updated row and affected dependent rows
         return NextResponse.json({ ...updatedRow, data: currentData, affectedRows })
@@ -356,12 +357,14 @@ export async function DELETE(
       console.warn('[Link Row Cleanup Warning]:', cleanupErr)
     }
 
+    const socketId = searchParams.get('socket_id') || undefined
+
     await prisma.tableRow.update({
       where: { id: rid, tableId: tid },
       data: { deletedAt: new Date() }
     })
 
-    triggerTableEvent(tid, 'row-deleted', { rowId: rid })
+    triggerTableEvent(tid, 'row-deleted', { rowId: rid }, socketId)
 
     return NextResponse.json({ message: '資料列已刪除' })
   } catch (error: unknown) {

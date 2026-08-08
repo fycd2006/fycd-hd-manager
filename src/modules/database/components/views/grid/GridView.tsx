@@ -25,7 +25,7 @@ interface GridViewProps {
   groupByField?: string | null;
   rowColorRules?: RowColorRule[];
   rowDetailsWidth?: number;
-  onUpdateCell?: (rowId: number, fieldId: number, value: any) => void;
+  onUpdateCell?: (rowId: number, fieldId: any, value?: any) => void;
   onAddRow?: () => void;
   onAddField?: () => void;
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
@@ -133,13 +133,15 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [selectedRowIds, selectionBounds, rows, fields, showToast]);
 
   const handleClearSelectionValues = useCallback(() => {
-    const tasks: { rowId: number; fieldId: number; val: any }[] = [];
+    const rowMap = new Map<number, Record<string, any>>();
     if (selectedRowIds.size > 0) {
       rows.forEach((row) => {
         if (selectedRowIds.has(row.id)) {
+          const map = rowMap.get(row.id) || {};
           fields.forEach((field) => {
-            tasks.push({ rowId: row.id, fieldId: field.id, val: null });
+            map[`field_${field.id}`] = null;
           });
+          rowMap.set(row.id, map);
         }
       });
       showToast('已清空選取列內容');
@@ -149,19 +151,22 @@ export const GridView: React.FC<GridViewProps> = ({
           const targetRow = rows[r];
           const targetField = fields[c];
           if (targetRow && targetField) {
-            tasks.push({ rowId: targetRow.id, fieldId: targetField.id, val: null });
+            const map = rowMap.get(targetRow.id) || {};
+            map[`field_${targetField.id}`] = null;
+            rowMap.set(targetRow.id, map);
           }
         }
       }
       showToast('已清空選取儲存格內容');
     }
 
-    if (tasks.length > 0) {
+    if (rowMap.size > 0) {
       (async () => {
-        for (let i = 0; i < tasks.length; i += 2) {
-          const chunk = tasks.slice(i, i + 2);
-          await Promise.all(chunk.map(t => onUpdateCell?.(t.rowId, t.fieldId, t.val)));
-          if (i + 2 < tasks.length) await new Promise(res => setTimeout(res, 20));
+        const entries = Array.from(rowMap.entries());
+        for (let i = 0; i < entries.length; i += 2) {
+          const chunk = entries.slice(i, i + 2);
+          await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+          if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
         }
       })();
     }
@@ -205,7 +210,7 @@ export const GridView: React.FC<GridViewProps> = ({
     if (lines.length === 0) return;
     const pastedGrid = lines.map(line => line.split('\t'));
 
-    const tasks: { rowId: number; fieldId: number; val: any }[] = [];
+    const rowMap = new Map<number, Record<string, any>>();
 
     if (selectionBounds && selectionBounds.isMulti) {
       // Batch paste into multi-cell selection bounds
@@ -225,7 +230,9 @@ export const GridView: React.FC<GridViewProps> = ({
           const cellVal = sourceRow[c % sourceRow.length];
 
           if (targetRow && targetField) {
-            tasks.push({ rowId: targetRow.id, fieldId: targetField.id, val: cellVal.trim() });
+            const map = rowMap.get(targetRow.id) || {};
+            map[`field_${targetField.id}`] = cellVal.trim();
+            rowMap.set(targetRow.id, map);
           }
         }
       }
@@ -244,18 +251,21 @@ export const GridView: React.FC<GridViewProps> = ({
           if (targetColIndex >= fields.length) return;
           const targetField = fields[targetColIndex];
           if (targetRow && targetField) {
-            tasks.push({ rowId: targetRow.id, fieldId: targetField.id, val: cellVal.trim() });
+            const map = rowMap.get(targetRow.id) || {};
+            map[`field_${targetField.id}`] = cellVal.trim();
+            rowMap.set(targetRow.id, map);
           }
         });
       });
     }
 
-    if (tasks.length > 0) {
+    if (rowMap.size > 0) {
       (async () => {
-        for (let i = 0; i < tasks.length; i += 2) {
-          const chunk = tasks.slice(i, i + 2);
-          await Promise.all(chunk.map(t => onUpdateCell?.(t.rowId, t.fieldId, t.val)));
-          if (i + 2 < tasks.length) await new Promise(res => setTimeout(res, 20));
+        const entries = Array.from(rowMap.entries());
+        for (let i = 0; i < entries.length; i += 2) {
+          const chunk = entries.slice(i, i + 2);
+          await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+          if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
         }
       })();
     }
@@ -298,22 +308,25 @@ export const GridView: React.FC<GridViewProps> = ({
           const minC = Math.min(autofillStart[1], autofillEnd[1]);
           const maxC = Math.max(autofillStart[1], autofillEnd[1]);
 
-          const tasks: { rowId: number; fieldId: number; val: any }[] = [];
+          const rowMap = new Map<number, Record<string, any>>();
           for (let r = minR; r <= maxR; r++) {
             for (let c = minC; c <= maxC; c++) {
               const rData = rows[r];
               const fData = fields[c];
               if (rData && fData) {
-                tasks.push({ rowId: rData.id, fieldId: fData.id, val: sourceValue });
+                const map = rowMap.get(rData.id) || {};
+                map[`field_${fData.id}`] = sourceValue;
+                rowMap.set(rData.id, map);
               }
             }
           }
-          if (tasks.length > 0) {
+          if (rowMap.size > 0) {
             (async () => {
-              for (let i = 0; i < tasks.length; i += 2) {
-                const chunk = tasks.slice(i, i + 2);
-                await Promise.all(chunk.map(t => onUpdateCell?.(t.rowId, t.fieldId, t.val)));
-                if (i + 2 < tasks.length) await new Promise(res => setTimeout(res, 20));
+              const entries = Array.from(rowMap.entries());
+              for (let i = 0; i < entries.length; i += 2) {
+                const chunk = entries.slice(i, i + 2);
+                await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+                if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
               }
             })();
           }

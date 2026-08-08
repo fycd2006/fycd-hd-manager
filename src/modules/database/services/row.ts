@@ -4,6 +4,7 @@
  */
 
 import { TableRow, CellValue } from '../types'
+import { getSocketId } from '@/lib/pusher-client'
 
 export interface FetchRowsResponse {
   rows: TableRow[]
@@ -53,10 +54,11 @@ export async function fetchRows(
  */
 export const createRow = async (tableId: number, data: Record<string, CellValue>): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
   try {
+    const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data }),
+      body: JSON.stringify({ ...data, socket_id: socketId }),
     })
     const resData = await res.json()
     if (res.ok) {
@@ -78,10 +80,11 @@ export const updateCell = async (
   value: CellValue
 ): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
   try {
+    const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rowId, fieldKey, value }),
+      body: JSON.stringify({ rowId, fieldKey, value, socket_id: socketId }),
     })
     const data = await res.json()
     if (res.ok) {
@@ -98,7 +101,9 @@ export const updateCell = async (
  */
 export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: boolean; error?: string }> => {
   try {
-    const res = await fetch(`/api/tables/${tableId}/rows?rowId=${rowId}`, {
+    const socketId = getSocketId()
+    const query = socketId ? `?rowId=${rowId}&socket_id=${encodeURIComponent(socketId)}` : `?rowId=${rowId}`
+    const res = await fetch(`/api/tables/${tableId}/rows${query}`, {
       method: 'DELETE',
     })
     if (res.ok) {

@@ -17,3 +17,8 @@ export function getPusherClient(): PusherClient | null {
 
   return pusherClientInstance
 }
+
+export function getSocketId(): string | undefined {
+  const client = getPusherClient()
+  return client?.connection?.socket_id
+}

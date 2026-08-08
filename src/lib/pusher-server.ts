@@ -22,10 +22,10 @@ export const pusherServer = pusherServerInstance
 /**
  * Triggers a real-time event on a specific table channel
  */
-export async function triggerTableEvent(tableId: number, event: string, data: any) {
+export async function triggerTableEvent(tableId: number, event: string, data: any, socketId?: string) {
   if (!pusherServer) return
   try {
-    await pusherServer.trigger(`table-${tableId}`, event, data)
+    await pusherServer.trigger(`table-${tableId}`, event, data, socketId ? { socket_id: socketId } : undefined)
   } catch (err: any) {
     console.warn('[Pusher Server Warning] Failed to trigger event:', err?.message || err)
   }
