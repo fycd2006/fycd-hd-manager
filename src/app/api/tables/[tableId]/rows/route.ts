@@ -7,6 +7,7 @@ import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCasc
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { safeJsonParse } from '@/lib/json-utils'
+import { triggerTableEvent } from '@/lib/pusher-server'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -151,7 +152,10 @@ export async function POST(
       timeout: 10000
     })
 
-    return NextResponse.json({ ...row, data: safeJsonParse(row.data, {}) }, { status: 201 })
+    const createdRow = { ...row, data: safeJsonParse(row.data, {}) }
+    triggerTableEvent(id, 'row-created', { row: createdRow })
+
+    return NextResponse.json(createdRow, { status: 201 })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: msg || '新增資料列失敗' }, { status: 500 })
@@ -299,6 +303,15 @@ export async function PATCH(
           )
         }
 
+        triggerTableEvent(tid, 'row-updated', {
+          rowId: rid,
+          data: currentData,
+          affectedRows,
+          fieldKey,
+          value,
+          updatedAt: updatedRow.updatedAt
+        })
+
         // Return immediately with updated row and affected dependent rows
         return NextResponse.json({ ...updatedRow, data: currentData, affectedRows })
       }
@@ -347,6 +360,8 @@ export async function DELETE(
       where: { id: rid, tableId: tid },
       data: { deletedAt: new Date() }
     })
+
+    triggerTableEvent(tid, 'row-deleted', { rowId: rid })
 
     return NextResponse.json({ message: '資料列已刪除' })
   } catch (error: unknown) {

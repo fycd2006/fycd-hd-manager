@@ -20,6 +20,7 @@ import DarkReaderModal from '@/modules/database/components/modals/DarkReaderModa
 import { getRolePermissions } from '@/lib/permissions'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
+import { getPusherClient } from '@/lib/pusher-client'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -286,6 +287,57 @@ export default function Home() {
       setGridLoading(false)
     }
   }, [uiActions])
+
+  // Real-time multi-user WebSocket synchronization via Pusher
+  useEffect(() => {
+    if (!wsState.activeTableId) return
+    const pusher = getPusherClient()
+    if (!pusher) return
+
+    const channelName = `table-${wsState.activeTableId}`
+    const channel = pusher.subscribe(channelName)
+
+    channel.bind('row-updated', (data: any) => {
+      if (!data) return
+      const { rowId, data: rowData, affectedRows } = data
+
+      setRows(prev => prev.map(r => {
+        if (r.id === rowId && rowData) {
+          return { ...r, data: { ...r.data, ...rowData } }
+        }
+        return r
+      }))
+
+      if (Array.isArray(affectedRows) && affectedRows.length > 0) {
+        const affectedMap = new Map<number, Record<string, any>>()
+        affectedRows.forEach((ar: any) => affectedMap.set(ar.id, ar.data || {}))
+        setRows(prev => prev.map(r => {
+          if (affectedMap.has(r.id)) {
+            return { ...r, data: { ...r.data, ...affectedMap.get(r.id) } }
+          }
+          return r
+        }))
+      }
+    })
+
+    channel.bind('row-created', (data: any) => {
+      if (!data?.row) return
+      setRows(prev => {
+        if (prev.some(r => r.id === data.row.id)) return prev
+        return [...prev, data.row]
+      })
+    })
+
+    channel.bind('row-deleted', (data: any) => {
+      if (!data?.rowId) return
+      setRows(prev => prev.filter(r => r.id !== data.rowId))
+    })
+
+    return () => {
+      channel.unbind_all()
+      pusher.unsubscribe(channelName)
+    }
+  }, [wsState.activeTableId])
 
   // CSV Hook
   const { csvInputRef, handleExportCSV, handleCSVImport } = useTableCSV({
