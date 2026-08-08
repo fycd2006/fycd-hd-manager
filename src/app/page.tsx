@@ -320,6 +320,18 @@ export default function Home() {
       }
     })
 
+    channel.bind('rows-batch-updated', (data: any) => {
+      if (!data || !Array.isArray(data.updates)) return
+      const updateMap = new Map<number, Record<string, any>>()
+      data.updates.forEach((u: any) => updateMap.set(u.rowId, u.data || {}))
+      setRows(prev => prev.map(r => {
+        if (updateMap.has(r.id)) {
+          return { ...r, data: { ...r.data, ...updateMap.get(r.id) } }
+        }
+        return r
+      }))
+    })
+
     channel.bind('row-created', (data: any) => {
       if (!data?.row) return
       setRows(prev => {
@@ -568,6 +580,37 @@ export default function Home() {
   useEffect(() => {
     updateCellRef.current = updateCell
   }, [updateCell])
+
+  const batchUpdateCells = async (updates: Array<{ rowId: number; data: Record<string, any> }>) => {
+    if (!wsState.activeTableId || !Array.isArray(updates) || updates.length === 0) return
+    try {
+      // Optimistically update React state for ALL target rows immediately in 0ms
+      const updateMap = new Map<number, Record<string, any>>()
+      updates.forEach(u => updateMap.set(u.rowId, u.data))
+      setRows(prev => prev.map(r => {
+        if (updateMap.has(r.id)) {
+          return { ...r, data: { ...r.data, ...updateMap.get(r.id) } }
+        }
+        return r
+      }))
+
+      // Send 1 SINGLE HTTP request to batch update API
+      const result = await rowService.batchUpdateRows(wsState.activeTableId, updates)
+      if (result.ok && Array.isArray(result.updates)) {
+        const serverMap = new Map<number, Record<string, any>>()
+        result.updates.forEach(u => serverMap.set(u.rowId, u.data))
+        setRows(prev => prev.map(r => {
+          if (serverMap.has(r.id)) {
+            return { ...r, data: { ...r.data, ...serverMap.get(r.id) } }
+          }
+          return r
+        }))
+      }
+    } catch (err) {
+      console.error('Batch update failed:', err)
+      uiActions.addToast('批次更新失敗', 'error')
+    }
+  }
 
   // Add row using new service
   const addRow = async () => {
@@ -1684,6 +1727,7 @@ export default function Home() {
                     groupedRows={groupedRows}
                     getRowBgColorClass={getRowBgColorClass}
                     updateCell={updateCell}
+                    batchUpdateCells={batchUpdateCells}
                     toggleSort={toggleSort}
                     setEditingFieldId={setEditingFieldId}
                     setEditingFieldName={setEditingFieldName}

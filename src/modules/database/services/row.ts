@@ -97,6 +97,30 @@ export const updateCell = async (
 }
 
 /**
+ * Batch update multiple rows in a single HTTP request
+ */
+export const batchUpdateRows = async (
+  tableId: number,
+  updates: Array<{ rowId: number; data: Record<string, any> }>
+): Promise<{ ok: boolean; updates?: Array<{ rowId: number; data: Record<string, any> }>; error?: string }> => {
+  try {
+    const socketId = getSocketId()
+    const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates, socket_id: socketId }),
+    })
+    const resData = await res.json()
+    if (res.ok) {
+      return { ok: true, updates: resData.updates }
+    }
+    return { ok: false, error: resData.error || '批次更新失敗' }
+  } catch {
+    return { ok: false, error: '批次更新失敗' }
+  }
+}
+
+/**
  * Delete a row
  */
 export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: boolean; error?: string }> => {

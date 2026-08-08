@@ -26,6 +26,7 @@ interface GridViewProps {
   rowColorRules?: RowColorRule[];
   rowDetailsWidth?: number;
   onUpdateCell?: (rowId: number, fieldId: any, value?: any) => void;
+  onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void;
   onAddRow?: () => void;
   onAddField?: () => void;
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
@@ -50,6 +51,7 @@ export const GridView: React.FC<GridViewProps> = ({
   rowColorRules,
   rowDetailsWidth = 56,
   onUpdateCell,
+  onBatchUpdateCells,
   onAddRow,
   onAddField,
   onResizeColumn,
@@ -161,16 +163,21 @@ export const GridView: React.FC<GridViewProps> = ({
     }
 
     if (rowMap.size > 0) {
-      (async () => {
-        const entries = Array.from(rowMap.entries());
-        for (let i = 0; i < entries.length; i += 2) {
-          const chunk = entries.slice(i, i + 2);
-          await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
-          if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
-        }
-      })();
+      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+      if (onBatchUpdateCells) {
+        onBatchUpdateCells(batchUpdates);
+      } else {
+        (async () => {
+          const entries = Array.from(rowMap.entries());
+          for (let i = 0; i < entries.length; i += 2) {
+            const chunk = entries.slice(i, i + 2);
+            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+          }
+        })();
+      }
     }
-  }, [selectedRowIds, selectionBounds, rows, fields, onUpdateCell, showToast]);
+  }, [selectedRowIds, selectionBounds, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
 
   const handleDeleteSelectedRows = useCallback(() => {
     const rowIdsToDelete = new Set<number>(selectedRowIds);
@@ -260,16 +267,21 @@ export const GridView: React.FC<GridViewProps> = ({
     }
 
     if (rowMap.size > 0) {
-      (async () => {
-        const entries = Array.from(rowMap.entries());
-        for (let i = 0; i < entries.length; i += 2) {
-          const chunk = entries.slice(i, i + 2);
-          await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
-          if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
-        }
-      })();
+      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+      if (onBatchUpdateCells) {
+        onBatchUpdateCells(batchUpdates);
+      } else {
+        (async () => {
+          const entries = Array.from(rowMap.entries());
+          for (let i = 0; i < entries.length; i += 2) {
+            const chunk = entries.slice(i, i + 2);
+            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+          }
+        })();
+      }
     }
-  }, [selectionBounds, selectionStart, rows, fields, onUpdateCell]);
+  }, [selectionBounds, selectionStart, rows, fields, onUpdateCell, onBatchUpdateCells]);
 
   useEffect(() => {
     const handlePasteEvent = (e: ClipboardEvent) => {
@@ -321,14 +333,19 @@ export const GridView: React.FC<GridViewProps> = ({
             }
           }
           if (rowMap.size > 0) {
-            (async () => {
-              const entries = Array.from(rowMap.entries());
-              for (let i = 0; i < entries.length; i += 2) {
-                const chunk = entries.slice(i, i + 2);
-                await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
-                if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
-              }
-            })();
+            const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+            if (onBatchUpdateCells) {
+              onBatchUpdateCells(batchUpdates);
+            } else {
+              (async () => {
+                const entries = Array.from(rowMap.entries());
+                for (let i = 0; i < entries.length; i += 2) {
+                  const chunk = entries.slice(i, i + 2);
+                  await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+                  if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+                }
+              })();
+            }
           }
         }
       }

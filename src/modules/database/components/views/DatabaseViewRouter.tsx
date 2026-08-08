@@ -30,6 +30,7 @@ interface DatabaseViewRouterProps {
   groupedRows: Record<string, TableRow[]>
   getRowBgColorClass: (row: TableRow) => string
   updateCell: (rowId: number, fieldKey: string, value: any) => Promise<void>
+  batchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => Promise<void>
   toggleSort: (fieldKey: string) => void
   setEditingFieldId: (id: number | null) => void
   setEditingFieldName: (name: string) => void
@@ -76,6 +77,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   groupedRows,
   getRowBgColorClass,
   updateCell,
+  batchUpdateCells,
   toggleSort,
   setEditingFieldId,
   setEditingFieldName,
@@ -108,6 +110,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           gridLoading={gridLoading}
           readOnly={readOnly}
           onUpdateCell={updateCell}
+          onBatchUpdateCells={batchUpdateCells}
           frozenColumnsCount={frozenColumnsCount}
           columnWidths={columnWidths}
           sortField={sortField}

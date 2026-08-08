@@ -44,6 +44,7 @@ interface GridViewProps {
   onAddRow: () => void
   onShowNewFieldModal: () => void
   onUpdateCell?: (rowId: number, fieldKey: string, value: any) => void
+  onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void
   onUndo?: () => void
@@ -66,6 +67,7 @@ export default function GridView({
   onHandleResizeStart,
   onHandleResizeEnd,
   onUpdateCell,
+  onBatchUpdateCells,
   onUpdateField,
   onOpenFieldContextMenu,
   onExpandRow,
@@ -135,6 +137,7 @@ export default function GridView({
         groupByField={groupByField}
         rowColorRules={rowColorRules}
         onUpdateCell={handleUpdateCell}
+        onBatchUpdateCells={readOnly ? undefined : onBatchUpdateCells}
         onAddRow={readOnly ? () => {} : onAddRow}
         onAddField={readOnly ? () => {} : onShowNewFieldModal}
         onResizeColumn={handleResizeColumn}
