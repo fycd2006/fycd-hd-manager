@@ -133,11 +133,12 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [selectedRowIds, selectionBounds, rows, fields, showToast]);
 
   const handleClearSelectionValues = useCallback(() => {
+    const tasks: { rowId: number; fieldId: number; val: any }[] = [];
     if (selectedRowIds.size > 0) {
       rows.forEach((row) => {
         if (selectedRowIds.has(row.id)) {
           fields.forEach((field) => {
-            onUpdateCell?.(row.id, field.id, null);
+            tasks.push({ rowId: row.id, fieldId: field.id, val: null });
           });
         }
       });
@@ -148,11 +149,21 @@ export const GridView: React.FC<GridViewProps> = ({
           const targetRow = rows[r];
           const targetField = fields[c];
           if (targetRow && targetField) {
-            onUpdateCell?.(targetRow.id, targetField.id, null);
+            tasks.push({ rowId: targetRow.id, fieldId: targetField.id, val: null });
           }
         }
       }
       showToast('已清空選取儲存格內容');
+    }
+
+    if (tasks.length > 0) {
+      (async () => {
+        for (let i = 0; i < tasks.length; i += 2) {
+          const chunk = tasks.slice(i, i + 2);
+          await Promise.all(chunk.map(t => onUpdateCell?.(t.rowId, t.fieldId, t.val)));
+          if (i + 2 < tasks.length) await new Promise(res => setTimeout(res, 20));
+        }
+      })();
     }
   }, [selectedRowIds, selectionBounds, rows, fields, onUpdateCell, showToast]);
 
@@ -194,8 +205,10 @@ export const GridView: React.FC<GridViewProps> = ({
     if (lines.length === 0) return;
     const pastedGrid = lines.map(line => line.split('\t'));
 
+    const tasks: { rowId: number; fieldId: number; val: any }[] = [];
+
     if (selectionBounds && selectionBounds.isMulti) {
-      // Batch paste into multi-cell selection bounds (repeating/tiling if pasted content is smaller than selection area)
+      // Batch paste into multi-cell selection bounds
       const rowCount = selectionBounds.maxRow - selectionBounds.minRow + 1;
       const colCount = selectionBounds.maxCol - selectionBounds.minCol + 1;
 
@@ -212,7 +225,7 @@ export const GridView: React.FC<GridViewProps> = ({
           const cellVal = sourceRow[c % sourceRow.length];
 
           if (targetRow && targetField) {
-            onUpdateCell?.(targetRow.id, targetField.id, cellVal.trim());
+            tasks.push({ rowId: targetRow.id, fieldId: targetField.id, val: cellVal.trim() });
           }
         }
       }
@@ -231,10 +244,20 @@ export const GridView: React.FC<GridViewProps> = ({
           if (targetColIndex >= fields.length) return;
           const targetField = fields[targetColIndex];
           if (targetRow && targetField) {
-            onUpdateCell?.(targetRow.id, targetField.id, cellVal.trim());
+            tasks.push({ rowId: targetRow.id, fieldId: targetField.id, val: cellVal.trim() });
           }
         });
       });
+    }
+
+    if (tasks.length > 0) {
+      (async () => {
+        for (let i = 0; i < tasks.length; i += 2) {
+          const chunk = tasks.slice(i, i + 2);
+          await Promise.all(chunk.map(t => onUpdateCell?.(t.rowId, t.fieldId, t.val)));
+          if (i + 2 < tasks.length) await new Promise(res => setTimeout(res, 20));
+        }
+      })();
     }
   }, [selectionBounds, selectionStart, rows, fields, onUpdateCell]);
 
@@ -267,14 +290,24 @@ export const GridView: React.FC<GridViewProps> = ({
           const minC = Math.min(autofillStart[1], autofillEnd[1]);
           const maxC = Math.max(autofillStart[1], autofillEnd[1]);
 
+          const tasks: { rowId: number; fieldId: number; val: any }[] = [];
           for (let r = minR; r <= maxR; r++) {
             for (let c = minC; c <= maxC; c++) {
               const rData = rows[r];
               const fData = fields[c];
               if (rData && fData) {
-                onUpdateCell?.(rData.id, fData.id, sourceValue);
+                tasks.push({ rowId: rData.id, fieldId: fData.id, val: sourceValue });
               }
             }
+          }
+          if (tasks.length > 0) {
+            (async () => {
+              for (let i = 0; i < tasks.length; i += 2) {
+                const chunk = tasks.slice(i, i + 2);
+                await Promise.all(chunk.map(t => onUpdateCell?.(t.rowId, t.fieldId, t.val)));
+                if (i + 2 < tasks.length) await new Promise(res => setTimeout(res, 20));
+              }
+            })();
           }
         }
       }

@@ -554,6 +554,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const localValRef = useRef(localVal);
   const hasCommittedRef = useRef(false);
+  const longTextDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isEditing) {
@@ -1557,7 +1558,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   onChange={(e) => {
                     const v = e.target.value;
                     setLocalVal(v);
-                    onUpdate(v);
+                    if (longTextDebounceRef.current) clearTimeout(longTextDebounceRef.current);
+                    longTextDebounceRef.current = setTimeout(() => {
+                      onUpdate(v);
+                    }, 400);
                   }}
                   onKeyDown={handleLongTextKeyDown}
                   style={{
@@ -1623,7 +1627,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               onChange={(e) => {
                 const v = e.target.value;
                 setLocalVal(v);
-                onUpdate(v);
+                if (longTextDebounceRef.current) clearTimeout(longTextDebounceRef.current);
+                longTextDebounceRef.current = setTimeout(() => {
+                  onUpdate(v);
+                }, 400);
               }}
               onKeyDown={handleLongTextKeyDown}
               style={{

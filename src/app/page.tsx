@@ -19,6 +19,7 @@ import SubscriptionModal from '@/modules/database/components/modals/Subscription
 import DarkReaderModal from '@/modules/database/components/modals/DarkReaderModal'
 import { getRolePermissions } from '@/lib/permissions'
 import { evaluateFormula } from '@/lib/formula'
+import { safeJsonParse } from '@/lib/json-utils'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -416,7 +417,16 @@ export default function Home() {
 
       if (result.ok) {
         if (result.row) {
-          setRows(prev => prev.map(r => r.id === rowId ? result.row! : r))
+          // Merge server-calculated values (formulas, modified timestamps) with current optimistic UI state
+          // to prevent overwriting in-flight cell edits on the same row.
+          setRows(prev => prev.map(r => {
+            if (r.id !== rowId) return r
+            const serverData = typeof result.row!.data === 'string'
+              ? (safeJsonParse(result.row!.data, {}) as Record<string, any>)
+              : (result.row!.data || {})
+            const mergedData = { ...serverData, ...r.data }
+            return { ...result.row!, data: mergedData }
+          }))
         }
         if (!skipPushHistory) {
           pushEdit({
@@ -425,27 +435,6 @@ export default function Home() {
             before: oldValue,
             after: payloadValue
           })
-
-          const fieldName = field?.name || fieldKey
-          const formatVal = (v: any) => {
-            if (v === null || v === undefined || v === '') return '(空)'
-            if (typeof v === 'object') {
-              try { return JSON.stringify(v) } catch { return String(v) }
-            }
-            return String(v)
-          }
-
-          const effectiveTableId = wsState.activeTableId || targetRow?.tableId
-          if (effectiveTableId) {
-            fetch(`/api/tables/${effectiveTableId}/rows/comments`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                rowId,
-                content: `[HISTORY] 將「${fieldName}」由 "${formatVal(oldValue)}" 修改為 "${formatVal(payloadValue)}"`
-              })
-            }).catch(() => {})
-          }
         }
       } else {
         // Revert on error
