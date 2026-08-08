@@ -224,7 +224,7 @@ export default function Sidebar({
                 onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
               >
                 <img
-                  src="/logo.jpg"
+                  src="/logo.png"
                   alt="FYCD HD Manager Logo"
                   style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #EA580C', boxShadow: '0 2px 6px rgba(234, 88, 12, 0.25)' }}
                 />
@@ -1024,7 +1024,7 @@ export default function Sidebar({
             <div style={{ marginTop: 'auto', height: '44px', minHeight: '44px', maxHeight: '44px', borderTop: '1px solid #e2e8f0', padding: '0 12px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                 <img
-                  src="/logo.jpg"
+                  src="/logo.png"
                   alt="FYCD HD Manager Logo"
                   style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0', flexShrink: 0 }}
                 />

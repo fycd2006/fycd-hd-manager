@@ -41,7 +41,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ authState, authActions, them
     <div className={`auth-container theme-${themeState.theme}`}>
       <div className="auth-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <img 
-          src="/logo.jpg" 
+          src="/logo.png" 
           alt="FYCD HD Manager Logo" 
           style={{ width: '88px', height: '88px', borderRadius: '50%', objectFit: 'cover', marginBottom: '12px', boxShadow: '0 6px 18px rgba(0,0,0,0.12)', border: '2px solid #ffffff' }} 
         />

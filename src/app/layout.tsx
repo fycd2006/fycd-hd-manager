@@ -10,18 +10,19 @@ export const metadata: Metadata = {
   keywords: ["FYCD HD Manager", "Database", "NoCode", "Formula", "Workspace", "Grid View", "Kanban"],
   icons: {
     icon: "/favicon.ico",
-    apple: "/logo.jpg",
+    apple: "/logo.png",
   },
   openGraph: {
     title: "FYCD HD Manager",
     description: "FYCD HD Manager - 高效能團隊協作與動態資料表管理平台",
     type: "website",
     locale: "zh_TW",
-    images: [{ url: "/logo.jpg", width: 800, height: 800, alt: "FYCD HD Manager Logo" }],
+    images: [{ url: "/logo.png", width: 800, height: 800, alt: "FYCD HD Manager Logo" }],
   },
 };
 
 import { I18nProvider } from "@/lib/i18n/i18nContext";
+import { FYCDBrandIntro } from "@/modules/database/components/intro/FYCDBrandIntro";
 
 export default function RootLayout({
   children,
@@ -49,6 +50,7 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <FYCDBrandIntro />
         <I18nProvider>{children}</I18nProvider>
       </body>
     </html>

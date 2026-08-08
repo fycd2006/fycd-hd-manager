@@ -97,7 +97,7 @@ export default function AuthScreen({
           textAlign: 'center'
         }}>
           <img 
-            src="/logo.jpg" 
+            src="/logo.png" 
             alt="FYCD HD Manager Logo" 
             style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e4e4e7', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
           />
@@ -321,7 +321,12 @@ export default function AuthScreen({
             }}
           >
             {submitting ? (
-              <span>{t('notifications.processing')}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#74C643', display: 'inline-block' }} />
+                <span style={{ width: '14px', height: '2px', backgroundColor: '#EA580C', borderRadius: '1px' }} />
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#F97316', display: 'inline-block' }} />
+                <span style={{ marginLeft: '4px' }}>{t('notifications.processing')}</span>
+              </span>
             ) : authMode === 'login' ? (
               <>
                 <span>{t('auth.loginTitle')}</span>

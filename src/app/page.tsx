@@ -40,6 +40,7 @@ const getViewIcon = (type: string, props: any) => {
 import WorkspaceDashboard from '@/modules/database/components/dashboard/WorkspaceDashboard'
 import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
 import PullToRefresh from '@/components/ui/PullToRefresh'
+import { FYCDAuthTransition } from '@/components/brand/FYCDAuthTransition'
 import {
   useAuthStore,
   useThemeStore,
@@ -88,6 +89,7 @@ export default function Home() {
   const [rows, setRows] = useState<TableRow[]>([])
   const [loading, setLoading] = useState(true)
   const [gridLoading, setGridLoading] = useState(false)
+  const [showAuthTransition, setShowAuthTransition] = useState(false)
 
   // View configuration
   const [views, setViews] = useState<TableView[]>([])
@@ -159,6 +161,7 @@ export default function Home() {
 
   useEffect(() => {
     if (authState.currentUser) {
+      wsActions.fetchWorkspaces()
       fetch('/api/notifications')
         .then(res => res.ok ? res.json() : { notifications: [] })
         .then(data => {
@@ -1055,46 +1058,74 @@ export default function Home() {
     .find(t => t.id === wsState.activeTableId)
 
   // Show unified App Shell skeleton during initial load & authentication check
+  // Show unified App Shell skeleton during initial load & authentication check
   if (authState.authLoading) {
     const isDark = themeState.theme === 'dark'
     return (
-      <div className={`app-container theme-${themeState.theme}`} style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#f8fafc' }}>
+      <div className={`app-container theme-${themeState.theme}`} style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#fafafa' }}>
+        {/* Top Brand Accent Line */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '3px',
+          zIndex: 50,
+          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          backgroundSize: '200% 100%',
+          animation: 'fycdTopBarShimmer 2s ease-in-out infinite'
+        }} />
+
         {/* Sidebar Skeleton */}
-        <div style={{ width: '250px', height: '100%', borderRight: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
-            <div style={{ width: '120px', height: '18px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
+        <div style={{ width: '240px', height: '100%', borderRight: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: isDark ? '#1e293b' : '#ffffff', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <img
+              src="/logo.png"
+              alt="FYCD HD Logo"
+              style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #EA580C', boxShadow: '0 2px 6px rgba(234, 88, 12, 0.2)' }}
+            />
+            <div style={{ width: '110px', height: '16px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-            {[100, 70, 85, 60, 90].map((w, i) => (
-              <div key={i} style={{ width: `${w}%`, height: '18px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#e2e8f0', animation: 'pulse 1.5s infinite ease-in-out' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
+            {[85, 65, 75, 55, 80].map((w, i) => (
+              <div key={i} style={{ width: `${w}%`, height: '16px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#f1f5f9', opacity: 0.8 }} />
             ))}
           </div>
         </div>
+
         {/* Main Content Skeleton */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           {/* View Toolbar Skeleton */}
-          <div style={{ height: '48px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '16px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
-            <div style={{ width: '100px', height: '24px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
-            <div style={{ width: '80px', height: '24px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#e2e8f0', animation: 'pulse 1.5s infinite ease-in-out' }} />
-            <div style={{ width: '80px', height: '24px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#e2e8f0', animation: 'pulse 1.5s infinite ease-in-out' }} />
+          <div style={{ height: '44px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '14px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
+            <div style={{ width: '110px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
+            <div style={{ width: '75px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#f1f5f9' }} />
+            <div style={{ width: '75px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#f1f5f9' }} />
           </div>
+
           {/* Grid Skeleton */}
-          <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: isDark ? '#0f172a' : '#ffffff' }}>
             <div style={{ display: 'flex', gap: '8px', height: '32px' }}>
               {[1, 2, 3, 4, 5].map(col => (
-                <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#cbd5e1', animation: 'pulse 1.5s infinite ease-in-out' }} />
+                <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#cbd5e1', opacity: 0.7 }} />
               ))}
             </div>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(row => (
-              <div key={row} style={{ display: 'flex', gap: '8px', height: '36px' }}>
+            {[1, 2, 3, 4, 5, 6, 7].map(row => (
+              <div key={row} style={{ display: 'flex', gap: '8px', height: '34px' }}>
                 {[1, 2, 3, 4, 5].map(col => (
-                  <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#1e293b' : '#f1f5f9', animation: 'pulse 1.5s infinite ease-in-out' }} />
+                  <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#1e293b' : '#f8fafc' }} />
                 ))}
               </div>
             ))}
           </div>
         </div>
+
+        <style jsx>{`
+          @keyframes fycdTopBarShimmer {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+        `}</style>
       </div>
     )
   }
@@ -1140,6 +1171,8 @@ export default function Home() {
             setAuthError(null)
             const result = await authActions.login(authState.authUsername, authState.authPassword)
             if (result.ok) {
+              setShowAuthTransition(true)
+              wsActions.fetchWorkspaces()
               uiActions.addToast(`登入成功，歡迎回來！`, 'success')
             } else {
               setAuthError(result.error || '登入失敗，請檢查帳號或密碼')
@@ -1150,6 +1183,8 @@ export default function Home() {
             setAuthError(null)
             const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
             if (result.ok) {
+              setShowAuthTransition(true)
+              wsActions.fetchWorkspaces()
               uiActions.addToast('註冊成功並已自動登入系統！', 'success')
               authActions.setAuthPassword('')
             } else {
@@ -1316,6 +1351,9 @@ export default function Home() {
 
   return (
     <div className={`app-container theme-${themeState.theme}`}>
+      {showAuthTransition && (
+        <FYCDAuthTransition onComplete={() => setShowAuthTransition(false)} />
+      )}
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, display: 'flex', flexDirection: 'column-reverse', gap: '10px', pointerEvents: 'none' }}>
         {uiState.toasts.map(toast => (
           <div

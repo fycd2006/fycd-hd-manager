@@ -3,6 +3,7 @@
 import React from 'react'
 import type { TableField, TableRow, FilterRule, RowColorRule } from '@/modules/database/types'
 import { GridView as GridViewContent, RowData } from '../views/grid/GridView'
+import { WorkspaceGridSkeleton } from './WorkspaceGridSkeleton'
 
 interface GridViewProps {
   visibleFields: TableField[]
@@ -76,11 +77,7 @@ export default function GridView({
   onReorderRows,
 }: GridViewProps) {
   if (gridLoading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', width: '100%', padding: '32px' }}>
-        <div style={{ width: '24px', height: '24px', border: '3px solid #e2e8f0', borderTopColor: '#18181B', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      </div>
-    )
+    return <WorkspaceGridSkeleton />
   }
 
   // Convert fields to inner format
