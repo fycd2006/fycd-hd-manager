@@ -11,6 +11,13 @@ export async function GET(
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+    const dbTable = await prisma.databaseTable.findFirst({
+      where: { id, deletedAt: null }
+    })
+    if (!dbTable) {
+      return NextResponse.json({ error: '找不到該資料表' }, { status: 404 })
+    }
+
     const fields = await prisma.tableField.findMany({
       where: { tableId: id, deletedAt: null },
       orderBy: { order: 'asc' },

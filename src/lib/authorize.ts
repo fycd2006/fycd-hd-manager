@@ -34,12 +34,16 @@ export async function authorizeAction(
 
   // Resolve via tableId if workspaceId not provided
   if (!resolvedWorkspaceId && options.tableId) {
-    const table = await prisma.databaseTable.findUnique({
-      where: { id: options.tableId },
+    const table = await prisma.databaseTable.findFirst({
+      where: { id: options.tableId, deletedAt: null },
       include: { database: true }
     })
     if (table?.database?.workspaceId) {
       resolvedWorkspaceId = table.database.workspaceId
+    } else {
+      return {
+        errorResponse: NextResponse.json({ error: '找不到對應的資料表' }, { status: 404 })
+      }
     }
   }
 

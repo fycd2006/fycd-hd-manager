@@ -22,6 +22,13 @@ export async function GET(
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
+    const dbTable = await prisma.databaseTable.findFirst({
+      where: { id, deletedAt: null }
+    })
+    if (!dbTable) {
+      return NextResponse.json({ error: '找不到該資料表' }, { status: 404 })
+    }
+
     const { searchParams } = new URL(request.url)
     const sortField = searchParams.get('sort')
     const sortOrder = searchParams.get('order') || 'asc'
@@ -273,7 +280,6 @@ export async function PATCH(
           }
         }
       }
-    }
 
     // Task 3: Single-Level Cascade Recomputation (300 Rows Threshold)
     try {
