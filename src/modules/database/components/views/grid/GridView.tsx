@@ -263,7 +263,15 @@ export const GridView: React.FC<GridViewProps> = ({
 
   useEffect(() => {
     const handlePasteEvent = (e: ClipboardEvent) => {
-      if (isEditing) return;
+      const target = e.target as HTMLElement | null;
+      const isInputTarget = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        Boolean(target.closest('input, textarea, [contenteditable="true"], [role="dialog"], .modal'))
+      );
+      if (isEditing || isInputTarget) return;
+
       const text = e.clipboardData?.getData('text/plain');
       if (text && (selectionBounds || selectionStart)) {
         e.preventDefault();
@@ -344,7 +352,14 @@ export const GridView: React.FC<GridViewProps> = ({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isEditing) return;
+      const target = e.target as HTMLElement | null;
+      const isInputTarget = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        Boolean(target.closest('input, textarea, [contenteditable="true"], [role="dialog"], .modal'))
+      );
+      if (isEditing || isInputTarget) return;
 
       // Undo: Ctrl+Z / Cmd+Z
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
