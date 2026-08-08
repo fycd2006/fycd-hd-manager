@@ -44,9 +44,10 @@ export async function GET(
     }
 
     return NextResponse.json(result.rows)
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
     console.error('[API GET /api/tables/[tableId]/rows Error]:', error)
-    return NextResponse.json({ error: error.message || '查詢資料列失敗' }, { status: 500 })
+    return NextResponse.json({ error: msg || '查詢資料列失敗' }, { status: 500 })
   }
 }
 
@@ -135,8 +136,9 @@ export async function POST(
     })
 
     return NextResponse.json({ ...row, data: safeJsonParse(row.data, {}) }, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '新增資料列失敗' }, { status: 500 })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: msg || '新增資料列失敗' }, { status: 500 })
   }
 }
 
@@ -152,10 +154,24 @@ export async function PATCH(
     const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
     if (errorResponse) return errorResponse
 
-    const body = await request.json()
+    let body: any
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: '無效的 JSON 請求內容' }, { status: 400 })
+    }
+
     const { rowId, data, fieldKey, value } = body
     const rid = parseInt(rowId)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
+
+    const currentRow = await prisma.tableRow.findFirst({
+      where: { id: rid, tableId: tid, deletedAt: null },
+      select: { data: true }
+    })
+    if (!currentRow) {
+      return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
+    }
 
     const fields = await prisma.tableField.findMany({ 
       where: { tableId: tid, deletedAt: null },
@@ -182,19 +198,14 @@ export async function PATCH(
     const validFieldKeys = new Set(fields.map(f => `field_${f.id}`))
     const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k) && validFieldKeys.has(k))
     if (entries.length > 0) {
-      const currentRow = await prisma.tableRow.findFirst({
-        where: { id: rid, tableId: tid, deletedAt: null },
-        select: { data: true }
-      })
-      if (currentRow) {
-        let currentData: Record<string, any> = {}
-        if (currentRow.data) {
-          try {
-            currentData = typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data
-          } catch {
-            currentData = {}
-          }
+      let currentData: Record<string, any> = {}
+      if (currentRow.data) {
+        try {
+          currentData = typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data
+        } catch {
+          currentData = {}
         }
+      }
 
         // Detect link_row field changes to trigger bi-directional synchronization
         const linkRowFields = fields.filter(f => f.type === 'link_row')
@@ -278,8 +289,9 @@ export async function PATCH(
     if (!updated) return NextResponse.json({ error: '找不到該列' }, { status: 404 })
 
     return NextResponse.json({ ...updated, data: safeJsonParse(updated.data, {}) })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '更新資料列失敗' }, { status: 500 })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: msg || '更新資料列失敗' }, { status: 500 })
   }
 }
 
@@ -315,8 +327,9 @@ export async function DELETE(
     })
 
     return NextResponse.json({ message: '資料列已刪除' })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '刪除資料列失敗' }, { status: 500 })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: msg || '刪除資料列失敗' }, { status: 500 })
   }
 }
 
@@ -352,8 +365,9 @@ export async function PUT(
     })
 
     return NextResponse.json({ message: '資料列順序已儲存' })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '儲存資料列順序失敗' }, { status: 500 })
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: msg || '儲存資料列順序失敗' }, { status: 500 })
   }
 }
 

@@ -76,7 +76,13 @@ export async function POST(
 
     const user = auth!.user
 
-    const body = await request.json()
+    let body: any
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: '無效的 JSON 請求內容' }, { status: 400 })
+    }
+
     const { rowId, content } = body
 
     if (!rowId || !content || !content.trim()) {
@@ -85,6 +91,14 @@ export async function POST(
 
     const rid = parseInt(rowId)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
+
+    const targetRow = await prisma.tableRow.findFirst({
+      where: { id: rid, tableId: tid, deletedAt: null },
+      select: { id: true }
+    })
+    if (!targetRow) {
+      return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
+    }
 
     const newComment = await prisma.rowComment.create({
       data: {
@@ -104,6 +118,7 @@ export async function POST(
 
     return NextResponse.json(newComment, { status: 201 })
   } catch (error: any) {
+    console.error('[API POST /api/tables/[tableId]/rows/comments Error]:', error)
     return NextResponse.json({ error: error.message || '發送留言失敗' }, { status: 500 })
   }
 }
