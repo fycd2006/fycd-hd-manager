@@ -578,22 +578,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         clearTimeout(longTextDebounceRef.current);
         longTextDebounceRef.current = null;
       }
-      if (isEditing && !hasCommittedRef.current) {
-        hasCommittedRef.current = true;
-        const initialStr = getInitialStringValue(value, field.type);
-        const currentLocalStr = String(localValRef.current ?? '');
-        if (currentLocalStr !== initialStr) {
-          if (field.type === 'number') {
-            const trimmed = currentLocalStr.trim();
-            const num = trimmed === '' ? null : Number(trimmed);
-            onUpdate(isNaN(num as any) ? null : num);
-          } else if (['text', 'long_text', 'url', 'email', 'phone'].includes(field.type)) {
-            onUpdate(localValRef.current);
-          }
-        }
-      }
     };
-  }, [isEditing, field.type, value]);
+  }, []);
 
   useEffect(() => {
     if (isEditing) {
