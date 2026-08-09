@@ -107,7 +107,9 @@ export const GridView: React.FC<GridViewProps> = ({
       rows.forEach((row) => {
         if (selectedRowIds.has(row.id)) {
           const rowCells: string[] = fields.map((field) => {
-            const val = row.values?.[field.id] ?? (row as any).data?.[`field_${field.id}`] ?? (row as any).data?.[field.id] ?? '';
+            const fk = `field_${field.id}`;
+            const hasK = (row as any).data && fk in (row as any).data;
+            const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
             return String(val ?? '').replace(/\t/g, ' ').replace(/\n/g, ' ');
           });
           lines.push(rowCells.join('\t'));
@@ -121,7 +123,9 @@ export const GridView: React.FC<GridViewProps> = ({
         for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
           const field = fields[c];
           if (!field) continue;
-          const val = row.values?.[field.id] ?? (row as any).data?.[`field_${field.id}`] ?? (row as any).data?.[field.id] ?? '';
+          const fk = `field_${field.id}`;
+          const hasK = (row as any).data && fk in (row as any).data;
+          const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
           rowCells.push(String(val ?? '').replace(/\t/g, ' ').replace(/\n/g, ' '));
         }
         lines.push(rowCells.join('\t'));
@@ -135,6 +139,7 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [selectedRowIds, selectionBounds, rows, fields, showToast]);
 
   const handleClearSelectionValues = useCallback(() => {
+    setIsEditing(false);
     const rowMap = new Map<number, Record<string, any>>();
     if (selectedRowIds.size > 0) {
       rows.forEach((row) => {

@@ -89,7 +89,9 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       if (!rule.fieldKey || !rule.value) continue;
       const fieldIdStr = rule.fieldKey.replace('field_', '');
       const fieldId = Number(fieldIdStr);
-      const val = row.values?.[fieldId] ?? (row as any).data?.[rule.fieldKey] ?? (row as any).data?.[fieldId] ?? '';
+      const fieldKey = rule.fieldKey || `field_${fieldId}`;
+      const hasKey = (row as any).data && fieldKey in (row as any).data;
+      const val = hasKey ? (row as any).data[fieldKey] : (row.values?.[fieldId] ?? '');
       const strVal = String(val ?? '').toLowerCase();
       const targetVal = rule.value.toLowerCase();
 
@@ -215,7 +217,9 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       {/* 2. Row Cells */}
       {fields.map((field, cIndex) => {
         const isSelected = selectedColumnIndex === cIndex;
-        const cellValue = row.values?.[field.id] ?? (row as any).data?.[`field_${field.id}`] ?? (row as any).data?.[field.id] ?? null;
+        const fieldKey = `field_${field.id}`;
+        const hasFieldKey = (row as any).data && fieldKey in (row as any).data;
+        const cellValue = hasFieldKey ? (row as any).data[fieldKey] : (row.values?.[field.id] ?? null);
 
         const isInRange = Boolean(
           selectionBounds?.isMulti &&

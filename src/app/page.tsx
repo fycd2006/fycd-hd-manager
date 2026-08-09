@@ -589,7 +589,16 @@ export default function Home() {
       updates.forEach(u => updateMap.set(u.rowId, u.data))
       setRows(prev => prev.map(r => {
         if (updateMap.has(r.id)) {
-          return { ...r, data: { ...r.data, ...updateMap.get(r.id) } }
+          const sData = updateMap.get(r.id) || {}
+          const newRowData = { ...r.data, ...sData }
+          const newValues = (r as any).values ? { ...(r as any).values } : undefined
+          if (newValues) {
+            Object.entries(sData).forEach(([k, v]) => {
+              const fid = parseInt(k.replace('field_', ''))
+              if (!isNaN(fid)) newValues[fid] = v
+            })
+          }
+          return { ...r, data: newRowData, ...(newValues && { values: newValues }) }
         }
         return r
       }))
@@ -601,7 +610,16 @@ export default function Home() {
         result.updates.forEach(u => serverMap.set(u.rowId, u.data))
         setRows(prev => prev.map(r => {
           if (serverMap.has(r.id)) {
-            return { ...r, data: { ...r.data, ...serverMap.get(r.id) } }
+            const sData = serverMap.get(r.id) || {}
+            const newRowData = { ...r.data, ...sData }
+            const newValues = (r as any).values ? { ...(r as any).values } : undefined
+            if (newValues) {
+              Object.entries(sData).forEach(([k, v]) => {
+                const fid = parseInt(k.replace('field_', ''))
+                if (!isNaN(fid)) newValues[fid] = v
+              })
+            }
+            return { ...r, data: newRowData, ...(newValues && { values: newValues }) }
           }
           return r
         }))
