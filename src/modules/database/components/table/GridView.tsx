@@ -93,7 +93,8 @@ export default function GridView({
     const values: Record<number, any> = {}
     visibleFields.forEach(field => {
       const dataObj = row.data || {}
-      const val = dataObj[`field_${field.id}`] ?? dataObj[field.id] ?? dataObj[String(field.id)] ?? null
+      const fk = `field_${field.id}`
+      const val = fk in dataObj ? dataObj[fk] : (dataObj[field.id] ?? dataObj[String(field.id)] ?? null)
       values[field.id] = val
     })
     return {

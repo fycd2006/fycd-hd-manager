@@ -80,8 +80,25 @@ export async function PATCH(
         }
       })
 
+      // Normalize currentData: migrate legacy numeric keys and purge stale numeric keys
+      const normalizedData: Record<string, any> = {}
+      Object.entries(currentData).forEach(([k, v]) => {
+        const fid = parseInt(k.replace('field_', ''))
+        if (!isNaN(fid) && validFieldKeys.has(`field_${fid}`)) {
+          normalizedData[`field_${fid}`] = v
+        } else if (/^field_\d+$/.test(k)) {
+          normalizedData[k] = v
+        }
+      })
+      currentData = normalizedData
+
       Object.entries(inputMap).forEach(([k, val]) => {
         if (/^field_\d+$/.test(k) && validFieldKeys.has(k)) {
+          const fid = parseInt(k.replace('field_', ''))
+          if (!isNaN(fid)) {
+            delete currentData[String(fid)]
+            delete currentData[fid]
+          }
           currentData[k] = val ?? null
         }
       })

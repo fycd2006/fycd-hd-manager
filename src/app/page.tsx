@@ -755,12 +755,11 @@ export default function Home() {
   const getCellValue = (row: TableRow, fieldKeyOrId: string) => {
     if (!row || !row.data) return ''
     const cleanId = String(fieldKeyOrId).replace('field_', '')
-    return (
-      row.data[`field_${cleanId}`] ??
-      row.data[cleanId] ??
-      row.data[Number(cleanId)] ??
-      ''
-    )
+    const fk = `field_${cleanId}`
+    if (fk in row.data) return row.data[fk] ?? ''
+    if (cleanId in row.data) return row.data[cleanId] ?? ''
+    if (Number(cleanId) in row.data) return row.data[Number(cleanId)] ?? ''
+    return ''
   }
 
   const frozenDisplayRowsRef = useRef<TableRow[] | null>(null)

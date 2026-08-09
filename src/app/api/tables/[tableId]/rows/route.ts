@@ -139,11 +139,20 @@ export async function POST(
         })
       }
 
+      const normalizedRowData: Record<string, any> = {}
+      Object.entries(rowData).forEach(([k, v]) => {
+        const fid = parseInt(k.replace('field_', ''))
+        if (!isNaN(fid)) {
+          normalizedRowData[`field_${fid}`] = v
+        } else {
+          normalizedRowData[k] = v
+        }
+      })
       const maxOrder = await tx.tableRow.aggregate({ where: { tableId: id }, _max: { order: true } })
       return tx.tableRow.create({
         data: {
           tableId: id,
-          data: JSON.stringify(rowData),
+          data: JSON.stringify(normalizedRowData),
           order: (maxOrder._max.order ?? 0) + 1,
         },
       })
@@ -251,7 +260,24 @@ export async function PATCH(
           }
         })
 
+        // Normalize currentData: migrate legacy numeric keys and purge stale numeric keys
+        const normalizedData: Record<string, any> = {}
+        Object.entries(currentData).forEach(([k, v]) => {
+          const fid = parseInt(k.replace('field_', ''))
+          if (!isNaN(fid) && validFieldKeys.has(`field_${fid}`)) {
+            normalizedData[`field_${fid}`] = v
+          } else if (/^field_\d+$/.test(k)) {
+            normalizedData[k] = v
+          }
+        })
+        currentData = normalizedData
+
         entries.forEach(([k, val]) => {
+          const fid = parseInt(k.replace('field_', ''))
+          if (!isNaN(fid)) {
+            delete currentData[String(fid)]
+            delete currentData[fid]
+          }
           currentData[k] = val ?? null
         })
 
