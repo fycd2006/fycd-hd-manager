@@ -305,7 +305,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
 
       try {
         const fieldOrder = fields.map(f => f.id)
-        const result = evaluateFormula(String(expr), newData, fieldOrder)
+        const result = evaluateFormula(expr, newData, fieldOrder)
         newData[destKey] = result != null ? String(result) : ''
       } catch {
         newData[destKey] = '#VALUE!'

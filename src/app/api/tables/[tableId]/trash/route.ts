@@ -23,7 +23,7 @@ export async function GET(
 
     const parsedRows = deletedRows.map(r => ({
       ...r,
-      data: JSON.parse(r.data || '{}')
+      data: typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {})
     }))
 
     return NextResponse.json({

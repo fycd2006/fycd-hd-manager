@@ -5,6 +5,7 @@ import { evaluateFormula } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
+import { FieldRegistry } from '@/modules/database/fields/types'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { safeJsonParse } from '@/lib/json-utils'
 import { triggerTableEvent } from '@/lib/pusher-server'
@@ -90,15 +91,29 @@ export async function POST(
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
     
-    const rowData = { ...(body.data || {}) }
-    fields.forEach(f => {
+    const rowData: Record<string, any> = {}
+    for (const f of fields) {
       const key = `field_${f.id}`
       if (f.type === 'created_by' || f.type === 'last_modified_by') {
         rowData[key] = username
       } else if (f.type === 'created_on' || f.type === 'last_modified_on') {
         rowData[key] = nowStr
+      } else if (body.data && body.data[key] !== undefined) {
+        let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
+        const fieldType = FieldRegistry.get(f.type)
+        const validateRes = fieldType.validateValue(body.data[key], fOpts)
+        
+        if (!validateRes.valid) {
+          return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
+        }
+        rowData[key] = validateRes.parsedValue
+      } else {
+        let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
+        const fieldType = FieldRegistry.get(f.type)
+        const def = fieldType.getDefaultValue(fOpts)
+        if (def !== null) rowData[key] = def
       }
-    })
+    }
 
     const row = await prisma.$transaction(async (tx) => {
       const autonumberFields = fields.filter(f => f.type === 'autonumber')
@@ -114,7 +129,7 @@ export async function POST(
             const key = `field_${f.id}`
             existingRows.forEach(r => {
               try {
-                const parsedData = JSON.parse(r.data || '{}')
+                const parsedData: any = typeof r.data === 'string' ? JSON.parse(r.data || '{}') : (r.data || {})
                 const val = Number(parsedData[key])
                 if (!isNaN(val) && val > maxVal) {
                   maxVal = val
@@ -220,14 +235,22 @@ export async function PATCH(
       updateMap[fieldKey] = value
     }
 
-    fields.forEach(f => {
+    for (const f of fields) {
       const key = `field_${f.id}`
       if (f.type === 'last_modified_by') {
         updateMap[key] = username
       } else if (f.type === 'last_modified_on') {
         updateMap[key] = nowStr
+      } else if (key in updateMap) {
+        let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
+        const fieldType = FieldRegistry.get(f.type)
+        const validateRes = fieldType.validateValue(updateMap[key], fOpts)
+        if (!validateRes.valid) {
+          return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
+        }
+        updateMap[key] = validateRes.parsedValue
       }
-    })
+    }
 
     const validFieldKeys = new Set(fields.map(f => `field_${f.id}`))
     const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k) && validFieldKeys.has(k))
@@ -300,7 +323,7 @@ export async function PATCH(
           }
           try {
             const fieldOrder = fields.map(f => f.id)
-            const res = evaluateFormula(String(expr), currentData, fieldOrder)
+            const res = evaluateFormula(expr, currentData, fieldOrder)
             currentData[destKey] = res != null ? String(res) : ''
           } catch {
             currentData[destKey] = '#VALUE!'

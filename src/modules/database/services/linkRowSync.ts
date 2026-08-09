@@ -48,9 +48,9 @@ export async function syncBiDirectionalLinkRow(
 
   if (!sourceField || sourceField.type !== 'link_row') return
 
-  let opts: any = {}
+  let opts: any = sourceField.options || {}
   try {
-    opts = sourceField.options ? JSON.parse(sourceField.options) : {}
+    if (typeof opts === 'string') opts = JSON.parse(opts)
   } catch {}
 
   const relatedFieldId = opts.relatedFieldId ? Number(opts.relatedFieldId) : null
@@ -84,7 +84,7 @@ export async function syncBiDirectionalLinkRow(
   let sourceLabel = `列 ID: ${sourceRowId}`
   if (sourceRow?.data) {
     try {
-      const sData = JSON.parse(sourceRow.data)
+      const sData: any = typeof sourceRow.data === 'string' ? JSON.parse(sourceRow.data) : (sourceRow.data || {})
       const primaryField = await prisma.tableField.findFirst({
         where: { tableId: sourceTableId, deletedAt: null },
         orderBy: { order: 'asc' },
@@ -102,10 +102,7 @@ export async function syncBiDirectionalLinkRow(
     })
 
     for (const tRow of targetRows) {
-      let tData: Record<string, any> = {}
-      try {
-        tData = JSON.parse(tRow.data || '{}')
-      } catch {}
+      let tData: Record<string, any> = typeof tRow.data === 'string' ? JSON.parse(tRow.data || '{}') : (tRow.data as any || {})
 
       const existingValues = tData[relatedFieldKey]
       const currentIds = parseLinkRowIds(existingValues)
@@ -118,7 +115,7 @@ export async function syncBiDirectionalLinkRow(
 
         await prisma.tableRow.update({
           where: { id: tRow.id },
-          data: { data: JSON.stringify(tData) },
+          data: { data: tData as any },
         })
 
         // Cascade recompute for target table dependencies
@@ -136,10 +133,7 @@ export async function syncBiDirectionalLinkRow(
     })
 
     for (const tRow of targetRows) {
-      let tData: Record<string, any> = {}
-      try {
-        tData = JSON.parse(tRow.data || '{}')
-      } catch {}
+      let tData: Record<string, any> = typeof tRow.data === 'string' ? JSON.parse(tRow.data || '{}') : (tRow.data as any || {})
 
       const existingValues = tData[relatedFieldKey]
       const currentIds = parseLinkRowIds(existingValues)
@@ -157,7 +151,7 @@ export async function syncBiDirectionalLinkRow(
 
         await prisma.tableRow.update({
           where: { id: tRow.id },
-          data: { data: JSON.stringify(tData) },
+          data: { data: tData as any },
         })
 
         // Cascade recompute for target table dependencies
@@ -185,12 +179,7 @@ export async function cleanupRowLinkRowRelations(sourceTableId: number, sourceRo
 
   if (!sourceRow?.data) return
 
-  let sData: Record<string, any> = {}
-  try {
-    sData = JSON.parse(sourceRow.data)
-  } catch {
-    return
-  }
+  let sData: Record<string, any> = typeof sourceRow.data === 'string' ? JSON.parse(sourceRow.data) : (sourceRow.data as any || {})
 
   for (const field of linkRowFields) {
     const rawVal = sData[`field_${field.id}`]

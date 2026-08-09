@@ -63,7 +63,7 @@ export default function AuthScreen({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: '#fafafa',
+      backgroundColor: '#ffffff',
       fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       padding: '20px',
       boxSizing: 'border-box'

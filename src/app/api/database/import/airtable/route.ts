@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
             name: f.name,
             type: f.type,
             order: colIdx,
-            options: f.options ? JSON.stringify(f.options) : null,
+            options: f.options ? (f.options as any) : null,
           },
         })
         fieldMap.set(f.name, dbField.id)
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
         await prisma.tableRow.create({
           data: {
             tableId: dbTable.id,
-            data: JSON.stringify(rowData),
+            data: rowData as any,
             order: rowIdx,
           },
         })

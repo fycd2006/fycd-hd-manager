@@ -1,0 +1,74 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Pure white background as requested */
+  background: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 250ms ease-in-out;
+}
+
+/* Ensure background remains white */
+:global(.theme-dark) .overlay {
+  background: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:not(.theme-light)) .overlay {
+    background: #ffffff;
+  }
+}
+
+.overlay.phase-enter {
+  opacity: 1;
+  pointer-events: all;
+  transition: opacity 250ms ease-out;
+}
+
+.overlay.phase-scan {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.overlay.phase-breathing {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.overlay.phase-exit {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 350ms ease-in-out;
+}
+
+/* The container holding the logo */
+.logoContainer {
+  position: relative;
+  width: min(78vw, 520px);
+  height: auto;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brandLogo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Ensure it is sharp */
+  image-rendering: -webkit-optimize-contrast;
+}
+
+
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    transition: opacity 200ms linear;
+  }
+}

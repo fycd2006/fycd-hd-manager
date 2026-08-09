@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
 import { getSessionUser } from '@/lib/auth'
+import { createGeneratedColumn } from '@/modules/database/services/schemaService'
 
 export async function GET(
   request: Request,
@@ -65,9 +66,14 @@ export async function POST(
         name,
         type: type || 'text',
         order: insertOrder,
-        options: parsedOptions ? JSON.stringify(parsedOptions) : null,
+        isIndexed: Boolean(body.isIndexed),
+        options: parsedOptions ? (parsedOptions as any) : null,
       },
     })
+
+    if (field.isIndexed) {
+      await createGeneratedColumn(field.id).catch(err => console.error('[Schema DDL Error]', err))
+    }
 
     // Audit fields backfill: populate existing rows with default user/date
     if (['created_by', 'last_modified_by', 'created_on', 'last_modified_on'].includes(type)) {
@@ -85,8 +91,7 @@ export async function POST(
           const key = `field_${field.id}`
           await prisma.$transaction(async (tx) => {
             for (const r of existingRows) {
-              let dataObj: Record<string, any> = {}
-              try { dataObj = JSON.parse(r.data || '{}') } catch {}
+              let dataObj: Record<string, any> = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data as any || {})
               if (!dataObj[key]) {
                 if (type === 'created_by' || type === 'last_modified_by') {
                   dataObj[key] = currentUsername
@@ -96,7 +101,7 @@ export async function POST(
               }
               await tx.tableRow.update({
                 where: { id: r.id },
-                data: { data: JSON.stringify(dataObj) }
+                data: { data: dataObj as any }
               })
             }
           })

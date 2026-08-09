@@ -42,7 +42,7 @@ const getViewIcon = (type: string, props: any) => {
 import WorkspaceDashboard from '@/modules/database/components/dashboard/WorkspaceDashboard'
 import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
 import PullToRefresh from '@/components/ui/PullToRefresh'
-import { FYCDAuthTransition } from '@/components/brand/FYCDAuthTransition'
+import { FYCDBrandLoading } from '@/components/fycd/FYCDBrandLoading'
 import {
   useAuthStore,
   useThemeStore,
@@ -91,7 +91,13 @@ export default function Home() {
   const [rows, setRows] = useState<TableRow[]>([])
   const [loading, setLoading] = useState(true)
   const [gridLoading, setGridLoading] = useState(false)
-  const [showAuthTransition, setShowAuthTransition] = useState(false)
+  const [showBrandLoading, setShowBrandLoading] = useState<boolean>(false)
+  const [workspaceReady, setWorkspaceReady] = useState(false)
+  const [editingCell, setEditingCell] = useState<{ rowId: number; fieldKey: string } | null>(null)
+  const [editingCellValue, setEditingCellValue] = useState('')
+  const [editingFieldId, setEditingFieldId] = useState<number | null>(null)
+  const [editingFieldName, setEditingFieldName] = useState('')
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0)
 
   // View configuration
   const [views, setViews] = useState<TableView[]>([])
@@ -99,12 +105,6 @@ export default function Home() {
   const [showNewViewModal, setShowNewViewModal] = useState(false)
   const [newViewName, setNewViewName] = useState('')
   const [newViewType, setNewViewType] = useState<ViewType>('grid')
-
-  // Editing states
-  const [editingCell, setEditingCell] = useState<{ rowId: number; fieldKey: string } | null>(null)
-  const [editingCellValue, setEditingCellValue] = useState('')
-  const [editingFieldId, setEditingFieldId] = useState<number | null>(null)
-  const [editingFieldName, setEditingFieldName] = useState('')
 
   // Sort & Filter
   const [sortField, setSortField] = useState<string | null>(null)
@@ -147,23 +147,43 @@ export default function Home() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [draggedFieldId, setDraggedFieldId] = useState<number | null>(null)
 
-  // Edit Input Ref
-  const editInputRef = useRef<HTMLInputElement>(null)
-
-  // Other UI state
+  // Other UI & Modal state
   const [frozenColumnsCount, setFrozenColumnsCount] = useState<number>(1)
   const [autoInherit, setAutoInherit] = useState(false)
   const [showMembersModal, setShowMembersModal] = useState(false)
   const [showNotificationsModal, setShowNotificationsModal] = useState(false)
   const [showUserSettingsModal, setShowUserSettingsModal] = useState(false)
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false)
-  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0)
   const [workspaceMemberCount, setWorkspaceMemberCount] = useState<number>(1)
   const [systemUsers, setSystemUsers] = useState<User[]>([])
 
+  // Edit Input Ref
+  const editInputRef = useRef<HTMLInputElement>(null)
+
+  const handleExitComplete = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('fycd_intro_seen_desktop', 'true')
+    }
+    setShowBrandLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768
+      const hasSeenIntro = localStorage.getItem('fycd_intro_seen_desktop')
+      if (isMobile || !hasSeenIntro) {
+        setShowBrandLoading(true)
+      } else {
+        setShowBrandLoading(false)
+      }
+    }
+  }, [])
+
   useEffect(() => {
     if (authState.currentUser) {
-      wsActions.fetchWorkspaces()
+      wsActions.fetchWorkspaces().then(() => {
+        setWorkspaceReady(true)
+      })
       fetch('/api/notifications')
         .then(res => res.ok ? res.json() : { notifications: [] })
         .then(data => {
@@ -171,8 +191,10 @@ export default function Home() {
           setUnreadNotificationsCount(unread)
         })
         .catch(() => { })
+    } else {
+      setWorkspaceReady(true)
     }
-  }, [authState.currentUser, showNotificationsModal])
+  }, [authState.currentUser])
 
   // Rename modal states
   const [renameType, setRenameType] = useState<'workspace' | 'database' | 'table' | null>(null)
@@ -303,7 +325,9 @@ export default function Home() {
 
       setRows(prev => prev.map(r => {
         if (r.id === rowId && rowData) {
-          return { ...r, data: { ...r.data, ...rowData } }
+          const newData = { ...r.data, ...rowData }
+          Object.keys(newData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newData)) newData[`field_${k}`] = newData[k]; delete newData[k] } })
+          return { ...r, data: newData }
         }
         return r
       }))
@@ -313,7 +337,9 @@ export default function Home() {
         affectedRows.forEach((ar: any) => affectedMap.set(ar.id, ar.data || {}))
         setRows(prev => prev.map(r => {
           if (affectedMap.has(r.id)) {
-            return { ...r, data: { ...r.data, ...affectedMap.get(r.id) } }
+            const newData = { ...r.data, ...affectedMap.get(r.id) }
+            Object.keys(newData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newData)) newData[`field_${k}`] = newData[k]; delete newData[k] } })
+            return { ...r, data: newData }
           }
           return r
         }))
@@ -326,7 +352,9 @@ export default function Home() {
       data.updates.forEach((u: any) => updateMap.set(u.rowId, u.data || {}))
       setRows(prev => prev.map(r => {
         if (updateMap.has(r.id)) {
-          return { ...r, data: { ...r.data, ...updateMap.get(r.id) } }
+          const newData = { ...r.data, ...updateMap.get(r.id) }
+          Object.keys(newData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newData)) newData[`field_${k}`] = newData[k]; delete newData[k] } })
+          return { ...r, data: newData }
         }
         return r
       }))
@@ -493,6 +521,7 @@ export default function Home() {
       setRows(prev => prev.map(r => {
         if (r.id !== rowId) return r
         const updatedData = { ...r.data, [fieldKey]: safeVal }
+        Object.keys(updatedData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in updatedData)) updatedData[`field_${k}`] = updatedData[k]; delete updatedData[k] } })
         formulaFields.forEach(ff => {
           const destKey = `field_${ff.id}`
           let expr = ff.options
@@ -506,7 +535,7 @@ export default function Home() {
           }
           try {
             const fieldOrder = fields.map(f => f.id)
-            const res = evaluateFormula(String(expr), updatedData as any, fieldOrder)
+            const res = evaluateFormula(expr, updatedData as any, fieldOrder)
             updatedData[destKey] = res != null ? String(res) : ''
           } catch {
             updatedData[destKey] = '#VALUE!'
@@ -541,6 +570,7 @@ export default function Home() {
                 }
               }
             })
+            Object.keys(mergedData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in mergedData)) mergedData[`field_${k}`] = mergedData[k]; delete mergedData[k] } })
             return { ...r, data: mergedData }
           }))
         }
@@ -553,7 +583,9 @@ export default function Home() {
 
           setRows(prev => prev.map(r => {
             if (affectedMap.has(r.id)) {
-              return { ...r, data: { ...r.data, ...affectedMap.get(r.id) } }
+              const newData = { ...r.data, ...affectedMap.get(r.id) }
+              Object.keys(newData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newData)) newData[`field_${k}`] = newData[k]; delete newData[k] } })
+              return { ...r, data: newData }
             }
             return r
           }))
@@ -591,6 +623,7 @@ export default function Home() {
         if (updateMap.has(r.id)) {
           const sData = updateMap.get(r.id) || {}
           const newRowData = { ...r.data, ...sData }
+          Object.keys(newRowData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newRowData)) newRowData[`field_${k}`] = newRowData[k]; delete newRowData[k] } })
           const newValues = (r as any).values ? { ...(r as any).values } : undefined
           if (newValues) {
             Object.entries(sData).forEach(([k, v]) => {
@@ -612,6 +645,7 @@ export default function Home() {
           if (serverMap.has(r.id)) {
             const sData = serverMap.get(r.id) || {}
             const newRowData = { ...r.data, ...sData }
+            Object.keys(newRowData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newRowData)) newRowData[`field_${k}`] = newRowData[k]; delete newRowData[k] } })
             const newValues = (r as any).values ? { ...(r as any).values } : undefined
             if (newValues) {
               Object.entries(sData).forEach(([k, v]) => {
@@ -1302,65 +1336,76 @@ export default function Home() {
   if (!authState.currentUser) {
     return (
       <>
-        <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, display: 'flex', flexDirection: 'column-reverse', gap: '10px', pointerEvents: 'none' }}>
-          {uiState.toasts.map(toast => (
-            <div
-              key={toast.id}
-              style={{
-                pointerEvents: 'auto',
-                padding: '12px 18px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#ffffff',
-                backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#3F6212',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-                border: '1px solid rgba(255,255,255,0.25)'
-              }}
-            >
-              {toast.message}
-            </div>
-          ))}
-        </div>
-        <AuthScreen
-          authMode={authState.authMode}
-          authUsername={authState.authUsername}
-          authEmail={authState.authEmail}
-          authPassword={authState.authPassword}
-          errorMessage={authError}
-          onAuthModeChange={(mode) => {
-            setAuthError(null)
-            authActions.setAuthMode(mode)
-          }}
-          onAuthUsernameChange={authActions.setAuthUsername}
-          onAuthEmailChange={authActions.setAuthEmail}
-          onAuthPasswordChange={authActions.setAuthPassword}
-          onLogin={async (e) => {
-            setAuthError(null)
-            const result = await authActions.login(authState.authUsername, authState.authPassword)
-            if (result.ok) {
-              setShowAuthTransition(true)
-              wsActions.fetchWorkspaces()
-              uiActions.addToast(`登入成功，歡迎回來！`, 'success')
-            } else {
-              setAuthError(result.error || '登入失敗，請檢查帳號或密碼')
-              uiActions.addToast(result.error || '登入失敗，請檢查帳號或密碼', 'error')
-            }
-          }}
-          onRegister={async (e) => {
-            setAuthError(null)
-            const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
-            if (result.ok) {
-              setShowAuthTransition(true)
-              wsActions.fetchWorkspaces()
-              uiActions.addToast('註冊成功並已自動登入系統！', 'success')
-              authActions.setAuthPassword('')
-            } else {
-              setAuthError(result.error || '註冊失敗')
-              uiActions.addToast(result.error || '註冊失敗', 'error')
-            }
-          }}
+        <FYCDBrandLoading 
+          show={showBrandLoading} 
+          workspaceReady={workspaceReady} 
+          onExitComplete={handleExitComplete} 
         />
+        {!showBrandLoading && (
+          <>
+            <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, display: 'flex', flexDirection: 'column-reverse', gap: '10px', pointerEvents: 'none' }}>
+              {uiState.toasts.map(toast => (
+                <div
+                  key={toast.id}
+                  style={{
+                    pointerEvents: 'auto',
+                    padding: '12px 18px',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    backgroundColor: toast.type === 'error' ? '#dc2626' : toast.type === 'success' ? '#16a34a' : '#3F6212',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                    border: '1px solid rgba(255,255,255,0.25)'
+                  }}
+                >
+                  {toast.message}
+                </div>
+              ))}
+            </div>
+            <AuthScreen
+              authMode={authState.authMode}
+              authUsername={authState.authUsername}
+              authEmail={authState.authEmail}
+              authPassword={authState.authPassword}
+              errorMessage={authError}
+              onAuthModeChange={(mode) => {
+                setAuthError(null)
+                authActions.setAuthMode(mode)
+              }}
+              onAuthUsernameChange={authActions.setAuthUsername}
+              onAuthEmailChange={authActions.setAuthEmail}
+              onAuthPasswordChange={authActions.setAuthPassword}
+              onLogin={async (e) => {
+                setAuthError(null)
+                setShowBrandLoading(true)
+                setWorkspaceReady(false)
+                const result = await authActions.login(authState.authUsername, authState.authPassword)
+                if (result.ok) {
+                  uiActions.addToast(`登入成功，歡迎回來！`, 'success')
+                } else {
+                  setShowBrandLoading(false)
+                  setAuthError(result.error || '登入失敗，請檢查帳號或密碼')
+                  uiActions.addToast(result.error || '登入失敗，請檢查帳號或密碼', 'error')
+                }
+              }}
+              onRegister={async (e) => {
+                setAuthError(null)
+                setShowBrandLoading(true)
+                setWorkspaceReady(false)
+                const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
+                if (result.ok) {
+                  uiActions.addToast('註冊成功並已自動登入系統！', 'success')
+                  authActions.setAuthPassword('')
+                } else {
+                  setShowBrandLoading(false)
+                  setAuthError(result.error || '註冊失敗')
+                  uiActions.addToast(result.error || '註冊失敗', 'error')
+                }
+              }}
+            />
+          </>
+        )}
       </>
     )
   }
@@ -1519,9 +1564,11 @@ export default function Home() {
 
   return (
     <div className={`app-container theme-${themeState.theme}`}>
-      {showAuthTransition && (
-        <FYCDAuthTransition onComplete={() => setShowAuthTransition(false)} />
-      )}
+      <FYCDBrandLoading 
+        show={showBrandLoading} 
+        workspaceReady={workspaceReady} 
+        onExitComplete={handleExitComplete} 
+      />
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, display: 'flex', flexDirection: 'column-reverse', gap: '10px', pointerEvents: 'none' }}>
         {uiState.toasts.map(toast => (
           <div

@@ -14,9 +14,12 @@ export function getColumnAlias(index: number): string {
 /**
  * Extract all variable names from a formula expression string.
  */
-export function extractVariables(expression: string): string[] {
+export function extractVariables(expression: any): string[] {
   let exprStr = expression
-  if (exprStr && exprStr.trim().startsWith('{')) {
+  if (exprStr && typeof exprStr === 'object' && exprStr.formula) {
+    exprStr = String(exprStr.formula)
+  }
+  if (typeof exprStr === 'string' && exprStr.trim().startsWith('{')) {
     try {
       const parsed = JSON.parse(exprStr)
       if (parsed && typeof parsed === 'object' && parsed.formula) {
@@ -24,7 +27,8 @@ export function extractVariables(expression: string): string[] {
       }
     } catch {}
   }
-  const matches = exprStr.match(FIELD_REF_REGEX)
+  const str = String(exprStr || '')
+  const matches = str.match(FIELD_REF_REGEX)
   return matches ? [...new Set(matches.map(m => m.replace(/[\{\}\[\]]/g, '').toLowerCase()))] : []
 }
 
@@ -33,9 +37,17 @@ export function extractVariables(expression: string): string[] {
  * Replaces field references with 0 for parsing since the parser
  * would otherwise trigger callVariable events.
  */
-export function parseFormula(expression: string): void {
-  if (!expression || !expression.trim()) return
-  let exprStr = expression.trim()
+export function parseFormula(expression: any): void {
+  if (!expression) return
+  let exprStr = expression
+  if (exprStr && typeof exprStr === 'object' && exprStr.formula) {
+    exprStr = String(exprStr.formula)
+  }
+  if (typeof exprStr !== 'string') exprStr = String(exprStr)
+  
+  exprStr = exprStr.trim()
+  if (!exprStr) return
+  
   if (exprStr.startsWith('{')) {
     try {
       const parsed = JSON.parse(exprStr)
@@ -220,12 +232,20 @@ function createParser(variables: Record<string, string | number | boolean | null
  * Accepts an optional fieldOrder array of field IDs in column display order.
  */
 export function evaluateFormula(
-  expression: string,
+  expression: any,
   variables: Record<string, string | number | boolean | null>,
   fieldOrder?: number[]
 ): string | number | boolean | null {
-  if (!expression || !expression.trim()) return null
-  let trimExpr = expression.trim()
+  if (!expression) return null
+  let trimExpr = expression
+
+  if (trimExpr && typeof trimExpr === 'object' && trimExpr.formula) {
+    trimExpr = String(trimExpr.formula)
+  }
+  if (typeof trimExpr !== 'string') trimExpr = String(trimExpr)
+  
+  trimExpr = trimExpr.trim()
+  if (!trimExpr) return null
 
   // Auto-parse JSON string if options object was passed
   if (trimExpr.startsWith('{')) {

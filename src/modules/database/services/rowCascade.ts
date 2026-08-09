@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { evaluateFormula, detectCircularDependency } from '@/lib/formula'
 
 /**
@@ -17,7 +18,7 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
   const dependentTableIds = new Set<number>()
   relationFields.forEach(f => {
     try {
-      const opts = f.options ? JSON.parse(f.options) : {}
+      const opts: any = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
       if (opts.targetTableId === updatedTableId || opts.relationTableId === updatedTableId) {
         dependentTableIds.add(f.tableId)
       }
@@ -26,20 +27,21 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
 
   if (dependentTableIds.size === 0) return []
 
+  const candidateRowsRaw = await prisma.$queryRaw<{id: number}[]>`
+    SELECT id FROM TableRow
+    WHERE tableId IN (${Prisma.join(Array.from(dependentTableIds))})
+    AND deletedAt IS NULL
+    AND data LIKE ${'%' + String(updatedRowId) + '%'}
+  `
+  
   const candidateRows = await prisma.tableRow.findMany({
-    where: {
-      tableId: { in: Array.from(dependentTableIds) },
-      deletedAt: null,
-      data: {
-        contains: String(updatedRowId)
-      }
-    }
+    where: { id: { in: candidateRowsRaw.map(r => r.id) } }
   })
 
   const affectedRows: { id: number; tableId: number; data: Record<string, any> }[] = []
   candidateRows.forEach(r => {
     try {
-      const parsedData = JSON.parse(r.data || '{}')
+      const parsedData: any = typeof r.data === 'string' ? JSON.parse(r.data || '{}') : (r.data || {})
       const isLinked = Object.keys(parsedData).some(key => {
         const val = parsedData[key]
         if (Array.isArray(val)) {
@@ -82,7 +84,10 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
         
         const formulaMap: Record<string, string> = {}
         depFields.forEach(f => {
-          if (f.type === 'formula' && f.options) formulaMap[`field_${f.id}`] = f.options
+          if (f.type === 'formula' && f.options) {
+             const opts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
+             formulaMap[`field_${f.id}`] = opts as string
+          }
         })
 
         depFields.forEach(f => {
@@ -92,8 +97,9 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
               depData[key] = '#CIRCULAR!'
             } else {
               try {
+                const fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
                 const fieldOrder = depFields.map(f => f.id)
-                const res = evaluateFormula(f.options, depData, fieldOrder)
+                const res = evaluateFormula(fOpts as string, depData, fieldOrder)
                 depData[key] = res != null ? String(res) : ''
               } catch {
                 depData[key] = '#VALUE!'
@@ -104,7 +110,7 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
 
         await tx.tableRow.update({
           where: { id: depRow.id },
-          data: { data: JSON.stringify(depData) }
+          data: { data: depData as any }
         })
         depRow.data = depData
       }
@@ -128,7 +134,7 @@ export async function cleanupFieldDependencies(deletedFieldId: number) {
   for (const field of lookupRollupFields) {
     if (!field.options) continue
     try {
-      const opts = JSON.parse(field.options)
+      const opts: any = typeof field.options === 'string' ? JSON.parse(field.options) : (field.options || {})
       if (Number(opts.relationFieldId) === deletedFieldId || Number(opts.targetFieldId) === deletedFieldId) {
         const newOpts = {
           ...opts,
@@ -137,7 +143,7 @@ export async function cleanupFieldDependencies(deletedFieldId: number) {
         }
         await prisma.tableField.update({
           where: { id: field.id },
-          data: { options: JSON.stringify(newOpts) }
+          data: { options: newOpts as any }
         })
       }
     } catch {}

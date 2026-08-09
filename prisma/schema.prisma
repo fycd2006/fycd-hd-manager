@@ -65,7 +65,8 @@ model TableField {
   name      String
   type      String        @default("text") // text, long_text, number, boolean, date, single_select, url, email
   order     Int           @default(0)
-  options   String?       @db.Text // JSON string for field-specific options (e.g. select choices)
+  options   Json?         // JSON for field-specific options (e.g. select choices)
+  isIndexed Boolean       @default(false) // Whether to create a Generated Column for high-speed indexing
   createdAt DateTime      @default(now())
   deletedAt DateTime?
 
@@ -76,7 +77,7 @@ model TableRow {
   id        Int           @id @default(autoincrement())
   tableId   Int
   table     DatabaseTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  data      String        @db.Text // JSON string: { "field_1": "value", "field_2": 42, ... }
+  data      Json          // JSON payload: { "field_1": "value", "field_2": 42, ... }
   order     Int           @default(0)
   comments  RowComment[]
   createdAt DateTime      @default(now())

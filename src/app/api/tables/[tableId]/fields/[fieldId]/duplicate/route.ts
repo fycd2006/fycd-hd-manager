@@ -35,7 +35,7 @@ export async function POST(
         name: `${sourceField.name} (Copy)`,
         type: sourceField.type,
         order: insertOrder,
-        options: sourceField.options,
+        options: sourceField.options as any,
       }
     })
 
@@ -64,16 +64,13 @@ export async function POST(
     if (rows.length > 0) {
       await prisma.$transaction(async (tx) => {
         for (const r of rows) {
-          let dataObj: Record<string, any> = {}
-          try {
-            dataObj = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {})
-          } catch {}
+          let dataObj: Record<string, any> = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data as any || {})
 
           dataObj[newKey] = dataObj[srcKey] !== undefined ? dataObj[srcKey] : null
 
           await tx.tableRow.update({
             where: { id: r.id },
-            data: { data: JSON.stringify(dataObj) }
+            data: { data: dataObj as any }
           })
         }
       })

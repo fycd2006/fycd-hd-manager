@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/auth'
 import { evaluateFormula } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 import { triggerTableEvent } from '@/lib/pusher-server'
+import { FieldRegistry } from '@/modules/database/fields/types'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -99,7 +100,20 @@ export async function PATCH(
             delete currentData[String(fid)]
             delete currentData[fid]
           }
-          currentData[k] = val ?? null
+          
+          const f = fields.find(fld => `field_${fld.id}` === k)
+          if (f && val !== undefined) {
+             let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
+             const validateRes = FieldRegistry.get(f.type).validateValue(val, fOpts)
+             if (!validateRes.valid) {
+                 // In batch, we can either throw error or skip invalid. We'll set null if invalid, or keep original to match old behavior.
+                 // Actually throwing is better to alert the user.
+                 throw new Error(`欄位 [${f.name}] 驗證失敗: ${validateRes.error}`)
+             }
+             currentData[k] = validateRes.parsedValue
+          } else {
+             currentData[k] = val ?? null
+          }
         }
       })
 
@@ -118,7 +132,7 @@ export async function PATCH(
         }
         try {
           const fieldOrder = fields.map(f => f.id)
-          const res = evaluateFormula(String(expr), currentData, fieldOrder)
+          const res = evaluateFormula(expr, currentData, fieldOrder)
           currentData[destKey] = res != null ? String(res) : ''
         } catch {
           currentData[destKey] = '#VALUE!'
@@ -134,7 +148,7 @@ export async function PATCH(
         prisma.tableRow.update({
           where: { id: u.rowId },
           data: {
-            data: JSON.stringify(u.data),
+            data: u.data as any,
             updatedAt: new Date()
           }
         })
