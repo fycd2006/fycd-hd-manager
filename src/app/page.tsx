@@ -529,9 +529,9 @@ export default function Home() {
           if (typeof expr === 'string' && (expr.startsWith('{') || expr.startsWith('"'))) {
             try {
               let parsed = JSON.parse(expr)
-              if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed) } catch {} }
+              if (typeof parsed === 'string') { try { parsed = JSON.parse(parsed) } catch { } }
               if (parsed && typeof parsed === 'object' && parsed.formula) expr = parsed.formula
-            } catch {}
+            } catch { }
           }
           try {
             const fieldOrder = fields.map(f => f.id)
@@ -605,7 +605,7 @@ export default function Home() {
         uiActions.addToast('更新儲存格失敗', 'error')
       }
     } catch {
-      uiActions.addToast('更新儲存格失敗', 'error')
+      uiActions.addToast('更新儲存格時發生網路或系統錯誤', 'error')
     }
   }
 
@@ -703,7 +703,7 @@ export default function Home() {
             rowId: result.row!.id,
             content: `[HISTORY] 建立了此資料列`
           })
-        }).catch(() => {})
+        }).catch(() => { })
 
         if (fields.length > 0) {
           const firstKey = `field_${fields[0].id}`
@@ -1336,10 +1336,10 @@ export default function Home() {
   if (!authState.currentUser) {
     return (
       <>
-        <FYCDBrandLoading 
-          show={showBrandLoading} 
-          workspaceReady={workspaceReady} 
-          onExitComplete={handleExitComplete} 
+        <FYCDBrandLoading
+          show={showBrandLoading}
+          workspaceReady={workspaceReady}
+          onExitComplete={handleExitComplete}
         />
         {!showBrandLoading && (
           <>
@@ -1564,10 +1564,10 @@ export default function Home() {
 
   return (
     <div className={`app-container theme-${themeState.theme}`}>
-      <FYCDBrandLoading 
-        show={showBrandLoading} 
-        workspaceReady={workspaceReady} 
-        onExitComplete={handleExitComplete} 
+      <FYCDBrandLoading
+        show={showBrandLoading}
+        workspaceReady={workspaceReady}
+        onExitComplete={handleExitComplete}
       />
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 99999, display: 'flex', flexDirection: 'column-reverse', gap: '10px', pointerEvents: 'none' }}>
         {uiState.toasts.map(toast => (

@@ -133,7 +133,7 @@ export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: b
     if (res.ok) {
       return { ok: true }
     }
-    const data = await res.json()
+    const data = await res.json().catch(() => ({}))
     return { ok: false, error: data.error || '刪除列失敗' }
   } catch {
     return { ok: false, error: '刪除列失敗' }
