@@ -138,7 +138,7 @@ export interface RowColorRule {
 // UI Components
 // =============================================
 export interface Toast {
-  id: number
+  id: number | string
   message: string
   type: 'success' | 'error' | 'info'
 }
