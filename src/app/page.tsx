@@ -96,16 +96,6 @@ export default function Home() {
   // Use the new operations hook
   const { rows, operations, mergeServerRows, dispatch } = useTableOperations(wsState.activeTableId)
 
-  // Expose helpers for E2E automated resilience testing
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).updateCell = updateCell
-      (window as any).fetchTableData = fetchTableData
-      (window as any).dispatchTableOp = dispatch
-      (window as any).rows = rows
-      (window as any).fields = fields
-    }
-  }, [updateCell, fetchTableData, dispatch, rows, fields])
   const setRows = useCallback((payload: TableRow[] | ((prev: TableRow[]) => TableRow[])) => {
     dispatch({ type: 'SET_BASE_ROWS', payload })
   }, [dispatch])
@@ -683,6 +673,17 @@ export default function Home() {
       uiActions.addToast('更新儲存格時發生網路或系統錯誤', 'error')
     }
   }
+
+  // Expose helpers for E2E automated resilience testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      ;(window as any).updateCell = updateCell
+      ;(window as any).fetchTableData = fetchTableData
+      ;(window as any).dispatchTableOp = dispatch
+      ;(window as any).rows = rows
+      ;(window as any).fields = fields
+    }
+  }, [updateCell, fetchTableData, dispatch, rows, fields])
 
   const batchUpdateCells = async (updates: Array<{ rowId: number; data: Record<string, any> }>) => {
     if (!wsState.activeTableId || !Array.isArray(updates) || updates.length === 0) return

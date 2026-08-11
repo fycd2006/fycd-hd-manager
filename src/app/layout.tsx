@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 import "./theme.css";
 import "@/styles/baserow/default.scss";
@@ -45,7 +46,9 @@ export default function RootLayout({
   return (
     <html lang="zh-Hant">
       <head>
-        <script
+        <Script
+          id="pointer-capture-fix"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               if (typeof Element !== 'undefined' && Element.prototype.releasePointerCapture) {
