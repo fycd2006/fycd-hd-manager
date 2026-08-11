@@ -98,10 +98,11 @@ export async function POST(
         rowData[key] = username
       } else if (f.type === 'created_on' || f.type === 'last_modified_on') {
         rowData[key] = nowStr
-      } else if (body.data && body.data[key] !== undefined) {
+      } else if ((body.data && body.data[key] !== undefined) || (body && body[key] !== undefined)) {
+        const rawValue = (body.data && body.data[key] !== undefined) ? body.data[key] : body[key]
         let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
         const fieldType = FieldRegistry.get(f.type)
-        const validateRes = fieldType.validateValue(body.data[key], fOpts)
+        const validateRes = fieldType.validateValue(rawValue, fOpts)
         
         if (!validateRes.valid) {
           return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
@@ -230,7 +231,10 @@ export async function PATCH(
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
-    const updateMap: Record<string, any> = { ...(data || {}) }
+    let updateMap: Record<string, any> = {}
+    if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
+      updateMap = { ...data }
+    }
     if (fieldKey !== undefined) {
       updateMap[fieldKey] = value
     }
@@ -408,8 +412,13 @@ export async function DELETE(
 
     const socketId = searchParams.get('socket_id') || undefined
 
+    const existingRow = await prisma.tableRow.findUnique({ where: { id: rid }, select: { tableId: true } })
+    if (!existingRow || existingRow.tableId !== tid) {
+      return NextResponse.json({ error: '找不到該列或無權限' }, { status: 404 })
+    }
+
     await prisma.tableRow.update({
-      where: { id: rid, tableId: tid },
+      where: { id: rid },
       data: { deletedAt: new Date() }
     })
 
@@ -443,10 +452,13 @@ export async function PUT(
     await prisma.$transaction(async (tx) => {
       for (let index = 0; index < rowOrders.length; index++) {
         const rowId = rowOrders[index]
-        await tx.tableRow.update({
-          where: { id: rowId, tableId: tid },
-          data: { order: index },
-        })
+        const existingRow = await tx.tableRow.findUnique({ where: { id: rowId }, select: { tableId: true } })
+        if (existingRow && existingRow.tableId === tid) {
+          await tx.tableRow.update({
+            where: { id: rowId },
+            data: { order: index },
+          })
+        }
       }
     }, {
       maxWait: 5000,

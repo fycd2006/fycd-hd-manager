@@ -159,3 +159,51 @@ export const reorderRows = async (tableId: number, rowIds: number[]): Promise<{ 
     return { ok: false, error: '調整列順序失敗' }
   }
 }
+
+/**
+ * Batch create multiple rows
+ */
+export const batchCreateRows = async (
+  tableId: number,
+  rows: Array<{ clientId: string; data: Record<string, any> }>
+): Promise<{ ok: boolean; rows?: TableRow[]; error?: string }> => {
+  try {
+    const socketId = getSocketId()
+    const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows, socket_id: socketId }),
+    })
+    const resData = await res.json()
+    if (res.ok) {
+      return { ok: true, rows: resData.rows }
+    }
+    return { ok: false, error: resData.error || '批次新增列失敗' }
+  } catch {
+    return { ok: false, error: '批次新增列失敗' }
+  }
+}
+
+/**
+ * Batch delete multiple rows
+ */
+export const batchDeleteRows = async (
+  tableId: number,
+  rowIds: number[]
+): Promise<{ ok: boolean; count?: number; error?: string }> => {
+  try {
+    const socketId = getSocketId()
+    const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rowIds, socket_id: socketId }),
+    })
+    const resData = await res.json()
+    if (res.ok) {
+      return { ok: true, count: resData.count }
+    }
+    return { ok: false, error: resData.error || '批次刪除列失敗' }
+  } catch {
+    return { ok: false, error: '批次刪除列失敗' }
+  }
+}

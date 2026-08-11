@@ -75,10 +75,11 @@ model TableField {
 
 model TableRow {
   id        Int           @id @default(autoincrement())
+  clientId  String?       @unique
   tableId   Int
   table     DatabaseTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
   data      Json          // JSON payload: { "field_1": "value", "field_2": 42, ... }
-  order     Int           @default(0)
+  order     Float         @default(0)
   comments  RowComment[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -182,5 +183,12 @@ model RowComment {
   createdAt DateTime @default(now())
 }
 
-
-
+model MoveOperationLog {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  sourceTableId Int
+  targetTableId Int
+  rowId         Int
+  status        String   @default("pending") // pending, resolved
+  createdAt     DateTime @default(now())
+}

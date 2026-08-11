@@ -41,15 +41,19 @@ interface GridViewProps {
   onExpandRow?: (row: TableRow) => void
   onDuplicateRow?: (row: TableRow) => void
   onDeleteRow?: (rowId: number) => void
-  onAddRow: () => void
-  onShowNewFieldModal: () => void
+  onAddRow?: () => void
+  onShowNewFieldModal?: () => void
   onUpdateCell?: (rowId: number, fieldKey: string, value: any) => void
   onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void
-  onUndo?: () => void
-  onRedo?: () => void
+  onUndo?: () => Promise<boolean | void> | boolean | void
+  onRedo?: () => Promise<boolean | void> | boolean | void
   onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void
+  onBatchAddRows?: (rows: Array<Record<string, any>>) => void
+  batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean
+  stageMoveRows?: (rowIds: number[]) => void
+  cancelMoveRows?: () => void
 }
 
 export default function GridView({
@@ -77,6 +81,10 @@ export default function GridView({
   onRedo,
   onHandleColumnDrop,
   onReorderRows,
+  onBatchAddRows,
+  batchMoveRows,
+  stageMoveRows,
+  cancelMoveRows,
 }: GridViewProps) {
   if (gridLoading) {
     return <WorkspaceGridSkeleton />
@@ -152,6 +160,10 @@ export default function GridView({
         onRedo={onRedo}
         onReorderFields={(srcId, targetId) => (onHandleColumnDrop as any)?.(undefined, targetId, srcId)}
         onReorderRows={onReorderRows}
+        onBatchAddRows={onBatchAddRows}
+        batchMoveRows={batchMoveRows}
+        stageMoveRows={stageMoveRows}
+        cancelMoveRows={cancelMoveRows}
       />
     </div>
   )

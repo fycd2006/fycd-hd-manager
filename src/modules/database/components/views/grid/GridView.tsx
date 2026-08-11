@@ -36,10 +36,14 @@ interface GridViewProps {
   onFieldClick?: (field: TableField, e: React.MouseEvent) => void;
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
-  onUndo?: () => void;
-  onRedo?: () => void;
+  onUndo?: () => Promise<boolean | void> | boolean | void;
+  onRedo?: () => Promise<boolean | void> | boolean | void;
   onReorderFields?: (sourceFieldId: number, targetFieldId: number) => void;
   onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void;
+  onBatchAddRows?: (rows: Array<Record<string, any>>) => void;
+  batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean;
+  stageMoveRows?: (rowIds: number[]) => void;
+  cancelMoveRows?: () => void;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -65,6 +69,10 @@ export const GridView: React.FC<GridViewProps> = ({
   onRedo,
   onReorderFields,
   onReorderRows,
+  onBatchAddRows,
+  batchMoveRows,
+  stageMoveRows,
+  cancelMoveRows,
 }) => {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
@@ -399,15 +407,21 @@ export const GridView: React.FC<GridViewProps> = ({
       // Undo: Ctrl+Z / Cmd+Z
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        onUndo?.();
-        showToast('已執行復原 (Undo)');
+        Promise.resolve(onUndo?.()).then(res => {
+          if (res !== false) {
+            showToast('已執行復原 (Undo)');
+          }
+        });
       }
 
       // Redo: Ctrl+Y / Cmd+Y or Ctrl+Shift+Z
       if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
-        onRedo?.();
-        showToast('已執行重做 (Redo)');
+        Promise.resolve(onRedo?.()).then(res => {
+          if (res !== false) {
+            showToast('已執行重做 (Redo)');
+          }
+        });
       }
 
       // Copy: Ctrl+C / Cmd+C

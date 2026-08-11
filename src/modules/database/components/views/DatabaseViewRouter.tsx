@@ -46,13 +46,18 @@ interface DatabaseViewRouterProps {
   setShowDetailModal: (show: boolean) => void
   duplicateRow: (rowToCopy: TableRow) => Promise<void>
   deleteRow: (rowId: number) => void
+  batchDeleteRows?: (rowIds: number[]) => void
   addRow: () => void
+  batchAddRows?: (rowsToCreate: Array<Record<string, any>>) => void
   setShowNewFieldModal: (show: boolean) => void
   handleUpdateField: (fieldId: number, updates: Partial<TableField>) => void
   setFieldContextMenu: (menu: { field: TableField; x: number; y: number } | null) => void
   onUndo?: () => void
   onRedo?: () => void
   onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void
+  batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean
+  stageMoveRows?: (rowIds: number[]) => void
+  cancelMoveRows?: () => void
 }
 
 export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
@@ -93,13 +98,18 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   setShowDetailModal,
   duplicateRow,
   deleteRow,
+  batchDeleteRows,
   addRow,
+  batchAddRows,
   setShowNewFieldModal,
   handleUpdateField,
   setFieldContextMenu,
   onUndo,
   onRedo,
   onReorderRows,
+  batchMoveRows,
+  stageMoveRows,
+  cancelMoveRows,
 }) => {
   return (
     <div key={currentView} className="w-full h-full animate-in fade-in duration-200 ease-out">
@@ -111,6 +121,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           readOnly={readOnly}
           onUpdateCell={updateCell}
           onBatchUpdateCells={batchUpdateCells}
+          onBatchAddRows={batchAddRows}
           frozenColumnsCount={frozenColumnsCount}
           columnWidths={columnWidths}
           sortField={sortField}
@@ -176,6 +187,9 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           onUndo={onUndo}
           onRedo={onRedo}
           onReorderRows={onReorderRows}
+          batchMoveRows={batchMoveRows}
+          stageMoveRows={stageMoveRows}
+          cancelMoveRows={cancelMoveRows}
         />
       )}
 

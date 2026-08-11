@@ -53,10 +53,13 @@ export interface TableField {
 
 export interface TableRow {
   id: number
+  clientId?: string | null
   tableId: number
   data: Record<string, CellValue>
   order: number
   createdAt: string
+  updatedAt?: string
+  deletedAt?: string | null
 }
 
 // =============================================

@@ -132,9 +132,12 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         height: 'var(--row-height, 32px)',
         maxHeight: 'var(--row-height, 32px)',
         overflow: 'visible',
-        borderTop: isDragTarget ? '2px solid #3F6212' : undefined,
+        borderTop: isDragTarget ? '2px solid #3F6212' : 'none',
+        borderBottom: '1px solid var(--border-color, #E7E5E4)',
         boxSizing: 'border-box',
         background: matchedColorBg || undefined,
+        opacity: (row as any)._isStagedForMove ? 0.5 : 1,
+        transition: 'opacity 0.2s ease',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}

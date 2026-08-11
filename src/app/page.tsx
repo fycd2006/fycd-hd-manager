@@ -18,6 +18,8 @@ import UserSettingsModal from '@/modules/database/components/modals/UserSettings
 import SubscriptionModal from '@/modules/database/components/modals/SubscriptionModal'
 import DarkReaderModal from '@/modules/database/components/modals/DarkReaderModal'
 import { getRolePermissions } from '@/lib/permissions'
+import { getSessionUser } from '@/lib/auth'
+import { useTableOperations } from '@/modules/database/hooks/useTableOperations'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
 import { getPusherClient, getSocketId } from '@/lib/pusher-client'
@@ -88,8 +90,16 @@ export default function Home() {
   // Local UI State (Not yet extracted to stores)
   // ============================================
   const [fields, setFields] = useState<TableField[]>([])
-  const [rows, setRows] = useState<TableRow[]>([])
-  const [loading, setLoading] = useState(true)
+  // Real-time updates indicator
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  // Use the new operations hook
+  const { rows, operations, dispatch } = useTableOperations(wsState.activeTableId)
+
+  // Shim setRows to map to dispatch for existing functions that use setRows
+  const setRows = useCallback((payload: TableRow[] | ((prev: TableRow[]) => TableRow[])) => {
+    dispatch({ type: 'SET_BASE_ROWS', payload })
+  }, [dispatch])
   const [gridLoading, setGridLoading] = useState(false)
   const [showBrandLoading, setShowBrandLoading] = useState<boolean>(false)
   const [workspaceReady, setWorkspaceReady] = useState(false)
@@ -251,10 +261,14 @@ export default function Home() {
 
   // Undo / Redo Hook
   const updateCellRef = useRef<(rowId: number, fieldKey: string, value: CellValue, skipPushHistory?: boolean) => Promise<void>>(async () => { })
+  const batchUpdateCellsRef = useRef<(updates: Array<{ rowId: number; data: Record<string, any> }>) => Promise<void>>(async () => { })
 
   const { pushEdit, undo, redo, canUndo, canRedo } = useUndoRedo(
-    async (rowId, fieldKey, val) => {
+    async (tableId, rowId, fieldKey, val) => {
       await updateCellRef.current(rowId, fieldKey, val, true)
+    },
+    async (tableId, updates) => {
+      await batchUpdateCellsRef.current(updates)
     }
   )
 
@@ -272,21 +286,21 @@ export default function Home() {
         if (e.key.toLowerCase() === 'z') {
           if (e.shiftKey) {
             e.preventDefault()
-            redo()
+            redo(wsState.activeTableId)
           } else {
             e.preventDefault()
-            undo()
+            undo(wsState.activeTableId)
           }
         } else if (e.key.toLowerCase() === 'y') {
           e.preventDefault()
-          redo()
+          redo(wsState.activeTableId)
         }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo])
+  }, [undo, redo, wsState.activeTableId])
 
   // Fetch table data using new services
   const fetchTableData = useCallback(async (tableId: number) => {
@@ -457,6 +471,9 @@ export default function Home() {
   // Cell or multi-field row update using new service
   const updateCell = async (rowId: number, fieldKeyOrId: any, value?: CellValue, skipPushHistory: boolean = false) => {
     if (!wsState.activeTableId) return
+    const targetRow = rows.find(r => r.id === rowId)
+    const targetTableId = targetRow?.tableId || wsState.activeTableId
+
     try {
       // Handle batch multi-field update for a row
       if (typeof fieldKeyOrId === 'object' && fieldKeyOrId !== null) {
@@ -468,7 +485,7 @@ export default function Home() {
           return { ...r, data: { ...r.data, ...dataMap } }
         }))
 
-        const res = await fetch(`/api/tables/${wsState.activeTableId}/rows`, {
+        const res = await fetch(`/api/tables/${targetTableId}/rows`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rowId, data: dataMap, socket_id: socketId }),
@@ -544,7 +561,7 @@ export default function Home() {
         return { ...r, data: updatedData }
       }))
 
-      const result = await rowService.updateCell(wsState.activeTableId, rowId, fieldKey, payloadValue)
+      const result = await rowService.updateCell(targetTableId, rowId, fieldKey, payloadValue)
 
       if (result.ok) {
         if (result.row) {
@@ -593,10 +610,8 @@ export default function Home() {
 
         if (!skipPushHistory) {
           pushEdit({
-            rowId,
-            fieldKey,
-            before: oldValue,
-            after: payloadValue
+            tableId: targetTableId,
+            edits: [{ rowId, fieldKey, before: oldValue, after: payloadValue }]
           })
         }
       } else {
@@ -609,12 +624,28 @@ export default function Home() {
     }
   }
 
-  useEffect(() => {
-    updateCellRef.current = updateCell
-  }, [updateCell])
-
   const batchUpdateCells = async (updates: Array<{ rowId: number; data: Record<string, any> }>) => {
     if (!wsState.activeTableId || !Array.isArray(updates) || updates.length === 0) return
+    const firstRowId = updates[0]?.rowId
+    const targetRow = rows.find(r => r.id === firstRowId)
+    const targetTableId = targetRow?.tableId || wsState.activeTableId
+
+    // Collect before states for all updated rows & fields for undo history
+    const historyEdits: Array<{ rowId: number; fieldKey: string; before: any; after: any }> = []
+    updates.forEach(u => {
+      const r = rows.find(row => row.id === u.rowId)
+      if (r && u.data) {
+        Object.entries(u.data).forEach(([fk, val]) => {
+          historyEdits.push({
+            rowId: u.rowId,
+            fieldKey: fk,
+            before: r.data[fk] ?? null,
+            after: val
+          })
+        })
+      }
+    })
+
     try {
       // Optimistically update React state for ALL target rows immediately in 0ms
       const updateMap = new Map<number, Record<string, any>>()
@@ -637,8 +668,14 @@ export default function Home() {
       }))
 
       // Send 1 SINGLE HTTP request to batch update API
-      const result = await rowService.batchUpdateRows(wsState.activeTableId, updates)
+      const result = await rowService.batchUpdateRows(targetTableId, updates)
       if (result.ok && Array.isArray(result.updates)) {
+        if (historyEdits.length > 0) {
+          pushEdit({
+            tableId: targetTableId,
+            edits: historyEdits
+          })
+        }
         const serverMap = new Map<number, Record<string, any>>()
         result.updates.forEach(u => serverMap.set(u.rowId, u.data))
         setRows(prev => prev.map(r => {
@@ -663,6 +700,9 @@ export default function Home() {
       uiActions.addToast('批次更新失敗', 'error')
     }
   }
+
+  updateCellRef.current = updateCell
+  batchUpdateCellsRef.current = batchUpdateCells
 
   // Add row using new service
   const addRow = async () => {
@@ -715,6 +755,103 @@ export default function Home() {
       uiActions.addToast('新增列失敗', 'error')
     }
   }
+
+  // Move operations (Cross-table cut and paste)
+  const stageMoveRows = useCallback((rowIds: number[]) => {
+    if (!wsState.activeTableId || rowIds.length === 0) return
+    const id = `move_${Date.now()}`
+    
+    const rowsDataToMove = rows.filter(r => rowIds.includes(r.id)).map(r => ({
+      sourceRowId: r.id,
+      data: r.data
+    }))
+    
+    if (rowsDataToMove.length === 0) return
+
+    dispatch({
+      type: 'ADD_OPERATION',
+      payload: {
+        id,
+        type: 'move',
+        status: 'staged',
+        tableId: wsState.activeTableId,
+        sourceRowIds: rowIds,
+        rowsData: rowsDataToMove,
+        createdAt: Date.now()
+      }
+    })
+  }, [wsState.activeTableId, rows, dispatch])
+
+  const cancelMoveRows = useCallback(() => {
+    operations.forEach(op => {
+      if (op.type === 'move' && op.status === 'staged') {
+        dispatch({ type: 'REMOVE_OPERATION', payload: op.id })
+      }
+    })
+  }, [operations, dispatch])
+
+  const batchMoveRows = useCallback((): boolean => {
+    const stagedOp = operations.find(op => op.type === 'move' && op.status === 'staged')
+    if (!stagedOp || !wsState.activeTableId || !stagedOp.rowsData) return false
+
+    const sourceTableId = stagedOp.tableId!
+    const targetTableId = wsState.activeTableId
+    const rowsToMove = stagedOp.rowsData
+    
+    const clientIds: string[] = []
+    const movePayload = rowsToMove.map(r => {
+      const clientId = `move_tmp_${Date.now()}_${Math.random().toString(36).substring(7)}`
+      clientIds.push(clientId)
+      return {
+        sourceRowId: r.sourceRowId,
+        data: r.data,
+        clientId,
+        order: 0
+      }
+    })
+
+    dispatch({ type: 'REMOVE_OPERATION', payload: stagedOp.id })
+    const pendingOpId = `move_pending_${Date.now()}`
+    dispatch({
+      type: 'ADD_OPERATION',
+      payload: {
+        id: pendingOpId,
+        type: 'move',
+        status: 'pending',
+        tableId: sourceTableId,
+        targetTableId: targetTableId,
+        createdAt: Date.now()
+      }
+    })
+
+    fetch(`/api/tables/${targetTableId}/rows/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceTableId,
+        rows: movePayload,
+        socket_id: getSocketId()
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      dispatch({ type: 'REMOVE_OPERATION', payload: pendingOpId })
+      if (data.success && data.createdRows) {
+        uiActions.addToast(`成功搬移 ${data.createdRows.length} 筆資料`, 'success')
+        if (targetTableId === wsState.activeTableId) {
+           fetchTableData(targetTableId)
+        }
+      } else {
+        uiActions.addToast(data.error || '搬移失敗', 'error')
+      }
+    })
+    .catch(() => {
+      dispatch({ type: 'REMOVE_OPERATION', payload: pendingOpId })
+      uiActions.addToast('搬移失敗', 'error')
+    })
+    
+    return true
+  }, [operations, wsState.activeTableId, dispatch, fetchTableData, uiActions])
 
   // Reorder rows (Drag & Drop with DB persistence)
   const handleReorderRows = async (srcIdx: number, targetIdx: number) => {
@@ -1752,6 +1889,10 @@ export default function Home() {
                 handleCSVImport={handleCSVImport}
                 csvInputRef={csvInputRef}
                 onImportAirtable={() => setShowAirtableModal(true)}
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={() => undo(wsState.activeTableId)}
+                onRedo={() => redo(wsState.activeTableId)}
               />
 
               {/* View content */}
@@ -1775,7 +1916,7 @@ export default function Home() {
                     hiddenFieldKeys={hiddenFieldKeys}
                     displayRows={displayRows}
                     gridLoading={gridLoading}
-                    readOnly={!currentUserRolePermissions.canEditData}
+                    readOnly={!authState.currentUser || !currentUserRolePermissions.canEditData}
                     frozenColumnsCount={frozenColumnsCount}
                     columnWidths={columnWidths}
                     sortField={sortField}
@@ -1814,6 +1955,9 @@ export default function Home() {
                     onUndo={undo}
                     onRedo={redo}
                     onReorderRows={handleReorderRows}
+                    batchMoveRows={batchMoveRows}
+                    stageMoveRows={stageMoveRows}
+                    cancelMoveRows={cancelMoveRows}
                   />
                 </div>
               </PullToRefresh>
