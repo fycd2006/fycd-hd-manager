@@ -261,6 +261,8 @@ export default function Home() {
 
   // Undo / Redo Hook
   const updateCellRef = useRef<(rowId: number, fieldKey: string, value: CellValue, skipPushHistory?: boolean) => Promise<void>>(async () => { })
+  const cellAbortMap = useRef<Map<string, AbortController>>(new Map())
+  const cellSeqMap = useRef<Map<string, number>>(new Map())
   const batchUpdateCellsRef = useRef<(updates: Array<{ rowId: number; data: Record<string, any> }>) => Promise<void>>(async () => { })
 
   const { pushEdit, undo, redo, canUndo, canRedo } = useUndoRedo(
@@ -332,6 +334,21 @@ export default function Home() {
 
     const channelName = `table-${wsState.activeTableId}`
     const channel = pusher.subscribe(channelName)
+
+    const handleStateChange = (states: { previous: string; current: string }) => {
+      if (['unavailable', 'disconnected', 'failed'].includes(states.current)) {
+        uiActions.addToast('網路連線中斷，正在嘗試重新連線...', 'info')
+      } else if (['unavailable', 'disconnected', 'failed', 'connecting'].includes(states.previous) && states.current === 'connected') {
+        uiActions.addToast('網路已重新連線，正在進行全量資料同步...', 'info')
+        if (wsState.activeTableId) {
+          fetchTableData(wsState.activeTableId)
+        }
+      }
+    }
+
+    if (pusher.connection) {
+      pusher.connection.bind('state_change', handleStateChange)
+    }
 
     channel.bind('row-updated', (data: any) => {
       if (!data) return
@@ -561,7 +578,21 @@ export default function Home() {
         return { ...r, data: updatedData }
       }))
 
-      const result = await rowService.updateCell(targetTableId, rowId, fieldKey, payloadValue)
+      const cellKey = `${targetTableId}_${rowId}_${fieldKey}`
+      if (cellAbortMap.current.has(cellKey)) {
+        cellAbortMap.current.get(cellKey)?.abort()
+      }
+      const controller = new AbortController()
+      cellAbortMap.current.set(cellKey, controller)
+      const seqId = (cellSeqMap.current.get(cellKey) || 0) + 1
+      cellSeqMap.current.set(cellKey, seqId)
+
+      const result = await rowService.updateCell(targetTableId, rowId, fieldKey, payloadValue, { signal: controller.signal })
+
+      if (cellSeqMap.current.get(cellKey) !== seqId) {
+        // Obsolete response from older request -> drop
+        return
+      }
 
       if (result.ok) {
         if (result.row) {

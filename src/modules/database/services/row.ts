@@ -77,7 +77,8 @@ export const updateCell = async (
   tableId: number,
   rowId: number,
   fieldKey: string,
-  value: CellValue
+  value: CellValue,
+  options?: { signal?: AbortSignal }
 ): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
   try {
     const socketId = getSocketId()
@@ -85,6 +86,7 @@ export const updateCell = async (
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rowId, fieldKey, value, socket_id: socketId }),
+      signal: options?.signal
     })
     const data = await res.json()
     if (res.ok) {
