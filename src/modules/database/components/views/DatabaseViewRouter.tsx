@@ -58,6 +58,7 @@ interface DatabaseViewRouterProps {
   batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean
   stageMoveRows?: (rowIds: number[]) => void
   cancelMoveRows?: () => void
+  isOffline?: boolean
 }
 
 export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
@@ -67,6 +68,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   displayRows,
   gridLoading,
   readOnly,
+  isOffline,
   frozenColumnsCount,
   columnWidths,
   sortField,
@@ -119,6 +121,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           displayRows={displayRows}
           gridLoading={gridLoading}
           readOnly={readOnly}
+          isOffline={isOffline}
           onUpdateCell={updateCell}
           onBatchUpdateCells={batchUpdateCells}
           onBatchAddRows={batchAddRows}

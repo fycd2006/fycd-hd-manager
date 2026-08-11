@@ -175,10 +175,45 @@ export function useTableOperations(activeTableId: number | null) {
     })
   }, [state.baseRows, state.operations])
 
+  // Merge server rows safely without overwriting pending or staged operations
+  const mergeServerRows = useCallback((serverRows: TableRow[]) => {
+    const pendingUpdates = new Map<number, Record<string, any>>()
+    const stagedMoveRowIds = new Set<number>()
+
+    state.operations.forEach(op => {
+      if (op.status === 'staged' && op.type === 'move' && op.rowIds) {
+        op.rowIds.forEach(id => stagedMoveRowIds.add(id))
+      }
+      if (op.status === 'pending' && op.type === 'update' && op.rowIds && op.fieldKey && op.value !== undefined) {
+        op.rowIds.forEach(id => {
+          const cur = pendingUpdates.get(id) || {}
+          cur[op.fieldKey!] = op.value
+          pendingUpdates.set(id, cur)
+        })
+      }
+    })
+
+    const merged = serverRows.map(sr => {
+      let updatedData = { ...sr.data }
+      if (pendingUpdates.has(sr.id)) {
+        updatedData = { ...updatedData, ...pendingUpdates.get(sr.id) }
+      }
+      const isStaged = stagedMoveRowIds.has(sr.id)
+      return {
+        ...sr,
+        data: updatedData,
+        ...(isStaged && { _isStagedForMove: true })
+      }
+    })
+
+    dispatch({ type: 'SET_BASE_ROWS', payload: merged })
+  }, [state.operations])
+
   return {
     rows: derivedRows,
     operations: state.operations,
     undoableOperations: state.lastUndoableOperations,
+    mergeServerRows,
     dispatch
   }
 }

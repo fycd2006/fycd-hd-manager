@@ -54,6 +54,7 @@ interface GridViewProps {
   batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean
   stageMoveRows?: (rowIds: number[]) => void
   cancelMoveRows?: () => void
+  isOffline?: boolean
 }
 
 export default function GridView({
@@ -66,6 +67,7 @@ export default function GridView({
   groupByField,
   rowColorRules,
   readOnly = false,
+  isOffline = false,
   onAddRow,
   onShowNewFieldModal,
   onHandleResizeStart,
@@ -98,7 +100,7 @@ export default function GridView({
 
   // Convert rows to inner format
   const mappedRows: (RowData & { data: Record<string, any> })[] = displayRows.map(row => {
-    const values: Record<number, any> = {}
+    const values: Record<string, any> = {}
     visibleFields.forEach(field => {
       const dataObj = row.data || {}
       const fk = `field_${field.id}`
@@ -164,6 +166,7 @@ export default function GridView({
         batchMoveRows={batchMoveRows}
         stageMoveRows={stageMoveRows}
         cancelMoveRows={cancelMoveRows}
+        isOffline={isOffline}
       />
     </div>
   )

@@ -44,6 +44,7 @@ interface GridViewProps {
   batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean;
   stageMoveRows?: (rowIds: number[]) => void;
   cancelMoveRows?: () => void;
+  isOffline?: boolean;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -73,6 +74,7 @@ export const GridView: React.FC<GridViewProps> = ({
   batchMoveRows,
   stageMoveRows,
   cancelMoveRows,
+  isOffline = false,
 }) => {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
@@ -193,6 +195,10 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [selectedRowIds, selectionBounds, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
 
   const handleDeleteSelectedRows = useCallback(() => {
+    if (isOffline) {
+      showToast('目前處於離線狀態，請於連線恢復後再試');
+      return;
+    }
     const rowIdsToDelete = new Set<number>(selectedRowIds);
     if (selectionBounds) {
       for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
@@ -218,6 +224,10 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [handleCopySelection, handleClearSelectionValues]);
 
   const handlePasteSelection = useCallback(async (pastedText?: string) => {
+    if (isOffline) {
+      showToast('目前處於離線狀態，請於連線恢復後再試');
+      return;
+    }
     let textToPaste = pastedText;
     if (!textToPaste && typeof navigator !== 'undefined' && navigator.clipboard) {
       try {

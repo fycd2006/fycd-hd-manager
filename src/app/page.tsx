@@ -94,7 +94,7 @@ export default function Home() {
   const [isSyncing, setIsSyncing] = useState(false)
 
   // Use the new operations hook
-  const { rows, operations, dispatch } = useTableOperations(wsState.activeTableId)
+  const { rows, operations, mergeServerRows, dispatch } = useTableOperations(wsState.activeTableId)
 
   // Shim setRows to map to dispatch for existing functions that use setRows
   const setRows = useCallback((payload: TableRow[] | ((prev: TableRow[]) => TableRow[])) => {
@@ -261,8 +261,10 @@ export default function Home() {
 
   // Undo / Redo Hook
   const updateCellRef = useRef<(rowId: number, fieldKey: string, value: CellValue, skipPushHistory?: boolean) => Promise<void>>(async () => { })
+  const [isOffline, setIsOffline] = useState<boolean>(false)
   const cellAbortMap = useRef<Map<string, AbortController>>(new Map())
   const cellSeqMap = useRef<Map<string, number>>(new Map())
+  const cellDebounceMap = useRef<Map<string, NodeJS.Timeout>>(new Map())
   const batchUpdateCellsRef = useRef<(updates: Array<{ rowId: number; data: Record<string, any> }>) => Promise<void>>(async () => { })
 
   const { pushEdit, undo, redo, canUndo, canRedo } = useUndoRedo(
@@ -313,7 +315,7 @@ export default function Home() {
         rowService.fetchRows(tableId),
       ])
       setFields(fieldsData)
-      setRows(rowsData)
+      mergeServerRows(rowsData)
       console.log('Table data loaded:', { fields: fieldsData.length, rows: rowsData.length })
 
       // Load views
@@ -324,7 +326,7 @@ export default function Home() {
     } finally {
       setGridLoading(false)
     }
-  }, [uiActions])
+  }, [uiActions, mergeServerRows, t])
 
   // Real-time multi-user WebSocket synchronization via Pusher
   useEffect(() => {
@@ -579,77 +581,95 @@ export default function Home() {
       }))
 
       const cellKey = `${targetTableId}_${rowId}_${fieldKey}`
-      if (cellAbortMap.current.has(cellKey)) {
-        cellAbortMap.current.get(cellKey)?.abort()
-      }
-      const controller = new AbortController()
-      cellAbortMap.current.set(cellKey, controller)
-      const seqId = (cellSeqMap.current.get(cellKey) || 0) + 1
-      cellSeqMap.current.set(cellKey, seqId)
-
-      const result = await rowService.updateCell(targetTableId, rowId, fieldKey, payloadValue, { signal: controller.signal })
-
-      if (cellSeqMap.current.get(cellKey) !== seqId) {
-        // Obsolete response from older request -> drop
-        return
+      
+      // Clear existing debounce timer if user is rapidly clicking/typing on the same field
+      if (cellDebounceMap.current.has(cellKey)) {
+        clearTimeout(cellDebounceMap.current.get(cellKey)!)
       }
 
-      if (result.ok) {
-        if (result.row) {
-          const serverData = typeof result.row.data === 'string'
-            ? (safeJsonParse(result.row.data, {}) as Record<string, any>)
-            : (result.row.data || {})
+      // 300ms Debounce + AbortController + 12s Timeout Dual-Layer Protection
+      const timer = setTimeout(async () => {
+        if (cellAbortMap.current.has(cellKey)) {
+          cellAbortMap.current.get(cellKey)?.abort()
+        }
+        const controller = new AbortController()
+        cellAbortMap.current.set(cellKey, controller)
+        const seqId = (cellSeqMap.current.get(cellKey) || 0) + 1
+        cellSeqMap.current.set(cellKey, seqId)
 
-          // Targeted Field Merging:
-          // 1. Explicitly update saved field with serverData
-          // 2. Explicitly update server-calculated fields (formulas, timestamps, autonumbers)
-          // 3. Preserve in-flight edits on unrelated fields of the same row
-          setRows(prev => prev.map(r => {
-            if (r.id !== rowId) return r
-            const mergedData = { ...r.data }
-            if (fieldKey in serverData) {
-              mergedData[fieldKey] = serverData[fieldKey]
-            }
-            fields.forEach(f => {
-              const key = `field_${f.id}`
-              if (['formula', 'lookup', 'rollup', 'last_modified_on', 'last_modified_by', 'created_on', 'created_by', 'autonumber'].includes(f.type)) {
-                if (key in serverData) {
-                  mergedData[key] = serverData[key]
+        // 12-second Operation Timeout
+        const timeoutId = setTimeout(() => {
+          controller.abort()
+          uiActions.addToast('操作逾時 (12 秒未獲確認)，請檢查網路並重試', 'info')
+        }, 12000)
+
+        try {
+          const result = await rowService.updateCell(targetTableId, rowId, fieldKey, payloadValue, { signal: controller.signal })
+          clearTimeout(timeoutId)
+
+          if (cellSeqMap.current.get(cellKey) !== seqId) {
+            // Obsolete response from older request -> drop
+            return
+          }
+
+          if (result.ok) {
+            if (result.row) {
+              const serverData = typeof result.row.data === 'string'
+                ? (safeJsonParse(result.row.data, {}) as Record<string, any>)
+                : (result.row.data || {})
+
+              setRows(prev => prev.map(r => {
+                if (r.id !== rowId) return r
+                const mergedData = { ...r.data }
+                if (fieldKey in serverData) {
+                  mergedData[fieldKey] = serverData[fieldKey]
                 }
-              }
-            })
-            Object.keys(mergedData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in mergedData)) mergedData[`field_${k}`] = mergedData[k]; delete mergedData[k] } })
-            return { ...r, data: mergedData }
-          }))
-        }
-
-        // Live sync dependent affected rows returned by server (formulas, lookups, rollups across rows)
-        const affectedRows = (result.row as any)?.affectedRows
-        if (Array.isArray(affectedRows) && affectedRows.length > 0) {
-          const affectedMap = new Map<number, Record<string, any>>()
-          affectedRows.forEach((ar: any) => affectedMap.set(ar.id, ar.data || {}))
-
-          setRows(prev => prev.map(r => {
-            if (affectedMap.has(r.id)) {
-              const newData = { ...r.data, ...affectedMap.get(r.id) }
-              Object.keys(newData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newData)) newData[`field_${k}`] = newData[k]; delete newData[k] } })
-              return { ...r, data: newData }
+                fields.forEach(f => {
+                  const key = `field_${f.id}`
+                  if (['formula', 'lookup', 'rollup', 'last_modified_on', 'last_modified_by', 'created_on', 'created_by', 'autonumber'].includes(f.type)) {
+                    if (key in serverData) {
+                      mergedData[key] = serverData[key]
+                    }
+                  }
+                })
+                Object.keys(mergedData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in mergedData)) mergedData[`field_${k}`] = mergedData[k]; delete mergedData[k] } })
+                return { ...r, data: mergedData }
+              }))
             }
-            return r
-          }))
-        }
 
-        if (!skipPushHistory) {
-          pushEdit({
-            tableId: targetTableId,
-            edits: [{ rowId, fieldKey, before: oldValue, after: payloadValue }]
-          })
+            const affectedRows = (result.row as any)?.affectedRows
+            if (Array.isArray(affectedRows) && affectedRows.length > 0) {
+              const affectedMap = new Map<number, Record<string, any>>()
+              affectedRows.forEach((ar: any) => affectedMap.set(ar.id, ar.data || {}))
+
+              setRows(prev => prev.map(r => {
+                if (affectedMap.has(r.id)) {
+                  const newData = { ...r.data, ...affectedMap.get(r.id) }
+                  Object.keys(newData).forEach(k => { if (/^\d+$/.test(k)) { if (!(`field_${k}` in newData)) newData[`field_${k}`] = newData[k]; delete newData[k] } })
+                  return { ...r, data: newData }
+                }
+                return r
+              }))
+            }
+
+            if (!skipPushHistory) {
+              pushEdit({
+                tableId: targetTableId,
+                edits: [{ rowId, fieldKey, before: oldValue, after: payloadValue }]
+              })
+            }
+          } else {
+            setRows(prev => prev.map(r => r.id === rowId ? { ...r, data: { ...r.data, [fieldKey]: oldValue } } : r))
+            uiActions.addToast('更新儲存格失敗', 'error')
+          }
+        } catch (err: any) {
+          clearTimeout(timeoutId)
+          if (err.name === 'AbortError') return
+          uiActions.addToast('更新儲存格時發生網路或系統錯誤', 'error')
         }
-      } else {
-        // Revert on error
-        setRows(prev => prev.map(r => r.id === rowId ? { ...r, data: { ...r.data, [fieldKey]: oldValue } } : r))
-        uiActions.addToast('更新儲存格失敗', 'error')
-      }
+      }, 300)
+
+      cellDebounceMap.current.set(cellKey, timer)
     } catch {
       uiActions.addToast('更新儲存格時發生網路或系統錯誤', 'error')
     }
@@ -1948,6 +1968,7 @@ export default function Home() {
                     displayRows={displayRows}
                     gridLoading={gridLoading}
                     readOnly={!authState.currentUser || !currentUserRolePermissions.canEditData}
+                    isOffline={isOffline}
                     frozenColumnsCount={frozenColumnsCount}
                     columnWidths={columnWidths}
                     sortField={sortField}
