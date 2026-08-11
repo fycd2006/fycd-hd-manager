@@ -96,7 +96,16 @@ export default function Home() {
   // Use the new operations hook
   const { rows, operations, mergeServerRows, dispatch } = useTableOperations(wsState.activeTableId)
 
-  // Shim setRows to map to dispatch for existing functions that use setRows
+  // Expose helpers for E2E automated resilience testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).updateCell = updateCell
+      (window as any).fetchTableData = fetchTableData
+      (window as any).dispatchTableOp = dispatch
+      (window as any).rows = rows
+      (window as any).fields = fields
+    }
+  }, [updateCell, fetchTableData, dispatch, rows, fields])
   const setRows = useCallback((payload: TableRow[] | ((prev: TableRow[]) => TableRow[])) => {
     dispatch({ type: 'SET_BASE_ROWS', payload })
   }, [dispatch])
