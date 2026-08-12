@@ -1,49 +1,65 @@
 const http = require('http');
+const https = require('https');
 
-function httpGet(url) {
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
+
+function fetchUrl(url, options = {}) {
   return new Promise((resolve, reject) => {
-    http.get(url, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(body || '[]') }));
-    }).on('error', reject);
-  });
-}
-
-function httpPatchBatchWithTiming(url, payload) {
-  return new Promise((resolve) => {
-    const data = JSON.stringify(payload);
-    const startTime = Date.now();
-    const req = http.request(url, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(data)
-      }
-    }, (res) => {
+    const client = url.startsWith('https') ? https : http;
+    const req = client.request(url, options, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
-        const duration = Date.now() - startTime;
-        let parsed = {};
+        let parsed = null;
         try { parsed = JSON.parse(body); } catch {}
-        resolve({ status: res.statusCode, duration, count: parsed.updates?.length || 0, error: parsed.error });
+        resolve({ status: res.statusCode, body, parsed });
       });
     });
-    req.on('error', (err) => resolve({ error: err.message, duration: Date.now() - startTime }));
-    req.write(data);
+    req.on('error', (err) => resolve({ error: err.message }));
+    if (options.body) req.write(options.body);
     req.end();
   });
 }
 
 async function runBatchBenchmark() {
-  const tableId = 300004;
-  console.log(`[Setup] Fetching rows for table ${tableId}...`);
-  const rowsRes = await httpGet(`http://localhost:3000/api/tables/${tableId}/rows?page=1&pageSize=20`);
-  const rows = Array.isArray(rowsRes.data) ? rowsRes.data : (rowsRes.data.rows || []);
+  console.log(`[Setup] Target Base URL: ${BASE_URL}`);
+  const headers = { 'Content-Type': 'application/json' };
+  if (process.env.TEST_COOKIE) {
+      headers['Cookie'] = process.env.TEST_COOKIE;
+  }
+
+  const tablesRes = await fetchUrl(`${BASE_URL}/api/tables?page=1&pageSize=1`, { headers });
+  const tables = tablesRes.parsed?.tables || tablesRes.parsed;
+  
+  if (!tables || tables.length === 0) {
+      console.error('No tables found to test against! Response:', tablesRes.body);
+      return;
+  }
+  const tableId = tables[0].id;
+  console.log(`[Setup] Target table found: ID ${tableId} ("${tables[0].name}")`);
+
+  let rowsRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows?page=1&pageSize=20`, { headers });
+  let rows = Array.isArray(rowsRes.parsed) ? rowsRes.parsed : (rowsRes.parsed?.rows || []);
   
   if (rows.length === 0) {
-    console.error('No rows found in target table for batch benchmark!');
+    console.log('[Setup] No rows found. Creating 10 initial rows for testing...');
+    for (let i = 0; i < 10; i++) {
+        const createRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ data: { field_1: `Init_${i}` } })
+        });
+        if (createRes.status !== 201) {
+            console.log('Create failed:', createRes.status, createRes.body);
+            break;
+        }
+    }
+    rowsRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows?page=1&pageSize=20`, { headers });
+    rows = Array.isArray(rowsRes.parsed) ? rowsRes.parsed : (rowsRes.parsed?.rows || []);
+  }
+
+  if (rows.length === 0) {
+    console.error('Failed to create rows for batch benchmark!');
     return;
   }
 
@@ -56,7 +72,21 @@ async function runBatchBenchmark() {
       data: { field_1: `Batch_${batchIdx + 1}_Row_${rIdx + 1}_${Date.now()}` }
     }));
 
-    return httpPatchBatchWithTiming(`http://localhost:3000/api/tables/${tableId}/rows/batch`, { updates });
+    const bodyStr = JSON.stringify({ updates });
+    const reqStart = Date.now();
+    return fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows/batch`, {
+      method: 'PATCH',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(bodyStr)
+      },
+      body: bodyStr
+    }).then(res => ({
+      status: res.status,
+      duration: Date.now() - reqStart,
+      error: res.parsed?.error
+    }));
   });
 
   const results = await Promise.all(reqPromises);
