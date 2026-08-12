@@ -282,7 +282,7 @@ export async function PATCH(
       })
       const existingRowMap = new Map(existingRows.map(r => [r.id, r]))
 
-      const results: Array<{ rowId: number; data: Record<string, any> }> = []
+      const results: Array<{ rowId: number; beforeData?: Record<string, any>; data: Record<string, any> }> = []
 
       for (const updateObj of updates) {
         const rid = parseInt(updateObj.rowId)
