@@ -203,13 +203,17 @@ export async function PATCH(
     let body: any
     try {
       body = await request.json()
-    } catch {
+    } catch (e) {
+      console.warn(`[PATCH 400] Invalid JSON body. Error:`, e)
       return NextResponse.json({ error: '無效的 JSON 請求內容' }, { status: 400 })
     }
 
     const { rowId, data, fieldKey, value, socket_id: socketId } = body
     const rid = parseInt(rowId)
-    if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
+    if (isNaN(rid)) {
+      console.warn(`[PATCH 400] Invalid rowId received:`, rowId)
+      return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
+    }
 
     // Consolidate into single transaction to use 1 connection instead of 4+
     const { currentRow, fields } = await prisma.$transaction(async (tx) => {
@@ -250,6 +254,7 @@ export async function PATCH(
         const fieldType = FieldRegistry.get(f.type)
         const validateRes = fieldType.validateValue(updateMap[key], fOpts)
         if (!validateRes.valid) {
+          console.warn(`[PATCH 400] Validation failed for field ${f.name} (id: ${f.id}) on row ${rid}. Value:`, updateMap[key], `Error:`, validateRes.error);
           return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
         }
         updateMap[key] = validateRes.parsedValue
