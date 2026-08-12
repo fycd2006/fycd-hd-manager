@@ -12,11 +12,14 @@ export class SingleSelectFieldType implements FieldType {
     const strVal = String(value)
     
     if (options && Array.isArray(options.choices)) {
-      const choice = options.choices.find((c: any) => c.name === strVal || c.id === strVal)
-      if (!choice) {
+      const choice = options.choices.find((c: any) => {
+        if (typeof c === 'string') return c === strVal
+        return c.name === strVal || c.id === strVal
+      })
+      if (choice === undefined) {
         return { valid: false, error: `選項 '${strVal}' 不存在` }
       }
-      return { valid: true, parsedValue: choice.name }
+      return { valid: true, parsedValue: typeof choice === 'string' ? choice : choice.name }
     }
 
     return { valid: true, parsedValue: strVal }
