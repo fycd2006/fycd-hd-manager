@@ -599,6 +599,24 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     onUpdate(localVal);
   };
 
+  const wasEditingRef = useRef(isEditing);
+  useEffect(() => {
+    if (wasEditingRef.current && !isEditing) {
+      if (!hasCommittedRef.current && 
+          ['text', 'number', 'date', 'email', 'url', 'phone'].includes(field.type)) {
+        hasCommittedRef.current = true;
+        if (field.type === 'number') {
+          const trimmed = String(localValRef.current ?? '').trim();
+          const num = trimmed === '' ? null : Number(trimmed);
+          onUpdate(isNaN(num as any) ? null : num);
+        } else {
+          onUpdate(localValRef.current);
+        }
+      }
+    }
+    wasEditingRef.current = isEditing;
+  }, [isEditing, field.type, onUpdate]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       onUpdate(localVal);
