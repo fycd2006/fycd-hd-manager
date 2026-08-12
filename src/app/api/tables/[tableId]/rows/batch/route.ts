@@ -35,23 +35,23 @@ export async function POST(
       return NextResponse.json({ error: '無效的批次資料' }, { status: 400 })
     }
 
-    const fields = await prisma.tableField.findMany({ 
+    const fields = await prisma.tableField.findMany({
       where: { tableId: id, deletedAt: null },
       orderBy: { order: 'asc' }
     })
-    
+
     const username = await getSessionUsername()
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
-    
+
     const parsedRowsData: Array<{ clientId: string, data: string, order: number }> = []
-    
+
     // Process all rows first before transaction
     for (const rowObj of rows) {
       if (!rowObj.clientId) {
         return NextResponse.json({ error: '批次新增缺少 clientId' }, { status: 400 })
       }
-      
+
       const rowData: Record<string, any> = {}
       for (const f of fields) {
         const key = `field_${f.id}`
@@ -64,7 +64,7 @@ export async function POST(
           let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
           const fieldType = FieldRegistry.get(f.type)
           const validateRes = fieldType.validateValue(rawValue, fOpts)
-          
+
           if (!validateRes.valid) {
             return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
           }
@@ -86,7 +86,7 @@ export async function POST(
           normalizedRowData[k] = v
         }
       })
-      
+
       parsedRowsData.push({
         clientId: rowObj.clientId,
         data: JSON.stringify(normalizedRowData),
@@ -114,7 +114,7 @@ export async function POST(
                 if (!isNaN(val) && val > maxVal) {
                   maxVal = val
                 }
-              } catch {}
+              } catch { }
             })
           })
           if (maxVal > 0) {
@@ -126,10 +126,10 @@ export async function POST(
           where: { id },
           data: { autonumberCounter: { increment: rows.length } }
         })
-        
+
         // Start counter before the incremented block
         let currentAutoNumber = updatedTable.autonumberCounter - rows.length + 1
-        
+
         parsedRowsData.forEach(row => {
           const rowData = JSON.parse(row.data)
           autonumberFields.forEach(f => {
@@ -144,11 +144,11 @@ export async function POST(
       // Order processing
       const maxOrderResult = await tx.tableRow.aggregate({ where: { tableId: id }, _max: { order: true } })
       let currentOrder = (maxOrderResult._max.order ?? 0) + 1
-      
+
       parsedRowsData.forEach(row => {
         row.order = currentOrder++
       })
-      
+
       const insertData = parsedRowsData.map(r => ({
         tableId: id,
         clientId: r.clientId,
@@ -160,7 +160,7 @@ export async function POST(
       await tx.tableRow.createMany({
         data: insertData
       })
-      
+
       // Fetch created rows to return their IDs using clientIds
       const clientIds = insertData.map(r => r.clientId)
       const fetchedRows = await tx.tableRow.findMany({
@@ -170,7 +170,7 @@ export async function POST(
         },
         orderBy: { order: 'asc' }
       })
-      
+
       return fetchedRows.map(r => ({
         ...r,
         data: safeJsonParse(r.data, {})
@@ -221,12 +221,12 @@ export async function DELETE(
         where: { id: { in: numericRowIds } },
         select: { id: true, tableId: true }
       })
-      
+
       const invalidRows = existingRows.filter(r => r.tableId !== id)
       if (invalidRows.length > 0) {
         throw new Error('部分列不存在或無權限')
       }
-      
+
       await tx.tableRow.updateMany({
         where: { id: { in: numericRowIds } },
         data: { deletedAt: new Date() }
@@ -310,14 +310,17 @@ export async function PATCH(
           }
         }
 
-        let currentData: Record<string, any> = {}
+        // 保存更新前的舊值 (beforeData)，供 Pusher 事件與 Undo Stack 使用
+        let originalDataObj: Record<string, any> = {}
         if (currentRow.data) {
           try {
-            currentData = typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data
+            originalDataObj = typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data
           } catch {
-            currentData = {}
+            originalDataObj = {}
           }
         }
+        
+        let currentData: Record<string, any> = { ...originalDataObj }
 
         const normalizedData: Record<string, any> = {}
         Object.entries(currentData).forEach(([k, v]) => {
@@ -350,12 +353,12 @@ export async function PATCH(
             try {
               let parsed = JSON.parse(expr)
               if (typeof parsed === 'string') {
-                try { parsed = JSON.parse(parsed) } catch {}
+                try { parsed = JSON.parse(parsed) } catch { }
               }
               if (parsed && typeof parsed === 'object' && parsed.formula) {
                 expr = parsed.formula
               }
-            } catch {}
+            } catch { }
           }
           try {
             const fieldOrder = fields.map(f => f.id)
@@ -366,15 +369,25 @@ export async function PATCH(
           }
         })
 
-        await tx.tableRow.update({
-          where: { id: rid },
-          data: {
-            data: JSON.stringify(currentData),
-            updatedAt: new Date()
-          }
-        })
+        results.push({ rowId: rid, beforeData: originalDataObj, data: currentData })
+      }
 
-        results.push({ rowId: rid, data: currentData })
+      if (results.length > 0) {
+        // [安全邊界] 以下 SQL 字串內的欄位名 (data, updatedAt, id, tableId) 均為寫死。
+        // 未有任何來自外部 (User / Frontend) 的動態變數直接進行字串拼接，
+        // 所有動態值 (rowId, data JSON 內容) 均透過 `?` 佔位符交由 Prisma 安全綁定，無 SQL Injection 風險。
+        let sql = `UPDATE TableRow SET updatedAt = NOW(), data = CASE id `
+        const params: any[] = []
+
+        for (const res of results) {
+          sql += `WHEN ? THEN ? `
+          params.push(res.rowId, JSON.stringify(res.data))
+        }
+
+        sql += `ELSE data END WHERE id IN (${results.map(() => '?').join(', ')}) AND tableId = ?`
+        params.push(...results.map(r => r.rowId), id)
+
+        await tx.$executeRawUnsafe(sql, ...params)
       }
 
       return results
