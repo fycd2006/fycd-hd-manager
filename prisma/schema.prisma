@@ -86,6 +86,7 @@ model TableRow {
   deletedAt DateTime?
 
   @@index([tableId, deletedAt])
+  @@index([tableId, deletedAt, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model TableView {
@@ -101,6 +102,7 @@ model TableView {
   columnWidths String?       @db.Text         // JSON: Record<string, number> (mapping field keys to widths)
   rowColors    String?       @db.Text         // JSON: { fieldKey, operator, value, color }[]
   groupByField String?
+  shareToken   String?       @unique // public form share token (form views only)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
