@@ -56,6 +56,8 @@ model DatabaseTable {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?
+
+  @@index([databaseId])
 }
 
 model TableField {
@@ -130,6 +132,7 @@ model WorkspaceUser {
   createdAt   DateTime  @default(now())
 
   @@unique([workspaceId, userId])
+  @@index([userId])
 }
 
 model WorkspaceInvitation {
@@ -164,6 +167,7 @@ model WorkspaceTeamUser {
   user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, userId])
+  @@index([userId])
 }
 
 model Database {
@@ -173,6 +177,8 @@ model Database {
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tables      DatabaseTable[]
   createdAt   DateTime        @default(now())
+
+  @@index([workspaceId])
 }
 
 model RowComment {
@@ -183,6 +189,9 @@ model RowComment {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String   @db.Text
   createdAt DateTime @default(now())
+
+  @@index([rowId])
+  @@index([userId])
 }
 
 model MoveOperationLog {
