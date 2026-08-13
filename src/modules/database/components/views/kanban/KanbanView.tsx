@@ -75,7 +75,7 @@ export default function KanbanView({
       }
       if (Array.isArray(parsed)) return parsed.map(String)
       if (parsed && Array.isArray(parsed.choices)) return parsed.choices.map(String)
-      if (parsed && Array.isArray(parsed.select_options)) return parsed.select_options.map((o: any) => typeof o === 'object' ? o.value || o.name || String(o) : String(o))
+      if (parsed && Array.isArray(parsed.select_options)) return parsed.select_options.map((o: any) => typeof o === 'object' ? (o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)) : String(o))
     } catch {}
     if (typeof optionsRaw === 'string') {
       return optionsRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -100,7 +100,7 @@ export default function KanbanView({
     if (Array.isArray(rawVal)) {
       valStr = String(rawVal[0] ?? '')
     } else if (rawVal && typeof rawVal === 'object') {
-      valStr = String((rawVal as any).value || (rawVal as any).name || (rawVal as any).id || '')
+      valStr = String((rawVal as any).name ?? (rawVal as any).label ?? (rawVal as any).text ?? (rawVal as any).value ?? (rawVal as any).id ?? '')
     } else {
       valStr = String(rawVal ?? '')
     }

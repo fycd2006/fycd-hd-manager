@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { authorizeAction } from '@/lib/authorize'
 
 export async function GET(
   request: Request,
@@ -10,12 +11,8 @@ export async function GET(
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
-    const dbTable = await prisma.databaseTable.findFirst({
-      where: { id: tid, deletedAt: null }
-    })
-    if (!dbTable) {
-      return NextResponse.json({ error: '找不到該資料表' }, { status: 404 })
-    }
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canViewData' })
+    if (errorResponse) return errorResponse
 
     let views = await prisma.tableView.findMany({
       where: { tableId: tid },
@@ -49,6 +46,9 @@ export async function POST(
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageViews' })
+    if (errorResponse) return errorResponse
+
     const body = await request.json()
     const { name, type } = body
 
@@ -78,6 +78,9 @@ export async function PATCH(
     const { tableId } = await params
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageViews' })
+    if (errorResponse) return errorResponse
 
     const body = await request.json()
     const { viewId, name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors } = body
@@ -111,6 +114,9 @@ export async function DELETE(
     const { tableId } = await params
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageViews' })
+    if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
     const viewIdStr = searchParams.get('viewId')

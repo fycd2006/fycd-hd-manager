@@ -30,9 +30,16 @@ export function parseLinkRowIds(val: any): number[] {
     .filter(n => !isNaN(n) && n > 0)
 }
 
+export interface LinkSyncResult {
+  targetTableId: number
+  /** Target rows whose reverse link field was actually modified. */
+  rowIds: number[]
+}
+
 /**
  * Synchronizes bi-directional link_row relations between source and target tables.
  * When row A links row B, row B's reverse link_row field is automatically updated with row A.
+ * Returns the affected target rows so callers can emit realtime events; null when no-op.
  */
 export async function syncBiDirectionalLinkRow(
   sourceTableId: number,
@@ -40,13 +47,13 @@ export async function syncBiDirectionalLinkRow(
   fieldId: number,
   newTargetRowIds: number[],
   oldTargetRowIds: number[] = []
-) {
+): Promise<LinkSyncResult | null> {
   // 1. Get the source field definition to check for reverse link field options
   const sourceField = await prisma.tableField.findUnique({
     where: { id: fieldId },
   })
 
-  if (!sourceField || sourceField.type !== 'link_row') return
+  if (!sourceField || sourceField.type !== 'link_row') return null
 
   let opts: any = sourceField.options || {}
   try {
@@ -56,14 +63,14 @@ export async function syncBiDirectionalLinkRow(
   const relatedFieldId = opts.relatedFieldId ? Number(opts.relatedFieldId) : null
   const targetTableId = opts.targetTableId ? Number(opts.targetTableId) : null
 
-  if (!relatedFieldId || !targetTableId) return
+  if (!relatedFieldId || !targetTableId) return null
 
   // Verify the related field exists on target table
   const relatedField = await prisma.tableField.findUnique({
     where: { id: relatedFieldId, tableId: targetTableId, deletedAt: null },
   })
 
-  if (!relatedField) return
+  if (!relatedField) return null
 
   const relatedFieldKey = `field_${relatedFieldId}`
 
@@ -74,7 +81,7 @@ export async function syncBiDirectionalLinkRow(
   const addedTargetRowIds = newTargetRowIds.filter(id => !oldSet.has(id))
   const removedTargetRowIds = oldTargetRowIds.filter(id => !newSet.has(id))
 
-  if (addedTargetRowIds.length === 0 && removedTargetRowIds.length === 0) return
+  if (addedTargetRowIds.length === 0 && removedTargetRowIds.length === 0) return null
 
   // Fetch primary value or label for sourceRowId
   const sourceRow = await prisma.tableRow.findUnique({
@@ -96,6 +103,8 @@ export async function syncBiDirectionalLinkRow(
   }
 
   // Handle Added Relations -> Insert sourceRowId into target row's relatedFieldKey
+  const modifiedRowIds: number[] = []
+
   if (addedTargetRowIds.length > 0) {
     const targetRows = await prisma.tableRow.findMany({
       where: { id: { in: addedTargetRowIds }, tableId: targetTableId, deletedAt: null },
@@ -117,6 +126,7 @@ export async function syncBiDirectionalLinkRow(
           where: { id: tRow.id },
           data: { data: tData as any },
         })
+        modifiedRowIds.push(tRow.id)
 
         // Cascade recompute for target table dependencies
         try {
@@ -153,6 +163,7 @@ export async function syncBiDirectionalLinkRow(
           where: { id: tRow.id },
           data: { data: tData as any },
         })
+        modifiedRowIds.push(tRow.id)
 
         // Cascade recompute for target table dependencies
         try {
@@ -161,6 +172,8 @@ export async function syncBiDirectionalLinkRow(
       }
     }
   }
+
+  return { targetTableId, rowIds: modifiedRowIds }
 }
 
 /**

@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
-import { evaluateFormula } from '@/lib/formula'
+import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
-import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
+import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds, type LinkSyncResult } from '@/modules/database/services/linkRowSync'
 import { FieldRegistry } from '@/modules/database/fields/types'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
+import { createTableRow } from '@/modules/database/services/createRow'
 import { safeJsonParse } from '@/lib/json-utils'
 import { triggerTableEvent } from '@/lib/pusher-server'
 
@@ -27,12 +29,9 @@ export async function GET(
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    const dbTable = await prisma.databaseTable.findFirst({
-      where: { id, deletedAt: null }
-    })
-    if (!dbTable) {
-      return NextResponse.json({ error: '找不到該資料表' }, { status: 404 })
-    }
+    // 讀取資料列同樣需要登入且為工作區成員（含 viewer 角色）
+    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canViewData' })
+    if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
     const sortField = searchParams.get('sort')
@@ -82,102 +81,17 @@ export async function POST(
     if (errorResponse) return errorResponse
 
     const body = await request.json()
-    
-    const fields = await prisma.tableField.findMany({ 
-      where: { tableId: id, deletedAt: null },
-      orderBy: { order: 'asc' }
-    })
+
+    // Merge top-level keys with body.data (body.data takes precedence per key)
+    const input = { ...(body ?? {}), ...(body?.data ?? {}) }
     const username = await getSessionUsername()
-    const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-    const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
-    
-    const rowData: Record<string, any> = {}
-    for (const f of fields) {
-      const key = `field_${f.id}`
-      if (f.type === 'created_by' || f.type === 'last_modified_by') {
-        rowData[key] = username
-      } else if (f.type === 'created_on' || f.type === 'last_modified_on') {
-        rowData[key] = nowStr
-      } else if ((body.data && body.data[key] !== undefined) || (body && body[key] !== undefined)) {
-        const rawValue = (body.data && body.data[key] !== undefined) ? body.data[key] : body[key]
-        let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
-        const fieldType = FieldRegistry.get(f.type)
-        const validateRes = fieldType.validateValue(rawValue, fOpts)
-        
-        if (!validateRes.valid) {
-          return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
-        }
-        rowData[key] = validateRes.parsedValue
-      } else {
-        let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
-        const fieldType = FieldRegistry.get(f.type)
-        const def = fieldType.getDefaultValue(fOpts)
-        if (def !== null) rowData[key] = def
-      }
+
+    const result = await createTableRow({ tableId: id, input, username })
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
-    const row = await prisma.$transaction(async (tx) => {
-      const autonumberFields = fields.filter(f => f.type === 'autonumber')
-      if (autonumberFields.length > 0) {
-        const dbTable = await tx.databaseTable.findUnique({ where: { id } })
-        if (dbTable && dbTable.autonumberCounter === 0) {
-          const existingRows = await tx.tableRow.findMany({
-            where: { tableId: id },
-            select: { data: true }
-          })
-          let maxVal = 0
-          autonumberFields.forEach(f => {
-            const key = `field_${f.id}`
-            existingRows.forEach(r => {
-              try {
-                const parsedData: any = typeof r.data === 'string' ? JSON.parse(r.data || '{}') : (r.data || {})
-                const val = Number(parsedData[key])
-                if (!isNaN(val) && val > maxVal) {
-                  maxVal = val
-                }
-              } catch {}
-            })
-          })
-          if (maxVal > 0) {
-            await tx.databaseTable.update({ where: { id }, data: { autonumberCounter: maxVal } })
-          }
-        }
-
-        const updatedTable = await tx.databaseTable.update({
-          where: { id },
-          data: { autonumberCounter: { increment: 1 } }
-        })
-        const nextVal = updatedTable.autonumberCounter
-
-        autonumberFields.forEach(f => {
-          const key = `field_${f.id}`
-          rowData[key] = nextVal
-        })
-      }
-
-      const normalizedRowData: Record<string, any> = {}
-      Object.entries(rowData).forEach(([k, v]) => {
-        const fid = parseInt(k.replace('field_', ''))
-        if (!isNaN(fid)) {
-          normalizedRowData[`field_${fid}`] = v
-        } else {
-          normalizedRowData[k] = v
-        }
-      })
-      const maxOrder = await tx.tableRow.aggregate({ where: { tableId: id }, _max: { order: true } })
-      return tx.tableRow.create({
-        data: {
-          tableId: id,
-          data: JSON.stringify(normalizedRowData),
-          order: (maxOrder._max.order ?? 0) + 1,
-        },
-      })
-    }, {
-      maxWait: 5000,
-      timeout: 10000
-    })
-
-    const createdRow = { ...row, data: safeJsonParse(row.data, {}) }
+    const createdRow = result.row
     const socketId = body?.socket_id || body?.data?.socket_id
     triggerTableEvent(id, 'row-created', { row: createdRow }, socketId)
 
@@ -275,7 +189,7 @@ export async function PATCH(
 
         // Detect link_row field changes to trigger bi-directional synchronization
         const linkRowFields = fields.filter(f => f.type === 'link_row')
-        const linkRowSyncTasks: Promise<void>[] = []
+        const linkRowSyncTasks: Promise<LinkSyncResult | null>[] = []
 
         linkRowFields.forEach(f => {
           const key = `field_${f.id}`
@@ -286,8 +200,12 @@ export async function PATCH(
             const oldIds = parseLinkRowIds(oldVal)
             const newIds = parseLinkRowIds(newVal)
 
+            // Per-task error isolation: one failing field must not block the others
             linkRowSyncTasks.push(
-              syncBiDirectionalLinkRow(tid, rid, f.id, newIds, oldIds)
+              syncBiDirectionalLinkRow(tid, rid, f.id, newIds, oldIds).catch(err => {
+                console.warn('[Bi-directional Sync Warning]:', err)
+                return null
+              })
             )
           }
         })
@@ -317,19 +235,8 @@ export async function PATCH(
         const formulaFields = fields.filter(f => f.type === 'formula')
         formulaFields.forEach(ff => {
           const destKey = `field_${ff.id}`
-          let expr = ff.options
+          let expr = extractFormulaExpression(ff.options)
           if (!expr) return
-          if (typeof expr === 'string' && (expr.startsWith('{') || expr.startsWith('"'))) {
-            try {
-              let parsed = JSON.parse(expr)
-              if (typeof parsed === 'string') {
-                try { parsed = JSON.parse(parsed) } catch {}
-              }
-              if (parsed && typeof parsed === 'object' && parsed.formula) {
-                expr = parsed.formula
-              }
-            } catch {}
-          }
           try {
             const fieldOrder = fields.map(f => f.id)
             const res = evaluateFormula(expr, currentData, fieldOrder)
@@ -342,7 +249,7 @@ export async function PATCH(
         const updatedRow = await prisma.tableRow.update({
           where: { id: rid },
           data: {
-            data: JSON.stringify(currentData),
+            data: currentData as Prisma.InputJsonValue,
             updatedAt: new Date()
           }
         })
@@ -355,11 +262,18 @@ export async function PATCH(
           console.warn('[Cascade Recompute Warning]:', e)
         }
 
-        // Execute bi-directional link_row sync tasks asynchronously
+        // Execute bi-directional link_row sync tasks asynchronously but wait for them
         if (linkRowSyncTasks.length > 0) {
-          Promise.all(linkRowSyncTasks).catch(err =>
-            console.warn('[Bi-directional Sync Warning]:', err)
-          )
+          try {
+            const syncResults = await Promise.allSettled(linkRowSyncTasks)
+            syncResults.forEach((res, i) => {
+              if (res.status === 'rejected') {
+                console.warn(`[Bi-directional Sync Warning] Task ${i} failed:`, res.reason)
+              }
+            })
+          } catch (err) {
+            console.warn('[Bi-directional Sync Fatal Warning]:', err)
+          }
         }
 
         triggerTableEvent(tid, 'row-updated', {
@@ -454,21 +368,36 @@ export async function PUT(
       return NextResponse.json({ error: '無效的排序資料' }, { status: 400 })
     }
 
-    await prisma.$transaction(async (tx) => {
-      for (let index = 0; index < rowOrders.length; index++) {
-        const rowId = rowOrders[index]
-        const existingRow = await tx.tableRow.findUnique({ where: { id: rowId }, select: { tableId: true } })
-        if (existingRow && existingRow.tableId === tid) {
-          await tx.tableRow.update({
-            where: { id: rowId },
-            data: { order: index },
+    // Validate and normalize IDs (drop anything that is not a positive integer)
+    const rowIds: number[] = rowOrders
+      .map((v: unknown) => (typeof v === 'number' ? v : parseInt(String(v))))
+      .filter((v: number) => Number.isInteger(v) && v > 0)
+
+    if (rowIds.length > 0) {
+      // Batched UPDATE via CASE WHEN instead of the legacy N+1 per-row
+      // findUnique+update loop. All column names are hard-coded; every
+      // dynamic value is bound through placeholders (no SQL injection).
+      // `AND tableId = ?` preserves the legacy ownership guard: rows that
+      // do not belong to this table are silently skipped.
+      const CHUNK_SIZE = 500
+      await prisma.$transaction(async (tx) => {
+        for (let start = 0; start < rowIds.length; start += CHUNK_SIZE) {
+          const chunk = rowIds.slice(start, start + CHUNK_SIZE)
+          let sql = 'UPDATE TableRow SET `order` = CASE id '
+          const params: any[] = []
+          chunk.forEach((rowId, i) => {
+            sql += 'WHEN ? THEN ? '
+            params.push(rowId, start + i)
           })
+          sql += `ELSE \`order\` END WHERE id IN (${chunk.map(() => '?').join(', ')}) AND tableId = ?`
+          params.push(...chunk, tid)
+          await tx.$executeRawUnsafe(sql, ...params)
         }
-      }
-    }, {
-      maxWait: 5000,
-      timeout: 10000
-    })
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      })
+    }
 
     return NextResponse.json({ message: '資料列順序已儲存' })
   } catch (error: unknown) {

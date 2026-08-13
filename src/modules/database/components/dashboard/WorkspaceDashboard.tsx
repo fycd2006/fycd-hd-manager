@@ -25,6 +25,7 @@ interface WorkspaceDashboardProps {
   onShowRenameModal?: () => void
   onDeleteWorkspaceOrDb?: (action: 'delete_workspace' | 'delete_database', id: number, label: string) => void
   onDeleteTable?: (tableId: number, tableName: string) => void
+  onCreateFromTemplate?: (templateKey: 'project' | 'crm' | 'finance' | 'hr') => void
 }
 
 /**
@@ -47,7 +48,8 @@ export default function WorkspaceDashboard({
   onSetRenameNameValue,
   onShowRenameModal,
   onDeleteWorkspaceOrDb,
-  onDeleteTable
+  onDeleteTable,
+  onCreateFromTemplate
 }: WorkspaceDashboardProps) {
   const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
@@ -373,23 +375,53 @@ export default function WorkspaceDashboard({
                 {searchQuery ? t('dashboard.noMatchSub') : t('dashboard.emptySub')}
               </div>
               {activeWorkspace && onShowDatabaseModal && !searchQuery && (
-                <button
-                  onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-                  style={{
-                    marginTop: '8px',
-                    height: '36px',
-                    padding: '0 16px',
-                    borderRadius: '8px',
-                    backgroundColor: '#18181B',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('dashboard.createDatabase')}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', marginTop: '8px' }}>
+                  <button
+                    onClick={() => onShowDatabaseModal(activeWorkspace.id)}
+                    style={{
+                      height: '36px',
+                      padding: '0 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#18181B',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {t('dashboard.createDatabase')}
+                  </button>
+                  
+                  {onCreateFromTemplate && (
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <button
+                        onClick={() => onCreateFromTemplate('project')}
+                        style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#e0f2fe', color: '#0284c7', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                      >
+                        🚀 專案範本
+                      </button>
+                      <button
+                        onClick={() => onCreateFromTemplate('crm')}
+                        style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#fce7f3', color: '#db2777', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                      >
+                        💼 CRM 範本
+                      </button>
+                      <button
+                        onClick={() => onCreateFromTemplate('finance')}
+                        style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#dcfce7', color: '#16a34a', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                      >
+                        💰 財務範本
+                      </button>
+                      <button
+                        onClick={() => onCreateFromTemplate('hr')}
+                        style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#fef3c7', color: '#d97706', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                      >
+                        👥 人資範本
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           ) : (

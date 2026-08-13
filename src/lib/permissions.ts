@@ -1,5 +1,6 @@
 export interface RolePermissions {
   role: string
+  canViewData: boolean         // 檢視資料表、欄位、視圖與資料列（所有工作區角色皆可）
   canManageWorkspace: boolean  // 刪除工作區、變更工作區名稱
   canManageMembers: boolean    // 邀請成員、更新角色權限、移除成員
   canManageStructure: boolean  // 新增/修改/刪除資料庫、資料表、欄位
@@ -15,6 +16,7 @@ export function getRolePermissions(role?: string): RolePermissions {
     case 'admin':
       return {
         role: 'admin',
+        canViewData: true,
         canManageWorkspace: true,
         canManageMembers: true,
         canManageStructure: true,
@@ -25,6 +27,7 @@ export function getRolePermissions(role?: string): RolePermissions {
     case 'builder':
       return {
         role: 'builder',
+        canViewData: true,
         canManageWorkspace: false,
         canManageMembers: false,
         canManageStructure: true,
@@ -35,6 +38,7 @@ export function getRolePermissions(role?: string): RolePermissions {
     case 'editor':
       return {
         role: 'editor',
+        canViewData: true,
         canManageWorkspace: false,
         canManageMembers: false,
         canManageStructure: false,
@@ -45,6 +49,7 @@ export function getRolePermissions(role?: string): RolePermissions {
     case 'commenter':
       return {
         role: 'commenter',
+        canViewData: true,
         canManageWorkspace: false,
         canManageMembers: false,
         canManageStructure: false,
@@ -56,6 +61,7 @@ export function getRolePermissions(role?: string): RolePermissions {
     default:
       return {
         role: 'viewer',
+        canViewData: true,
         canManageWorkspace: false,
         canManageMembers: false,
         canManageStructure: false,

@@ -7,7 +7,14 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization')
     const timestamp = request.headers.get('x-cron-timestamp')
 
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    // Fail closed: if CRON_SECRET is not configured, refuse to run this
+    // destructive endpoint at all instead of leaving it unauthenticated.
+    if (!process.env.CRON_SECRET) {
+      console.error('[Cron Trash Cleanup] CRON_SECRET is not configured; refusing to run.')
+      return NextResponse.json({ error: 'Cron endpoint is not configured' }, { status: 503 })
+    }
+
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized cron execution' }, { status: 401 })
     }
 

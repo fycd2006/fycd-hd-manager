@@ -4,7 +4,7 @@ import { safeJsonParse } from '@/lib/json-utils'
 
 export interface MultiTableQueryOptions {
   tableIds: number[]
-  cursor?: string | null // Format: "timestampISO-tableId-rowId"
+  cursor?: string | null // base64url-encoded JSON: {createdAt, tableId, rowId}
   limit?: number
 }
 
@@ -16,11 +16,12 @@ export interface MultiTableParsedRow {
 }
 
 /**
- * Parses a Base64 encoded JSON cursor string into Date, tableId, and rowId.
+ * Parses a base64url-encoded JSON cursor string into Date, tableId, and rowId.
+ * Uses base64url (RFC 4648 §5) which is safe for URL query parameters.
  */
 export function parseCursor(cursor: string) {
   try {
-    const jsonStr = Buffer.from(cursor, 'base64').toString('utf-8')
+    const jsonStr = Buffer.from(cursor, 'base64url').toString('utf-8')
     const data = JSON.parse(jsonStr)
 
     const dateObj = new Date(data.createdAt)
@@ -38,7 +39,8 @@ export function parseCursor(cursor: string) {
 }
 
 /**
- * Generates a Base64 JSON cursor string from a row.
+ * Generates a base64url-encoded JSON cursor string from a row.
+ * Uses base64url (RFC 4648 §5): no +, /, or = padding — safe for URL query params.
  */
 export function generateCursor(row: { createdAt: Date, tableId: number, id: number }) {
   const data = {
@@ -46,7 +48,7 @@ export function generateCursor(row: { createdAt: Date, tableId: number, id: numb
     tableId: row.tableId,
     rowId: row.id
   }
-  return Buffer.from(JSON.stringify(data)).toString('base64')
+  return Buffer.from(JSON.stringify(data)).toString('base64url')
 }
 
 /**

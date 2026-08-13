@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { authorizeAction } from '@/lib/authorize'
 
 // GET: list all soft-deleted items (fields, rows) of the table
 export async function GET(
@@ -10,6 +11,9 @@ export async function GET(
     const { tableId } = await params
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canViewData' })
+    if (errorResponse) return errorResponse
 
     const deletedFields = await prisma.tableField.findMany({
       where: { tableId: tid, NOT: { deletedAt: null } },
@@ -45,6 +49,9 @@ export async function POST(
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
+    if (errorResponse) return errorResponse
+
     const body = await request.json()
     const { type, id } = body
     const targetId = parseInt(id)
@@ -79,6 +86,9 @@ export async function DELETE(
     const { tableId } = await params
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
+    if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type')

@@ -1,0 +1,1 @@
+const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { const f = await prisma.tableField.findUnique({ where: { id: 630009 } }); console.log(JSON.stringify(f, null, 2)); } main().finally(() => prisma.$disconnect());

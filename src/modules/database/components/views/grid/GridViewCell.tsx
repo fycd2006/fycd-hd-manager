@@ -6,6 +6,7 @@ import { formatDateValue } from '@/modules/database/utils';
 import RowEditModal from '../../modals/RowEditModal';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import PopoverPortal from '@/components/ui/PopoverPortal';
+import { parseSelectItems, resolveChoiceString } from './cells/utils';
 
 
 const BASEROW_PALETTE = [
@@ -311,31 +312,7 @@ const getOptionColor = (str: string, allOptions?: string[]) => {
   };
 };
 
-const parseSelectItems = (val: any): string[] => {
-  if (val === null || val === undefined || val === '') return [];
-  if (Array.isArray(val)) {
-    return val.map(item => typeof item === 'object' ? (item.value || item.name || item.id || String(item)) : String(item)).filter(Boolean);
-  }
-  if (typeof val === 'object') {
-    if (Array.isArray(val.choices)) return val.choices.map(String).filter(Boolean);
-    if (val.value || val.name || val.id) return [String(val.value || val.name || val.id)];
-    return [String(val)];
-  }
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (!trimmed) return [];
-    try {
-      let parsed = JSON.parse(trimmed);
-      if (typeof parsed === 'string') {
-        try { parsed = JSON.parse(parsed); } catch {}
-      }
-      return parseSelectItems(parsed);
-    } catch {
-      return trimmed.split(',').map(s => s.trim()).filter(Boolean);
-    }
-  }
-  return [String(val)];
-};
+
 
 export function formatNumberValue(val: any, options?: any): string {
   if (val === null || val === undefined || val === '') return '';
@@ -490,10 +467,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (type === 'boolean') return String(val);
     if (type === 'date') return formatDateValue(val);
     if (type === 'multiple_select') {
-      const items = parseSelectItems(val);
+      const items = parseSelectItems(val, field.options);
       return JSON.stringify(items);
     }
-    const items = parseSelectItems(val);
+    const items = parseSelectItems(val, field.options);
     if (items.length > 0) return items.join(', ');
     return String(val);
   };
@@ -502,7 +479,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     if (item === null || item === undefined || item === '') return [];
     if (typeof item === 'object') {
       if (Array.isArray(item.choices)) return item.choices.flatMap(cleanChoice);
-      if (item.value || item.name || item.id) return [String(item.value || item.name || item.id)];
+      const label = item.name ?? item.label ?? item.text ?? item.value ?? item.id;
+      if (label !== undefined && label !== null) return [String(label)];
       return [String(item)];
     }
     if (typeof item === 'string') {
@@ -1817,7 +1795,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
 
     if (field.type === 'single_select' || field.type === 'multiple_select') {
       const allOptions = getFieldOptions();
-      const items = parseSelectItems(value);
+      const items = parseSelectItems(value, field.options);
 
       return (
         <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>

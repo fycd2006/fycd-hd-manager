@@ -1,5 +1,11 @@
 import { FieldType, FieldValidationResult } from '../FieldType'
 
+export interface SelectOption {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export class SingleSelectFieldType implements FieldType {
   readonly type = 'single_select'
   readonly name = '單選'
@@ -19,7 +25,7 @@ export class SingleSelectFieldType implements FieldType {
       if (choice === undefined) {
         return { valid: false, error: `選項 '${strVal}' 不存在` }
       }
-      return { valid: true, parsedValue: typeof choice === 'string' ? choice : choice.name }
+      return { valid: true, parsedValue: typeof choice === 'string' ? choice : choice.id }
     }
 
     return { valid: true, parsedValue: strVal }

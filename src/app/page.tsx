@@ -1685,7 +1685,7 @@ export default function Home() {
 
     try {
       // 1. Create database
-      const dbRes = await fetch('/api/tables', {
+      const dbRes = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1701,7 +1701,7 @@ export default function Home() {
       }
 
       // 2. Create table in the new db
-      const tableRes = await fetch('/api/tables', {
+      const tableRes = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1902,6 +1902,7 @@ export default function Home() {
                   }
                 }
               }}
+              onCreateFromTemplate={handleCreateDatabaseFromTemplate}
             />
           ) : (
             <>

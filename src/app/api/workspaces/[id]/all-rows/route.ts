@@ -6,6 +6,30 @@ import prisma from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+/**
+ * Batch-fetches all authorized table IDs within a workspace in a single query.
+ *
+ * Auth model rationale: permissions are workspace-level (WorkspaceUser role),
+ * not table-level. Once the caller passes `authorizeAction({ workspaceId })`,
+ * every non-deleted table under that workspace is accessible.
+ * The only tables we must exclude are:
+ *   1. Soft-deleted tables (deletedAt IS NOT NULL)
+ *   2. Orphan tables not linked to any Database (databaseId IS NULL)
+ *      — these predate the workspace model and are handled separately.
+ *
+ * This replaces the prior N+1 loop that called authorizeAction per table.
+ */
+export async function getAuthorizedTableIds(workspaceId: number): Promise<number[]> {
+  const tables = await prisma.databaseTable.findMany({
+    where: {
+      deletedAt: null,
+      database: { workspaceId }
+    },
+    select: { id: true }
+  })
+  return tables.map(t => t.id)
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -15,29 +39,12 @@ export async function GET(
     const workspaceId = parseInt(id)
     if (isNaN(workspaceId)) return NextResponse.json({ error: '無效的工作區 ID' }, { status: 400 })
 
-    // Check workspace authorization
+    // Single workspace-level auth check — covers all child tables
     const { errorResponse } = await authorizeAction({ workspaceId, action: 'canViewData' })
     if (errorResponse) return errorResponse
 
-    // Get all table IDs in this workspace
-    const databases = await prisma.database.findMany({
-      where: { workspaceId },
-      include: { tables: { select: { id: true } } }
-    })
-    const rawTableIds = databases.flatMap(db => db.tables.map(t => t.id))
-
-    if (rawTableIds.length === 0) {
-      return NextResponse.json({ rows: [], nextCursor: null })
-    }
-
-    // Phase 0 Requirement: Pre-filter authorized child tables before cross-table query
-    const authorizedTableIds: number[] = []
-    for (const tid of rawTableIds) {
-      const { errorResponse: tableErr } = await authorizeAction({ tableId: tid, action: 'canViewData' })
-      if (!tableErr) {
-        authorizedTableIds.push(tid)
-      }
-    }
+    // Batch query: one round-trip to get all authorized table IDs
+    const authorizedTableIds = await getAuthorizedTableIds(workspaceId)
 
     if (authorizedTableIds.length === 0) {
       return NextResponse.json({ rows: [], nextCursor: null })

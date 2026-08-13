@@ -11,7 +11,7 @@ function fetchUrl(url, options = {}) {
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
         let parsed = null;
-        try { parsed = JSON.parse(body); } catch {}
+        try { parsed = JSON.parse(body); } catch { }
         resolve({ status: res.statusCode, body, parsed });
       });
     });
@@ -25,41 +25,41 @@ async function runBatchBenchmark() {
   console.log(`[Setup] Target Base URL: ${BASE_URL}`);
   const headers = { 'Content-Type': 'application/json' };
   if (process.env.TEST_COOKIE) {
-      headers['Cookie'] = process.env.TEST_COOKIE;
+    headers['Cookie'] = process.env.TEST_COOKIE;
   }
 
   const tablesRes = await fetchUrl(`${BASE_URL}/api/tables?page=1&pageSize=1`, { headers });
   const tables = tablesRes.parsed?.tables || tablesRes.parsed;
-  
+
   if (!tables || tables.length === 0) {
-      console.error('No tables found to test against! Response:', tablesRes.body);
-      return;
+    console.error('No tables found to test against! Response:', tablesRes.body);
+    return;
   }
   const tableId = tables[0].id;
   console.log(`[Setup] Target table found: ID ${tableId} ("${tables[0].name}")`);
 
-  let rowsRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows?page=1&pageSize=20`, { headers });
+  let rowsRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows?page=1&pageSize=100`, { headers });
   let rows = Array.isArray(rowsRes.parsed) ? rowsRes.parsed : (rowsRes.parsed?.rows || []);
-  
-  if (rows.length === 0) {
-    console.log('[Setup] No rows found. Creating 10 initial rows for testing...');
-    for (let i = 0; i < 10; i++) {
-        const createRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ data: { field_1: `Init_${i}` } })
-        });
-        if (createRes.status !== 201) {
-            console.log('Create failed:', createRes.status, createRes.body);
-            break;
-        }
+
+  if (rows.length < 100) {
+    console.log(`[Setup] Only ${rows.length} rows found. Creating ${100 - rows.length} more rows for testing...`);
+    for (let i = rows.length; i < 100; i += 10) {
+      const batch = [];
+      for (let j = i; j < Math.min(i + 10, 100); j++) {
+        batch.push(fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ data: { field_1: `Init_${j}` } })
+        }));
+      }
+      await Promise.all(batch);
     }
-    rowsRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows?page=1&pageSize=20`, { headers });
+    rowsRes = await fetchUrl(`${BASE_URL}/api/tables/${tableId}/rows?page=1&pageSize=100`, { headers });
     rows = Array.isArray(rowsRes.parsed) ? rowsRes.parsed : (rowsRes.parsed?.rows || []);
   }
 
-  if (rows.length === 0) {
-    console.error('Failed to create rows for batch benchmark!');
+  if (rows.length < 100) {
+    console.error('Failed to create enough rows for batch benchmark!');
     return;
   }
 
@@ -67,9 +67,10 @@ async function runBatchBenchmark() {
 
   const startTime = Date.now();
   const reqPromises = Array.from({ length: 10 }).map((_, batchIdx) => {
-    const updates = rows.slice(0, 10).map((r, rIdx) => ({
+    // 刻意更新同一批 row (rows 0-9)，測試 Row Lock 競爭
+    const updates = rows.slice(0, 10).map((r, idx) => ({
       rowId: r.id,
-      data: { field_1: `Batch_${batchIdx + 1}_Row_${rIdx + 1}_${Date.now()}` }
+      data: { field_1: `Row_${idx}_${Date.now()}_req${batchIdx}` }
     }));
 
     const bodyStr = JSON.stringify({ updates });

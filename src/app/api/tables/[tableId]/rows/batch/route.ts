@@ -44,7 +44,7 @@ export async function POST(
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
-    const parsedRowsData: Array<{ clientId: string, data: string, order: number }> = []
+    const parsedRowsData: Array<{ clientId: string, data: Record<string, any>, order: number }> = []
 
     // Process all rows first before transaction
     for (const rowObj of rows) {
@@ -89,7 +89,7 @@ export async function POST(
 
       parsedRowsData.push({
         clientId: rowObj.clientId,
-        data: JSON.stringify(normalizedRowData),
+        data: normalizedRowData,
         order: 0 // placeholder
       })
     }
@@ -131,12 +131,10 @@ export async function POST(
         let currentAutoNumber = updatedTable.autonumberCounter - rows.length + 1
 
         parsedRowsData.forEach(row => {
-          const rowData = JSON.parse(row.data)
           autonumberFields.forEach(f => {
             const key = `field_${f.id}`
-            rowData[key] = currentAutoNumber
+            row.data[key] = currentAutoNumber
           })
-          row.data = JSON.stringify(rowData)
           currentAutoNumber++
         })
       }

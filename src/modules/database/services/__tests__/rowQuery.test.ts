@@ -3,6 +3,7 @@ import { cleanupFieldDependencies } from '../rowCascade'
 import prisma from '@/lib/prisma'
 
 jest.mock('@/lib/prisma', () => ({
+  $queryRaw: jest.fn(),
   tableField: {
     findMany: jest.fn(),
     update: jest.fn(),
@@ -30,19 +31,19 @@ describe('getPopulatedTableRows', () => {
         { id: 10, tableId: 2, name: 'TargetName', type: 'text' },
       ]);
 
-    (prisma.tableRow.findMany as jest.Mock)
-      .mockResolvedValueOnce([
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
         {
           id: 101,
           tableId: 1,
-          data: JSON.stringify({ field_1: '[501]' }),
+          data: { field_1: '[501]' },
           order: 1,
           createdAt: new Date('2026-01-01'),
           updatedAt: new Date('2026-01-01'),
           deletedAt: null,
         },
-      ])
-      .mockResolvedValueOnce([
+      ]);
+      
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
         {
           id: 501,
           tableId: 2,
@@ -68,19 +69,19 @@ describe('getPopulatedTableRows', () => {
         { id: 10, tableId: 2, name: 'TargetTags', type: 'multiple_select' },
       ]);
 
-    (prisma.tableRow.findMany as jest.Mock)
-      .mockResolvedValueOnce([
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
         {
           id: 101,
           tableId: 1,
-          data: JSON.stringify({ field_1: '[501]' }),
+          data: { field_1: '[501]' },
           order: 1,
           createdAt: new Date('2026-01-01'),
           updatedAt: new Date('2026-01-01'),
           deletedAt: null,
         },
-      ])
-      .mockResolvedValueOnce([
+      ]);
+
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
         {
           id: 501,
           tableId: 2,
@@ -101,17 +102,19 @@ describe('getPopulatedTableRows', () => {
       { id: 1, tableId: 1, name: 'Created By', type: 'created_by', options: null },
     ]);
 
-    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
       {
         id: 101,
         tableId: 1,
-        data: JSON.stringify({ field_1: 'JohnDoe' }),
+        data: { field_1: 'JohnDoe' },
         order: 1,
         createdAt: new Date('2026-01-01'),
         updatedAt: new Date('2026-01-01'),
         deletedAt: null,
       },
     ]);
+    
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([]);
 
     const result = await getPopulatedTableRows(1, {})
     expect(result.rows![0].data['field_1']).toBe('JohnDoe')
@@ -129,7 +132,7 @@ describe('cleanupFieldDependencies', () => {
 
     expect(prisma.tableField.update).toHaveBeenCalledWith({
       where: { id: 99 },
-      data: { options: JSON.stringify({ relationFieldId: 10, targetFieldId: null }) }
+      data: { options: { relationFieldId: 10, targetFieldId: null } }
     })
   })
 })

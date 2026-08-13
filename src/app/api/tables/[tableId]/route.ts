@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { authorizeAction } from '@/lib/authorize'
 
 export async function PATCH(
   request: Request,
@@ -9,6 +10,10 @@ export async function PATCH(
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canManageStructure' })
+    if (errorResponse) return errorResponse
+
     const body = await request.json()
     const updated = await prisma.databaseTable.update({
       where: { id },
@@ -32,6 +37,10 @@ export async function DELETE(
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canManageStructure' })
+    if (errorResponse) return errorResponse
+
     await prisma.databaseTable.update({
       where: { id },
       data: { deletedAt: new Date() }

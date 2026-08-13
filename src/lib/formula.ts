@@ -14,20 +14,34 @@ export function getColumnAlias(index: number): string {
 /**
  * Extract all variable names from a formula expression string.
  */
-export function extractVariables(expression: any): string[] {
+/**
+ * Helper to extract formula string from various field option formats
+ * (string, JSON string, or object with a .formula property).
+ */
+export function extractFormulaExpression(expression: any): string {
   let exprStr = expression
   if (exprStr && typeof exprStr === 'object' && exprStr.formula) {
     exprStr = String(exprStr.formula)
   }
-  if (typeof exprStr === 'string' && exprStr.trim().startsWith('{')) {
+  if (typeof exprStr === 'string' && (exprStr.trim().startsWith('{') || exprStr.trim().startsWith('"'))) {
     try {
-      const parsed = JSON.parse(exprStr)
+      let parsed = JSON.parse(exprStr)
+      if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed) } catch {}
+      }
       if (parsed && typeof parsed === 'object' && parsed.formula) {
         exprStr = String(parsed.formula)
       }
     } catch {}
   }
-  const str = String(exprStr || '')
+  return String(exprStr || '')
+}
+
+/**
+ * Extract all variable names from a formula expression string.
+ */
+export function extractVariables(expression: any): string[] {
+  const str = extractFormulaExpression(expression)
   const matches = str.match(FIELD_REF_REGEX)
   return matches ? [...new Set(matches.map(m => m.replace(/[\{\}\[\]]/g, '').toLowerCase()))] : []
 }
@@ -38,12 +52,7 @@ export function extractVariables(expression: any): string[] {
  * would otherwise trigger callVariable events.
  */
 export function parseFormula(expression: any): void {
-  if (!expression) return
-  let exprStr = expression
-  if (exprStr && typeof exprStr === 'object' && exprStr.formula) {
-    exprStr = String(exprStr.formula)
-  }
-  if (typeof exprStr !== 'string') exprStr = String(exprStr)
+  let exprStr = extractFormulaExpression(expression)
   
   exprStr = exprStr.trim()
   if (!exprStr) return
@@ -237,25 +246,8 @@ export function evaluateFormula(
   fieldOrder?: number[]
 ): string | number | boolean | null {
   if (!expression) return null
-  let trimExpr = expression
-
-  if (trimExpr && typeof trimExpr === 'object' && trimExpr.formula) {
-    trimExpr = String(trimExpr.formula)
-  }
-  if (typeof trimExpr !== 'string') trimExpr = String(trimExpr)
-  
-  trimExpr = trimExpr.trim()
+  let trimExpr = extractFormulaExpression(expression).trim()
   if (!trimExpr) return null
-
-  // Auto-parse JSON string if options object was passed
-  if (trimExpr.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(trimExpr)
-      if (parsed && typeof parsed === 'object' && parsed.formula) {
-        trimExpr = String(parsed.formula).trim()
-      }
-    } catch {}
-  }
 
   // Handle top-level IFERROR(expr, fallback) wrapper
   const ifErrorMatch = trimExpr.match(/^IFERROR\s*\(\s*(.+)\s*,\s*(.+)\s*\)$/i)

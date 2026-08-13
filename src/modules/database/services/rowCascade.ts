@@ -1,6 +1,6 @@
 import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
-import { evaluateFormula, detectCircularDependency } from '@/lib/formula'
+import { evaluateFormula, detectCircularDependency, extractFormulaExpression } from '@/lib/formula'
 
 /**
  * Cascade recompute direct dependent rows up to CASCADE_THRESHOLD (300 rows)
@@ -85,8 +85,7 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
         const formulaMap: Record<string, string> = {}
         depFields.forEach(f => {
           if (f.type === 'formula' && f.options) {
-             const opts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
-             formulaMap[`field_${f.id}`] = opts as string
+             formulaMap[`field_${f.id}`] = extractFormulaExpression(f.options)
           }
         })
 
@@ -97,9 +96,9 @@ export async function cascadeRecomputeSingleLevel(updatedTableId: number, update
               depData[key] = '#CIRCULAR!'
             } else {
               try {
-                const fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
+                const expr = extractFormulaExpression(f.options)
                 const fieldOrder = depFields.map(f => f.id)
-                const res = evaluateFormula(fOpts as string, depData, fieldOrder)
+                const res = evaluateFormula(expr, depData, fieldOrder)
                 depData[key] = res != null ? String(res) : ''
               } catch {
                 depData[key] = '#VALUE!'

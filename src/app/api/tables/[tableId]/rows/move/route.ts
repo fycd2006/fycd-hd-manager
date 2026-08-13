@@ -69,7 +69,7 @@ export async function POST(
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
-    const parsedRowsData: Array<{ clientId: string, data: string, order: number, sourceRowId: number }> = []
+    const parsedRowsData: Array<{ clientId: string, data: Record<string, any>, order: number, sourceRowId: number }> = []
 
     // Step 2: Validate Data
     // Note: In cross-table move, field mapping is index-based because IDs might be different.
@@ -109,7 +109,7 @@ export async function POST(
 
       parsedRowsData.push({
         clientId: rowObj.clientId,
-        data: JSON.stringify(rowData),
+        data: rowData,
         order: typeof rowObj.order === 'number' ? rowObj.order : 0,
         sourceRowId: rowObj.sourceRowId
       })
@@ -159,12 +159,10 @@ export async function POST(
         let currentAutoNumber = updatedTable.autonumberCounter - rows.length + 1
         
         parsedRowsData.forEach(row => {
-          const rowData = JSON.parse(row.data)
           autonumberFields.forEach(f => {
             const key = `field_${f.id}`
-            rowData[key] = currentAutoNumber
+            row.data[key] = currentAutoNumber
           })
-          row.data = JSON.stringify(rowData)
           currentAutoNumber++
         })
       }

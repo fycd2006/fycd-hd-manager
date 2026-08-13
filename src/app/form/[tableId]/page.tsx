@@ -14,7 +14,10 @@ interface TableField {
 
 export default function PublicFormPage() {
   const params = useParams()
-  const tableId = params?.tableId ? Number(params.tableId) : null
+  const rawParam = params?.tableId ? String(params.tableId) : null
+  // Numeric param = legacy internal form (requires login); otherwise it is a public share token
+  const isTokenMode = rawParam !== null && !/^\d+$/.test(rawParam)
+  const tableId = rawParam !== null && /^\d+$/.test(rawParam) ? Number(rawParam) : null
 
   const [tableName, setTableName] = useState('')
   const [fields, setFields] = useState<TableField[]>([])
@@ -56,27 +59,37 @@ export default function PublicFormPage() {
   }, [])
 
   useEffect(() => {
-    if (!tableId) return
+    if (!rawParam) return
 
     const loadFormSchema = async () => {
       try {
-        const [tableRes, fieldsRes] = await Promise.all([
-          fetch(`/api/tables`), // To look up table name
-          fetch(`/api/tables/${tableId}/fields`)
-        ])
-        
-        const tables = await tableRes.json()
-        const fieldsData = await fieldsRes.json()
-        
-        const targetTable = tables.find((t: any) => t.id === tableId)
-        if (targetTable) {
-          setTableName(targetTable.name)
+        let fieldsData: unknown
+        if (isTokenMode) {
+          // Public share-token mode: schema comes from the dedicated public API
+          const res = await fetch(`/api/form/${rawParam}`)
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data.error || '表單連結無效或已停用')
+          setTableName(data.tableName || '')
+          fieldsData = data.fields
         } else {
-          throw new Error('找不到該資料表')
+          const [tableRes, fieldsRes] = await Promise.all([
+            fetch(`/api/tables`), // To look up table name
+            fetch(`/api/tables/${tableId}/fields`)
+          ])
+
+          const tables = await tableRes.json()
+          fieldsData = await fieldsRes.json()
+
+          const targetTable = tables.find((t: any) => t.id === tableId)
+          if (targetTable) {
+            setTableName(targetTable.name)
+          } else {
+            throw new Error('找不到該資料表')
+          }
         }
 
-        // Load custom form view settings
-        const savedSettings = localStorage.getItem(`form-view-settings-${tableId}`)
+        // Load custom form view settings (only available in internal tableId mode)
+        const savedSettings = isTokenMode ? null : localStorage.getItem(`form-view-settings-${tableId}`)
         let activeIds: number[] = []
         let requiredIds: number[] = []
         
@@ -156,7 +169,7 @@ export default function PublicFormPage() {
     }
 
     loadFormSchema()
-  }, [tableId])
+  }, [rawParam, isTokenMode, tableId])
 
   const handleInputChange = (fieldKey: string, value: any) => {
     setFormData(prev => ({ ...prev, [fieldKey]: value }))
@@ -164,7 +177,7 @@ export default function PublicFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!tableId) return
+    if (!rawParam) return
     setError(null)
 
     // Validate required fields
@@ -183,12 +196,16 @@ export default function PublicFormPage() {
     }
 
     try {
-      const res = await fetch(`/api/tables/${tableId}/rows`, {
+      const submitUrl = isTokenMode ? `/api/form/${rawParam}` : `/api/tables/${tableId}/rows`
+      const res = await fetch(submitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: formData }),
       })
-      if (!res.ok) throw new Error('提交失敗')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || '提交失敗')
+      }
       
       // If submit action is redirect, perform redirection
       if (formViewSettings && formViewSettings.submitAction === 'redirect' && formViewSettings.redirectUrl) {

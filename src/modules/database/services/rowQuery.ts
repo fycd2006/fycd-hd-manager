@@ -1,6 +1,8 @@
 import prisma from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
+import { randomUUID } from 'crypto'
 
 export interface QueryOptions {
   sortField?: string | null
@@ -21,14 +23,293 @@ export interface ParsedRow {
   deletedAt: Date | null
 }
 
-export async function getPopulatedTableRows(tableId: number, options: QueryOptions) {
-  const { sortField, sortOrder = 'asc', filterParam, searchQuery, pageParam, pageSizeParam } = options
+// Field types whose displayed value is computed/populated after fetching.
+// Filtering/sorting on these must stay in memory (slow path) because the
+// legacy semantics operate on the populated value, not the stored one.
+const POPULATED_TYPES = new Set([
+  'link_row', 'lookup', 'rollup', 'formula', 'collaborator',
+  'created_on', 'last_modified_on', 'created_by', 'last_modified_by',
+])
 
-  // 1. Fetch fields to identify special field types
-  const fields = await prisma.tableField.findMany({
-    where: { tableId, deletedAt: null },
-    orderBy: { order: 'asc' }
-  })
+const NUMERIC_TYPES = new Set(['number', 'rating', 'percent', 'currency', 'autonumber'])
+
+// Date operators rely on JS Date parsing of arbitrary stored formats and
+// cannot be expressed reliably in SQL — they always take the slow path.
+const DATE_OPERATORS = new Set(['date_equal', 'date_before', 'date_after'])
+
+interface FieldMeta {
+  id: number
+  type: string
+  options: unknown
+}
+
+const FIELD_KEY_RE = /^field_\d+$/
+
+/** Escape LIKE wildcards in user input (used with ESCAPE '\\'). */
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`)
+}
+
+/**
+ * JSON text extraction for a validated field key (field_\d+ only, injection-safe).
+ * Handles BOTH storage shapes present in production data:
+ *  - proper JSON objects (written via raw SQL batch updates)
+ *  - legacy double-encoded rows where `data` is a JSON string containing JSON
+ *    (written via Prisma Json field with a pre-stringified value)
+ * JSON_UNQUOTE(data) unwraps the outer string in the legacy case and is a
+ * no-op for proper objects, so JSON_EXTRACT works uniformly afterwards.
+ */
+function jsonExtractSql(fieldKey: string): string {
+  return `JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(data), '$."${fieldKey}"'))`
+}
+
+/**
+ * Normalized cell text matching legacy `String(row.data[key] ?? '')` semantics:
+ * missing keys and JSON null both become ''.
+ */
+function jsonCellTextSql(fieldKey: string): string {
+  return `COALESCE(NULLIF(${jsonExtractSql(fieldKey)}, 'null'), '')`
+}
+
+/**
+ * Numeric cell value matching legacy `Number(cellValue)` semantics:
+ * missing/null/empty become 0; non-numeric strings stay as-is (excluded by
+ * the REGEXP guard in numeric filters).
+ */
+function jsonCellNumSql(fieldKey: string): string {
+  return `COALESCE(NULLIF(${jsonCellTextSql(fieldKey)}, ''), '0')`
+}
+
+/**
+ * Builds a SQL fragment for a single filter rule on a stored (non-computed)
+ * field. Returns null when the operator cannot be pushed down.
+ */
+function buildFilterSql(fieldKey: string, operator: string, value: string): Prisma.Sql | null {
+  const x = Prisma.raw(jsonCellTextSql(fieldKey))
+  const nx = Prisma.raw(jsonCellNumSql(fieldKey))
+  switch (operator) {
+    case 'contains':
+      return Prisma.sql`LOWER(${x}) LIKE CONCAT('%', ${escapeLike(value.toLowerCase())}, '%') ESCAPE '\\\\'`
+    case 'not_contains':
+      return Prisma.sql`NOT (LOWER(${x}) LIKE CONCAT('%', ${escapeLike(value.toLowerCase())}, '%') ESCAPE '\\\\')`
+    case 'equals':
+      return Prisma.sql`${x} = ${value}`
+    case 'not_equals':
+      return Prisma.sql`${x} <> ${value}`
+    case 'higher_than':
+      return Prisma.sql`(${nx} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' AND CAST(${nx} AS DECIMAL(30,10)) > ${Number(value)})`
+    case 'higher_than_or_equal':
+      return Prisma.sql`(${nx} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' AND CAST(${nx} AS DECIMAL(30,10)) >= ${Number(value)})`
+    case 'lower_than':
+      return Prisma.sql`(${nx} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' AND CAST(${nx} AS DECIMAL(30,10)) < ${Number(value)})`
+    case 'lower_than_or_equal':
+      return Prisma.sql`(${nx} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' AND CAST(${nx} AS DECIMAL(30,10)) <= ${Number(value)})`
+    case 'not_empty':
+      return Prisma.sql`(${x} NOT IN ('', 'null', 'undefined'))`
+    case 'empty':
+      return Prisma.sql`(${x} IN ('', 'null', 'undefined'))`
+    default:
+      // Unknown operators are a no-op in the legacy in-memory implementation
+      return Prisma.sql`1 = 1`
+  }
+}
+
+/** Builds the ORDER BY fragment for a stored field. */
+function buildOrderSql(fieldKey: string, fieldType: string, sortOrder: string): Prisma.Sql {
+  const dir = sortOrder === 'desc' ? 'DESC' : 'ASC'
+  if (NUMERIC_TYPES.has(fieldType)) {
+    // Legacy semantics treat missing values as Number('') === 0
+    return Prisma.raw(`CAST(${jsonCellNumSql(fieldKey)} AS DECIMAL(30,10)) ${dir}`)
+  }
+  return Prisma.raw(`${jsonCellTextSql(fieldKey)} ${dir}`)
+}
+
+/** Normalizes a raw $queryRaw row (BigInt safety, JSON parsing). */
+function sanitizeRawRow(r: Record<string, unknown>): ParsedRow {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(r)) {
+    out[k] = typeof v === 'bigint' ? Number(v) : v
+  }
+  return { ...out, data: safeJsonParse<Record<string, any>>(out.data, {}) } as unknown as ParsedRow
+}
+
+function parseLinkRowIds(val: any): number[] {
+  if (val === null || val === undefined) return []
+  let list: any[] = []
+  if (Array.isArray(val)) {
+    list = val
+  } else if (typeof val === 'string' && val.trim()) {
+    try {
+      const parsedJson = JSON.parse(val)
+      if (Array.isArray(parsedJson)) list = parsedJson
+      else list = [parsedJson]
+    } catch {
+      list = val.split(',').map(s => s.trim()).filter(Boolean)
+    }
+  } else {
+    list = [val]
+  }
+  return list.map(item => {
+    if (typeof item === 'object' && item !== null) {
+      return Number(item.id)
+    }
+    return Number(item)
+  }).filter(n => !isNaN(n) && n > 0)
+}
+
+const DEFAULT_COLORS = [
+  'gray', 'blue', 'green', 'orange', 'red', 'yellow', 'cyan', 'purple', 'pink'
+]
+
+/**
+ * Migration on read: Auto-create missing options (ghost strings) and update Row to use IDs.
+ */
+async function migrateSelectFieldsOnRead(rows: ParsedRow[], fields: FieldMeta[]) {
+  const selectFields = fields.filter(f => f.type === 'single_select' || f.type === 'multiple_select')
+  if (selectFields.length === 0 || rows.length === 0) return
+
+  const fieldUpdates = new Map<number, any>()
+  const rowUpdates = new Map<number, Record<string, any>>()
+
+  for (const field of selectFields) {
+    const fieldKey = `field_${field.id}`
+    let options = typeof field.options === 'string' ? safeJsonParse(field.options, { choices: [] }) : (field.options as any || { choices: [] })
+    if (!options.choices || !Array.isArray(options.choices)) options.choices = []
+
+    let optionsChanged = false
+    const choicesByName = new Map<string, any>()
+    const choicesById = new Map<string, any>()
+    
+    for (let i = 0; i < options.choices.length; i++) {
+      const c = options.choices[i]
+      if (typeof c === 'string') {
+        const newC = { id: randomUUID(), name: c, color: DEFAULT_COLORS[i % DEFAULT_COLORS.length] }
+        options.choices[i] = newC
+        optionsChanged = true
+        choicesByName.set(newC.name, newC)
+        choicesById.set(newC.id, newC)
+      } else {
+        choicesByName.set(c.name, c)
+        choicesById.set(c.id, c)
+      }
+    }
+
+    for (const row of rows) {
+      const val = row.data[fieldKey]
+      if (val == null || val === '') continue
+
+      let rowChanged = false
+      let newRowVal: any = null
+
+      if (field.type === 'single_select') {
+        const strVal = String(val)
+        if (!choicesById.has(strVal)) {
+          if (choicesByName.has(strVal)) {
+            newRowVal = choicesByName.get(strVal).id
+            rowChanged = true
+          } else {
+            const newChoice = {
+              id: randomUUID(),
+              name: strVal.trim() || '未命名',
+              color: 'gray'
+            }
+            options.choices.push(newChoice)
+            choicesByName.set(newChoice.name, newChoice)
+            choicesById.set(newChoice.id, newChoice)
+            optionsChanged = true
+            newRowVal = newChoice.id
+            rowChanged = true
+          }
+        }
+      } else if (field.type === 'multiple_select') {
+        let items: string[] = []
+        if (Array.isArray(val)) {
+          items = val.map(String)
+        } else if (typeof val === 'string') {
+          try {
+            const parsed = JSON.parse(val)
+            if (Array.isArray(parsed)) items = parsed.map(String)
+            else items = [val]
+          } catch {
+            items = val.split(',').map(s => s.trim()).filter(Boolean)
+          }
+        } else {
+          items = [String(val)]
+        }
+
+        const newItems: string[] = []
+        for (const item of items) {
+          if (choicesById.has(item)) {
+            newItems.push(item)
+          } else if (choicesByName.has(item)) {
+            newItems.push(choicesByName.get(item).id)
+            rowChanged = true
+          } else {
+            const newChoice = {
+              id: randomUUID(),
+              name: item.trim() || '未命名',
+              color: 'gray'
+            }
+            options.choices.push(newChoice)
+            choicesByName.set(newChoice.name, newChoice)
+            choicesById.set(newChoice.id, newChoice)
+            optionsChanged = true
+            newItems.push(newChoice.id)
+            rowChanged = true
+          }
+        }
+        
+        if (rowChanged || typeof val === 'string') {
+          newRowVal = JSON.stringify(newItems.length ? newItems : [])
+          rowChanged = true
+        }
+      }
+
+      if (rowChanged) {
+        if (!rowUpdates.has(row.id)) rowUpdates.set(row.id, { ...row.data })
+        const rowData = rowUpdates.get(row.id)!
+        rowData[fieldKey] = newRowVal
+        row.data[fieldKey] = newRowVal 
+      }
+    }
+
+    if (optionsChanged) {
+      fieldUpdates.set(field.id, options)
+      field.options = options
+    }
+  }
+
+  const promises: Promise<any>[] = []
+  
+  if (fieldUpdates.size > 0) {
+    for (const [fieldId, newOptions] of fieldUpdates.entries()) {
+      promises.push(prisma.tableField.update({
+        where: { id: fieldId },
+        data: { options: newOptions }
+      }))
+    }
+  }
+
+  if (rowUpdates.size > 0) {
+    for (const [rowId, newData] of rowUpdates.entries()) {
+      promises.push(prisma.tableRow.update({
+        where: { id: rowId },
+        data: { data: newData }
+      }))
+    }
+  }
+
+  if (promises.length > 0) {
+    await Promise.allSettled(promises)
+  }
+}
+
+/**
+ * Populates display values (link_row labels, collaborators, lookup, rollup,
+ * formula, audit fields) for the given rows. Shared by both query paths.
+ */
+async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<ParsedRow[]> {
+  if (rows.length === 0) return rows
 
   const linkRowFields = fields.filter(f => f.type === 'link_row')
   const lookupFields = fields.filter(f => f.type === 'lookup')
@@ -46,56 +327,9 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
     allUsers.forEach(u => userMap.set(u.id, u.username))
   }
 
-  // 2. Fetch rows
-  let whereCondition: any = { tableId, deletedAt: null }
-  if (searchQuery) {
-    const sanitized = searchQuery.slice(0, 100).trim()
-    if (sanitized) {
-      whereCondition = {
-        tableId,
-        deletedAt: null,
-        data: {
-          contains: sanitized
-        }
-      }
-    }
-  }
-
-  const rows = await prisma.tableRow.findMany({
-    where: whereCondition,
-    orderBy: { order: 'asc' },
-  })
-
-  // Parse JSON data defensively
-  let parsed: ParsedRow[] = rows.map(r => ({ ...r, data: safeJsonParse<Record<string, any>>(r.data, {}) }))
-
-  const parseLinkRowIds = (val: any): number[] => {
-    if (val === null || val === undefined) return []
-    let list: any[] = []
-    if (Array.isArray(val)) {
-      list = val
-    } else if (typeof val === 'string' && val.trim()) {
-      try {
-        const parsedJson = JSON.parse(val)
-        if (Array.isArray(parsedJson)) list = parsedJson
-        else list = [parsedJson]
-      } catch {
-        list = val.split(',').map(s => s.trim()).filter(Boolean)
-      }
-    } else {
-      list = [val]
-    }
-    return list.map(item => {
-      if (typeof item === 'object' && item !== null) {
-        return Number(item.id)
-      }
-      return Number(item)
-    }).filter(n => !isNaN(n) && n > 0)
-  }
-
-  // 3. Collect all target row IDs from link_row fields
+  // Collect all target row IDs from link_row fields
   const targetRowIds = new Set<number>()
-  parsed.forEach(row => {
+  rows.forEach(row => {
     linkRowFields.forEach(f => {
       const key = `field_${f.id}`
       const ids = parseLinkRowIds(row.data[key])
@@ -128,7 +362,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
     }
   })
 
-  parsed.forEach(row => {
+  rows.forEach(row => {
     Object.values(activeRelationFields).forEach(ref => {
       const key = `field_${ref.relationFieldId}`
       const ids = parseLinkRowIds(row.data[key])
@@ -136,7 +370,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
     })
   })
 
-  // 4. Query target rows in bulk
+  // Query target rows in bulk
   const targetRowsMap = new Map<number, Record<string, any>>()
   const targetDisplayMap = new Map<number, string>()
 
@@ -175,8 +409,8 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
     })
   }
 
-  // 5. Populate values
-  parsed = parsed.map(row => {
+  // Populate values
+  return rows.map(row => {
     const newData = { ...row.data }
 
     linkRowFields.forEach(f => {
@@ -338,48 +572,176 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
 
     return { ...row, data: newData }
   })
+}
 
-  // Apply filters
+export async function getPopulatedTableRows(tableId: number, options: QueryOptions) {
+  const { sortField, sortOrder = 'asc', filterParam, searchQuery, pageParam, pageSizeParam } = options
+
+  // 1. Fetch fields to identify special field types
+  const fields = await prisma.tableField.findMany({
+    where: { tableId, deletedAt: null },
+    orderBy: { order: 'asc' }
+  })
+
+  const fieldByKey = new Map(fields.map(f => [`field_${f.id}`, f]))
+
+  // 2. Decide whether filter/sort can be pushed down to the database
+  let parsedFilter: { fieldKey: string; operator: string; value: string } | null = null
   if (filterParam) {
     const parts = filterParam.split(':')
     if (parts.length >= 3) {
       const [fieldKey, operator, ...rest] = parts
-      const filterValue = rest.join(':')
-      parsed = parsed.filter(row => {
-        const cellValue = String(row.data[fieldKey] ?? '')
-        switch (operator) {
-          case 'contains': return cellValue.toLowerCase().includes(filterValue.toLowerCase())
-          case 'not_contains': return !cellValue.toLowerCase().includes(filterValue.toLowerCase())
-          case 'equals': return cellValue === filterValue
-          case 'not_equals': return cellValue !== filterValue
-          case 'higher_than': return !isNaN(Number(cellValue)) && Number(cellValue) > Number(filterValue)
-          case 'higher_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) >= Number(filterValue)
-          case 'lower_than': return !isNaN(Number(cellValue)) && Number(cellValue) < Number(filterValue)
-          case 'lower_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) <= Number(filterValue)
-          case 'date_equal': {
-            const d1 = new Date(cellValue).getTime()
-            const d2 = new Date(filterValue).getTime()
-            return !isNaN(d1) && !isNaN(d2) && new Date(d1).toDateString() === new Date(d2).toDateString()
-          }
-          case 'date_before': {
-            const d1 = new Date(cellValue).getTime()
-            const d2 = new Date(filterValue).getTime()
-            return !isNaN(d1) && !isNaN(d2) && d1 < d2
-          }
-          case 'date_after': {
-            const d1 = new Date(cellValue).getTime()
-            const d2 = new Date(filterValue).getTime()
-            return !isNaN(d1) && !isNaN(d2) && d1 > d2
-          }
-          case 'not_empty': return cellValue !== '' && cellValue !== 'null' && cellValue !== 'undefined'
-          case 'empty': return cellValue === '' || cellValue === 'null' || cellValue === 'undefined'
-          default: return true
-        }
-      })
+      parsedFilter = { fieldKey, operator, value: rest.join(':') }
     }
   }
 
-  // Apply sort
+  const filterFieldMeta = parsedFilter && FIELD_KEY_RE.test(parsedFilter.fieldKey)
+    ? fieldByKey.get(parsedFilter.fieldKey)
+    : undefined
+  const filterPushable = !parsedFilter || (
+    filterFieldMeta !== undefined &&
+    !POPULATED_TYPES.has(filterFieldMeta.type) &&
+    !DATE_OPERATORS.has(parsedFilter.operator)
+  )
+
+  const sortFieldMeta = sortField && FIELD_KEY_RE.test(sortField)
+    ? fieldByKey.get(sortField)
+    : undefined
+  const sortPushable = !sortField || (sortFieldMeta !== undefined && !POPULATED_TYPES.has(sortFieldMeta.type))
+
+  const wantPagination = pageSizeParam !== 'all' && Boolean(pageParam || pageSizeParam)
+  const page = Math.max(1, parseInt(pageParam || '1') || 1)
+  const pageSize = Math.max(1, parseInt(pageSizeParam || '50') || 50)
+
+  // ===================== FAST PATH =====================
+  // Filter + sort + search + pagination all executed in the database.
+  // Display-value population runs only for the rows actually returned.
+  if (sortPushable && filterPushable) {
+    const conditions: Prisma.Sql[] = [
+      Prisma.sql`tableId = ${tableId}`,
+      Prisma.sql`deletedAt IS NULL`,
+    ]
+
+    const sanitized = (searchQuery || '').slice(0, 100).trim()
+    if (sanitized) {
+      // NOTE: LIKE on the raw JSON document — may also match field keys.
+      // Same semantics as the legacy Prisma `contains` implementation.
+      conditions.push(Prisma.sql`data LIKE CONCAT('%', ${escapeLike(sanitized)}, '%') ESCAPE '\\\\'`)
+    }
+
+    if (parsedFilter && filterFieldMeta) {
+      const fragment = buildFilterSql(parsedFilter.fieldKey, parsedFilter.operator, parsedFilter.value)
+      if (fragment) conditions.push(fragment)
+    }
+
+    const whereSql = Prisma.join(conditions, ' AND ')
+    const orderSql = sortFieldMeta
+      ? buildOrderSql(sortField as string, sortFieldMeta.type, sortOrder || 'asc')
+      : Prisma.sql`` // fall through to default ordering below
+    const defaultOrder = Prisma.sql`\`order\` ASC`
+    const effectiveOrder = sortFieldMeta ? orderSql : defaultOrder
+
+    const offset = (page - 1) * pageSize
+
+    const countResult = wantPagination
+      ? await prisma.$queryRaw<{ total: bigint | number }[]>(
+          Prisma.sql`SELECT COUNT(*) AS total FROM TableRow WHERE ${whereSql}`
+        )
+      : null
+    const totalRows = countResult ? Number(countResult[0]?.total ?? 0) : 0
+
+    const rawRows = await prisma.$queryRaw<Record<string, unknown>[]>(
+      wantPagination
+        ? Prisma.sql`SELECT id, clientId, tableId, data, \`order\`, createdAt, updatedAt, deletedAt FROM TableRow WHERE ${whereSql} ORDER BY ${effectiveOrder} LIMIT ${pageSize} OFFSET ${offset}`
+        : Prisma.sql`SELECT id, clientId, tableId, data, \`order\`, createdAt, updatedAt, deletedAt FROM TableRow WHERE ${whereSql} ORDER BY ${effectiveOrder}`
+    )
+
+    let rawParsed = rawRows.map(sanitizeRawRow)
+    await migrateSelectFieldsOnRead(rawParsed, fields)
+    const populated = await populateRows(rawParsed, fields)
+
+    if (wantPagination) {
+      return {
+        isPaginated: true,
+        data: {
+          rows: populated,
+          pagination: {
+            page,
+            pageSize,
+            totalRows,
+            totalPages: Math.ceil(totalRows / pageSize)
+          }
+        }
+      }
+    }
+
+    return { rows: populated, isPaginated: false }
+  }
+
+  // ===================== SLOW PATH (legacy semantics) =====================
+  // Used when filtering/sorting on computed fields (formula, lookup, rollup,
+  // link_row labels, collaborators, audit) or date operators: the legacy
+  // behavior operates on populated values, so rows must be enriched first.
+  let whereCondition: any = { tableId, deletedAt: null }
+  if (searchQuery) {
+    const sanitized = searchQuery.slice(0, 100).trim()
+    if (sanitized) {
+      whereCondition = {
+        tableId,
+        deletedAt: null,
+        data: {
+          contains: sanitized
+        }
+      }
+    }
+  }
+
+  const rows = await prisma.tableRow.findMany({
+    where: whereCondition,
+    orderBy: { order: 'asc' },
+  })
+
+  let parsed: ParsedRow[] = rows.map(r => ({ ...r, data: safeJsonParse<Record<string, any>>(r.data, {}) }))
+  await migrateSelectFieldsOnRead(parsed, fields)
+  parsed = await populateRows(parsed, fields)
+
+  // Apply filters (operates on populated values)
+  if (parsedFilter) {
+    const { fieldKey, operator, value: filterValue } = parsedFilter
+    parsed = parsed.filter(row => {
+      const cellValue = String(row.data[fieldKey] ?? '')
+      switch (operator) {
+        case 'contains': return cellValue.toLowerCase().includes(filterValue.toLowerCase())
+        case 'not_contains': return !cellValue.toLowerCase().includes(filterValue.toLowerCase())
+        case 'equals': return cellValue === filterValue
+        case 'not_equals': return cellValue !== filterValue
+        case 'higher_than': return !isNaN(Number(cellValue)) && Number(cellValue) > Number(filterValue)
+        case 'higher_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) >= Number(filterValue)
+        case 'lower_than': return !isNaN(Number(cellValue)) && Number(cellValue) < Number(filterValue)
+        case 'lower_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) <= Number(filterValue)
+        case 'date_equal': {
+          const d1 = new Date(cellValue).getTime()
+          const d2 = new Date(filterValue).getTime()
+          return !isNaN(d1) && !isNaN(d2) && new Date(d1).toDateString() === new Date(d2).toDateString()
+        }
+        case 'date_before': {
+          const d1 = new Date(cellValue).getTime()
+          const d2 = new Date(filterValue).getTime()
+          return !isNaN(d1) && !isNaN(d2) && d1 < d2
+        }
+        case 'date_after': {
+          const d1 = new Date(cellValue).getTime()
+          const d2 = new Date(filterValue).getTime()
+          return !isNaN(d1) && !isNaN(d2) && d1 > d2
+        }
+        case 'not_empty': return cellValue !== '' && cellValue !== 'null' && cellValue !== 'undefined'
+        case 'empty': return cellValue === '' || cellValue === 'null' || cellValue === 'undefined'
+        default: return true
+      }
+    })
+  }
+
+  // Apply sort (operates on populated values)
   if (sortField) {
     parsed.sort((a, b) => {
       const va = a.data[sortField] ?? ''
@@ -402,8 +764,6 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
   }
 
   if (pageParam || pageSizeParam) {
-    const page = Math.max(1, parseInt(pageParam || '1'))
-    const pageSize = Math.max(1, parseInt(pageSizeParam || '50'))
     const startIndex = (page - 1) * pageSize
     const paginatedRows = parsed.slice(startIndex, startIndex + pageSize)
 

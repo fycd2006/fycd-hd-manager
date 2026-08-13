@@ -103,10 +103,12 @@ npm install
 
 ### 2. 設定資料庫與生成 Prisma Client
 ```bash
-# 生成 Prisma Client 並更新資料庫 Schema
+# 生成 Prisma Client 並套用資料庫 Migration
 npx prisma generate
-npx prisma db push
+npx prisma migrate deploy
 ```
+
+> 開發中修改 `prisma/schema.prisma` 後，請用 `npm run migrate:dev` 產生新的 migration 檔並提交版控；**不要**使用 `prisma db push`。
 
 ### 3. 啟動開發伺服器
 ```bash
@@ -122,10 +124,13 @@ npm run dev
 | 腳本 | 命令 | 說明 |
 | :--- | :--- | :--- |
 | `dev` | `npm run dev` | 以 Webpack 模式啟動 Next.js 開發伺服器 |
-| `build` | `npm run build` | 自動執行 Prisma Client 生成、資料庫 Schema 推送與 Next.js 正式環境構建 |
+| `build` | `npm run build` | 自動執行 Prisma Client 生成、套用資料庫 Migration 與 Next.js 正式環境構建 |
 | `start` | `npm run start` | 啟動 Next.js 正式環境伺服器 |
 | `lint` | `npm run lint` | 執行 ESLint 程式碼檢查 |
 | `test` | `npm run test` | 執行 Jest 單元測試 |
+| `migrate:dev` | `npm run migrate:dev` | 開發環境：依 Schema 變更產生並套用新 Migration |
+| `migrate:deploy` | `npm run migrate:deploy` | 正式環境：套用已版控的 Migration（不修改 Schema） |
+| `migrate:status` | `npm run migrate:status` | 檢查 Migration 套用狀態 |
 
 ---
 
@@ -173,7 +178,11 @@ FYCD-HD-MANAGER/
 1. 將專案連線至 **Vercel**。
 2. 設定 `DATABASE_URL` 變數指向 TiDB / MySQL。
 3. 設定 `REDIS_URL` 與 `PUSHER_*` 設定檔以啟用快取與即時同步。
-4. 部署時將自動執行 `npm run build` (內含 `prisma generate` 與 `prisma db push`)。
+4. 部署時將自動執行 `npm run build`（內含 `prisma generate` 與 `prisma migrate deploy`，僅套用已版控的 Migration，不會對資料庫做破壞性變更）。
+5. **首次部署注意**：若正式資料庫在導入 migrate 前已存在資料表，請先對該資料庫執行一次 baseline 標記，否則 `migrate deploy` 會嘗試重建既有資料表：
+   ```bash
+   DATABASE_URL="<正式庫連線字串>" npx prisma migrate resolve --applied 20260813000000_init
+   ```
 
 ---
 

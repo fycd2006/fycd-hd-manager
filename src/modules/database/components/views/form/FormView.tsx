@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { Share2, Copy, Check } from 'lucide-react'
+import { useUIStore } from '@/modules/database/store'
 
 interface TableField {
   id: number
@@ -34,6 +36,38 @@ export default function FormView({
   fields,
 }: FormViewProps) {
   const { t } = useI18n()
+  const [, uiActions] = useUIStore()
+  
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareUrl, setShareUrl] = useState('')
+  const [shareCopied, setShareCopied] = useState(false)
+
+  const handleShareForm = async () => {
+    try {
+      setShareLoading(true)
+      const res = await fetch(`/api/tables/${tableId}/form-share`, {
+        method: 'POST'
+      })
+      if (!res.ok) throw new Error('Failed to generate share link')
+      const data = await res.json()
+      
+      const fullUrl = data.shareUrl.startsWith('http') 
+        ? data.shareUrl 
+        : `${window.location.origin}${data.shareUrl}`
+      
+      setShareUrl(fullUrl)
+      await navigator.clipboard.writeText(fullUrl)
+      setShareCopied(true)
+      uiActions.addToast('分享連結已產生並複製', 'success')
+      
+      setTimeout(() => setShareCopied(false), 2000)
+    } catch (err) {
+      console.error(err)
+      uiActions.addToast('產生分享連結失敗', 'error')
+    } finally {
+      setShareLoading(false)
+    }
+  }
 
   const submittableFieldIds = fields
     .filter(f => !['link_row', 'autonumber', 'formula', 'lookup', 'rollup', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by'].includes(f.type))
@@ -110,9 +144,35 @@ export default function FormView({
           flexShrink: 0 
         }}
       >
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
-          <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('formView.fieldSettingsTitle')}</h4>
-          <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>{t('formView.fieldSettingsSub')}</p>
+        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>{t('formView.fieldSettingsTitle')}</h4>
+            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>{t('formView.fieldSettingsSub')}</p>
+          </div>
+          <button
+            onClick={handleShareForm}
+            disabled={shareLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              width: '100%',
+              padding: '8px 12px',
+              backgroundColor: 'var(--accent-primary)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: shareLoading ? 'not-allowed' : 'pointer',
+              opacity: shareLoading ? 0.7 : 1,
+              transition: 'all 0.2s'
+            }}
+          >
+            {shareCopied ? <Check size={16} /> : <Share2 size={16} />}
+            {shareCopied ? '已複製連結' : shareLoading ? '產生中...' : '分享表單'}
+          </button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>

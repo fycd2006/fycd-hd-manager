@@ -49,11 +49,24 @@ export async function authorizeAction(
       where: { id: options.tableId, deletedAt: null },
       include: { database: true }
     })
-    if (table?.database?.workspaceId) {
-      resolvedWorkspaceId = table.database.workspaceId
-    } else {
+    if (!table) {
       return {
         errorResponse: NextResponse.json({ error: '找不到對應的資料表' }, { status: 404 })
+      }
+    }
+    if (table.database?.workspaceId) {
+      resolvedWorkspaceId = table.database.workspaceId
+    } else {
+      // 舊版資料表未歸屬任何 Database/Workspace：無法判定工作區成員資格，
+      // 降級為「僅要求登入」並給予完整權限，與舊行為相容。
+      // TODO: 待舊表全數遷移進 Workspace 後移除此分支。
+      return {
+        auth: {
+          user,
+          role: 'admin',
+          permissions: getRolePermissions('admin'),
+          workspaceId: 0
+        }
       }
     }
   }
