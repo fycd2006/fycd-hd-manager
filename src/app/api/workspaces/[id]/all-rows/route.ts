@@ -59,8 +59,12 @@ export async function GET(
 
     return NextResponse.json(result)
   } catch (error: unknown) {
+    const isDev = process.env.NODE_ENV === 'development'
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[API GET /api/workspaces/[id]/all-rows Error]:', error)
-    return NextResponse.json({ error: msg || '查詢多表資料列失敗' }, { status: 500 })
+    return NextResponse.json(
+      { error: isDev ? (msg || '查詢多表資料列失敗') : '查詢多表資料列失敗，請稍後再試' },
+      { status: 500 }
+    )
   }
 }
