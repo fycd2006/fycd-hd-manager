@@ -7,6 +7,7 @@ import RowEditModal from '../../modals/RowEditModal';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import PopoverPortal from '@/components/ui/PopoverPortal';
 import { parseSelectItems, resolveChoiceString } from './cells/utils';
+import { LinkedRowCardChip } from './cells/LinkedRowCardChip';
 
 
 const BASEROW_PALETTE = [
@@ -1893,9 +1894,13 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const primaryField = targetFields[0];
       const primaryKey = primaryField ? `field_${primaryField.id}` : null;
 
-      const formatItem = (item: any): { id: number; value: string } => {
+      const formatItem = (item: any) => {
         if (typeof item === 'object' && item !== null) {
           const numId = Number(item.id || 0);
+          const isDenied = Boolean(item._accessDenied);
+          if (isDenied) {
+            return { id: numId, _accessDenied: true, value: '無存取權限' };
+          }
           let label = String(item.value || '');
           if (!label || label.startsWith('列 ID:')) {
             const rRow = relationRows.find(r => r.id === numId);
@@ -1908,7 +1913,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               }
             }
           }
-          return { id: numId, value: label || `列 ID: ${numId}` };
+          return { id: numId, value: label || `列 ID: ${numId}`, _accessDenied: false, previewFields: item.previewFields, tableName: item.tableName };
         }
         const numId = Number(item);
         let label = '';
@@ -1921,10 +1926,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             if (firstVal) label = String(firstVal);
           }
         }
-        return { id: numId, value: label || `列 ID: ${numId}` };
+        return { id: numId, value: label || `列 ID: ${numId}`, _accessDenied: false };
       };
 
-      let linkItems: Array<{ id: number; value: string }> = [];
+      let linkItems: any[] = [];
       if (Array.isArray(value)) {
         linkItems = value.map(formatItem);
       } else if (typeof value === 'string' && value.trim()) {
@@ -1939,34 +1944,12 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       return (
         <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
           {linkItems.map((item, i) => (
-            <span 
-              key={i} 
-              onClick={(e) => openRowDetail(item.id, e)}
-              style={{ 
-                background: '#e2e8f0', 
-                color: '#1e293b', 
-                padding: '2px 8px', 
-                borderRadius: '6px', 
-                fontSize: '12px', 
-                fontWeight: 500,
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer',
-                transition: 'background 0.15s ease',
-              }}
-              title={`${item.value} (點擊查看詳情)`}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#cbd5e1')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#e2e8f0')}
-            >
-              <span>{item.value}</span>
-              <ExternalLink size={10} color="#64748b" style={{ flexShrink: 0, opacity: 0.8 }} />
-            </span>
+            <LinkedRowCardChip
+              key={i}
+              item={item}
+              onOpenDetail={(id, e) => openRowDetail(id, e)}
+            />
           ))}
-
-
         </div>
       );
     }

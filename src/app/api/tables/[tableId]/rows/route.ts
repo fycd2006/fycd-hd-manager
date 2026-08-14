@@ -6,6 +6,7 @@ import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds, type LinkSyncResult } from '@/modules/database/services/linkRowSync'
+import { authorizeLinkRowOperation } from '@/modules/database/services/linkRowOperations'
 import { FieldRegistry } from '@/modules/database/fields/types'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { createTableRow } from '@/modules/database/services/createRow'
@@ -187,11 +188,11 @@ export async function PATCH(
         }
       }
 
-        // Detect link_row field changes to trigger bi-directional synchronization
+        // Detect link_row field changes to trigger bi-directional synchronization and validate target permissions
         const linkRowFields = fields.filter(f => f.type === 'link_row')
         const linkRowSyncTasks: Promise<LinkSyncResult | null>[] = []
 
-        linkRowFields.forEach(f => {
+        for (const f of linkRowFields) {
           const key = `field_${f.id}`
           if (key in updateMap) {
             const oldVal = currentData[key]
@@ -199,6 +200,23 @@ export async function PATCH(
 
             const oldIds = parseLinkRowIds(oldVal)
             const newIds = parseLinkRowIds(newVal)
+
+            // Security: If new target IDs are being linked, ensure the user has canViewData on the target table (Case #10 Blind linking prevention)
+            const newlyAddedIds = newIds.filter(id => !oldIds.includes(id))
+            if (newlyAddedIds.length > 0) {
+              const fOpts: Record<string, any> = typeof f.options === 'string' ? safeJsonParse(f.options, {}) : (f.options || {})
+              const targetTableId = Number(fOpts.targetTableId ?? fOpts.link_row_table_id ?? fOpts.target_table_id)
+              if (targetTableId) {
+                const { allowed, errorResponse } = await authorizeLinkRowOperation({
+                  operation: 'link_existing',
+                  sourceTableId: tid,
+                  targetTableId,
+                })
+                if (!allowed && errorResponse) {
+                  return errorResponse
+                }
+              }
+            }
 
             // Per-task error isolation: one failing field must not block the others
             linkRowSyncTasks.push(
@@ -208,7 +226,7 @@ export async function PATCH(
               })
             )
           }
-        })
+        }
 
         // Normalize currentData: migrate legacy numeric keys and purge stale numeric keys
         const normalizedData: Record<string, any> = {}
