@@ -13,7 +13,13 @@ interface SelectFieldInputProps {
   readOnly?: boolean
 }
 
-export const getTagStyle = (idx: number) => {
+export interface SelectOptionItem {
+  id: string
+  name: string
+  color?: string
+}
+
+export const getTagStyle = (idx: number, customColor?: string) => {
   const colors = [
     { bg: '#F4F4F5', border: '#E4E4E7', text: '#2d470d' },
     { bg: '#ecfdf5', border: '#a7f3d0', text: '#047857' },
@@ -25,18 +31,60 @@ export const getTagStyle = (idx: number) => {
   return colors[idx % colors.length]
 }
 
-export const cleanChoice = (item: any): string[] => {
-  if (item === null || item === undefined || item === '') return []
-  if (typeof item === 'object') {
-    if (Array.isArray(item.choices)) return item.choices.flatMap(cleanChoice)
-    if (Array.isArray(item.select_options)) return item.select_options.flatMap(cleanChoice)
-    if (Array.isArray(item.options)) return item.options.flatMap(cleanChoice)
-    const label = item.name ?? item.label ?? item.text ?? item.value ?? item.id
-    if (label !== undefined && label !== null) return [String(label)]
-    return [String(item)]
+export const getFieldSelectOptions = (fieldOptions: any): SelectOptionItem[] => {
+  let opts = fieldOptions
+  if (typeof opts === 'string') {
+    try {
+      let parsed = JSON.parse(opts)
+      if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed) } catch {}
+      }
+      opts = parsed
+    } catch {}
   }
-  if (typeof item === 'string') {
-    const trimmed = item.trim()
+
+  let rawList: any[] = []
+  if (Array.isArray(opts)) {
+    rawList = opts
+  } else if (opts && typeof opts === 'object') {
+    if (Array.isArray(opts.choices)) rawList = opts.choices
+    else if (Array.isArray(opts.select_options)) rawList = opts.select_options
+    else if (Array.isArray(opts.options)) rawList = opts.options
+  } else if (typeof opts === 'string' && opts.trim()) {
+    rawList = opts.split(',')
+  }
+
+  return rawList
+    .map((item, idx) => {
+      if (typeof item === 'object' && item !== null) {
+        const id = String(item.id ?? item.value ?? item.name ?? item.label ?? idx)
+        const name = String(item.name ?? item.label ?? item.text ?? item.value ?? item.id ?? '')
+        const color = item.color
+        return { id, name, color }
+      }
+      const str = String(item).trim()
+      return { id: str, name: str }
+    })
+    .filter((opt) => opt.name.length > 0)
+}
+
+export const parseRawSelectValues = (val: any): string[] => {
+  if (val == null || val === '') return []
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => {
+        if (typeof item === 'object' && item !== null) {
+          return String(item.id ?? item.value ?? item.name ?? item.label ?? '')
+        }
+        return String(item).trim()
+      })
+      .filter(Boolean)
+  }
+  if (typeof val === 'object') {
+    return [String(val.id ?? val.value ?? val.name ?? val.label ?? '')].filter(Boolean)
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim()
     if (!trimmed) return []
     if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('"{\\') || trimmed.startsWith('"{')) {
       try {
@@ -44,23 +92,11 @@ export const cleanChoice = (item: any): string[] => {
         if (typeof parsed === 'string') {
           try { parsed = JSON.parse(parsed) } catch {}
         }
-        return cleanChoice(parsed)
+        if (Array.isArray(parsed)) return parseRawSelectValues(parsed)
+        if (typeof parsed === 'object' && parsed !== null) return parseRawSelectValues(parsed)
       } catch {}
     }
-    return [trimmed]
-  }
-  return [String(item)]
-}
-
-export const parseSelectValues = (val: any): string[] => {
-  if (val == null || val === '') return []
-  if (Array.isArray(val)) return val.flatMap(cleanChoice)
-  if (typeof val === 'string') {
-    try {
-      const parsed = JSON.parse(val)
-      if (Array.isArray(parsed)) return parsed.flatMap(cleanChoice)
-    } catch {}
-    return val.split(',').flatMap(cleanChoice)
+    return trimmed.split(',').map((s) => s.trim()).filter(Boolean)
   }
   return [String(val)]
 }
@@ -71,72 +107,94 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
   const [isAddingTag, setIsAddingTag] = useState(false)
   const isMulti = field.type === 'multiple_select'
 
-  const getSelectChoices = (): string[] => {
-    let rawItems: any[] = []
-    let opts: any = field.options
-    if (typeof opts === 'string') {
-      try {
-        let parsed = JSON.parse(opts)
-        if (typeof parsed === 'string') {
-          try { parsed = JSON.parse(parsed) } catch {}
-        }
-        opts = parsed
-      } catch {}
-    }
-    if (Array.isArray(opts)) {
-      rawItems = opts
-    } else if (opts && typeof opts === 'object') {
-      if (Array.isArray(opts.choices)) rawItems = opts.choices
-      else if (Array.isArray(opts.select_options)) rawItems = opts.select_options
-      else if (Array.isArray(opts.options)) rawItems = opts.options
-    }
+  const definedOptions = getFieldSelectOptions(field.options)
+  const rawSelectedValues = parseRawSelectValues(value)
 
-    if (rawItems.length === 0 && typeof field.options === 'string' && field.options.trim()) {
-      rawItems = field.options.split(',')
-    }
-    const cleaned = rawItems.flatMap(cleanChoice)
-    const selected = parseSelectValues(value)
-    const combined = Array.from(new Set([...cleaned, ...selected]))
-    return combined.filter(Boolean)
+  // Determine all display options: defined options + any unmatched orphan values
+  const orphanValues = rawSelectedValues.filter(
+    (rawVal) =>
+      !rawVal.startsWith('field_') &&
+      !definedOptions.some(
+        (opt) =>
+          opt.id === rawVal ||
+          opt.name === rawVal ||
+          opt.name.toLowerCase() === rawVal.toLowerCase() ||
+          opt.id.toLowerCase() === rawVal.toLowerCase()
+      )
+  )
+
+  const allDisplayOptions: SelectOptionItem[] = [
+    ...definedOptions,
+    // Only include orphan values if they don't look like an unresolvable raw UUID without an option name
+    ...orphanValues.map((v) => ({ id: v, name: v })),
+  ]
+
+  const isOptionSelected = (opt: SelectOptionItem): boolean => {
+    return rawSelectedValues.some(
+      (v) =>
+        v === opt.id ||
+        v === opt.name ||
+        v.toLowerCase() === opt.name.toLowerCase() ||
+        v.toLowerCase() === opt.id.toLowerCase()
+    )
   }
 
-  const choices = getSelectChoices()
-  const selectedList = parseSelectValues(value)
-
-  const toggleSelectOption = (choice: string, isMulti: boolean) => {
+  const toggleSelectOption = (opt: SelectOptionItem, isMulti: boolean) => {
     if (readOnly) return
+    const currentlySelected = isOptionSelected(opt)
+
     if (isMulti) {
-      const next = selectedList.includes(choice) ? selectedList.filter(s => s !== choice) : [...selectedList, choice]
-      onChange(next)
+      if (currentlySelected) {
+        // Remove matching ids/names
+        const next = rawSelectedValues.filter(
+          (v) =>
+            v !== opt.id &&
+            v !== opt.name &&
+            v.toLowerCase() !== opt.name.toLowerCase() &&
+            v.toLowerCase() !== opt.id.toLowerCase()
+        )
+        onChange(next)
+      } else {
+        // Add option id (or name if no distinct id)
+        const next = [...rawSelectedValues, opt.id || opt.name]
+        onChange(next)
+      }
     } else {
-      const next = selectedList.includes(choice) ? [] : [choice]
-      onChange(next.length ? next[0] : '')
+      if (currentlySelected) {
+        onChange('')
+      } else {
+        onChange(opt.id || opt.name)
+      }
     }
   }
 
   const handleAddNewTag = async (isMulti: boolean) => {
     if (!newTagInput.trim() || readOnly) return
     const tagVal = newTagInput.trim()
+    const newId = 'opt_' + Math.random().toString(36).substring(2, 10)
+    const newOpt: SelectOptionItem = { id: newId, name: tagVal }
 
-    toggleSelectOption(tagVal, isMulti)
+    if (isMulti) {
+      onChange([...rawSelectedValues, newId])
+    } else {
+      onChange(newId)
+    }
 
     if (onUpdateField) {
-      let currentChoices = getSelectChoices()
-      if (!currentChoices.includes(tagVal)) {
-        const updatedChoices = [...currentChoices, tagVal]
-        let currentOptions: any = {}
-        try {
-          if (field.options) {
-            currentOptions = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
-          }
-        } catch {}
+      let currentOptionsObj: any = {}
+      try {
+        if (field.options) {
+          currentOptionsObj = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+        }
+      } catch {}
 
-        const newOptions = typeof field.options === 'string'
-          ? JSON.stringify({ ...currentOptions, choices: updatedChoices })
-          : { ...currentOptions, choices: updatedChoices }
+      const updatedChoices = [...definedOptions, newOpt]
+      const newOptions =
+        typeof field.options === 'string'
+          ? JSON.stringify({ ...currentOptionsObj, choices: updatedChoices })
+          : { ...currentOptionsObj, choices: updatedChoices }
 
-        await onUpdateField(field.id, { options: newOptions as any })
-      }
+      await onUpdateField(field.id, { options: newOptions as any })
     }
 
     setNewTagInput('')
@@ -146,14 +204,14 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
   return (
     <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#ffffff' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-        {choices.map((choice, idx) => {
-          const isSelected = selectedList.includes(choice)
-          const tagStyle = getTagStyle(idx)
+        {allDisplayOptions.map((opt, idx) => {
+          const isSelected = isOptionSelected(opt)
+          const tagStyle = getTagStyle(idx, opt.color)
 
           return (
             <span
-              key={choice}
-              onClick={() => toggleSelectOption(choice, isMulti)}
+              key={`${opt.id}-${idx}`}
+              onClick={() => toggleSelectOption(opt, isMulti)}
               style={{
                 cursor: readOnly ? 'default' : 'pointer',
                 fontSize: '12px',
@@ -171,14 +229,14 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
                 gap: '4px',
               }}
             >
-              {choice}
+              {opt.name}
               {isSelected && <Check size={12} />}
             </span>
           )
         })}
 
-        {!readOnly && (
-          isAddingTag ? (
+        {!readOnly &&
+          (isAddingTag ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <input
                 type="text"
@@ -202,7 +260,7 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
                   borderRadius: '16px',
                   outline: 'none',
                   width: '120px',
-                  background: '#ffffff'
+                  background: '#ffffff',
                 }}
               />
               <button
@@ -216,20 +274,23 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
                   padding: '4px 8px',
                   fontSize: '11px',
                   fontWeight: 600,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 {t('common.add')}
               </button>
               <button
                 type="button"
-                onClick={() => { setIsAddingTag(false); setNewTagInput(''); }}
+                onClick={() => {
+                  setIsAddingTag(false)
+                  setNewTagInput('')
+                }}
                 style={{
                   background: 'none',
                   border: 'none',
                   color: '#94a3b8',
                   cursor: 'pointer',
-                  padding: '2px'
+                  padding: '2px',
                 }}
               >
                 <X size={14} />
@@ -251,16 +312,16 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
                 fontWeight: 600,
                 color: '#64748b',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease'
+                transition: 'all 0.15s ease',
               }}
               className="hover:border-indigo-400 hover:text-[#3F6212] hover:bg-[#F4F4F5]/50"
             >
               <Plus size={12} />
-              <span>+ Choose an option</span>
+              <span>新增選項</span>
             </button>
-          )
-        )}
+          ))}
       </div>
     </div>
   )
 }
+

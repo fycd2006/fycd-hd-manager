@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { MasterGridView } from '@/modules/database/components/views/master'
 
 interface WorkspaceDashboardProps {
   currentUser: User
@@ -53,11 +54,22 @@ export default function WorkspaceDashboard({
 }: WorkspaceDashboardProps) {
   const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
+  const [showMasterView, setShowMasterView] = useState(false)
 
   // Calculate statistics
   const databases: Database[] = activeWorkspace?.databases || []
   const totalTablesCount = useMemo(() => {
     return databases.reduce((acc, db) => acc + (db.tables?.length || 0), 0)
+  }, [databases])
+
+  const tablesMap = useMemo(() => {
+    const map: Record<number, { name: string; color?: string }> = {}
+    databases.forEach(db => {
+      (db.tables || []).forEach(tbl => {
+        map[tbl.id] = { name: tbl.name, color: '#4f46e5' }
+      })
+    })
+    return map
   }, [databases])
 
   const memberCount = activeWorkspace?.members?.length || 1
@@ -76,6 +88,31 @@ export default function WorkspaceDashboard({
       return null
     }).filter(Boolean) as Database[]
   }, [databases, searchQuery])
+
+  if (showMasterView && activeWorkspace) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
+        <div style={{ padding: '8px 16px', backgroundColor: '#f4f4f5', borderBottom: '1px solid #e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button
+            onClick={() => setShowMasterView(false)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #d4d4d8', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '12px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}
+          >
+            ← 返回工作區總覽
+          </button>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#3f3f46' }}>
+            {activeWorkspace.name} · 跨表總表
+          </span>
+        </div>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <MasterGridView
+            workspaceId={activeWorkspace.id}
+            workspaceName={activeWorkspace.name}
+            tablesMap={tablesMap}
+          />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{
@@ -196,6 +233,41 @@ export default function WorkspaceDashboard({
                 }}
               >
                 <Users size={15} color="#52525b" /> {t('dashboard.membersCount', { count: memberCount })}
+              </button>
+            )}
+
+            {activeWorkspace && totalTablesCount > 0 && (
+              <button
+                onClick={() => setShowMasterView(true)}
+                style={{
+                  height: '40px',
+                  padding: '0 16px',
+                  borderRadius: '8px',
+                  backgroundColor: '#ffffff',
+                  color: '#4f46e5',
+                  border: '1px solid #c7d2fe',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.15s ease',
+                  boxShadow: '0 1px 2px rgba(79, 70, 229, 0.08)',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#eef2ff'
+                  e.currentTarget.style.borderColor = '#a5b4fc'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#ffffff'
+                  e.currentTarget.style.borderColor = '#c7d2fe'
+                }}
+              >
+                <Layers size={16} color="#4f46e5" />
+                <span>跨表總表</span>
               </button>
             )}
 

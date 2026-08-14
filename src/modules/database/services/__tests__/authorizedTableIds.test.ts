@@ -16,7 +16,7 @@ jest.mock('@/lib/prisma', () => ({
 }))
 
 import prisma from '@/lib/prisma'
-import { getAuthorizedTableIds } from '@/app/api/workspaces/[id]/all-rows/route'
+import { getAuthorizedTableIds } from '@/modules/database/services/multiTableQuery'
 
 const mockFindMany = prisma.databaseTable.findMany as jest.MockedFunction<typeof prisma.databaseTable.findMany>
 

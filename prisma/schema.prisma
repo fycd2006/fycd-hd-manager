@@ -203,3 +203,18 @@ model MoveOperationLog {
   status        String   @default("pending") // pending, resolved
   createdAt     DateTime @default(now())
 }
+
+model MasterViewOverride {
+  id            Int       @id @default(autoincrement())
+  masterViewId  Int
+  sourceTableId Int
+  sourceRowId   Int
+  overrides     Json      // JSON payload containing overridden field values
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  @@unique([masterViewId, sourceTableId, sourceRowId])
+  @@index([sourceTableId, sourceRowId])
+}
+

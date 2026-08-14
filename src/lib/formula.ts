@@ -20,8 +20,10 @@ export function getColumnAlias(index: number): string {
  */
 export function extractFormulaExpression(expression: any): string {
   let exprStr = expression
-  if (exprStr && typeof exprStr === 'object' && exprStr.formula) {
-    exprStr = String(exprStr.formula)
+  if (exprStr && typeof exprStr === 'object') {
+    if (exprStr.formula) exprStr = String(exprStr.formula)
+    else if (exprStr.expression) exprStr = String(exprStr.expression)
+    else if (exprStr.formula_expression) exprStr = String(exprStr.formula_expression)
   }
   if (typeof exprStr === 'string' && (exprStr.trim().startsWith('{') || exprStr.trim().startsWith('"'))) {
     try {
@@ -29,8 +31,10 @@ export function extractFormulaExpression(expression: any): string {
       if (typeof parsed === 'string') {
         try { parsed = JSON.parse(parsed) } catch {}
       }
-      if (parsed && typeof parsed === 'object' && parsed.formula) {
-        exprStr = String(parsed.formula)
+      if (parsed && typeof parsed === 'object') {
+        if (parsed.formula) exprStr = String(parsed.formula)
+        else if (parsed.expression) exprStr = String(parsed.expression)
+        else if (parsed.formula_expression) exprStr = String(parsed.formula_expression)
       }
     } catch {}
   }

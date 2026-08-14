@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, Star, Search, Link2, Mail, Clock, Sparkles, AlertTriangle, ExternalLink, ArrowUpRight, MessageSquare, Send, Edit2, Trash2, Check, X } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
-import RowEditModal from '../../modals/RowEditModal';
+import { CardDrawer } from '@/modules/database/components/cards';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import PopoverPortal from '@/components/ui/PopoverPortal';
 import { parseSelectItems, resolveChoiceString } from './cells/utils';
@@ -740,31 +740,16 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   const [targetFields, setTargetFields] = useState<TableField[]>([]);
   const [relationLoading, setRelationLoading] = useState(false);
 
-  // Detail view state for inspecting linked target rows
-  const [activeDetailRow, setActiveDetailRow] = useState<{ row: any; fields: TableField[] } | null>(null);
+  // Detail drawer state for inspecting linked target rows
+  const [activeDetailRowId, setActiveDetailRowId] = useState<number | null>(null);
 
-  const openRowDetail = async (rowId: number, e?: React.MouseEvent) => {
+  const openRowDetail = (rowId: number, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
       e.preventDefault();
     }
     if (!targetTableId) return;
-    try {
-      const [fieldsRes, rowsRes] = await Promise.all([
-        fetch(`/api/tables/${targetTableId}/fields`),
-        fetch(`/api/tables/${targetTableId}/rows?page=1&pageSize=100`)
-      ]);
-      const fieldsData = await fieldsRes.json();
-      const rowsData = await rowsRes.json();
-      const rowsArray = Array.isArray(rowsData) ? rowsData : (rowsData.rows || []);
-      const targetRow = rowsArray.find((r: any) => r.id === rowId);
-
-      if (targetRow && Array.isArray(fieldsData)) {
-        setActiveDetailRow({ row: targetRow, fields: fieldsData });
-      }
-    } catch (err) {
-      console.error('[Open Linked Row Detail Error]:', err);
-    }
+    setActiveDetailRowId(rowId);
   };
 
 
@@ -2342,34 +2327,14 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         />
       )}
 
-      {/* Row Edit Modal for viewing linked target row details */}
-      {activeDetailRow && typeof document !== 'undefined' && createPortal(
-        <RowEditModal
-          show={Boolean(activeDetailRow)}
-          row={activeDetailRow.row}
-          fields={activeDetailRow.fields}
-          onClose={() => setActiveDetailRow(null)}
-          onUpdateCell={async (rowId, fieldKey, val) => {
-            if (!targetTableId) return;
-            try {
-              await fetch(`/api/tables/${targetTableId}/rows`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rowId, fieldKey, value: val }),
-              });
-              setActiveDetailRow(prev => prev ? {
-                ...prev,
-                row: {
-                  ...prev.row,
-                  data: { ...(prev.row.data || {}), [fieldKey]: val }
-                }
-              } : null);
-            } catch (err) {
-              console.error('[Update Linked Row Detail Error]:', err);
-            }
-          }}
-        />,
-        document.body
+      {/* Slide-over CardDrawer for viewing & editing linked target row */}
+      {Boolean(activeDetailRowId && targetTableId) && (
+        <CardDrawer
+          show={Boolean(activeDetailRowId)}
+          tableId={targetTableId}
+          rowId={activeDetailRowId}
+          onClose={() => setActiveDetailRowId(null)}
+        />
       )}
 
     </div>

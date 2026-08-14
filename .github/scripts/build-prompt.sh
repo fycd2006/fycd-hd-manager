@@ -10,7 +10,7 @@ cat > prompt.txt << 'PROMPT_EOF'
 </role>
 
 <review_standards>
-完整檢核標準定義在 .agent/workflows/code-audit.md，請依該檔案中的六大面向
+完整檢核標準定義在 .agents/workflows/code-audit.md，請依該檔案中的六大面向
 （正確性、React 特定風險、安全性、效能、可維護性、測試覆蓋率）進行分析。
 </review_standards>
 

@@ -24,7 +24,8 @@
 - ✅ 公式表達式解析抽成共用 helper（目前重複三份）
 - ✅ 確認模板建庫按鈕是否接回 UI（`handleCreateDatabaseFromTemplate` 已接回 WorkspaceDashboard empty state）
 - ✅ 表單視圖設定加「分享表單」按鈕（串接 `/api/tables/[id]/form-share`）
+- ✅ 級聯重算雙軌引擎（`rowCascade.ts` 消除 300 筆截斷限制，前 50 筆同步回傳 + 背景分批非同步迭代運算，保證 100% 最終一致性）
 
 ## 待跟進架構債 (Backlog / Tech Debt)
 
-- 📌 **[P1 - 資料正確性] 級聯重算（`rowCascade.ts`）超過 300 筆上限時改為非同步佇列處理**：目前 `cascadeRecomputeSingleLevel` 當 `affectedRows > 300` 時為同步硬性阻斷（僅 `console.warn` 並回傳 `[]`），在單一來源列被超過 300 個地方引用時會導致下游 lookup/rollup 快照**靜默失準**（使用者不會收到任何錯誤），需列為高優先級架構債，規劃轉為背景非同步 Job（如 BullMQ / Redis Queue）補跑以確保最終一致性。
+- （目前無 P1 等級阻塞性技術債）

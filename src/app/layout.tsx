@@ -45,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant">
-      <head>
+      <body>
         <Script
           id="pointer-capture-fix"
           strategy="beforeInteractive"
@@ -64,8 +64,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body>
         <FYCDBrandIntro />
         <I18nProvider>{children}</I18nProvider>
       </body>

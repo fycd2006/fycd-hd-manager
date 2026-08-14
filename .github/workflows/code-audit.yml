@@ -148,9 +148,9 @@ jobs:
           git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > pr.diff
 
       - name: 撰寫結構化檢核 prompt
-        # prompt 內容獨立成 scripts/build-prompt.sh 維護，
+        # prompt 內容獨立成 .github/scripts/build-prompt.sh 維護，
         # 內含 XML 標籤分隔不可信輸入、JSON schema、few-shot 範例
-        run: bash scripts/build-prompt.sh
+        run: bash .github/scripts/build-prompt.sh
 
       - name: 執行語意層程式碼檢核（輸出結構化 JSON）
         env:
@@ -161,7 +161,7 @@ jobs:
       - name: 將 JSON 轉換為 PR 留言 markdown
         # AI 輸出穩定的 JSON，這支腳本只負責呈現；
         # 若 JSON 解析失敗會產生保底留言，不會讓整個 workflow 失敗
-        run: node scripts/render-comment.js
+        run: node .github/scripts/render-comment.js
 
       - name: 將檢核結果貼到 PR 留言
         uses: actions/github-script@v7

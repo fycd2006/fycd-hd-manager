@@ -3,11 +3,21 @@ import { PrismaClient } from '@prisma/client'
 const prismaClientSingleton = () => {
   // Limit connection pool to 5 per serverless instance to balance
   // query throughput and TiDB Cloud's max connection limit
-  const url = new URL(process.env.DATABASE_URL || '')
-  url.searchParams.set('connection_limit', '5')
+  const rawUrl = process.env.DATABASE_URL
+  let datasourceUrl: string | undefined = undefined
+
+  if (rawUrl) {
+    try {
+      const url = new URL(rawUrl)
+      url.searchParams.set('connection_limit', '5')
+      datasourceUrl = url.toString()
+    } catch {
+      datasourceUrl = rawUrl
+    }
+  }
 
   return new PrismaClient({
-    datasourceUrl: url.toString(),
+    ...(datasourceUrl ? { datasourceUrl } : {}),
     log: process.env.NODE_ENV === 'development'
       ? ['query', 'error', 'warn']
       : ['error'],

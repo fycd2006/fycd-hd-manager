@@ -7,6 +7,8 @@ import { authorizeAction } from '@/lib/authorize'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds, type LinkSyncResult } from '@/modules/database/services/linkRowSync'
 import { authorizeLinkRowOperation } from '@/modules/database/services/linkRowOperations'
+import { softDeleteMasterViewOverrides } from '@/modules/database/services/masterViewOverride'
+import { invalidateMasterViewCache } from '@/modules/database/services/masterViewCache'
 import { FieldRegistry } from '@/modules/database/fields/types'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { createTableRow } from '@/modules/database/services/createRow'
@@ -340,11 +342,14 @@ export async function DELETE(
     const rid = parseInt(rowIdStr)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
 
-    // Cleanup bi-directional reverse link references before soft-deleting row
+    // Cleanup bi-directional reverse link references and master view overrides before soft-deleting row
     try {
-      await cleanupRowLinkRowRelations(tid, rid)
+      await Promise.all([
+        cleanupRowLinkRowRelations(tid, rid),
+        softDeleteMasterViewOverrides(tid, rid),
+      ])
     } catch (cleanupErr) {
-      console.warn('[Link Row Cleanup Warning]:', cleanupErr)
+      console.warn('[Row Cleanup Warning]:', cleanupErr)
     }
 
     const socketId = searchParams.get('socket_id') || undefined
@@ -358,6 +363,15 @@ export async function DELETE(
       where: { id: rid },
       data: { deletedAt: new Date() }
     })
+
+    // Invalidate master view cache for this table's workspace
+    const parentTable = await prisma.databaseTable.findUnique({
+      where: { id: tid },
+      select: { database: { select: { workspaceId: true } } },
+    })
+    if (parentTable?.database?.workspaceId) {
+      invalidateMasterViewCache(parentTable.database.workspaceId).catch(() => {})
+    }
 
     triggerTableEvent(tid, 'row-deleted', { rowId: rid }, socketId)
 

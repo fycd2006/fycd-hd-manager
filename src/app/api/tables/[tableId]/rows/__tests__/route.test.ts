@@ -149,4 +149,66 @@ describe('Route Handler Integration: PATCH /api/tables/[tableId]/rows', () => {
     expect(response.status).toBe(200)
     expect(prisma.tableRow.update).toHaveBeenCalled()
   })
+
+  it('Multi-field link_row update: should block when any target table in the batch is unauthorized', async () => {
+    ;(authorizeAction as jest.Mock).mockImplementation(async ({ tableId, action }) => {
+      if (tableId === 10 && action === 'canEditData') {
+        return { auth: { user: { id: 1 }, role: 'member' } }
+      }
+      if (tableId === 20 && action === 'canViewData') {
+        return { auth: { user: { id: 1 }, role: 'member' } }
+      }
+      if (tableId === 30 && action === 'canViewData') {
+        return { errorResponse: NextResponse.json({ error: '權限不足：無法存取目標資料表 30' }, { status: 403 }) }
+      }
+      return { errorResponse: NextResponse.json({ error: 'Denied' }, { status: 403 }) }
+    })
+
+    ;(prisma.$transaction as jest.Mock).mockResolvedValue({
+      currentRow: { id: 100, tableId: 10, data: JSON.stringify({ field_1: [], field_2: [] }) },
+      fields: [
+        { id: 1, tableId: 10, name: 'AllowedLink', type: 'link_row', options: JSON.stringify({ targetTableId: 20 }) },
+        { id: 2, tableId: 10, name: 'ForbiddenLink', type: 'link_row', options: JSON.stringify({ targetTableId: 30 }) },
+      ],
+    })
+
+    const request = new Request('http://localhost:3000/api/tables/10/rows', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rowId: 100,
+        data: { field_1: [201], field_2: [301] },
+      }),
+    })
+    const params = Promise.resolve({ tableId: '10' })
+
+    const response = await PATCH(request, { params })
+    expect(response.status).toBe(403)
+    expect(prisma.tableRow.update).not.toHaveBeenCalled()
+  })
+
+  it('Direct row edit: should reject with 403 when user lacks canEditData on target table', async () => {
+    ;(authorizeAction as jest.Mock).mockImplementation(async ({ tableId, action }) => {
+      if (tableId === 20 && action === 'canEditData') {
+        return { errorResponse: NextResponse.json({ error: '權限不足：您只有讀取權限' }, { status: 403 }) }
+      }
+      return { auth: { user: { id: 1 }, role: 'viewer' } }
+    })
+
+    const request = new Request('http://localhost:3000/api/tables/20/rows', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rowId: 501,
+        fieldKey: 'field_9',
+        value: 'New Title',
+      }),
+    })
+    const params = Promise.resolve({ tableId: '20' })
+
+    const response = await PATCH(request, { params })
+    expect(response.status).toBe(403)
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(prisma.tableRow.update).not.toHaveBeenCalled()
+  })
 })
