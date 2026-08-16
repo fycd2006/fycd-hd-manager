@@ -3,6 +3,8 @@ import crypto from 'crypto'
 import prisma from '@/lib/prisma'
 import { ForgotPasswordSchema } from '@/lib/schemas/auth'
 import { applyRateLimit } from '@/lib/rate-limiter'
+import { sendPasswordResetEmail } from '@/lib/email'
+
 
 export async function POST(request: Request) {
   try {
@@ -62,7 +64,8 @@ export async function POST(request: Request) {
     const baseUrl = origin.startsWith('http') ? origin : `http://${origin}`
     const resetUrl = `${baseUrl}/?resetToken=${resetToken}`
 
-    console.log(`[AUTH] Password reset requested for ${user.email}. Reset Link: ${resetUrl}`)
+    // 5. Send Email via Resend
+    await sendPasswordResetEmail(user.email, resetUrl, user.username)
 
     return NextResponse.json({
       message: '若此電子郵件存在於系統中，重設密碼指示已發送。',
