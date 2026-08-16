@@ -360,7 +360,22 @@
     "hasAccountPrompt": "Already have an account?",
     "loginNow": "Log In Now",
     "loginFailed": "Login failed",
-    "registerFailed": "Registration failed"
+    "registerFailed": "Registration failed",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Reset Your Password",
+    "forgotPasswordDesc": "Enter your registered email address and we will send you password reset instructions.",
+    "sendResetLink": "Send Reset Instructions",
+    "backToLogin": "Back to Log In",
+    "resetPasswordTitle": "Set New Password",
+    "resetPasswordDesc": "Please set a secure new password (min 8 chars, uppercase, lowercase, and numbers).",
+    "newPasswordLabel": "New Password",
+    "enterNewPassword": "Enter new password",
+    "confirmPasswordLabel": "Confirm New Password",
+    "enterConfirmPassword": "Re-enter new password",
+    "passwordMismatch": "Passwords do not match. Please verify.",
+    "resetPasswordBtn": "Reset & Apply Password",
+    "resetSuccess": "Password reset successfully! Please sign in with your new password.",
+    "resetLinkSent": "Password reset instructions sent. Please check your inbox if the email exists."
   },
   "formView": {
     "defaultDescription": "Please fill out the form below to submit data.",

@@ -218,3 +218,14 @@ model MasterViewOverride {
   @@index([sourceTableId, sourceRowId])
 }
 
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+

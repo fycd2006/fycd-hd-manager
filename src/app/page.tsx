@@ -251,10 +251,19 @@ export default function Home() {
     }
   }, [])
 
-  // Initialize authentication and load workspaces concurrently on page mount
+  // Initialize authentication, resetToken query handling, and load workspaces concurrently on page mount
   useEffect(() => {
     authActions.checkAuth()
     wsActions.fetchWorkspaces()
+
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const token = urlParams.get('resetToken')
+      if (token) {
+        authActions.setResetToken(token)
+        authActions.setAuthMode('reset-password')
+      }
+    }
   }, [])
 
 
@@ -1566,6 +1575,7 @@ export default function Home() {
               authUsername={authState.authUsername}
               authEmail={authState.authEmail}
               authPassword={authState.authPassword}
+              resetToken={authState.resetToken}
               errorMessage={authError}
               onAuthModeChange={(mode) => {
                 setAuthError(null)
@@ -1601,7 +1611,37 @@ export default function Home() {
                   uiActions.addToast(result.error || '註冊失敗', 'error')
                 }
               }}
+              onRequestResetPassword={async (email) => {
+                setAuthError(null)
+                const result = await authActions.requestPasswordReset(email)
+                if (result.ok) {
+                  uiActions.addToast(result.message || '重設指示已發送', 'success')
+                } else {
+                  setAuthError(result.error || '發送失敗')
+                  uiActions.addToast(result.error || '發送失敗', 'error')
+                }
+                return result
+              }}
+              onResetPassword={async (newPassword) => {
+                setAuthError(null)
+                const result = await authActions.resetPassword(authState.resetToken, newPassword)
+                if (result.ok) {
+                  uiActions.addToast('密碼已成功重設，請使用新密碼登入', 'success')
+                  authActions.setAuthPassword('')
+                  authActions.setResetToken('')
+                  authActions.setAuthMode('login')
+                  if (typeof window !== 'undefined' && window.history?.replaceState) {
+                    const cleanUrl = window.location.pathname
+                    window.history.replaceState({}, document.title, cleanUrl)
+                  }
+                } else {
+                  setAuthError(result.error || '重設密碼失敗')
+                  uiActions.addToast(result.error || '重設密碼失敗', 'error')
+                }
+                return result
+              }}
             />
+
           </>
         )}
       </>

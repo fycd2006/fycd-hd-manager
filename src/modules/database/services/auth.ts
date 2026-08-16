@@ -91,3 +91,44 @@ export const updateProfile = async (updates: { username?: string; oldPassword?: 
     return { ok: false, error: '更新帳號設定失敗' }
   }
 }
+
+/**
+ * Request password reset email / link
+ */
+export const requestPasswordReset = async (email: string): Promise<{ ok: boolean; message?: string; error?: string; devResetUrl?: string }> => {
+  try {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      return { ok: true, message: data.message, devResetUrl: data.devResetUrl }
+    }
+    return { ok: false, error: data.error || '發送重設密碼請求失敗' }
+  } catch {
+    return { ok: false, error: '發送重設密碼請求失敗，請稍後再試' }
+  }
+}
+
+/**
+ * Reset password with token
+ */
+export const resetPassword = async (token: string, newPassword: string): Promise<{ ok: boolean; message?: string; error?: string }> => {
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      return { ok: true, message: data.message }
+    }
+    return { ok: false, error: data.error || '重設密碼失敗' }
+  } catch {
+    return { ok: false, error: '重設密碼失敗，請稍後再試' }
+  }
+}
+
