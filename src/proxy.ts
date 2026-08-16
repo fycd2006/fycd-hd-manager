@@ -16,10 +16,13 @@ import { verifySessionToken } from '@/lib/session-token'
 const PUBLIC_EXACT = new Set([
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   // /api/auth/me performs its own session check and doubles as the logout
   // endpoint (POST clears the cookie), so it must stay reachable
   '/api/auth/me',
 ])
+
 
 // Prefixes reachable without a session
 const PUBLIC_PREFIXES = [

@@ -251,10 +251,9 @@ export default function Home() {
     }
   }, [])
 
-  // Initialize authentication, resetToken query handling, and load workspaces concurrently on page mount
+  // Initialize authentication and resetToken query handling on page mount
   useEffect(() => {
     authActions.checkAuth()
-    wsActions.fetchWorkspaces()
 
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search)
@@ -265,6 +264,7 @@ export default function Home() {
       }
     }
   }, [])
+
 
 
   // Undo / Redo Hook
