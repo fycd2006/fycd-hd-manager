@@ -6,22 +6,8 @@ import { formatDateValue } from '@/modules/database/utils';
 import { CardDrawer } from '@/modules/database/components/cards';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import PopoverPortal from '@/components/ui/PopoverPortal';
-import { parseSelectItems, resolveChoiceString } from './cells/utils';
+import { parseSelectItems, resolveChoiceString, getOptionColor, BASEROW_PALETTE } from './cells/utils';
 import { LinkedRowCardChip } from './cells/LinkedRowCardChip';
-
-
-const BASEROW_PALETTE = [
-  { bg: '#fee2e2', text: '#991b1b' }, // Soft Red
-  { bg: '#F4F4F5', text: '#1e40af' }, // Soft Blue
-  { bg: '#dcfce7', text: '#166534' }, // Soft Green
-  { bg: '#fef3c7', text: '#92400e' }, // Soft Yellow
-  { bg: '#f3e8ff', text: '#6b21a8' }, // Soft Purple
-  { bg: '#fce7f3', text: '#9d174d' }, // Soft Pink
-  { bg: '#ffedd5', text: '#9a3412' }, // Soft Orange
-  { bg: '#ccfbf1', text: '#115e59' }, // Soft Teal
-  { bg: '#F4F4F5', text: '#3730a3' }, // Soft Indigo
-  { bg: '#cffafe', text: '#155e75' }, // Soft Cyan
-];
 
 export interface CommentLogEntry {
   id: string
@@ -288,30 +274,7 @@ export const LatestCommentModal: React.FC<{
   )
 }
 
-const getOptionColor = (str: string, allOptions?: string[]) => {
-  if (!str) return { bg: '#f1f5f9', text: '#475569', backgroundColor: '#f1f5f9', color: '#475569' };
-  
-  let idx = -1;
-  if (allOptions && Array.isArray(allOptions) && allOptions.length > 0) {
-    idx = allOptions.findIndex(opt => opt.toLowerCase() === str.toLowerCase());
-  }
 
-  if (idx < 0) {
-    let hash = 5381;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) + hash) + str.charCodeAt(i);
-    }
-    idx = Math.abs(hash);
-  }
-
-  const palette = BASEROW_PALETTE[idx % BASEROW_PALETTE.length];
-  return {
-    backgroundColor: palette.bg,
-    color: palette.text,
-    bg: palette.bg,
-    text: palette.text
-  };
-};
 
 
 
@@ -501,7 +464,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     return [String(item)];
   };
 
-  const getFieldOptions = (): string[] => {
+  const getFieldChoiceObjects = (): Array<{ id: string; name: string; color?: string }> => {
     if (!field.options) return [];
     let rawItems: any[] = [];
     let opts: any = field.options;
@@ -523,15 +486,31 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       else if (Array.isArray(opts.selectOptions)) rawItems = opts.selectOptions;
     }
 
-    if (rawItems.length === 0 && typeof field.options === 'string' && field.options.trim()) {
+    if (rawItems.length === 0 && typeof field.options === 'string' && field.options.trim() && !field.options.startsWith('{')) {
       rawItems = field.options.split(',');
     }
     const isUuidPattern = (s: string) =>
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
       /^[0-9a-f]{24,}$/i.test(s.trim());
 
-    const cleaned = rawItems.flatMap(cleanChoice).filter(name => name && !isUuidPattern(name));
-    return Array.from(new Set(cleaned));
+    return rawItems
+      .map((item, idx) => {
+        if (typeof item === 'object' && item !== null) {
+          const id = String(item.id ?? `opt_${idx}`);
+          const name = String(item.name ?? item.label ?? item.text ?? item.value ?? item.id ?? '').trim();
+          const color = item.color;
+          return { id, name, color };
+        }
+        const str = String(item || '').trim();
+        return { id: `opt_${idx}`, name: str };
+      })
+      .filter(opt => opt.name && !isUuidPattern(opt.name));
+  };
+
+  const getFieldOptions = (): string[] => {
+    const choiceObjs = getFieldChoiceObjects();
+    const names = choiceObjs.map(c => c.name);
+    return Array.from(new Set(names));
   };
 
   const [localVal, setLocalVal] = useState<any>(getInitialStringValue(value, field.type));
@@ -1129,7 +1108,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       }
 
       if (field.type === 'single_select') {
-        const options = getFieldOptions();
+        const choiceObjs = getFieldChoiceObjects();
+        const options = choiceObjs.map(c => c.name);
         const filteredOptions = options.filter(opt => opt.toLowerCase().includes(comboSearch.toLowerCase()));
         const isExactMatch = options.some(opt => opt.toLowerCase() === comboSearch.toLowerCase());
 
@@ -1159,7 +1139,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               }}
             >
               {localVal ? (
-                <span style={{ ...getOptionColor(localVal, options), padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+                <span style={{ ...getOptionColor(localVal, choiceObjs), padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
                   {localVal}
                 </span>
               ) : (
@@ -1225,7 +1205,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   </div>
                   <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
                     {filteredOptions.map((opt, i) => {
-                      const { bg, text } = getOptionColor(opt, options);
+                      const { bg, text } = getOptionColor(opt, choiceObjs);
                       const isSelected = localVal === opt;
                       return (
                         <div 
@@ -1287,7 +1267,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       }
 
       if (field.type === 'multiple_select') {
-        const options = getFieldOptions();
+        const choiceObjs = getFieldChoiceObjects();
+        const options = choiceObjs.map(c => c.name);
         let currentItems: string[] = [];
         try { currentItems = JSON.parse(localVal); if (!Array.isArray(currentItems)) currentItems = [String(localVal)]; } 
         catch { currentItems = String(localVal ?? '').split(',').map((s: string) => s.trim()).filter(Boolean); }
@@ -1325,7 +1306,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               }}
             >
               {currentItems.map((item, i) => {
-                const { bg, text } = getOptionColor(item, options);
+                const { bg, text } = getOptionColor(item, choiceObjs);
                 return (
                   <span key={i} style={{ background: bg, color: text, padding: '2px 6px', borderRadius: '9999px', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
                     {item}
@@ -1408,7 +1389,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                   <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
                     {filteredOptions.map((opt, i) => {
                       const isSelected = currentItems.includes(opt);
-                      const { bg, text } = getOptionColor(opt, options);
+                      const { bg, text } = getOptionColor(opt, choiceObjs);
                       return (
                         <div 
                           key={i} 
@@ -1790,13 +1771,13 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     }
 
     if (field.type === 'single_select' || field.type === 'multiple_select') {
-      const allOptions = getFieldOptions();
+      const choiceObjects = getFieldChoiceObjects();
       const items = parseSelectItems(value, field.options);
 
       return (
         <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', flexWrap: 'nowrap', width: '100%' }}>
           {items.map((itemStr, i) => {
-            const { bg, text } = getOptionColor(itemStr, allOptions);
+            const { bg, text } = getOptionColor(itemStr, choiceObjects);
             return (
               <span 
                 key={i} 

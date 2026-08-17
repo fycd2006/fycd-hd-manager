@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PopoverPortal from '@/components/ui/PopoverPortal';
-import { getOptionColor } from './utils';
+import { getOptionColor, BASEROW_PALETTE } from './utils';
 
 export interface SelectOption {
   id: string;
@@ -38,16 +38,16 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
     /^[0-9a-f]{24,}$/i.test(s.trim())
 
   const safeOptions = (Array.isArray(options) ? options : [])
-    .map((opt) => {
+    .map((opt, idx) => {
       if (typeof opt === 'object' && opt !== null) {
         return {
-          id: String(opt.id ?? opt.value ?? opt.name ?? ''),
+          id: String(opt.id ?? opt.value ?? opt.name ?? `opt_${idx}`),
           name: String(opt.name ?? opt.label ?? opt.text ?? opt.value ?? opt.id ?? ''),
-          color: opt.color || '#f1f5f9'
+          color: opt.color || BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg
         }
       }
       const str = String(opt).trim()
-      return { id: str, name: str, color: '#f1f5f9' }
+      return { id: `opt_${idx}`, name: str, color: BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg }
     })
     .filter((opt) => opt.name.length > 0 && !isUuidPattern(opt.name))
 
@@ -80,7 +80,8 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
     const trimmed = comboSearch.trim()
     if (!trimmed || isUuidPattern(trimmed)) return null
     const newId = 'opt_' + Math.random().toString(36).substr(2, 9)
-    const newOpt = { id: newId, name: trimmed, color: '#f1f5f9' }
+    const newColor = BASEROW_PALETTE[safeOptions.length % BASEROW_PALETTE.length].bg
+    const newOpt = { id: newId, name: trimmed, color: newColor }
     const newOptions = [...safeOptions, newOpt]
     
     onUpdateField(fieldId, { options: { choices: newOptions } })
