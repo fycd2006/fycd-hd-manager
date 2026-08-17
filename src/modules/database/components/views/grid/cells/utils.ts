@@ -1,14 +1,24 @@
-export const BASEROW_PALETTE = [
-  { bg: '#fee2e2', text: '#991b1b' }, // Soft Red
-  { bg: '#F4F4F5', text: '#1e40af' }, // Soft Blue
-  { bg: '#dcfce7', text: '#166534' }, // Soft Green
-  { bg: '#fef3c7', text: '#92400e' }, // Soft Yellow
-  { bg: '#f3e8ff', text: '#6b21a8' }, // Soft Purple
-  { bg: '#fce7f3', text: '#9d174d' }, // Soft Pink
-  { bg: '#ffedd5', text: '#9a3412' }, // Soft Orange
-  { bg: '#ccfbf1', text: '#115e59' }, // Soft Teal
-  { bg: '#F4F4F5', text: '#3730a3' }, // Soft Indigo
-  { bg: '#cffafe', text: '#155e75' }, // Soft Cyan
+export interface PaletteColor {
+  id: string;
+  name: string;
+  bg: string;
+  text: string;
+  border: string;
+}
+
+export const BASEROW_PALETTE: PaletteColor[] = [
+  { id: 'red', name: '紅 (Red)', bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
+  { id: 'blue', name: '藍 (Blue)', bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+  { id: 'green', name: '綠 (Green)', bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  { id: 'yellow', name: '黃 (Yellow)', bg: '#fef3c7', text: '#92400e', border: '#fde047' },
+  { id: 'purple', name: '紫 (Purple)', bg: '#f3e8ff', text: '#6b21a8', border: '#d8b4fe' },
+  { id: 'pink', name: '粉 (Pink)', bg: '#fce7f3', text: '#9d174d', border: '#f9a8d4' },
+  { id: 'orange', name: '橘 (Orange)', bg: '#ffedd5', text: '#9a3412', border: '#fdba74' },
+  { id: 'teal', name: '青 (Teal)', bg: '#ccfbf1', text: '#115e59', border: '#5eead4' },
+  { id: 'indigo', name: '靛 (Indigo)', bg: '#e0e7ff', text: '#3730a3', border: '#a5b4fc' },
+  { id: 'cyan', name: '水藍 (Cyan)', bg: '#cffafe', text: '#155e75', border: '#67e8f9' },
+  { id: 'emerald', name: '翡翠 (Emerald)', bg: '#ecfdf5', text: '#047857', border: '#6ee7b7' },
+  { id: 'gray', name: '灰 (Gray)', bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' },
 ];
 
 export const getOptionColor = (str: string, allOptions?: any[]) => {
@@ -17,13 +27,19 @@ export const getOptionColor = (str: string, allOptions?: any[]) => {
   if (allOptions && Array.isArray(allOptions)) {
     const opt = allOptions.find(o => {
       if (typeof o === 'string') return o.toLowerCase() === str.toLowerCase();
-      return o && (o.id === str || o.name === str);
+      return o && (o.id === str || o.name === str || (o.name && o.name.toLowerCase() === str.toLowerCase()));
     });
     
     if (opt && typeof opt === 'object' && opt.color) {
-      const p = BASEROW_PALETTE.find(p => p.bg === opt.color || p.text === opt.color);
+      const p = BASEROW_PALETTE.find(
+        p =>
+          p.id.toLowerCase() === String(opt.color).toLowerCase() ||
+          p.bg.toLowerCase() === String(opt.color).toLowerCase() ||
+          p.text.toLowerCase() === String(opt.color).toLowerCase() ||
+          p.name.toLowerCase() === String(opt.color).toLowerCase()
+      );
       if (p) return { backgroundColor: p.bg, color: p.text, bg: p.bg, text: p.text };
-      return { backgroundColor: opt.color, color: '#000', bg: opt.color, text: '#000' };
+      return { backgroundColor: opt.color, color: '#1e293b', bg: opt.color, text: '#1e293b' };
     }
   }
 

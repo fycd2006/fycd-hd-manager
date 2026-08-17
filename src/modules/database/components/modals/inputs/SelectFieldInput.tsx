@@ -5,6 +5,8 @@ import { Plus, X, Check } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
+import { BASEROW_PALETTE, getOptionColor } from '../../views/grid/cells/utils'
+
 interface SelectFieldInputProps {
   field: TableField
   value: any
@@ -19,16 +21,23 @@ export interface SelectOptionItem {
   color?: string
 }
 
-export const getTagStyle = (idx: number, customColor?: string) => {
-  const colors = [
-    { bg: '#F4F4F5', border: '#E4E4E7', text: '#2d470d' },
-    { bg: '#ecfdf5', border: '#a7f3d0', text: '#047857' },
-    { bg: '#fffbeb', border: '#fde68a', text: '#b45309' },
-    { bg: '#fef2f2', border: '#fecaca', text: '#b91c1c' },
-    { bg: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9' },
-    { bg: '#fdf2f8', border: '#fbcfe8', text: '#be185d' },
-  ]
-  return colors[idx % colors.length]
+export const getTagStyle = (idx: number, customColor?: string, optName?: string) => {
+  if (customColor) {
+    const p = BASEROW_PALETTE.find(
+      (c) =>
+        c.id.toLowerCase() === customColor.toLowerCase() ||
+        c.bg.toLowerCase() === customColor.toLowerCase() ||
+        c.text.toLowerCase() === customColor.toLowerCase()
+    )
+    if (p) return { bg: p.bg, border: p.border, text: p.text }
+    return { bg: customColor, border: 'rgba(0,0,0,0.1)', text: '#1e293b' }
+  }
+  if (optName) {
+    const col = getOptionColor(optName)
+    return { bg: col.bg, border: 'rgba(0,0,0,0.1)', text: col.text }
+  }
+  const p = BASEROW_PALETTE[idx % BASEROW_PALETTE.length]
+  return { bg: p.bg, border: p.border, text: p.text }
 }
 
 export const getFieldSelectOptions = (fieldOptions: any): SelectOptionItem[] => {
@@ -216,7 +225,7 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
         {allDisplayOptions.map((opt, idx) => {
           const isSelected = isOptionSelected(opt)
-          const tagStyle = getTagStyle(idx, opt.color)
+          const tagStyle = getTagStyle(idx, opt.color, opt.name)
 
           return (
             <span

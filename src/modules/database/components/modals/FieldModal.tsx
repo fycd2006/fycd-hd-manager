@@ -16,10 +16,11 @@ import { safeJsonParse } from '@/lib/json-utils'
 import { FieldTypeSelector } from './FieldTypeSelector'
 import { FieldModalHeader } from './FieldModalHeader'
 import { NumberFieldOptions } from './field-options/NumberFieldOptions'
-import { SelectFieldOptions } from './field-options/SelectFieldOptions'
+import { SelectFieldOptions, type SelectOptionItem } from './field-options/SelectFieldOptions'
 import { LinkRowFieldOptions } from './field-options/LinkRowFieldOptions'
 import { RollupLookupFieldOptions } from './field-options/RollupLookupFieldOptions'
 import { FormulaFieldOptions } from './field-options/FormulaFieldOptions'
+import { BASEROW_PALETTE } from '../views/grid/cells/utils'
 
 export interface FieldModalProps {
   show: boolean
@@ -30,24 +31,24 @@ export interface FieldModalProps {
   editField?: TableField | null
 }
 
-const getOptionColor = (str: string) => {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const hue = Math.abs(hash % 360)
-  return { bg: `hsl(${hue}, 80%, 93%)`, text: `hsl(${hue}, 80%, 30%)` }
-}
-
-export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], editField }: FieldModalProps) {
-  const { t, locale } = useI18n()
-  const [activeTab, setActiveTab] = useState<'basic' | 'advanced'>('basic')
-  const [name, setName] = useState('Single line text')
+export function FieldModal({
+  show,
+  onClose,
+  onSubmit,
+  tables = [],
+  fields = [],
+  editField = null,
+}: FieldModalProps) {
+  const { t } = useI18n()
+  const [name, setName] = useState('')
   const [nameError, setNameError] = useState(false)
   const [type, setType] = useState('text')
-  const [typeDropdownOpen, setTypeDropdownOpen] = useState(true)
-  // Options state
-  const [optionsList, setOptionsList] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState<'basic' | 'config'>('basic')
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  // Sub-field states
+  const [optionsList, setOptionsList] = useState<SelectOptionItem[]>([])
   const [newOptionText, setNewOptionText] = useState('')
   const [targetTableId, setTargetTableId] = useState<number | null>(null)
   const [relationFieldId, setRelationFieldId] = useState<number | null>(null)
@@ -89,13 +90,11 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         .then(data => {
           if (Array.isArray(data)) setFetchedTargetFields(data)
         })
-        .catch(() => setFetchedTargetFields([]))
+        .catch(err => console.error(err))
     }
   }, [targetTableIdFromRel, targetTableObj])
 
   const [description, setDescription] = useState('')
-  const [loading, setLoading] = useState(false)
-
   const formulaTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   const insertAtCursor = (text: string, cursorOffsetFromEnd: number = 0) => {
@@ -109,7 +108,6 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     const before = formula.slice(0, start)
     const after = formula.slice(end)
 
-    // Add spacing if needed
     const needsLeadingSpace = before.length > 0 && !/\s|[({,]/.test(before.slice(-1)) && !/^[),%]/.test(text)
     const prefix = needsLeadingSpace ? ' ' : ''
     const insertedText = prefix + text
@@ -134,18 +132,17 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     }
   }
 
-  const [createRelatedField, setCreateRelatedField] = useState<boolean>(true)
-  const [allowMultiple, setAllowMultiple] = useState<boolean>(true)
-
+  // Link row config
+  const [createRelatedField, setCreateRelatedField] = useState(true)
+  const [allowMultiple, setAllowMultiple] = useState(true)
 
   useEffect(() => {
     if (show) {
       if (editField) {
-
         setName(editField.name || '')
         setType(editField.type || 'text')
         setTypeDropdownOpen(false)
-        let choices: string[] = []
+        let choices: SelectOptionItem[] = []
         let formulaStr = ''
         if (editField.options) {
           try {
@@ -153,15 +150,33 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             if (typeof parsed === 'string') {
               try { parsed = JSON.parse(parsed) } catch {}
             }
-            if (Array.isArray(parsed)) choices = parsed.map((o: any) => typeof o === 'object' && o !== null ? (o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)) : String(o))
-            else if (parsed && Array.isArray(parsed.choices)) choices = parsed.choices.map((o: any) => typeof o === 'object' && o !== null ? (o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)) : String(o))
-            else if (parsed && Array.isArray(parsed.select_options)) choices = parsed.select_options.map((o: any) => typeof o === 'object' && o !== null ? (o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)) : String(o))
+            let rawList: any[] = []
+            if (Array.isArray(parsed)) rawList = parsed
+            else if (parsed && Array.isArray(parsed.choices)) rawList = parsed.choices
+            else if (parsed && Array.isArray(parsed.select_options)) rawList = parsed.select_options
+            else if (parsed && Array.isArray(parsed.options)) rawList = parsed.options
+            else if (typeof editField.options === 'string' && editField.options.includes(',')) rawList = editField.options.split(',')
 
             const isUuidPattern = (s: string) =>
               /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
               /^[0-9a-f]{24,}$/i.test(s.trim())
 
-            choices = choices.filter((c) => c && typeof c === 'string' && !isUuidPattern(c))
+            choices = rawList
+              .map((item, idx) => {
+                if (typeof item === 'object' && item !== null) {
+                  const id = item.id || `opt_${idx}`
+                  const name = item.name || item.label || item.text || item.value || ''
+                  const color = item.color || BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg
+                  return { id, name, color }
+                }
+                const str = String(item || '').trim()
+                return {
+                  id: `opt_${idx}`,
+                  name: str,
+                  color: BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg,
+                }
+              })
+              .filter((c) => c.name.length > 0 && !isUuidPattern(c.name))
 
             if (parsed && typeof parsed === 'object') {
               if (parsed.targetTableId) setTargetTableId(Number(parsed.targetTableId))
@@ -170,12 +185,8 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
               if (parsed.rollupFunction) setRollupFunction(parsed.rollupFunction)
               if (typeof parsed.createRelatedField === 'boolean') setCreateRelatedField(parsed.createRelatedField)
               if (typeof parsed.allowMultiple === 'boolean') setAllowMultiple(parsed.allowMultiple)
-              if (parsed.formula) {
-                formulaStr = String(parsed.formula)
-              }
-              if (typeof parsed.number_decimal_places === 'number') {
-                setNumberDecimalPlaces(parsed.number_decimal_places)
-              }
+              if (parsed.formula) formulaStr = String(parsed.formula)
+              if (typeof parsed.number_decimal_places === 'number') setNumberDecimalPlaces(parsed.number_decimal_places)
               if (parsed.number_format) setNumberFormat(parsed.number_format)
               if (parsed.number_prefix) setNumberPrefix(parsed.number_prefix)
               if (parsed.number_suffix) setNumberSuffix(parsed.number_suffix)
@@ -207,7 +218,6 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     }
   }, [editField, show])
 
-
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
     if (!name.trim()) {
@@ -222,7 +232,26 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
         const isUuidPattern = (s: string) =>
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
           /^[0-9a-f]{24,}$/i.test(s.trim())
-        parsedOptions = { choices: optionsList.filter((c) => c && typeof c === 'string' && !isUuidPattern(c)) }
+
+        const cleanChoices = optionsList
+          .map((c, idx) => {
+            if (typeof c === 'object' && c !== null) {
+              return {
+                id: c.id || `opt_${idx}`,
+                name: c.name.trim(),
+                color: c.color || BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg,
+              }
+            }
+            const str = String(c || '').trim()
+            return {
+              id: `opt_${idx}`,
+              name: str,
+              color: BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg,
+            }
+          })
+          .filter((c) => c.name.length > 0 && !isUuidPattern(c.name))
+
+        parsedOptions = { choices: cleanChoices }
       } else if (type === 'link_row' && targetTableId) {
         parsedOptions = { targetTableId, createRelatedField, allowMultiple }
       } else if ((type === 'lookup' || type === 'rollup') && relationFieldId) {
