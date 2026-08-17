@@ -43,7 +43,7 @@ export function FieldModal({
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState(false)
   const [type, setType] = useState('text')
-  const [activeTab, setActiveTab] = useState<'basic' | 'config'>('basic')
+  const [activeTab, setActiveTab] = useState<'basic' | 'advanced'>('basic')
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 

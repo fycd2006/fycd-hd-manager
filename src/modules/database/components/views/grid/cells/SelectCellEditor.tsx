@@ -40,10 +40,11 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
   const safeOptions = (Array.isArray(options) ? options : [])
     .map((opt, idx) => {
       if (typeof opt === 'object' && opt !== null) {
+        const o = opt as any
         return {
-          id: String(opt.id ?? opt.value ?? opt.name ?? `opt_${idx}`),
-          name: String(opt.name ?? opt.label ?? opt.text ?? opt.value ?? opt.id ?? ''),
-          color: opt.color || BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg
+          id: String(o.id ?? o.value ?? o.name ?? `opt_${idx}`),
+          name: String(o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? ''),
+          color: o.color || BASEROW_PALETTE[idx % BASEROW_PALETTE.length].bg
         }
       }
       const str = String(opt).trim()

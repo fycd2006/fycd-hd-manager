@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { parseSelectItems } from '../grid/cells/utils'
 
 interface TableField {
   id: number
