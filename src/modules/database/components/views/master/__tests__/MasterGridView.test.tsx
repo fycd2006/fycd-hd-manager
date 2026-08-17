@@ -1069,6 +1069,88 @@ describe('MasterGridView UI Component', () => {
     expect(screen.queryByText(/\[\{"id":/)).not.toBeInTheDocument()
     expect(screen.queryByText(/\["重要"/)).not.toBeInTheDocument()
   })
+
+  it('correctly resolves choice UUIDs across multiple tables without displaying raw UUID hash strings', async () => {
+    const mockApiResponse = {
+      rows: [
+        {
+          id: 601,
+          tableId: 1,
+          createdAt: '2026-08-17T10:00:00.000Z',
+          data: {
+            Title: '台北任務',
+            Category: '["7eb0fcef-d4da-429a-a560-04a44f18bbde"]',
+          },
+        },
+        {
+          id: 602,
+          tableId: 2,
+          createdAt: '2026-08-17T10:05:00.000Z',
+          data: {
+            Title: '高雄任務',
+            Category: '["b9ed6f56-c3e1-4630-be04-b4fbd727d408"]',
+          },
+        },
+      ],
+      fieldsMap: {
+        field_101: {
+          id: 101,
+          tableId: 1,
+          name: 'Title',
+          type: 'text',
+        },
+        field_102: {
+          id: 102,
+          tableId: 1,
+          name: 'Category',
+          type: 'multiple_select',
+          options: {
+            choices: [{ id: '7eb0fcef-d4da-429a-a560-04a44f18bbde', name: '台北專案', color: 'green' }],
+          },
+        },
+        field_201: {
+          id: 201,
+          tableId: 2,
+          name: 'Title',
+          type: 'text',
+        },
+        field_202: {
+          id: 202,
+          tableId: 2,
+          name: 'Category',
+          type: 'multiple_select',
+          options: {
+            choices: [{ id: 'b9ed6f56-c3e1-4630-be04-b4fbd727d408', name: '高雄專案', color: 'red' }],
+          },
+        },
+      },
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(
+      <MasterGridView
+        workspaceId={1}
+        tablesMap={{ 1: { name: '台北表' }, 2: { name: '高雄表' } }}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('台北任務')).toBeInTheDocument()
+      expect(screen.getByText('高雄任務')).toBeInTheDocument()
+    })
+
+    // Verify choice names are resolved from Table 1 and Table 2 options
+    expect(screen.getByText('台北專案')).toBeInTheDocument()
+    expect(screen.getByText('高雄專案')).toBeInTheDocument()
+
+    // Verify NO raw UUID strings are displayed
+    expect(screen.queryByText('7eb0fcef-d4da-429a-a560-04a44f18bbde')).not.toBeInTheDocument()
+    expect(screen.queryByText('b9ed6f56-c3e1-4630-be04-b4fbd727d408')).not.toBeInTheDocument()
+  })
 })
 
 

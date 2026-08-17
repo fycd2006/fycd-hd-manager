@@ -50,6 +50,7 @@ export const getFieldSelectOptions = (fieldOptions: any): SelectOptionItem[] => 
     if (Array.isArray(opts.choices)) rawList = opts.choices
     else if (Array.isArray(opts.select_options)) rawList = opts.select_options
     else if (Array.isArray(opts.options)) rawList = opts.options
+    else if (Array.isArray(opts.selectOptions)) rawList = opts.selectOptions
   } else if (typeof opts === 'string' && opts.trim()) {
     rawList = opts.split(',')
   }
@@ -110,10 +111,12 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
   const definedOptions = getFieldSelectOptions(field.options)
   const rawSelectedValues = parseRawSelectValues(value)
 
-  // Determine all display options: defined options + any unmatched orphan values
+  // Determine all display options: defined options + any unmatched orphan values (excluding raw UUID strings)
   const orphanValues = rawSelectedValues.filter(
     (rawVal) =>
       !rawVal.startsWith('field_') &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawVal) &&
+      !/^opt_[a-z0-9]+$/i.test(rawVal) &&
       !definedOptions.some(
         (opt) =>
           opt.id === rawVal ||
@@ -125,7 +128,7 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
 
   const allDisplayOptions: SelectOptionItem[] = [
     ...definedOptions,
-    // Only include orphan values if they don't look like an unresolvable raw UUID without an option name
+    // Only include human-readable orphan values
     ...orphanValues.map((v) => ({ id: v, name: v })),
   ]
 

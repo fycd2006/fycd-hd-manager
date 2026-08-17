@@ -66,6 +66,72 @@ export interface FieldSummaryData {
   excludedRows: ExcludedRowInfo[]
 }
 
+export function extractChoicesList(options: any): any[] {
+  if (!options) return []
+  let opts = options
+  if (typeof opts === 'string') {
+    try {
+      let parsed = JSON.parse(opts)
+      if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed) } catch {}
+      }
+      opts = parsed
+    } catch {}
+  }
+  if (Array.isArray(opts)) return opts
+  if (opts && typeof opts === 'object') {
+    if (Array.isArray(opts.choices)) return opts.choices
+    if (Array.isArray(opts.select_options)) return opts.select_options
+    if (Array.isArray(opts.options)) return opts.options
+    if (Array.isArray(opts.selectOptions)) return opts.selectOptions
+  }
+  return []
+}
+
+export function mergeFieldOptions(existingOpts: any, newOpts: any): any {
+  if (!existingOpts && !newOpts) return undefined
+  if (!existingOpts) return newOpts
+  if (!newOpts) return existingOpts
+
+  const choices1 = extractChoicesList(existingOpts)
+  const choices2 = extractChoicesList(newOpts)
+
+  if (choices1.length === 0 && choices2.length === 0) {
+    return existingOpts || newOpts
+  }
+
+  const mergedChoicesMap = new Map<string, any>()
+  for (const c of [...choices1, ...choices2]) {
+    if (!c) continue
+    if (typeof c === 'object') {
+      const id = String(c.id ?? c.value ?? c.name ?? '')
+      const name = String(c.name ?? c.label ?? c.text ?? c.value ?? c.id ?? '')
+      const key = (id || name).toLowerCase()
+      if (key && !mergedChoicesMap.has(key)) {
+        mergedChoicesMap.set(key, c)
+      }
+    } else {
+      const str = String(c)
+      const key = str.toLowerCase()
+      if (key && !mergedChoicesMap.has(key)) {
+        mergedChoicesMap.set(key, { id: str, name: str })
+      }
+    }
+  }
+
+  const baseObj =
+    typeof existingOpts === 'object' && existingOpts !== null
+      ? { ...existingOpts }
+      : typeof newOpts === 'object' && newOpts !== null
+      ? { ...newOpts }
+      : {}
+
+  return {
+    ...baseObj,
+    choices: Array.from(mergedChoicesMap.values()),
+  }
+}
+
 /**
  * Builds unified cross-table column metadata by grouping fields by logical name.
  * Tracks all underlying table sources, flags any field type mismatches, and supports custom alias mappings.
@@ -114,9 +180,7 @@ export function buildUnifiedColumns(
     } else {
       const existing = columnsByName.get(colKey)!
       existing.tableFieldMap[field.tableId] = fieldKey
-      if (!existing.options && field.options) {
-        existing.options = field.options
-      }
+      existing.options = mergeFieldOptions(existing.options, field.options)
       // Check if source already tracked
       if (!existing.sources.some((s) => s.fieldId === field.id && s.tableId === field.tableId)) {
         existing.sources.push(srcInfo)

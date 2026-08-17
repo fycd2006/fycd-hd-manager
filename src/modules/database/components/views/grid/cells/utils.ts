@@ -61,20 +61,44 @@ export const resolveChoiceString = (str: string, fieldOptions?: any): string => 
     if (Array.isArray(opts.choices)) rawItems = opts.choices;
     else if (Array.isArray(opts.select_options)) rawItems = opts.select_options;
     else if (Array.isArray(opts.options)) rawItems = opts.options;
+    else if (Array.isArray(opts.selectOptions)) rawItems = opts.selectOptions;
   }
 
+  const strTrimmed = String(str).trim();
+  const strLower = strTrimmed.toLowerCase();
+
   const matched = rawItems.find((item: any) => {
-    if (typeof item === 'string') return item === str;
+    if (typeof item === 'string') {
+      const itTrimmed = item.trim();
+      return itTrimmed === strTrimmed || itTrimmed.toLowerCase() === strLower;
+    }
     if (item && typeof item === 'object') {
-      return item.id === str || item.value === str || item.name === str || item.label === str;
+      const itemId = item.id != null ? String(item.id).trim() : '';
+      const itemVal = item.value != null ? String(item.value).trim() : '';
+      const itemName = item.name != null ? String(item.name).trim() : '';
+      const itemLabel = item.label != null ? String(item.label).trim() : '';
+      const itemText = item.text != null ? String(item.text).trim() : '';
+
+      return (
+        (itemId && (itemId === strTrimmed || itemId.toLowerCase() === strLower)) ||
+        (itemVal && (itemVal === strTrimmed || itemVal.toLowerCase() === strLower)) ||
+        (itemName && (itemName === strTrimmed || itemName.toLowerCase() === strLower)) ||
+        (itemLabel && (itemLabel === strTrimmed || itemLabel.toLowerCase() === strLower)) ||
+        (itemText && (itemText === strTrimmed || itemText.toLowerCase() === strLower))
+      );
     }
     return false;
   });
 
   if (matched) {
     if (typeof matched === 'string') return matched;
-    const label = matched.name ?? matched.label ?? matched.text ?? matched.value ?? matched.id;
-    if (label !== undefined && label !== null) return String(label);
+    const label = matched.name ?? matched.label ?? matched.text ?? matched.value;
+    if (label !== undefined && label !== null && String(label).trim() !== '') {
+      return String(label);
+    }
+    if (matched.id !== undefined && matched.id !== null) {
+      return String(matched.id);
+    }
   }
   return str;
 };
@@ -86,6 +110,7 @@ export const parseSelectItems = (val: any, fieldOptions?: any): string[] => {
   }
   if (typeof val === 'object') {
     if (Array.isArray(val.choices)) return val.choices.flatMap(cleanChoice);
+    // Prioritize human-readable label properties over raw id
     const label = val.name ?? val.label ?? val.text ?? val.value ?? val.id;
     if (label !== undefined && label !== null) return [resolveChoiceString(String(label), fieldOptions)];
     return [resolveChoiceString(String(val), fieldOptions)];

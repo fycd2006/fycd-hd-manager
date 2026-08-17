@@ -66,6 +66,8 @@ import {
   analyzeFieldFrequencies,
   buildUnifiedColumns,
   getRowFieldValue,
+  mergeFieldOptions,
+  extractChoicesList,
 } from '@/modules/database/services/multiTableUtils'
 
 export type { MasterFieldInfo }
@@ -237,18 +239,55 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
     }
 
     const unifiedCol = unifiedColumnsMap[key]
-    const fieldInfo = fieldsMap[key] || (unifiedCol ? fieldsMap[`field_${unifiedCol.sampleFieldId}`] : null)
-    const fieldType = unifiedCol?.type || fieldInfo?.type || 'text'
-    const options = unifiedCol?.options || fieldInfo?.options
+    const tableFieldKey = unifiedCol?.tableFieldMap[row.tableId] || key
+    const tableFieldInfo = fieldsMap[tableFieldKey] || fieldsMap[key]
+    const sampleFieldInfo = unifiedCol ? fieldsMap[`field_${unifiedCol.sampleFieldId}`] : null
+    const fieldType = tableFieldInfo?.type || unifiedCol?.type || sampleFieldInfo?.type || 'text'
+
+    // Combine choices from table field, unified column, and all source fields
+    let mergedOptions = mergeFieldOptions(unifiedCol?.options, tableFieldInfo?.options)
+    mergedOptions = mergeFieldOptions(mergedOptions, sampleFieldInfo?.options)
+    if (unifiedCol?.sources) {
+      for (const src of unifiedCol.sources) {
+        if (fieldsMap[src.fieldKey]?.options) {
+          mergedOptions = mergeFieldOptions(mergedOptions, fieldsMap[src.fieldKey]?.options)
+        }
+      }
+    }
+    const options = mergedOptions
 
     // 1. Single Select / Multiple Select
     if (fieldType === 'single_select' || fieldType === 'multiple_select') {
-      const items = parseSelectItems(val, options)
+      const items = parseSelectItems(val, mergedOptions)
       if (items.length > 0) {
         return (
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
             {items.map((itemStr, i) => {
-              const { bg, text } = getOptionColor(itemStr, options?.choices || options?.select_options || options)
+              let displayLabel = itemStr
+              // If itemStr looks like an unparsed UUID, look up across all fieldsMap choices
+              if (
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemStr) ||
+                /^opt_[a-z0-9]+$/i.test(itemStr)
+              ) {
+                for (const f of Object.values(fieldsMap)) {
+                  const fChoices = extractChoicesList(f.options)
+                  const found = fChoices.find(
+                    (c: any) =>
+                      c &&
+                      (String(c.id).toLowerCase() === itemStr.toLowerCase() ||
+                        String(c.value).toLowerCase() === itemStr.toLowerCase())
+                  )
+                  if (found) {
+                    displayLabel = found.name || found.label || found.text || found.value || itemStr
+                    break
+                  }
+                }
+              }
+
+              const { bg, text } = getOptionColor(
+                displayLabel,
+                mergedOptions?.choices || mergedOptions?.select_options || mergedOptions
+              )
               return (
                 <span
                   key={i}
@@ -264,9 +303,9 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                   }}
-                  title={itemStr}
+                  title={displayLabel}
                 >
-                  {itemStr}
+                  {displayLabel}
                 </span>
               )
             })}
@@ -1118,14 +1157,48 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
         if (val == null || val === '') return '""'
 
         const unifiedCol = unifiedColumnsMap[k]
-        const fieldInfo = fieldsMap[k] || (unifiedCol ? fieldsMap[`field_${unifiedCol.sampleFieldId}`] : null)
-        const fieldType = unifiedCol?.type || fieldInfo?.type
+        const tableFieldKey = unifiedCol?.tableFieldMap[r.tableId] || k
+        const tableFieldInfo = fieldsMap[tableFieldKey] || fieldsMap[k]
+        const sampleFieldInfo = unifiedCol ? fieldsMap[`field_${unifiedCol.sampleFieldId}`] : null
+        const fieldType = tableFieldInfo?.type || unifiedCol?.type || sampleFieldInfo?.type || 'text'
+
+        let mergedOptions = mergeFieldOptions(unifiedCol?.options, tableFieldInfo?.options)
+        mergedOptions = mergeFieldOptions(mergedOptions, sampleFieldInfo?.options)
+        if (unifiedCol?.sources) {
+          for (const src of unifiedCol.sources) {
+            if (fieldsMap[src.fieldKey]?.options) {
+              mergedOptions = mergeFieldOptions(mergedOptions, fieldsMap[src.fieldKey]?.options)
+            }
+          }
+        }
 
         let textVal = ''
         if (fieldType === 'boolean' || typeof val === 'boolean') {
           textVal = val ? '是' : '否'
         } else if (fieldType === 'single_select' || fieldType === 'multiple_select') {
-          textVal = parseSelectItems(val, unifiedCol?.options || fieldInfo?.options).join(', ')
+          const parsed = parseSelectItems(val, mergedOptions)
+          textVal = parsed
+            .map((itemStr) => {
+              if (
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemStr) ||
+                /^opt_[a-z0-9]+$/i.test(itemStr)
+              ) {
+                for (const f of Object.values(fieldsMap)) {
+                  const fChoices = extractChoicesList(f.options)
+                  const found = fChoices.find(
+                    (c: any) =>
+                      c &&
+                      (String(c.id).toLowerCase() === itemStr.toLowerCase() ||
+                        String(c.value).toLowerCase() === itemStr.toLowerCase())
+                  )
+                  if (found) {
+                    return found.name || found.label || found.text || found.value || itemStr
+                  }
+                }
+              }
+              return itemStr
+            })
+            .join(', ')
         } else if (fieldType === 'date' || fieldType === 'created_on' || fieldType === 'last_modified_on') {
           textVal = formatDateValue(val)
         } else if (Array.isArray(val)) {
