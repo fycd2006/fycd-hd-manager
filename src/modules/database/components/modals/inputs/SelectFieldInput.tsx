@@ -55,6 +55,10 @@ export const getFieldSelectOptions = (fieldOptions: any): SelectOptionItem[] => 
     rawList = opts.split(',')
   }
 
+  const isUuidPattern = (s: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+    /^[0-9a-f]{24,}$/i.test(s.trim())
+
   return rawList
     .map((item, idx) => {
       if (typeof item === 'object' && item !== null) {
@@ -66,7 +70,7 @@ export const getFieldSelectOptions = (fieldOptions: any): SelectOptionItem[] => 
       const str = String(item).trim()
       return { id: str, name: str }
     })
-    .filter((opt) => opt.name.length > 0)
+    .filter((opt) => opt.name.length > 0 && !isUuidPattern(opt.name))
 }
 
 export const parseRawSelectValues = (val: any): string[] => {
@@ -75,14 +79,14 @@ export const parseRawSelectValues = (val: any): string[] => {
     return val
       .map((item) => {
         if (typeof item === 'object' && item !== null) {
-          return String(item.id ?? item.value ?? item.name ?? item.label ?? '')
+          return String(item.name ?? item.label ?? item.text ?? item.value ?? item.id ?? '')
         }
         return String(item).trim()
       })
       .filter(Boolean)
   }
   if (typeof val === 'object') {
-    return [String(val.id ?? val.value ?? val.name ?? val.label ?? '')].filter(Boolean)
+    return [String(val.name ?? val.label ?? val.text ?? val.value ?? val.id ?? '')].filter(Boolean)
   }
   if (typeof val === 'string') {
     const trimmed = val.trim()
@@ -116,6 +120,7 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
     (rawVal) =>
       !rawVal.startsWith('field_') &&
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawVal) &&
+      !/^[0-9a-f]{24,}$/i.test(rawVal) &&
       !/^opt_[a-z0-9]+$/i.test(rawVal) &&
       !definedOptions.some(
         (opt) =>
@@ -145,6 +150,8 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
   const toggleSelectOption = (opt: SelectOptionItem, isMulti: boolean) => {
     if (readOnly) return
     const currentlySelected = isOptionSelected(opt)
+    // Always use the readable option name to prevent UUID pollution in row data
+    const optVal = opt.name || opt.id
 
     if (isMulti) {
       if (currentlySelected) {
@@ -158,15 +165,15 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
         )
         onChange(next)
       } else {
-        // Add option id (or name if no distinct id)
-        const next = [...rawSelectedValues, opt.id || opt.name]
+        // Add readable option name
+        const next = [...rawSelectedValues, optVal]
         onChange(next)
       }
     } else {
       if (currentlySelected) {
         onChange('')
       } else {
-        onChange(opt.id || opt.name)
+        onChange(optVal)
       }
     }
   }

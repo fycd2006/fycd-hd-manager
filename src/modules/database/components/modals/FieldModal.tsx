@@ -157,6 +157,12 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
             else if (parsed && Array.isArray(parsed.choices)) choices = parsed.choices.map((o: any) => typeof o === 'object' && o !== null ? (o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)) : String(o))
             else if (parsed && Array.isArray(parsed.select_options)) choices = parsed.select_options.map((o: any) => typeof o === 'object' && o !== null ? (o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)) : String(o))
 
+            const isUuidPattern = (s: string) =>
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+              /^[0-9a-f]{24,}$/i.test(s.trim())
+
+            choices = choices.filter((c) => c && typeof c === 'string' && !isUuidPattern(c))
+
             if (parsed && typeof parsed === 'object') {
               if (parsed.targetTableId) setTargetTableId(Number(parsed.targetTableId))
               if (parsed.relationFieldId) setRelationFieldId(Number(parsed.relationFieldId))
@@ -213,7 +219,10 @@ export function FieldModal({ show, onClose, onSubmit, tables = [], fields = [], 
     try {
       let parsedOptions: any = null
       if (type === 'single_select' || type === 'multiple_select') {
-        parsedOptions = { choices: optionsList }
+        const isUuidPattern = (s: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+          /^[0-9a-f]{24,}$/i.test(s.trim())
+        parsedOptions = { choices: optionsList.filter((c) => c && typeof c === 'string' && !isUuidPattern(c)) }
       } else if (type === 'link_row' && targetTableId) {
         parsedOptions = { targetTableId, createRelatedField, allowMultiple }
       } else if ((type === 'lookup' || type === 'rollup') && relationFieldId) {

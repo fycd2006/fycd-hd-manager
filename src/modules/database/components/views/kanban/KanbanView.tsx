@@ -73,9 +73,16 @@ export default function KanbanView({
       if (typeof parsed === 'string') {
         try { parsed = JSON.parse(parsed) } catch {}
       }
-      if (Array.isArray(parsed)) return parsed.map(String)
-      if (parsed && Array.isArray(parsed.choices)) return parsed.choices.map(String)
-      if (parsed && Array.isArray(parsed.select_options)) return parsed.select_options.map((o: any) => typeof o === 'object' ? (o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)) : String(o))
+      const extractName = (o: any) =>
+        typeof o === 'object' && o !== null
+          ? o.name ?? o.label ?? o.text ?? o.value ?? o.id ?? String(o)
+          : String(o)
+
+      if (Array.isArray(parsed)) return parsed.map(extractName)
+      if (parsed && Array.isArray(parsed.choices)) return parsed.choices.map(extractName)
+      if (parsed && Array.isArray(parsed.select_options)) return parsed.select_options.map(extractName)
+      if (parsed && Array.isArray(parsed.options)) return parsed.options.map(extractName)
+      if (parsed && Array.isArray(parsed.selectOptions)) return parsed.selectOptions.map(extractName)
     } catch {}
     if (typeof optionsRaw === 'string') {
       return optionsRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -96,14 +103,8 @@ export default function KanbanView({
   const groupKey = activeField ? `field_${activeField.id}` : ''
   rows.forEach(row => {
     const rawVal = row.data[groupKey]
-    let valStr = ''
-    if (Array.isArray(rawVal)) {
-      valStr = String(rawVal[0] ?? '')
-    } else if (rawVal && typeof rawVal === 'object') {
-      valStr = String((rawVal as any).name ?? (rawVal as any).label ?? (rawVal as any).text ?? (rawVal as any).value ?? (rawVal as any).id ?? '')
-    } else {
-      valStr = String(rawVal ?? '')
-    }
+    const parsedItems = parseSelectItems(rawVal, activeField?.options)
+    const valStr = parsedItems.length > 0 ? parsedItems[0] : (rawVal != null && rawVal !== '' ? String(rawVal) : '')
 
     if (valStr && columns.includes(valStr)) {
       groupedRows[valStr].push(row)

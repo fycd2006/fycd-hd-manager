@@ -33,16 +33,31 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
   const [comboSearch, setComboSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const safeOptions = Array.isArray(options) ? options : [];
-  const filteredOptions = safeOptions.filter(opt => {
-    const name = typeof opt === 'string' ? opt : opt.name;
-    return (name || '').toLowerCase().includes(comboSearch.toLowerCase());
-  });
+  const isUuidPattern = (s: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+    /^[0-9a-f]{24,}$/i.test(s.trim())
+
+  const safeOptions = (Array.isArray(options) ? options : [])
+    .map((opt) => {
+      if (typeof opt === 'object' && opt !== null) {
+        return {
+          id: String(opt.id ?? opt.value ?? opt.name ?? ''),
+          name: String(opt.name ?? opt.label ?? opt.text ?? opt.value ?? opt.id ?? ''),
+          color: opt.color || '#f1f5f9'
+        }
+      }
+      const str = String(opt).trim()
+      return { id: str, name: str, color: '#f1f5f9' }
+    })
+    .filter((opt) => opt.name.length > 0 && !isUuidPattern(opt.name))
+
+  const filteredOptions = safeOptions.filter((opt) => {
+    return (opt.name || '').toLowerCase().includes(comboSearch.toLowerCase())
+  })
   
-  const isExactMatch = safeOptions.some(opt => {
-    const name = typeof opt === 'string' ? opt : opt.name;
-    return (name || '').toLowerCase() === comboSearch.toLowerCase();
-  });
+  const isExactMatch = safeOptions.some((opt) => {
+    return (opt.name || '').toLowerCase() === comboSearch.toLowerCase()
+  })
 
   let currentItems: string[] = [];
   if (isMultiple) {
@@ -54,25 +69,23 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
     }
   }
 
-  const searchAlreadySelected = isMultiple && currentItems.some(item => {
-    const opt = safeOptions.find(o => o.id === item || o.name === item);
-    const name = opt ? opt.name : item;
-    return name.toLowerCase() === comboSearch.toLowerCase();
-  });
+  const searchAlreadySelected = isMultiple && currentItems.some((item) => {
+    const opt = safeOptions.find((o) => o.id === item || o.name === item)
+    const name = opt ? opt.name : item
+    return name.toLowerCase() === comboSearch.toLowerCase()
+  })
 
   const handleCreateNewOption = () => {
-    if (!onUpdateField) return null;
-    const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+    if (!onUpdateField) return null
+    const trimmed = comboSearch.trim()
+    if (!trimmed || isUuidPattern(trimmed)) return null
+    const newId = 'opt_' + Math.random().toString(36).substr(2, 9)
+    const newOpt = { id: newId, name: trimmed, color: '#f1f5f9' }
+    const newOptions = [...safeOptions, newOpt]
     
-    // Pick a random palette color from utils if possible, but fallback to #f1f5f9
-    // Wait, utils has BASEROW_PALETTE, but we don't export it directly. Let's just use #f1f5f9 
-    // and let backend/getOptionColor handle it.
-    const newOpt = { id: newId, name: comboSearch, color: '#f1f5f9' };
-    const newOptions = [...safeOptions, newOpt];
-    
-    onUpdateField(fieldId, { options: { choices: newOptions } });
-    return newId;
-  };
+    onUpdateField(fieldId, { options: { choices: newOptions } })
+    return trimmed
+  }
 
   if (!isMultiple) {
     const selectedOpt = safeOptions.find(o => o.id === localVal || o.name === localVal);
@@ -185,15 +198,17 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                   onMouseDown={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    setLocalVal(optId);
-                    onUpdate(optId);
+                    const targetVal = optName || optId;
+                    setLocalVal(targetVal);
+                    onUpdate(targetVal);
                     onCancelEdit();
                   }}
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    setLocalVal(optId);
-                    onUpdate(optId);
+                    const targetVal = optName || optId;
+                    setLocalVal(targetVal);
+                    onUpdate(targetVal);
                     onCancelEdit();
                   }}
                   style={{ padding: '6px 12px', cursor: 'pointer', background: isSelected ? '#f1f5f9' : 'transparent', display: 'flex', alignItems: 'center' }}
@@ -372,7 +387,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                   let nextItems = [...currentItems];
                   // If it's selected by name (old format), remove it as well.
                   nextItems = nextItems.filter(item => item !== optId && item !== optName);
-                  if (!isSelected) nextItems.push(optId);
+                  if (!isSelected) nextItems.push(optName || optId);
                   
                   const nextVal = JSON.stringify(nextItems);
                   setLocalVal(nextVal);

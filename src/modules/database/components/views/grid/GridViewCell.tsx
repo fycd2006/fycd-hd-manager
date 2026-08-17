@@ -520,12 +520,17 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       if (Array.isArray(opts.choices)) rawItems = opts.choices;
       else if (Array.isArray(opts.select_options)) rawItems = opts.select_options;
       else if (Array.isArray(opts.options)) rawItems = opts.options;
+      else if (Array.isArray(opts.selectOptions)) rawItems = opts.selectOptions;
     }
 
     if (rawItems.length === 0 && typeof field.options === 'string' && field.options.trim()) {
       rawItems = field.options.split(',');
     }
-    const cleaned = rawItems.flatMap(cleanChoice);
+    const isUuidPattern = (s: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+      /^[0-9a-f]{24,}$/i.test(s.trim());
+
+    const cleaned = rawItems.flatMap(cleanChoice).filter(name => name && !isUuidPattern(name));
     return Array.from(new Set(cleaned));
   };
 
@@ -1135,9 +1140,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Escape') onCancelEdit();
                 if (e.key === 'Enter' && comboSearch) {
-                   const finalVal = comboSearch;
-                   if (!isExactMatch && onUpdateField) {
-                     const newOptions = [...options, comboSearch];
+                   const finalVal = comboSearch.trim();
+                   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalVal) || /^[0-9a-f]{24,}$/i.test(finalVal);
+                   if (!isExactMatch && !isUuid && onUpdateField) {
+                     const newOptions = [...options, finalVal];
                      onUpdateField(field.id, { options: { choices: newOptions } as any });
                    }
                    setLocalVal(finalVal);
@@ -1203,7 +1209,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           e.preventDefault();
                           if (!comboSearch.trim()) return;
                           const val = comboSearch.trim();
-                          if (!isExactMatch && onUpdateField) {
+                          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
+                          if (!isExactMatch && !isUuid && onUpdateField) {
                             const newOptions = [...options, val];
                             onUpdateField(field.id, { options: { choices: newOptions } as any });
                           }
@@ -1253,12 +1260,14 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (onUpdateField) {
-                            const newOptions = [...options, comboSearch];
+                          const valToCreate = comboSearch.trim();
+                          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToCreate) || /^[0-9a-f]{24,}$/i.test(valToCreate);
+                          if (!isUuid && onUpdateField) {
+                            const newOptions = [...options, valToCreate];
                             onUpdateField(field.id, { options: { choices: newOptions } as any });
                           }
-                          setLocalVal(comboSearch);
-                          onUpdate(comboSearch);
+                          setLocalVal(valToCreate);
+                          onUpdate(valToCreate);
                           onCancelEdit();
                         }}
                         style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
@@ -1294,11 +1303,13 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Escape') onCancelEdit();
                 if (e.key === 'Enter' && comboSearch && !searchAlreadySelected) {
-                   if (!isExactMatch && onUpdateField) {
-                     const newOptions = [...options, comboSearch];
+                   const valToAdd = comboSearch.trim();
+                   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToAdd) || /^[0-9a-f]{24,}$/i.test(valToAdd);
+                   if (!isExactMatch && !isUuid && onUpdateField) {
+                     const newOptions = [...options, valToAdd];
                      onUpdateField(field.id, { options: { choices: newOptions } as any });
                    }
-                   const nextItems = [...currentItems, comboSearch];
+                   const nextItems = [...currentItems, valToAdd];
                    const nextVal = JSON.stringify(nextItems);
                    setLocalVal(nextVal);
                    onUpdate(nextVal);
@@ -1375,7 +1386,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           e.preventDefault();
                           if (!comboSearch.trim()) return;
                           const val = comboSearch.trim();
-                          if (!isExactMatch && onUpdateField) {
+                          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
+                          if (!isExactMatch && !isUuid && onUpdateField) {
                             const newOptions = [...options, val];
                             onUpdateField(field.id, { options: { choices: newOptions } as any });
                           }
@@ -1441,15 +1453,13 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (onUpdateField) {
-                            const newOptions = [...options, comboSearch];
+                          const valToAdd = comboSearch.trim();
+                          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToAdd) || /^[0-9a-f]{24,}$/i.test(valToAdd);
+                          if (!isUuid && onUpdateField) {
+                            const newOptions = [...options, valToAdd];
                             onUpdateField(field.id, { options: { choices: newOptions } as any });
                           }
-                          const nextItems = [...currentItems, comboSearch];
+                          const nextItems = [...currentItems, valToAdd];
                           const nextVal = JSON.stringify(nextItems);
                           setLocalVal(nextVal);
                           onUpdate(nextVal);

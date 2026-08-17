@@ -23,13 +23,19 @@ export function SelectFieldOptions({
   newOptionText,
   setNewOptionText
 }: SelectFieldOptionsProps) {
+  const isUuidPattern = (s: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+    /^[0-9a-f]{24,}$/i.test(s.trim())
+
+  const cleanOptions = optionsList.filter((opt) => opt && !isUuidPattern(opt))
+
   return (
     <div style={{ marginBottom: '16px', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '12px', background: '#f8fafc' }}>
       <label style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '8px', display: 'block' }}>
         Choices / Options
       </label>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-        {optionsList.map((opt, i) => {
+        {cleanOptions.map((opt, i) => {
           const { bg, text } = getOptionColor(opt)
           return (
             <span key={i} style={{ background: bg, color: text, padding: '3px 10px', borderRadius: '9999px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -37,12 +43,12 @@ export function SelectFieldOptions({
               <X
                 size={12}
                 style={{ cursor: 'pointer', opacity: 0.7 }}
-                onClick={() => setOptionsList(optionsList.filter((_, index) => index !== i))}
+                onClick={() => setOptionsList(cleanOptions.filter((_, index) => index !== i))}
               />
             </span>
           )
         })}
-        {optionsList.length === 0 && (
+        {cleanOptions.length === 0 && (
           <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No choices yet. Add options below.</span>
         )}
       </div>
