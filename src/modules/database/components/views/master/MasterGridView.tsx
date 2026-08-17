@@ -39,8 +39,22 @@ import {
   Target,
   ChevronDown,
   ChevronRight,
+  Star,
+  Mail,
+  Clock,
+  MessageSquare,
+  Paperclip,
+  User,
 } from 'lucide-react'
 import { CardDrawer } from '@/modules/database/components/cards/CardDrawer'
+import { formatDateValue } from '@/modules/database/utils'
+import {
+  parseSelectItems,
+  getOptionColor,
+  formatNumberValue,
+} from '@/modules/database/components/views/grid/cells/utils'
+import { renderFormulaCell } from '@/modules/database/components/views/grid/cells/FormulaCell'
+import { parseLatestCommentEntries } from '@/modules/database/components/views/grid/GridViewCell'
 
 import { FieldMappingModal } from './FieldMappingModal'
 import type { MasterViewRowWithOverrides } from '@/modules/database/services/masterViewOverride'
@@ -184,15 +198,38 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
       case 'boolean':
         return <ToggleLeft size={12} color="#7c3aed" />
       case 'date':
+      case 'created_on':
+      case 'last_modified_on':
         return <Calendar size={12} color="#ea580c" />
       case 'link_row':
         return <Link2 size={12} color="#4f46e5" />
+      case 'rating':
+        return <Star size={12} color="#f59e0b" />
+      case 'email':
+        return <Mail size={12} color="#ea580c" />
+      case 'url':
+        return <Link2 size={12} color="#ea580c" />
+      case 'latest_comment':
+        return <MessageSquare size={12} color="#ea580c" />
+      case 'file':
+      case 'attachment':
+        return <Paperclip size={12} color="#64748b" />
+      case 'collaborator':
+      case 'created_by':
+      case 'last_modified_by':
+        return <User size={12} color="#7c3aed" />
+      case 'formula':
+      case 'rollup':
+      case 'lookup':
+        return <Sparkles size={12} color="#64748b" />
+      case 'duration':
+        return <Clock size={12} color="#ea580c" />
       default:
         return <Type size={12} color="#64748b" />
     }
   }
 
-  // Helper to render formatted cell value with unified cross-table alignment
+  // Helper to render formatted cell value matching regular table display
   const renderCellValue = (row: MasterViewRowWithOverrides, key: string) => {
     const val = getRowFieldValue(row, key, unifiedColumnsMap, fieldsMap)
     if (val == null || val === '') {
@@ -204,65 +241,530 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
     const fieldType = unifiedCol?.type || fieldInfo?.type || 'text'
     const options = unifiedCol?.options || fieldInfo?.options
 
-    // Single Select with choice badge
-    if (fieldType === 'single_select' && options?.choices) {
-      const choices = options.choices
-      const choice = choices.find(
-        (c: any) => String(c.id) === String(val) || c.name === String(val)
-      )
-      if (choice) {
-        const colorBgMap: Record<string, { bg: string; text: string }> = {
-          blue: { bg: '#e0e7ff', text: '#3730a3' },
-          green: { bg: '#dcfce7', text: '#166534' },
-          yellow: { bg: '#fef9c3', text: '#854d0e' },
-          red: { bg: '#fee2e2', text: '#991b1b' },
-          purple: { bg: '#f3e8ff', text: '#6b21a8' },
-          orange: { bg: '#ffedd5', text: '#9a3412' },
-          pink: { bg: '#fce7f3', text: '#9d174d' },
-          gray: { bg: '#f1f5f9', text: '#475569' },
-        }
-        const styleConfig = colorBgMap[choice.color] || { bg: '#f1f5f9', text: '#334155' }
+    // 1. Single Select / Multiple Select
+    if (fieldType === 'single_select' || fieldType === 'multiple_select') {
+      const items = parseSelectItems(val, options)
+      if (items.length > 0) {
         return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '2px 8px',
-              borderRadius: '9999px',
-              fontSize: '11px',
-              fontWeight: 500,
-              backgroundColor: styleConfig.bg,
-              color: styleConfig.text,
-            }}
-          >
-            {choice.name}
-          </span>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
+            {items.map((itemStr, i) => {
+              const { bg, text } = getOptionColor(itemStr, options?.choices || options?.select_options || options)
+              return (
+                <span
+                  key={i}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    backgroundColor: bg,
+                    color: text,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                  title={itemStr}
+                >
+                  {itemStr}
+                </span>
+              )
+            })}
+          </div>
         )
       }
+      return <span style={{ color: '#cbd5e1' }}>—</span>
     }
 
-    // Boolean
+    // 2. Link Row (關聯資料表列)
+    if (fieldType === 'link_row') {
+      let linkItems: Array<{ id?: number; value: string; tableName?: string }> = []
+      if (Array.isArray(val)) {
+        linkItems = val.map((item) => {
+          if (typeof item === 'object' && item !== null) {
+            return {
+              id: item.id ? Number(item.id) : undefined,
+              value: item.value || item.name || (item.id ? `列 ID: ${item.id}` : ''),
+              tableName: item.tableName,
+            }
+          }
+          return { id: Number(item) || undefined, value: `列 ID: ${item}` }
+        })
+      } else if (typeof val === 'string' && val.trim()) {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed)) {
+            linkItems = parsed.map((item: any) => {
+              if (typeof item === 'object' && item !== null) {
+                return {
+                  id: item.id ? Number(item.id) : undefined,
+                  value: item.value || item.name || (item.id ? `列 ID: ${item.id}` : ''),
+                  tableName: item.tableName,
+                }
+              }
+              return { id: Number(item) || undefined, value: `列 ID: ${item}` }
+            })
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            linkItems = [
+              {
+                id: parsed.id ? Number(parsed.id) : undefined,
+                value: parsed.value || parsed.name || (parsed.id ? `列 ID: ${parsed.id}` : ''),
+                tableName: parsed.tableName,
+              },
+            ]
+          } else {
+            linkItems = [{ value: String(parsed) }]
+          }
+        } catch {
+          linkItems = [{ value: val }]
+        }
+      } else if (typeof val === 'object' && val !== null) {
+        linkItems = [
+          {
+            id: val.id ? Number(val.id) : undefined,
+            value: val.value || val.name || (val.id ? `列 ID: ${val.id}` : ''),
+            tableName: val.tableName,
+          },
+        ]
+      }
+
+      if (linkItems.length > 0) {
+        const targetTableId = options?.target_table_id || options?.link_table_id
+        return (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
+            {linkItems.map((item, i) => (
+              <span
+                key={i}
+                onClick={(e) => {
+                  if (targetTableId && item.id) {
+                    e.stopPropagation()
+                    setSelectedDrawerRow({
+                      tableId: targetTableId,
+                      rowId: item.id,
+                      tableName: item.tableName || `資料表 ${targetTableId}`,
+                    })
+                  }
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  backgroundColor: '#eff6ff',
+                  color: '#1d4ed8',
+                  border: '1px solid #bfdbfe',
+                  cursor: targetTableId && item.id ? 'pointer' : 'default',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+                title={item.value}
+              >
+                <Link2 size={11} color="#2563eb" />
+                <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {item.value || (item.id ? `列 ID: ${item.id}` : '—')}
+                </span>
+              </span>
+            ))}
+          </div>
+        )
+      }
+      return <span style={{ color: '#cbd5e1' }}>—</span>
+    }
+
+    // 3. Collaborator (協作成員)
+    if (fieldType === 'collaborator') {
+      let collabItems: Array<{ id?: number; username: string }> = []
+      if (Array.isArray(val)) {
+        collabItems = val.map((item) =>
+          typeof item === 'object' && item !== null
+            ? { id: item.id, username: item.username || item.name || `ID: ${item.id}` }
+            : { username: String(item) }
+        )
+      } else if (typeof val === 'string' && val.trim()) {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed)) {
+            collabItems = parsed.map((item: any) =>
+              typeof item === 'object' && item !== null
+                ? { id: item.id, username: item.username || item.name || `ID: ${item.id}` }
+                : { username: String(item) }
+            )
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            collabItems = [{ id: parsed.id, username: parsed.username || parsed.name || `ID: ${parsed.id}` }]
+          } else {
+            collabItems = [{ username: String(parsed) }]
+          }
+        } catch {
+          collabItems = [{ username: val }]
+        }
+      } else if (typeof val === 'object' && val !== null) {
+        collabItems = [{ id: val.id, username: val.username || val.name || `ID: ${val.id}` }]
+      }
+
+      if (collabItems.length > 0) {
+        return (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
+            {collabItems.map((item, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  backgroundColor: '#f5f3ff',
+                  color: '#6d28d9',
+                  border: '1px solid #ddd6fe',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                <User size={11} color="#7c3aed" />
+                <span>{item.username}</span>
+              </span>
+            ))}
+          </div>
+        )
+      }
+      return <span style={{ color: '#cbd5e1' }}>—</span>
+    }
+
+    // 4. Latest Comment (最新留言備註)
+    if (fieldType === 'latest_comment') {
+      const entries = parseLatestCommentEntries(val)
+      const latest = entries.length > 0 ? entries[entries.length - 1] : null
+      if (latest) {
+        return (
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', maxWidth: '260px' }}
+            title={latest.content}
+          >
+            <MessageSquare size={12} color="#ea580c" style={{ flexShrink: 0 }} />
+            <span
+              style={{
+                fontSize: '12px',
+                color: '#334155',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {latest.content}
+            </span>
+            <span style={{ fontSize: '10px', color: '#94a3b8', flexShrink: 0 }}>
+              {latest.time?.split(' ')[1] || latest.time}
+            </span>
+          </div>
+        )
+      }
+      return <span style={{ color: '#cbd5e1' }}>—</span>
+    }
+
+    // 5. File / Attachment (檔案 / 附件)
+    if (fieldType === 'file' || fieldType === 'attachment') {
+      let fileItems: Array<{ name: string; url?: string }> = []
+      if (Array.isArray(val)) {
+        fileItems = val.map((f) =>
+          typeof f === 'object' && f !== null ? { name: f.name || '檔案', url: f.url } : { name: String(f) }
+        )
+      } else if (typeof val === 'string' && val.trim()) {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed)) {
+            fileItems = parsed.map((f: any) =>
+              typeof f === 'object' && f !== null ? { name: f.name || '檔案', url: f.url } : { name: String(f) }
+            )
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            fileItems = [{ name: parsed.name || '檔案', url: parsed.url }]
+          } else {
+            fileItems = [{ name: String(parsed) }]
+          }
+        } catch {
+          fileItems = [{ name: val }]
+        }
+      }
+      if (fileItems.length > 0) {
+        return (
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
+            {fileItems.map((f, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: '1px solid #e2e8f0',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+                title={f.name}
+              >
+                <Paperclip size={11} color="#64748b" />
+                <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
+              </span>
+            ))}
+          </div>
+        )
+      }
+      return <span style={{ color: '#cbd5e1' }}>—</span>
+    }
+
+    // 6. Boolean (核取方塊)
     if (fieldType === 'boolean' || typeof val === 'boolean') {
-      return val ? (
-        <span style={{ color: '#059669', fontWeight: 600 }}>✓ 是</span>
-      ) : (
-        <span style={{ color: '#94a3b8' }}>✕ 否</span>
+      const isChecked = Boolean(val === true || val === 'true' || val === 1 || val === '1')
+      return (
+        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div
+            style={{
+              width: '16px',
+              height: '16px',
+              borderRadius: '4px',
+              border: isChecked ? '1px solid #3F6212' : '1px solid #cbd5e1',
+              backgroundColor: isChecked ? '#3F6212' : '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {isChecked && (
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+          </div>
+        </div>
       )
     }
 
-    // Array / Link Row
-    if (Array.isArray(val)) {
-      return <span>{val.length > 0 ? `${val.length} 個項目` : '—'}</span>
+    // 7. Number (數字 / 貨幣 / 百分比)
+    if (fieldType === 'number' && (typeof val === 'number' || !isNaN(Number(val)))) {
+      const formatted = formatNumberValue(val, options)
+      return (
+        <span style={{ fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 500, color: '#1e293b' }}>
+          {formatted}
+        </span>
+      )
     }
 
-    // Number
-    if (fieldType === 'number' && typeof val === 'number') {
-      return <span style={{ fontVariantNumeric: 'tabular-nums' }}>{val.toLocaleString()}</span>
+    // 8. Rating (評分星級)
+    if (fieldType === 'rating') {
+      const ratingVal = Math.min(5, Math.max(0, parseInt(String(val || 0)) || 0))
+      return (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+          {[1, 2, 3, 4, 5].map((starNum) => (
+            <Star
+              key={starNum}
+              size={13}
+              fill={starNum <= ratingVal ? '#f59e0b' : '#e2e8f0'}
+              color={starNum <= ratingVal ? '#f59e0b' : '#e4e4e7'}
+            />
+          ))}
+        </div>
+      )
+    }
+
+    // 9. URL (網址連結)
+    if (fieldType === 'url') {
+      const urlStr = String(val).trim()
+      if (!urlStr) return <span style={{ color: '#cbd5e1' }}>—</span>
+      const href = urlStr.startsWith('http://') || urlStr.startsWith('https://') ? urlStr : `https://${urlStr}`
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            color: '#ea580c',
+            textDecoration: 'underline',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '220px',
+          }}
+        >
+          <Link2 size={12} color="#ea580c" style={{ flexShrink: 0 }} />
+          <span>{urlStr}</span>
+        </a>
+      )
+    }
+
+    // 10. Email (電子郵件)
+    if (fieldType === 'email') {
+      const emailStr = String(val).trim()
+      if (!emailStr) return <span style={{ color: '#cbd5e1' }}>—</span>
+      return (
+        <a
+          href={`mailto:${emailStr}`}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            color: '#ea580c',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '220px',
+          }}
+        >
+          <Mail size={12} color="#ea580c" style={{ flexShrink: 0 }} />
+          <span>{emailStr}</span>
+        </a>
+      )
+    }
+
+    // 11. Phone (電話)
+    if (fieldType === 'phone') {
+      return <span style={{ fontSize: '12px', color: '#0f172a' }}>📞 {String(val)}</span>
+    }
+
+    // 12. Date & Audit Dates (日期 / 建立時間 / 最後修改時間)
+    if (fieldType === 'date' || fieldType === 'created_on' || fieldType === 'last_modified_on') {
+      const dStr = formatDateValue(val)
+      return (
+        <span style={{ fontSize: '12px', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          {fieldType === 'created_on' || fieldType === 'last_modified_on' ? <Clock size={11} color="#94a3b8" /> : null}
+          <span>{dStr || String(val)}</span>
+        </span>
+      )
+    }
+
+    // 13. Audit Users (建立者 / 修改者)
+    if (fieldType === 'created_by' || fieldType === 'last_modified_by') {
+      const userLabel = typeof val === 'object' && val !== null ? val.username || val.name || String(val) : String(val)
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#475569' }}>
+          <User size={11} color="#64748b" />
+          <span>{userLabel || '系統'}</span>
+        </span>
+      )
+    }
+
+    // 14. Formula / Lookup / Rollup
+    if (fieldType === 'formula' || fieldType === 'lookup' || fieldType === 'rollup') {
+      return renderFormulaCell(val)
+    }
+
+    // 15. Password
+    if (fieldType === 'password') {
+      return <span style={{ color: '#64748b', letterSpacing: '2px', fontFamily: 'monospace', fontSize: '12px' }}>••••••••</span>
+    }
+
+    // 16. Autonumber
+    if (fieldType === 'autonumber') {
+      return <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>#{val}</span>
+    }
+
+    // 17. Duration
+    if (fieldType === 'duration') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#334155', fontFamily: 'monospace' }}>
+          <Clock size={11} color="#ea580c" />
+          <span>{String(val)}</span>
+        </span>
+      )
+    }
+
+    // 18. AI Prompt
+    if (fieldType === 'ai_prompt') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#4c1d95', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Sparkles size={11} color="#ea580c" style={{ flexShrink: 0 }} />
+          <span>{String(val)}</span>
+        </span>
+      )
+    }
+
+    // 19. Fallback & Smart JSON Unpacker (防代碼字串外露)
+    let displayText = ''
+    if (typeof val === 'string') {
+      const trimmed = val.trim()
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) {
+            displayText = parsed
+              .map((item) =>
+                typeof item === 'object' && item !== null
+                  ? item.value || item.name || item.username || item.title || (item.id ? `ID: ${item.id}` : '')
+                  : String(item)
+              )
+              .filter(Boolean)
+              .join(', ')
+          } else if (typeof parsed === 'object' && parsed !== null) {
+            displayText =
+              parsed.value ||
+              parsed.name ||
+              parsed.username ||
+              parsed.title ||
+              Object.values(parsed)
+                .map((v) => String(v))
+                .filter(Boolean)
+                .join(', ')
+          } else {
+            displayText = String(parsed)
+          }
+        } catch {
+          displayText = trimmed
+        }
+      } else {
+        displayText = trimmed
+      }
+    } else if (typeof val === 'object' && val !== null) {
+      if (Array.isArray(val)) {
+        displayText = val
+          .map((item) =>
+            typeof item === 'object' && item !== null
+              ? item.value || item.name || item.username || item.title || (item.id ? `ID: ${item.id}` : '')
+              : String(item)
+          )
+          .filter(Boolean)
+          .join(', ')
+      } else {
+        displayText =
+          val.value ||
+          val.name ||
+          val.username ||
+          val.title ||
+          Object.values(val)
+            .map((v) => String(v))
+            .filter(Boolean)
+            .join(', ')
+      }
+    } else {
+      displayText = String(val)
     }
 
     return (
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+      <span
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          maxWidth: '240px',
+          display: 'inline-block',
+          color: '#18181b',
+        }}
+        title={displayText}
+      >
+        {displayText || <span style={{ color: '#cbd5e1' }}>—</span>}
       </span>
     )
   }
@@ -613,10 +1115,35 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
       const tableName = tablesMap[r.tableId]?.name || `Table ${r.tableId}`
       const values = visibleFieldKeys.map((k) => {
         const val = getRowFieldValue(r, k, unifiedColumnsMap, fieldsMap)
-        if (val == null) return ''
-        if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`
-        const str = String(val).replace(/"/g, '""')
-        return `"${str}"`
+        if (val == null || val === '') return '""'
+
+        const unifiedCol = unifiedColumnsMap[k]
+        const fieldInfo = fieldsMap[k] || (unifiedCol ? fieldsMap[`field_${unifiedCol.sampleFieldId}`] : null)
+        const fieldType = unifiedCol?.type || fieldInfo?.type
+
+        let textVal = ''
+        if (fieldType === 'boolean' || typeof val === 'boolean') {
+          textVal = val ? '是' : '否'
+        } else if (fieldType === 'single_select' || fieldType === 'multiple_select') {
+          textVal = parseSelectItems(val, unifiedCol?.options || fieldInfo?.options).join(', ')
+        } else if (fieldType === 'date' || fieldType === 'created_on' || fieldType === 'last_modified_on') {
+          textVal = formatDateValue(val)
+        } else if (Array.isArray(val)) {
+          textVal = val
+            .map((item) =>
+              typeof item === 'object' && item !== null
+                ? item.value || item.name || item.username || item.title || (item.id ? `ID: ${item.id}` : '')
+                : String(item)
+            )
+            .filter(Boolean)
+            .join(', ')
+        } else if (typeof val === 'object' && val !== null) {
+          textVal = val.value || val.name || val.username || val.title || Object.values(val).join(', ')
+        } else {
+          textVal = String(val)
+        }
+
+        return `"${textVal.replace(/"/g, '""')}"`
       })
       return [idx + 1, `"${tableName}"`, ...values, `"${new Date(r.createdAt).toLocaleString()}"`].join(',')
     })

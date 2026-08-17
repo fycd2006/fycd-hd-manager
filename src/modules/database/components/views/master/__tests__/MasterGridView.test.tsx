@@ -991,7 +991,86 @@ describe('MasterGridView UI Component', () => {
     })
     expect(screen.getByTestId('sort-header-Title')).toBeInTheDocument()
   })
+
+  it('renders all complex field types cleanly without exposing raw JSON code or strings', async () => {
+    const mockApiResponse = {
+      rows: [
+        {
+          id: 501,
+          tableId: 1,
+          createdAt: '2026-08-17T10:00:00.000Z',
+          data: {
+            Title: '複雜欄位測試列',
+            Tags: '["重要", "進行中"]',
+            Assignee: '[{"id": 10, "username": "JeffreyChen"}]',
+            RelatedTask: '[{"id": 20, "value": "核心功能開發"}]',
+            Notes: '[{"id": "lc-1", "user": "Manager", "content": "請於下週前完成", "time": "2026-08-17 09:30"}]',
+            Done: true,
+            RatingScore: 4,
+            DocLink: 'https://fycd.org',
+            Contact: 'jeffrey@fycd.org',
+            Attachment: '[{"name": "規格書.pdf", "url": "https://example.com/spec.pdf"}]',
+          },
+        },
+      ],
+      fieldsMap: {
+        field_1: { id: 1, tableId: 1, name: 'Title', type: 'text' },
+        field_2: { id: 2, tableId: 1, name: 'Tags', type: 'multiple_select', options: { choices: [{ id: '1', name: '重要', color: 'red' }, { id: '2', name: '進行中', color: 'blue' }] } },
+        field_3: { id: 3, tableId: 1, name: 'Assignee', type: 'collaborator' },
+        field_4: { id: 4, tableId: 1, name: 'RelatedTask', type: 'link_row' },
+        field_5: { id: 5, tableId: 1, name: 'Notes', type: 'latest_comment' },
+        field_6: { id: 6, tableId: 1, name: 'Done', type: 'boolean' },
+        field_7: { id: 7, tableId: 1, name: 'RatingScore', type: 'rating' },
+        field_8: { id: 8, tableId: 1, name: 'DocLink', type: 'url' },
+        field_9: { id: 9, tableId: 1, name: 'Contact', type: 'email' },
+        field_10: { id: 10, tableId: 1, name: 'Attachment', type: 'file' },
+      },
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(
+      <MasterGridView
+        workspaceId={1}
+        tablesMap={{ 1: { name: '主力資料表', color: '#16a34a' } }}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('複雜欄位測試列')).toBeInTheDocument()
+    })
+
+    // 1. Multiple Select badges rendered
+    expect(screen.getByText('重要')).toBeInTheDocument()
+    expect(screen.getByText('進行中')).toBeInTheDocument()
+
+    // 2. Collaborator badge rendered
+    expect(screen.getByText('JeffreyChen')).toBeInTheDocument()
+
+    // 3. Link Row badge rendered
+    expect(screen.getByText('核心功能開發')).toBeInTheDocument()
+
+    // 4. Latest Comment text rendered
+    expect(screen.getByText('請於下週前完成')).toBeInTheDocument()
+
+    // 5. URL link rendered
+    expect(screen.getByText('https://fycd.org')).toBeInTheDocument()
+
+    // 6. Email link rendered
+    expect(screen.getByText('jeffrey@fycd.org')).toBeInTheDocument()
+
+    // 7. File attachment chip rendered
+    expect(screen.getByText('規格書.pdf')).toBeInTheDocument()
+
+    // 8. Crucial check: verify that NO raw JSON string is rendered in DOM!
+    expect(screen.queryByText(/\[\{"id":/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/\["重要"/)).not.toBeInTheDocument()
+  })
 })
+
 
 
 
