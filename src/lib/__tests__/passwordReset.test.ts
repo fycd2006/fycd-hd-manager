@@ -2,24 +2,31 @@ import { ForgotPasswordSchema, ResetPasswordSchema } from '../schemas/auth'
 
 describe('Password Reset Schemas', () => {
   describe('ForgotPasswordSchema', () => {
-    it('validates a correct email address', () => {
-      const valid = ForgotPasswordSchema.safeParse({ email: 'user@example.com' })
+    it('validates a correct username and email address', () => {
+      const valid = ForgotPasswordSchema.safeParse({ username: 'admin', email: 'user@example.com' })
       expect(valid.success).toBe(true)
       if (valid.success) {
+        expect(valid.data.username).toBe('admin')
         expect(valid.data.email).toBe('user@example.com')
       }
     })
 
-    it('trims whitespace on email', () => {
-      const valid = ForgotPasswordSchema.safeParse({ email: '  test@domain.com  ' })
+    it('trims whitespace on username and email', () => {
+      const valid = ForgotPasswordSchema.safeParse({ username: '  admin  ', email: '  test@domain.com  ' })
       expect(valid.success).toBe(true)
       if (valid.success) {
+        expect(valid.data.username).toBe('admin')
         expect(valid.data.email).toBe('test@domain.com')
       }
     })
 
+    it('rejects missing username', () => {
+      const invalid = ForgotPasswordSchema.safeParse({ username: '', email: 'test@domain.com' })
+      expect(invalid.success).toBe(false)
+    })
+
     it('rejects invalid email formats', () => {
-      const invalid = ForgotPasswordSchema.safeParse({ email: 'not-an-email' })
+      const invalid = ForgotPasswordSchema.safeParse({ username: 'admin', email: 'not-an-email' })
       expect(invalid.success).toBe(false)
     })
   })

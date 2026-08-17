@@ -93,24 +93,25 @@ export const updateProfile = async (updates: { username?: string; oldPassword?: 
 }
 
 /**
- * Request password reset email / link
+ * Request password reset (Verify identity & get reset token)
  */
-export const requestPasswordReset = async (email: string): Promise<{ ok: boolean; message?: string; error?: string; devResetUrl?: string }> => {
+export const requestPasswordReset = async (username: string, email: string): Promise<{ ok: boolean; message?: string; error?: string; resetToken?: string }> => {
   try {
     const res = await fetch('/api/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ username, email }),
     })
     const data = await res.json()
     if (res.ok) {
-      return { ok: true, message: data.message, devResetUrl: data.devResetUrl }
+      return { ok: true, message: data.message, resetToken: data.resetToken }
     }
-    return { ok: false, error: data.error || '發送重設密碼請求失敗' }
+    return { ok: false, error: data.error || '身分核對失敗' }
   } catch {
-    return { ok: false, error: '發送重設密碼請求失敗，請稍後再試' }
+    return { ok: false, error: '身分核對失敗，請稍後再試' }
   }
 }
+
 
 /**
  * Reset password with token

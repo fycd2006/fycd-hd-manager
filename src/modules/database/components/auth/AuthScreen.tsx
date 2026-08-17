@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Eye, EyeOff, Lock, User as UserIcon, Mail, ArrowRight, ArrowLeft, KeyRound, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff, Lock, User as UserIcon, Mail, ArrowRight, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
@@ -18,7 +18,7 @@ interface AuthScreenProps {
   onAuthPasswordChange: (value: string) => void
   onLogin: (e: React.FormEvent) => Promise<void>
   onRegister: (e: React.FormEvent) => Promise<void>
-  onRequestResetPassword?: (email: string) => Promise<{ ok: boolean; message?: string; error?: string; devResetUrl?: string }>
+  onRequestResetPassword?: (username: string, email: string) => Promise<{ ok: boolean; message?: string; error?: string; resetToken?: string }>
   onResetPassword?: (newPassword: string) => Promise<{ ok: boolean; message?: string; error?: string }>
 }
 
@@ -26,7 +26,7 @@ interface AuthScreenProps {
  * Design Read:
  * "Reading this as: Auth Card for FYCD HD Manager enterprise workspace,
  * with Linear-style minimalist & high-contrast aesthetics, custom brand logo,
- * clear password toggle, forgot/reset password multi-step flows, and smooth spring feedback."
+ * clear password toggle, in-app self-service forgot & reset password flow."
  */
 export default function AuthScreen({
   authMode,
@@ -52,8 +52,6 @@ export default function AuthScreen({
   // Reset password states
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null)
-  const [devResetUrl, setDevResetUrl] = useState<string | null>(null)
   const [localError, setLocalError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,6 +60,10 @@ export default function AuthScreen({
     setLocalError(null)
 
     if (authMode === 'forgot-password') {
+      if (!authUsername.trim()) {
+        setLocalError(t('auth.enterUsername'))
+        return
+      }
       if (!authEmail.trim()) {
         setLocalError(t('auth.enterEmail'))
         return
@@ -69,12 +71,11 @@ export default function AuthScreen({
       setSubmitting(true)
       try {
         if (onRequestResetPassword) {
-          const result = await onRequestResetPassword(authEmail.trim())
+          const result = await onRequestResetPassword(authUsername.trim(), authEmail.trim())
           if (result.ok) {
-            setResetSuccessMessage(result.message || t('auth.resetLinkSent'))
-            if (result.devResetUrl) {
-              setDevResetUrl(result.devResetUrl)
-            }
+            onAuthModeChange('reset-password')
+          } else {
+            setLocalError(result.error || '帳號名稱與電子郵件不符，請確認後重試')
           }
         }
       } finally {
@@ -104,7 +105,13 @@ export default function AuthScreen({
       setSubmitting(true)
       try {
         if (onResetPassword) {
-          await onResetPassword(newPassword)
+          const result = await onResetPassword(newPassword)
+          if (result.ok) {
+            setNewPassword('')
+            setConfirmPassword('')
+          } else {
+            setLocalError(result.error || '密碼重設失敗，請稍後再試')
+          }
         }
       } finally {
         setSubmitting(false)
@@ -214,122 +221,122 @@ export default function AuthScreen({
         )}
 
         {/* ========================================================================= */}
-        {/* FORGOT PASSWORD VIEW */}
+        {/* FORGOT PASSWORD VIEW (雙重身分核對) */}
         {/* ========================================================================= */}
         {authMode === 'forgot-password' && (
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <p style={{ fontSize: '13px', color: '#52525b', lineHeight: 1.5, margin: '0 0 8px 0', textAlign: 'center' }}>
+          <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <p style={{ fontSize: '13px', color: '#52525b', lineHeight: 1.5, margin: '0 0 4px 0', textAlign: 'center' }}>
               {t('auth.forgotPasswordDesc')}
             </p>
 
-            {resetSuccessMessage ? (
-              <div style={{
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '12px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                alignItems: 'center',
-                textAlign: 'center'
-              }}>
-                <CheckCircle2 size={32} color="#16a34a" />
-                <span style={{ fontSize: '13.5px', fontWeight: 600, color: '#15803d' }}>
-                  {resetSuccessMessage}
-                </span>
-
-                {devResetUrl && (
-                  <div style={{
-                    marginTop: '8px',
-                    padding: '8px 12px',
-                    backgroundColor: '#ffffff',
-                    border: '1px dashed #86efac',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: '#166534',
-                    wordBreak: 'break-all'
-                  }}>
-                    <strong>[開發者快捷測試]</strong>
-                    <br />
-                    <a href={devResetUrl} style={{ color: '#15803d', textDecoration: 'underline', marginTop: '4px', display: 'inline-block' }}>
-                      點擊此處直接進行密碼重設
-                    </a>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.emailLabel')}</label>
-                  <div style={{ position: 'relative', width: '100%' }}>
-                    <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input
-                      type="email"
-                      placeholder={t('auth.enterEmail')}
-                      value={authEmail}
-                      onChange={e => onAuthEmailChange(e.target.value)}
-                      style={{
-                        width: '100%',
-                        height: '42px',
-                        padding: '0 14px 0 40px',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #e4e4e7',
-                        borderRadius: '12px',
-                        color: '#09090b',
-                        fontSize: '13.5px',
-                        outline: 'none',
-                        boxSizing: 'border-box',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor = '#3F6212'
-                        e.currentTarget.style.backgroundColor = '#ffffff'
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = '#e4e4e7'
-                        e.currentTarget.style.backgroundColor = '#f8fafc'
-                        e.currentTarget.style.boxShadow = 'none'
-                      }}
-                      required
-                      disabled={submitting}
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
+            {/* Username Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.usernameLabel')}</label>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <UserIcon size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="text"
+                  placeholder={t('auth.enterUsername')}
+                  value={authUsername}
+                  onChange={e => onAuthUsernameChange(e.target.value)}
                   style={{
                     width: '100%',
-                    height: '44px',
-                    backgroundColor: '#3F6212',
-                    color: '#ffffff',
-                    border: 'none',
+                    height: '42px',
+                    padding: '0 14px 0 40px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e4e4e7',
                     borderRadius: '12px',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 14px rgba(63, 98, 18, 0.25)',
-                    transition: 'all 0.15s ease',
-                    opacity: submitting ? 0.7 : 1
+                    color: '#09090b',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease'
                   }}
-                >
-                  {submitting ? t('notifications.processing') : t('auth.sendResetLink')}
-                </button>
-              </form>
-            )}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#3F6212'
+                    e.currentTarget.style.backgroundColor = '#ffffff'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#e4e4e7'
+                    e.currentTarget.style.backgroundColor = '#f8fafc'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+            </div>
 
-            <div style={{ textAlign: 'center', marginTop: '12px' }}>
+            {/* Email Input */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.emailLabel')}</label>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                <input
+                  type="email"
+                  placeholder={t('auth.enterEmail')}
+                  value={authEmail}
+                  onChange={e => onAuthEmailChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    padding: '0 14px 0 40px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e4e4e7',
+                    borderRadius: '12px',
+                    color: '#09090b',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#3F6212'
+                    e.currentTarget.style.backgroundColor = '#ffffff'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#e4e4e7'
+                    e.currentTarget.style.backgroundColor = '#f8fafc'
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                  required
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                width: '100%',
+                height: '44px',
+                backgroundColor: '#3F6212',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginTop: '4px',
+                boxShadow: '0 4px 14px rgba(63, 98, 18, 0.25)',
+                transition: 'all 0.15s ease',
+                opacity: submitting ? 0.7 : 1
+              }}
+            >
+              {submitting ? t('notifications.processing') : t('auth.verifyAndReset')}
+            </button>
+
+            <div style={{ textAlign: 'center', marginTop: '8px' }}>
               <button
                 type="button"
                 onClick={() => {
-                  setResetSuccessMessage(null)
                   setLocalError(null)
                   onAuthModeChange('login')
                 }}
@@ -349,7 +356,7 @@ export default function AuthScreen({
                 <span>{t('auth.backToLogin')}</span>
               </button>
             </div>
-          </div>
+          </form>
         )}
 
         {/* ========================================================================= */}
@@ -357,7 +364,7 @@ export default function AuthScreen({
         {/* ========================================================================= */}
         {authMode === 'reset-password' && (
           <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <p style={{ fontSize: '13px', color: '#52525b', lineHeight: 1.5, margin: '0 0 6px 0', textAlign: 'center' }}>
+            <p style={{ fontSize: '13px', color: '#52525b', lineHeight: 1.5, margin: '0 0 4px 0', textAlign: 'center' }}>
               {t('auth.resetPasswordDesc')}
             </p>
 

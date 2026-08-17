@@ -30,7 +30,7 @@ export interface AuthActions {
   logout: () => Promise<void>
   checkAuth: () => Promise<boolean>
   updateProfile: (updates: { username?: string; oldPassword?: string; newPassword?: string }) => Promise<{ ok: boolean; error?: string }>
-  requestPasswordReset: (email: string) => Promise<{ ok: boolean; message?: string; error?: string; devResetUrl?: string }>
+  requestPasswordReset: (username: string, email: string) => Promise<{ ok: boolean; message?: string; error?: string; resetToken?: string }>
   resetPassword: (token: string, newPassword: string) => Promise<{ ok: boolean; message?: string; error?: string }>
 }
 
@@ -81,9 +81,14 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
     return { ok: result.ok, error: result.error }
   }, [])
 
-  const requestPasswordReset = useCallback(async (email: string) => {
-    return await authService.requestPasswordReset(email)
+  const requestPasswordReset = useCallback(async (username: string, email: string) => {
+    const result = await authService.requestPasswordReset(username, email)
+    if (result.ok && result.resetToken) {
+      setResetToken(result.resetToken)
+    }
+    return result
   }, [])
+
 
   const resetPassword = useCallback(async (token: string, newPassword: string) => {
     return await authService.resetPassword(token, newPassword)

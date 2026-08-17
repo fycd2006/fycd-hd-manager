@@ -1611,14 +1611,14 @@ export default function Home() {
                   uiActions.addToast(result.error || '註冊失敗', 'error')
                 }
               }}
-              onRequestResetPassword={async (email) => {
+              onRequestResetPassword={async (username, email) => {
                 setAuthError(null)
-                const result = await authActions.requestPasswordReset(email)
+                const result = await authActions.requestPasswordReset(username, email)
                 if (result.ok) {
-                  uiActions.addToast(result.message || '重設指示已發送', 'success')
+                  uiActions.addToast(result.message || '身分核對成功，請設定新密碼', 'success')
                 } else {
-                  setAuthError(result.error || '發送失敗')
-                  uiActions.addToast(result.error || '發送失敗', 'error')
+                  setAuthError(result.error || '身分核對失敗')
+                  uiActions.addToast(result.error || '身分核對失敗', 'error')
                 }
                 return result
               }}

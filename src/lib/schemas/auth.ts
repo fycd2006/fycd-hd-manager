@@ -16,6 +16,7 @@ export const LoginSchema = z.object({
 })
 
 export const ForgotPasswordSchema = z.object({
+  username: z.string().trim().min(1, '帳號名稱為必填'),
   email: z.string().trim().email('請輸入有效的電子郵件地址')
 })
 
