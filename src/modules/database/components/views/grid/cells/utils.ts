@@ -42,8 +42,15 @@ export const getOptionColor = (str: string, allOptions?: any[]) => {
   };
 };
 
+const isUuidPattern = (s: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+  /^[0-9a-f]{24,}$/i.test(s.trim())
+
 export const resolveChoiceString = (str: string, fieldOptions?: any): string => {
-  if (!str || !fieldOptions) return str;
+  if (!str) return '';
+  const strTrimmed = String(str).trim();
+  const strLower = strTrimmed.toLowerCase();
+
   let opts: any = fieldOptions;
   if (typeof opts === 'string') {
     try {
@@ -63,9 +70,6 @@ export const resolveChoiceString = (str: string, fieldOptions?: any): string => 
     else if (Array.isArray(opts.options)) rawItems = opts.options;
     else if (Array.isArray(opts.selectOptions)) rawItems = opts.selectOptions;
   }
-
-  const strTrimmed = String(str).trim();
-  const strLower = strTrimmed.toLowerCase();
 
   const matched = rawItems.find((item: any) => {
     if (typeof item === 'string') {
@@ -91,16 +95,26 @@ export const resolveChoiceString = (str: string, fieldOptions?: any): string => 
   });
 
   if (matched) {
-    if (typeof matched === 'string') return matched;
+    if (typeof matched === 'string') {
+      return isUuidPattern(matched) ? '' : matched;
+    }
     const label = matched.name ?? matched.label ?? matched.text ?? matched.value;
     if (label !== undefined && label !== null && String(label).trim() !== '') {
-      return String(label);
+      const labelStr = String(label).trim();
+      return isUuidPattern(labelStr) ? '' : labelStr;
     }
     if (matched.id !== undefined && matched.id !== null) {
-      return String(matched.id);
+      const idStr = String(matched.id).trim();
+      return isUuidPattern(idStr) ? '' : idStr;
     }
   }
-  return str;
+
+  // If not matched and string is a raw UUID, never display as chip
+  if (isUuidPattern(strTrimmed)) {
+    return '';
+  }
+
+  return strTrimmed;
 };
 
 export const parseSelectItems = (val: any, fieldOptions?: any): string[] => {

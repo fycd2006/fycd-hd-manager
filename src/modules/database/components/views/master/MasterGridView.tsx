@@ -263,12 +263,12 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
         return (
           <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
             {items.map((itemStr, i) => {
+              const isUuidPattern = (s: string) =>
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+                /^[0-9a-f]{24,}$/i.test(s.trim())
+
               let displayLabel = itemStr
-              // If itemStr looks like an unparsed UUID, look up across all fieldsMap choices
-              if (
-                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemStr) ||
-                /^opt_[a-z0-9]+$/i.test(itemStr)
-              ) {
+              if (isUuidPattern(itemStr) || /^opt_[a-z0-9]+$/i.test(itemStr)) {
                 for (const f of Object.values(fieldsMap)) {
                   const fChoices = extractChoicesList(f.options)
                   const found = fChoices.find(
@@ -278,10 +278,17 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         String(c.value).toLowerCase() === itemStr.toLowerCase())
                   )
                   if (found) {
-                    displayLabel = found.name || found.label || found.text || found.value || itemStr
-                    break
+                    const candidate = found.name || found.label || found.text || found.value || ''
+                    if (candidate && !isUuidPattern(candidate)) {
+                      displayLabel = candidate
+                      break
+                    }
                   }
                 }
+              }
+
+              if (isUuidPattern(displayLabel)) {
+                return null
               }
 
               const { bg, text } = getOptionColor(
@@ -1177,12 +1184,13 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
           textVal = val ? '是' : '否'
         } else if (fieldType === 'single_select' || fieldType === 'multiple_select') {
           const parsed = parseSelectItems(val, mergedOptions)
+          const isUuidPattern = (s: string) =>
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
+            /^[0-9a-f]{24,}$/i.test(s.trim())
           textVal = parsed
             .map((itemStr) => {
-              if (
-                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(itemStr) ||
-                /^opt_[a-z0-9]+$/i.test(itemStr)
-              ) {
+              let resolved = itemStr
+              if (isUuidPattern(itemStr) || /^opt_[a-z0-9]+$/i.test(itemStr)) {
                 for (const f of Object.values(fieldsMap)) {
                   const fChoices = extractChoicesList(f.options)
                   const found = fChoices.find(
@@ -1192,12 +1200,17 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         String(c.value).toLowerCase() === itemStr.toLowerCase())
                   )
                   if (found) {
-                    return found.name || found.label || found.text || found.value || itemStr
+                    const candidate = found.name || found.label || found.text || found.value || ''
+                    if (candidate && !isUuidPattern(candidate)) {
+                      resolved = candidate
+                      break
+                    }
                   }
                 }
               }
-              return itemStr
+              return isUuidPattern(resolved) ? '' : resolved
             })
+            .filter(Boolean)
             .join(', ')
         } else if (fieldType === 'date' || fieldType === 'created_on' || fieldType === 'last_modified_on') {
           textVal = formatDateValue(val)
