@@ -191,12 +191,13 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
     if (!newTagInput.trim() || readOnly) return
     const tagVal = newTagInput.trim()
     const newId = 'opt_' + Math.random().toString(36).substring(2, 10)
-    const newOpt: SelectOptionItem = { id: newId, name: tagVal }
+    const newColor = BASEROW_PALETTE[definedOptions.length % BASEROW_PALETTE.length].bg
+    const newOpt: SelectOptionItem = { id: newId, name: tagVal, color: newColor }
 
     if (isMulti) {
-      onChange([...rawSelectedValues, newId])
+      onChange([...rawSelectedValues, tagVal])
     } else {
-      onChange(newId)
+      onChange(tagVal)
     }
 
     if (onUpdateField) {

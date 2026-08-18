@@ -14,10 +14,12 @@ export async function PATCH(
     const fid = parseInt(fieldId)
     if (isNaN(fid) || isNaN(tid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageStructure' })
-    if (errorResponse) return errorResponse
-
     const body = await request.json()
+    const isOnlyOptionsUpdate = body.options !== undefined && !body.name && !body.type && body.order === undefined && body.isIndexed === undefined
+    const requiredAction = isOnlyOptionsUpdate ? 'canEditData' : 'canManageStructure'
+
+    const { errorResponse } = await authorizeAction({ tableId: tid, action: requiredAction })
+    if (errorResponse) return errorResponse
     const oldField = await prisma.tableField.findUnique({ where: { id: fid } })
 
     const updated = await prisma.tableField.update({

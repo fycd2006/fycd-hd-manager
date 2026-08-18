@@ -1123,8 +1123,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                    const finalVal = comboSearch.trim();
                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalVal) || /^[0-9a-f]{24,}$/i.test(finalVal);
                    if (!isExactMatch && !isUuid && onUpdateField) {
-                     const newOptions = [...options, finalVal];
-                     onUpdateField(field.id, { options: { choices: newOptions } as any });
+                     const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                     const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                     const newChoiceObjs = [...choiceObjs, { id: newId, name: finalVal, color: newColor }];
+                     onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
                    }
                    setLocalVal(finalVal);
                    onUpdate(finalVal);
@@ -1191,8 +1193,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           const val = comboSearch.trim();
                           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
                           if (!isExactMatch && !isUuid && onUpdateField) {
-                            const newOptions = [...options, val];
-                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                            const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                            const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                            const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
+                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
                           }
                           setLocalVal(val);
                           onUpdate(val);
@@ -1243,8 +1247,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           const valToCreate = comboSearch.trim();
                           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToCreate) || /^[0-9a-f]{24,}$/i.test(valToCreate);
                           if (!isUuid && onUpdateField) {
-                            const newOptions = [...options, valToCreate];
-                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                            const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                            const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                            const newChoiceObjs = [...choiceObjs, { id: newId, name: valToCreate, color: newColor }];
+                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
                           }
                           setLocalVal(valToCreate);
                           onUpdate(valToCreate);
@@ -1287,8 +1293,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                    const valToAdd = comboSearch.trim();
                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToAdd) || /^[0-9a-f]{24,}$/i.test(valToAdd);
                    if (!isExactMatch && !isUuid && onUpdateField) {
-                     const newOptions = [...options, valToAdd];
-                     onUpdateField(field.id, { options: { choices: newOptions } as any });
+                     const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                     const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                     const newChoiceObjs = [...choiceObjs, { id: newId, name: valToAdd, color: newColor }];
+                     onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
                    }
                    const nextItems = [...currentItems, valToAdd];
                    const nextVal = JSON.stringify(nextItems);
@@ -1369,8 +1377,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           const val = comboSearch.trim();
                           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
                           if (!isExactMatch && !isUuid && onUpdateField) {
-                            const newOptions = [...options, val];
-                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                            const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                            const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                            const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
+                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
                           }
                           let nextItems = [...currentItems];
                           if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
@@ -1437,8 +1447,10 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           const valToAdd = comboSearch.trim();
                           const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToAdd) || /^[0-9a-f]{24,}$/i.test(valToAdd);
                           if (!isUuid && onUpdateField) {
-                            const newOptions = [...options, valToAdd];
-                            onUpdateField(field.id, { options: { choices: newOptions } as any });
+                            const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                            const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                            const newChoiceObjs = [...choiceObjs, { id: newId, name: valToAdd, color: newColor }];
+                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
                           }
                           const nextItems = [...currentItems, valToAdd];
                           const nextVal = JSON.stringify(nextItems);
