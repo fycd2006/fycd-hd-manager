@@ -22,10 +22,10 @@ export class SingleSelectFieldType implements FieldType {
         if (typeof c === 'string') return c === strVal
         return c.name === strVal || c.id === strVal
       })
-      if (choice === undefined) {
-        return { valid: false, error: `選項 '${strVal}' 不存在` }
+      if (choice) {
+        return { valid: true, parsedValue: typeof choice === 'string' ? choice : choice.id }
       }
-      return { valid: true, parsedValue: typeof choice === 'string' ? choice : choice.id }
+      return { valid: true, parsedValue: strVal }
     }
 
     return { valid: true, parsedValue: strVal }

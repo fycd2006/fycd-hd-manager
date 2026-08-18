@@ -27,10 +27,10 @@ describe('SingleSelectFieldType', () => {
     expect(res.parsedValue).toBe('opt_2')
   })
 
-  it('rejects ghost string (name not found)', () => {
+  it('gracefully accepts new option string without rejecting', () => {
     const res = type.validateValue('Ghost', options)
-    expect(res.valid).toBe(false)
-    expect(res.error).toBe("選項 'Ghost' 不存在")
+    expect(res.valid).toBe(true)
+    expect(res.parsedValue).toBe('Ghost')
   })
 
   it('supports legacy options array', () => {
@@ -69,9 +69,9 @@ describe('MultipleSelectFieldType', () => {
     expect(res.parsedValue).toBe(JSON.stringify(['opt_1', 'opt_2']))
   })
 
-  it('rejects if any item is a ghost string', () => {
+  it('gracefully accepts new option items without rejecting', () => {
     const res = type.validateValue(['opt_1', 'Ghost'], options)
-    expect(res.valid).toBe(false)
-    expect(res.error).toBe("選項 'Ghost' 不存在")
+    expect(res.valid).toBe(true)
+    expect(res.parsedValue).toBe(JSON.stringify(['opt_1', 'Ghost']))
   })
 })

@@ -42,12 +42,7 @@ export class MultipleSelectFieldType implements FieldType {
           return c.id === item || c.name === item
         })
         
-        if (choice === undefined) {
-          // If we can't find it, we reject it (it should be an ID)
-          return { valid: false, error: `選項 '${item}' 不存在` }
-        }
-        
-        parsedItems.push(typeof choice === 'string' ? choice : choice.id)
+        parsedItems.push(choice ? (typeof choice === 'string' ? choice : choice.id) : item)
       }
       
       return { valid: true, parsedValue: JSON.stringify(parsedItems) }
