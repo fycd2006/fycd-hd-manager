@@ -161,6 +161,53 @@ export const parseSelectItems = (val: any, fieldOptions?: any): string[] => {
   return [resolveChoiceString(String(val), fieldOptions)];
 };
 
+export function evaluateCellCondition(
+  val: any,
+  field: { type?: string; options?: any } | undefined,
+  operator: string,
+  targetValue: string
+): boolean {
+  const target = (targetValue || '').toLowerCase().trim();
+
+  if (field?.type === 'single_select' || field?.type === 'multiple_select') {
+    const selectNames = parseSelectItems(val, field.options).map(s => s.toLowerCase());
+    switch (operator) {
+      case 'equals':
+        return selectNames.includes(target);
+      case 'contains':
+        return selectNames.some(n => n.includes(target));
+      case 'not_equals':
+        return !selectNames.includes(target);
+      case 'not_contains':
+        return !selectNames.some(n => n.includes(target));
+      case 'empty':
+        return selectNames.length === 0;
+      case 'not_empty':
+        return selectNames.length > 0;
+      default:
+        return false;
+    }
+  }
+
+  const strVal = String(val ?? '').toLowerCase();
+  switch (operator) {
+    case 'equals':
+      return strVal === target;
+    case 'contains':
+      return strVal.includes(target);
+    case 'not_equals':
+      return strVal !== target;
+    case 'not_contains':
+      return !strVal.includes(target);
+    case 'empty':
+      return val === null || val === undefined || strVal === '' || strVal === 'null' || strVal === 'undefined';
+    case 'not_empty':
+      return val !== null && val !== undefined && strVal !== '' && strVal !== 'null' && strVal !== 'undefined';
+    default:
+      return false;
+  }
+}
+
 export function formatNumberValue(val: any, options?: any): string {
   if (val === null || val === undefined || val === '') return '';
   const num = Number(val);

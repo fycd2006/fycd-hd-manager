@@ -77,6 +77,7 @@ export const GridView: React.FC<GridViewProps> = ({
   isOffline = false,
 }) => {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null);
+  const [editingCellInfo, setEditingCellInfo] = useState<{ rowId: number; colIndex: number } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -381,27 +382,100 @@ export const GridView: React.FC<GridViewProps> = ({
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell]);
 
+  const groupedField = useMemo(() => {
+    if (!groupByField) return null;
+    return fields.find(f => `field_${f.id}` === groupByField);
+  }, [fields, groupByField]);
+
+  const frozenGroupedSectionsRef = useRef<[string, { rows: RowData[]; originalIndices: number[] }][] | null>(null);
+
+  const groupedSections = useMemo(() => {
+    if (!groupByField) {
+      frozenGroupedSectionsRef.current = null;
+      return null;
+    }
+    // If currently editing, preserve the existing group section layout so rows do not jump while typing/selecting
+    if (isEditing && frozenGroupedSectionsRef.current) {
+      const rowMap = new Map<number, RowData>();
+      rows.forEach(r => rowMap.set(r.id, r));
+      return frozenGroupedSectionsRef.current.map(([key, data]) => [
+        key,
+        {
+          ...data,
+          rows: data.rows.map(r => rowMap.get(r.id) || r)
+        }
+      ] as [string, { rows: RowData[]; originalIndices: number[] }]);
+    }
+
+    const map = new Map<string, { rows: RowData[]; originalIndices: number[] }>();
+    rows.forEach((row, idx) => {
+      const rawVal = (row as any).data ? (row as any).data[groupByField] : (row.values ? row.values[parseInt(groupByField.replace('field_', ''))] : undefined);
+      let key = '（空白）';
+      if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+        if (typeof rawVal === 'boolean') key = rawVal ? '是 (Yes)' : '否 (No)';
+        else if (Array.isArray(rawVal)) key = rawVal.map((item: any) => typeof item === 'object' ? item.value || item.name || String(item) : String(item)).join(', ') || '（空白）';
+        else if (typeof rawVal === 'object') key = (rawVal as any).value || (rawVal as any).name || String(rawVal) || '（空白）';
+        else key = String(rawVal);
+      }
+      if (!map.has(key)) map.set(key, { rows: [], originalIndices: [] });
+      const grp = map.get(key)!;
+      grp.rows.push(row);
+      grp.originalIndices.push(idx);
+    });
+    const result = Array.from(map.entries());
+    frozenGroupedSectionsRef.current = result;
+    return result;
+  }, [rows, groupByField, isEditing]);
+
+  // Flat list of rows according to visible/expanded group sections
+  const visualGroupedRows = useMemo(() => {
+    if (!groupByField || !groupedSections) return null;
+    const result: { row: RowData; originalIndex: number }[] = [];
+    groupedSections.forEach(([groupKey, groupData]) => {
+      if (!collapsedGroups[groupKey]) {
+        groupData.rows.forEach((r, idx) => {
+          result.push({ row: r, originalIndex: groupData.originalIndices[idx] });
+        });
+      }
+    });
+    return result;
+  }, [groupByField, groupedSections, collapsedGroups]);
+
   const handleNavigateCell = useCallback((rIndex: number, cIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => {
     let nextRow = rIndex;
     let nextCol = cIndex;
 
-    if (direction === 'nextRow') nextRow = Math.min(rows.length - 1, rIndex + 1);
-    if (direction === 'prevRow') nextRow = Math.max(0, rIndex - 1);
+    if (visualGroupedRows && visualGroupedRows.length > 0) {
+      const currentVisualIdx = visualGroupedRows.findIndex(v => v.originalIndex === rIndex);
+      if (currentVisualIdx >= 0) {
+        let nextVisualIdx = currentVisualIdx;
+        if (direction === 'nextRow') nextVisualIdx = Math.min(visualGroupedRows.length - 1, currentVisualIdx + 1);
+        if (direction === 'prevRow') nextVisualIdx = Math.max(0, currentVisualIdx - 1);
+        nextRow = visualGroupedRows[nextVisualIdx].originalIndex;
+      }
+    } else {
+      if (direction === 'nextRow') nextRow = Math.min(rows.length - 1, rIndex + 1);
+      if (direction === 'prevRow') nextRow = Math.max(0, rIndex - 1);
+    }
+
     if (direction === 'nextCol') nextCol = Math.min(fields.length - 1, cIndex + 1);
     if (direction === 'prevCol') nextCol = Math.max(0, cIndex - 1);
 
+    const targetRow = rows[nextRow];
     setSelectedCell([nextRow, nextCol]);
     setSelectionStart([nextRow, nextCol]);
     setSelectionEnd([nextRow, nextCol]);
 
     if (direction === 'nextRow' && nextRow !== rIndex) {
+      if (targetRow) setEditingCellInfo({ rowId: targetRow.id, colIndex: nextCol });
       setTimeout(() => {
         setIsEditing(true);
       }, 50);
     } else {
       setIsEditing(false);
+      setEditingCellInfo(null);
     }
-  }, [rows.length, fields.length]);
+  }, [rows, fields.length, visualGroupedRows]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -462,8 +536,19 @@ export const GridView: React.FC<GridViewProps> = ({
         let nextRow = currRow;
         let nextCol = currCol;
 
-        if (e.key === 'ArrowUp') nextRow = Math.max(0, currRow - 1);
-        if (e.key === 'ArrowDown') nextRow = Math.min(rows.length - 1, currRow + 1);
+        if (visualGroupedRows && visualGroupedRows.length > 0) {
+          const currentVisualIdx = visualGroupedRows.findIndex(v => v.originalIndex === currRow);
+          if (currentVisualIdx >= 0) {
+            let nextVisualIdx = currentVisualIdx;
+            if (e.key === 'ArrowUp') nextVisualIdx = Math.max(0, currentVisualIdx - 1);
+            if (e.key === 'ArrowDown') nextVisualIdx = Math.min(visualGroupedRows.length - 1, currentVisualIdx + 1);
+            nextRow = visualGroupedRows[nextVisualIdx].originalIndex;
+          }
+        } else {
+          if (e.key === 'ArrowUp') nextRow = Math.max(0, currRow - 1);
+          if (e.key === 'ArrowDown') nextRow = Math.min(rows.length - 1, currRow + 1);
+        }
+
         if (e.key === 'ArrowLeft') nextCol = Math.max(0, currCol - 1);
         if (e.key === 'ArrowRight') nextCol = Math.min(fields.length - 1, currCol + 1);
 
@@ -473,37 +558,13 @@ export const GridView: React.FC<GridViewProps> = ({
           setSelectionStart([nextRow, nextCol]);
           setSelectionEnd([nextRow, nextCol]);
           setSelectedCell([nextRow, nextCol]);
+          setEditingCellInfo(null);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, selectionBounds, selectionStart, selectionEnd, rows, fields, handleCopySelection, handleCutSelection, handlePasteSelection, handleClearSelectionValues]);
-
-  const groupedField = useMemo(() => {
-    if (!groupByField) return null;
-    return fields.find(f => `field_${f.id}` === groupByField);
-  }, [fields, groupByField]);
-
-  const groupedSections = useMemo(() => {
-    if (!groupByField) return null;
-    const map = new Map<string, { rows: RowData[]; originalIndices: number[] }>();
-    rows.forEach((row, idx) => {
-      const rawVal = (row as any).data ? (row as any).data[groupByField] : (row.values ? row.values[parseInt(groupByField.replace('field_', ''))] : undefined);
-      let key = '（空白）';
-      if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
-        if (typeof rawVal === 'boolean') key = rawVal ? '是 (Yes)' : '否 (No)';
-        else if (Array.isArray(rawVal)) key = rawVal.map((item: any) => typeof item === 'object' ? item.value || item.name || String(item) : String(item)).join(', ') || '（空白）';
-        else if (typeof rawVal === 'object') key = (rawVal as any).value || (rawVal as any).name || String(rawVal) || '（空白）';
-        else key = String(rawVal);
-      }
-      if (!map.has(key)) map.set(key, { rows: [], originalIndices: [] });
-      const grp = map.get(key)!;
-      grp.rows.push(row);
-      grp.originalIndices.push(idx);
-    });
-    return Array.from(map.entries());
-  }, [rows, groupByField]);
+  }, [isEditing, selectionBounds, selectionStart, selectionEnd, rows, fields, handleCopySelection, handleCutSelection, handlePasteSelection, handleClearSelectionValues, visualGroupedRows]);
 
   // Ensure Row 1 (index 0) is visible at top on initial mount
   useEffect(() => {
@@ -921,8 +982,8 @@ export const GridView: React.FC<GridViewProps> = ({
                                 fields={fields}
                                 rowColorRules={rowColorRules}
                                 rowDetailsWidth={rowDetailsWidth}
-                                selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
-                                isCellEditing={selectedCell?.[0] === rIndex && isEditing}
+                                selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
+                                isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                                 selectionBounds={selectionBounds}
                                 isRowSelectedDirectly={selectedRowIds.has(row.id)}
                                 onToggleRowCheckbox={handleToggleRowCheckbox}
@@ -938,6 +999,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                     setSelectionEnd([rIndex, cIndex]);
                                   }
                                   setIsEditing(false);
+                                  setEditingCellInfo(null);
                                 }}
                                 onMouseEnterCell={(cIndex) => {
                                   if (isDraggingSelection && selectionStart) {
@@ -954,15 +1016,20 @@ export const GridView: React.FC<GridViewProps> = ({
                                 }}
                                 onStartEditCell={(cIndex) => {
                                   setSelectedCell([rIndex, cIndex]);
+                                  setEditingCellInfo({ rowId: row.id, colIndex: cIndex });
                                   setIsEditing(true);
                                 }}
                                 onUpdateCell={(fieldId, val) => {
                                   onUpdateCell?.(row.id, fieldId, val);
                                 }}
                                 onUpdateField={onUpdateField}
-                                onCancelEditCell={() => setIsEditing(false)}
+                                onCancelEditCell={() => {
+                                  setIsEditing(false);
+                                  setEditingCellInfo(null);
+                                }}
                                 onExpandRow={() => onExpandRow?.(row.id)}
                                 onReorderRows={onReorderRows}
+                                onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}
                               />
                             );
                           })}
@@ -1005,8 +1072,8 @@ export const GridView: React.FC<GridViewProps> = ({
                         fields={fields}
                         rowColorRules={rowColorRules}
                         rowDetailsWidth={rowDetailsWidth}
-                        selectedColumnIndex={selectedCell?.[0] === rIndex ? selectedCell[1] : null}
-                        isCellEditing={selectedCell?.[0] === rIndex && isEditing}
+                        selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
+                        isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                         selectionBounds={selectionBounds}
                         isRowSelectedDirectly={selectedRowIds.has(row.id)}
                         onToggleRowCheckbox={handleToggleRowCheckbox}
@@ -1023,6 +1090,7 @@ export const GridView: React.FC<GridViewProps> = ({
                             setIsDraggingSelection(true);
                           }
                           setIsEditing(false);
+                          setEditingCellInfo(null);
                         }}
                         onMouseEnterCell={(cIndex) => {
                           if (isDraggingSelection && selectionStart) {
@@ -1039,13 +1107,17 @@ export const GridView: React.FC<GridViewProps> = ({
                         }}
                         onStartEditCell={(cIndex) => {
                           setSelectedCell([rIndex, cIndex]);
+                          setEditingCellInfo({ rowId: row.id, colIndex: cIndex });
                           setIsEditing(true);
                         }}
                         onUpdateCell={(fieldId, val) => {
                           onUpdateCell?.(row.id, fieldId, val);
                         }}
                         onUpdateField={onUpdateField}
-                        onCancelEditCell={() => setIsEditing(false)}
+                        onCancelEditCell={() => {
+                          setIsEditing(false);
+                          setEditingCellInfo(null);
+                        }}
                         onExpandRow={() => onExpandRow?.(row.id)}
                         onReorderRows={onReorderRows}
                         onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}

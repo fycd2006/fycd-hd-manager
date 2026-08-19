@@ -25,6 +25,7 @@ import { safeJsonParse } from '@/lib/json-utils'
 import { getPusherClient, getSocketId } from '@/lib/pusher-client'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
+import { parseSelectItems, evaluateCellCondition } from '@/modules/database/components/views/grid/cells/utils'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
 const getViewIcon = (type: string, props: any) => {
@@ -1038,28 +1039,8 @@ export default function Home() {
       result = result.filter(row => {
         return filterRules.every(rule => {
           const val = getCellValue(row, rule.fieldKey)
-          let textVal = String(val ?? '')
-          if (Array.isArray(val)) {
-            textVal = val.map(item => {
-              if (item && typeof item === 'object' && !Array.isArray(item)) {
-                return (item as any).value || (item as any).name || ''
-              }
-              return String(item)
-            }).join(', ')
-          }
-
-          const ruleVal = rule.value.toLowerCase()
-          const cellVal = textVal.toLowerCase()
-
-          switch (rule.operator) {
-            case 'contains': return cellVal.includes(ruleVal)
-            case 'not_contains': return !cellVal.includes(ruleVal)
-            case 'equals': return cellVal === ruleVal
-            case 'not_equals': return cellVal !== ruleVal
-            case 'empty': return cellVal === '' || cellVal === 'null' || cellVal === 'undefined'
-            case 'not_empty': return cellVal !== '' && cellVal !== 'null' && cellVal !== 'undefined'
-            default: return true
-          }
+          const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
+          return evaluateCellCondition(val, field, rule.operator, rule.value)
         })
       })
     }
@@ -1081,17 +1062,27 @@ export default function Home() {
 
     // Sort when not editing
     if (sortField) {
+      const activeSortFieldObj = fields.find(f => `field_${f.id}` === sortField || String(f.id) === sortField || f.name === sortField)
       result.sort((a, b) => {
-        const va = getCellValue(a, sortField)
-        const vb = getCellValue(b, sortField)
-        const numA = Number(va)
-        const numB = Number(vb)
-        if (!isNaN(numA) && !isNaN(numB) && va !== '' && vb !== '') {
+        const rawA = getCellValue(a, sortField)
+        const rawB = getCellValue(b, sortField)
+
+        if (activeSortFieldObj?.type === 'single_select' || activeSortFieldObj?.type === 'multiple_select') {
+          const namesA = parseSelectItems(rawA, activeSortFieldObj.options).join(', ')
+          const namesB = parseSelectItems(rawB, activeSortFieldObj.options).join(', ')
+          return sortOrder === 'asc'
+            ? namesA.localeCompare(namesB)
+            : namesB.localeCompare(namesA)
+        }
+
+        const numA = Number(rawA)
+        const numB = Number(rawB)
+        if (!isNaN(numA) && !isNaN(numB) && rawA !== '' && rawB !== '') {
           return sortOrder === 'asc' ? numA - numB : numB - numA
         }
         return sortOrder === 'asc'
-          ? String(va).localeCompare(String(vb))
-          : String(vb).localeCompare(String(va))
+          ? String(rawA).localeCompare(String(rawB))
+          : String(rawB).localeCompare(String(rawA))
       })
     }
 
@@ -1105,16 +1096,9 @@ export default function Home() {
   const getRowBgColorClass = (row: TableRow) => {
     if (rowColorRules.length === 0) return ''
     const matched = rowColorRules.find(rule => {
+      const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
       const val = row.data[rule.fieldKey]
-      const textVal = String(val ?? '').toLowerCase()
-      const matchVal = rule.value.toLowerCase()
-
-      if (rule.operator === 'equals') {
-        return textVal === matchVal
-      } else if (rule.operator === 'contains') {
-        return textVal.includes(matchVal)
-      }
-      return false
+      return evaluateCellCondition(val, field, rule.operator, rule.value)
     })
     return matched ? `row-color-${matched.color}` : ''
   }

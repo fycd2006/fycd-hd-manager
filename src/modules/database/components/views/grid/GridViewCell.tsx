@@ -1857,15 +1857,37 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const entries = parseLatestCommentEntries(value);
       const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 
+      const getDateOnly = (timeStr?: string) => {
+        if (!timeStr) return '';
+        const trimmed = timeStr.trim();
+        if (trimmed.includes(' ')) return trimmed.split(' ')[0];
+        if (trimmed.includes('T')) return trimmed.split('T')[0];
+        return trimmed;
+      };
+
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 8px', height: '100%', width: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', padding: '0 8px', height: '100%', width: '100%', overflow: 'hidden' }}>
           {latest ? (
             <>
-              <span style={{ fontSize: '12px', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }} title={latest.content}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: '#334155',
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  lineHeight: '1.3',
+                  overflow: 'hidden',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  flex: 1,
+                }}
+                title={latest.content}
+              >
                 {latest.content}
               </span>
-              <span style={{ fontSize: '10px', color: '#94a3b8', flexShrink: 0 }}>
-                {latest.time?.split(' ')[1] || latest.time}
+              <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                {getDateOnly(latest.time)}
               </span>
             </>
           ) : (

@@ -486,25 +486,33 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
       const entries = parseLatestCommentEntries(val)
       const latest = entries.length > 0 ? entries[entries.length - 1] : null
       if (latest) {
+        const dateOnly = latest.time?.includes(' ') ? latest.time.split(' ')[0] : latest.time?.includes('T') ? latest.time.split('T')[0] : (latest.time || '')
         return (
           <div
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', maxWidth: '260px' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', overflow: 'hidden', width: '100%', padding: '0 4px' }}
             title={latest.content}
           >
-            <MessageSquare size={12} color="#ea580c" style={{ flexShrink: 0 }} />
-            <span
-              style={{
-                fontSize: '12px',
-                color: '#334155',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {latest.content}
-            </span>
-            <span style={{ fontSize: '10px', color: '#94a3b8', flexShrink: 0 }}>
-              {latest.time?.split(' ')[1] || latest.time}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', flex: 1, minWidth: 0 }}>
+              <MessageSquare size={12} color="#ea580c" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span
+                style={{
+                  fontSize: '12px',
+                  color: '#334155',
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  lineHeight: '1.3',
+                  overflow: 'hidden',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  flex: 1,
+                }}
+              >
+                {latest.content}
+              </span>
+            </div>
+            <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {dateOnly}
             </span>
           </div>
         )

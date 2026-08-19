@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { TableField, RowColorRule } from '@/modules/database/types';
 import { GridViewCell } from './GridViewCell';
+import { evaluateCellCondition } from './cells/utils';
 import { GripVertical, Maximize2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/i18nContext';
 
@@ -89,21 +90,17 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       if (!rule.fieldKey || !rule.value) continue;
       const fieldIdStr = rule.fieldKey.replace('field_', '');
       const fieldId = Number(fieldIdStr);
+      const field = fields.find(f => f.id === fieldId || `field_${f.id}` === rule.fieldKey);
       const fieldKey = rule.fieldKey || `field_${fieldId}`;
       const hasKey = (row as any).data && fieldKey in (row as any).data;
       const val = hasKey ? (row as any).data[fieldKey] : (row.values?.[fieldId] ?? '');
-      const strVal = String(val ?? '').toLowerCase();
-      const targetVal = rule.value.toLowerCase();
 
-      if (rule.operator === 'equals' && strVal === targetVal) {
-        return COLOR_MAP[rule.color] || '#F4F4F5';
-      }
-      if (rule.operator === 'contains' && strVal.includes(targetVal)) {
+      if (evaluateCellCondition(val, field, rule.operator, rule.value)) {
         return COLOR_MAP[rule.color] || '#F4F4F5';
       }
     }
     return null;
-  }, [row, rowColorRules]);
+  }, [row, rowColorRules, fields]);
 
   return (
     <div 
