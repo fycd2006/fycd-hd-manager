@@ -1151,7 +1151,367 @@ describe('MasterGridView UI Component', () => {
     expect(screen.queryByText('7eb0fcef-d4da-429a-a560-04a44f18bbde')).not.toBeInTheDocument()
     expect(screen.queryByText('b9ed6f56-c3e1-4630-be04-b4fbd727d408')).not.toBeInTheDocument()
   })
+
+  it('supports toggling Group by Table mode and collapsing/expanding table groups', async () => {
+    const mockApiResponse = {
+      rows: [
+        {
+          id: 101,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Task Alpha' },
+        },
+        {
+          id: 202,
+          tableId: 2,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Issue Beta' },
+        },
+      ],
+      nextCursor: null,
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(
+      <MasterGridView
+        workspaceId={1}
+        tablesMap={{
+          1: { name: 'Tasks Table', color: '#52A628' },
+          2: { name: 'Issues Table', color: '#ea580c' },
+        }}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Task Alpha')).toBeInTheDocument()
+      expect(screen.getByText('Issue Beta')).toBeInTheDocument()
+    })
+
+    // Click "依資料表分組" button
+    const groupByTableBtn = screen.getByTestId('toggle-group-by-table-btn')
+    fireEvent.click(groupByTableBtn)
+
+    // Group headers should appear for both tables
+    const countBadges = screen.getAllByText('(1 筆資料)')
+    expect(countBadges).toHaveLength(2)
+
+    // Click group header row for Tasks Table
+    const groupHeaderRow = screen.getAllByText('Tasks Table')[0].closest('tr')!
+    fireEvent.click(groupHeaderRow)
+
+    // Task Alpha row under Table 1 should now be collapsed
+    expect(screen.queryByText('Task Alpha')).not.toBeInTheDocument()
+    // Issue Beta under Table 2 should still be visible
+    expect(screen.getByText('Issue Beta')).toBeInTheDocument()
+
+    // Click again to re-expand
+    fireEvent.click(groupHeaderRow)
+    expect(screen.getByText('Task Alpha')).toBeInTheDocument()
+  })
+
+  it('handles keyboard shortcut / to focus search input and Escape to close panels', async () => {
+    const mockApiResponse = {
+      rows: [
+        {
+          id: 101,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Shortcuts Test' },
+        },
+      ],
+      nextCursor: null,
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(<MasterGridView workspaceId={1} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Shortcuts Test')).toBeInTheDocument()
+    })
+
+    const searchInput = screen.getByPlaceholderText(/搜尋已載入資料/)
+    expect(document.activeElement).not.toBe(searchInput)
+
+    // Press "/" key
+    fireEvent.keyDown(window, { key: '/' })
+    expect(document.activeElement).toBe(searchInput)
+
+    // Open Columns panel
+    const columnsBtn = screen.getByTestId('toggle-columns-btn')
+    fireEvent.click(columnsBtn)
+    expect(screen.getByTestId('tab-fields-all')).toBeInTheDocument()
+
+    // Press "Escape" key to close panel
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByTestId('tab-fields-all')).not.toBeInTheDocument()
+  })
+
+  it('supports row selection, select all, and renders bulk actions floating bar', async () => {
+    const mockApiResponse = {
+      rows: [
+        {
+          id: 1,
+          tableId: 10,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Item One' },
+        },
+        {
+          id: 2,
+          tableId: 10,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Item Two' },
+        },
+      ],
+      nextCursor: null,
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(<MasterGridView workspaceId={1} masterViewId={99} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Item One')).toBeInTheDocument()
+    })
+
+    // Initially floating bulk bar is not shown
+    expect(screen.queryByTestId('bulk-actions-floating-bar')).not.toBeInTheDocument()
+
+    // Select row 1
+    const row1Checkbox = screen.getByTestId('select-row-checkbox-10-1')
+    fireEvent.click(row1Checkbox)
+
+    // Floating bulk bar should appear with 1 selected
+    expect(screen.getByTestId('bulk-actions-floating-bar')).toBeInTheDocument()
+    expect(screen.getByText(/已選取 1 筆資料/)).toBeInTheDocument()
+    expect(screen.getByTestId('bulk-export-csv-btn')).toBeInTheDocument()
+
+    // Click select all
+    const selectAllCheckbox = screen.getByTestId('select-all-rows-checkbox')
+    fireEvent.click(selectAllCheckbox)
+    expect(screen.getByText(/已選取 2 筆資料/)).toBeInTheDocument()
+
+    // Click cancel selection
+    const deselectBtn = screen.getByTestId('deselect-all-btn')
+    fireEvent.click(deselectBtn)
+    expect(screen.queryByTestId('bulk-actions-floating-bar')).not.toBeInTheDocument()
+  })
+
+  it('allows bulk reverting overrides on selected rows', async () => {
+    const mockApiResponse = {
+      rows: [
+        {
+          id: 101,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Overridden 1' },
+          _hasOverride: true,
+          _overrideKeys: ['Title'],
+          _originalData: { Title: 'Original 1' },
+        },
+        {
+          id: 102,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Overridden 2' },
+          _hasOverride: true,
+          _overrideKeys: ['Title'],
+          _originalData: { Title: 'Original 2' },
+        },
+      ],
+      nextCursor: null,
+    }
+
+    const mockFetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockApiResponse,
+      })
+      .mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true, count: 1 }),
+      })
+    global.fetch = mockFetch as any
+
+    render(<MasterGridView workspaceId={1} masterViewId={99} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Overridden 1')).toBeInTheDocument()
+      expect(screen.getByText('Overridden 2')).toBeInTheDocument()
+    })
+
+    // Select all rows
+    const selectAllCheckbox = screen.getByTestId('select-all-rows-checkbox')
+    fireEvent.click(selectAllCheckbox)
+
+    // Click bulk revert button
+    const bulkRevertBtn = screen.getByTestId('bulk-revert-overrides-btn')
+    await act(async () => {
+      fireEvent.click(bulkRevertBtn)
+    })
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/workspaces/1/master-views/99/rows',
+        expect.objectContaining({
+          method: 'DELETE',
+          body: JSON.stringify({
+            items: [
+              { sourceTableId: 1, sourceRowId: 101 },
+              { sourceTableId: 1, sourceRowId: 102 },
+            ],
+          }),
+        })
+      )
+      // Cells should optimistically restore original values
+      expect(screen.getByText('Original 1')).toBeInTheDocument()
+      expect(screen.getByText('Original 2')).toBeInTheDocument()
+    })
+  })
+
+  it('allows clearing search query with one-click clear button', async () => {
+    const mockApiResponse = {
+      meta: { totalCount: 2, hasOverrides: false, fields: {}, tables: {} },
+      rows: [
+        {
+          id: 1,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Apple Task' },
+          _hasOverride: false,
+        },
+        {
+          id: 2,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { Title: 'Banana Task' },
+          _hasOverride: false,
+        },
+      ],
+      nextCursor: null,
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(<MasterGridView workspaceId={1} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Apple Task')).toBeInTheDocument()
+      expect(screen.getByText('Banana Task')).toBeInTheDocument()
+    })
+
+    const searchInput = screen.getByPlaceholderText(/搜尋已載入資料/i)
+    fireEvent.change(searchInput, { target: { value: 'Apple' } })
+
+    expect(screen.getByText('Apple Task')).toBeInTheDocument()
+    expect(screen.queryByText('Banana Task')).not.toBeInTheDocument()
+
+    // Click clear button
+    const clearBtn = screen.getByTestId('clear-search-btn')
+    fireEvent.click(clearBtn)
+
+    expect(searchInput).toHaveValue('')
+    expect(screen.getByText('Apple Task')).toBeInTheDocument()
+    expect(screen.getByText('Banana Task')).toBeInTheDocument()
+  })
+
+  it('reads unmergedKeys from localStorage on initial render', async () => {
+    localStorage.setItem('master_unmerged_keys_1', JSON.stringify(['客戶名稱']))
+
+    const mockApiResponse = {
+      meta: {
+        totalCount: 2,
+        hasOverrides: false,
+        fields: {
+          field_1: { id: 1, tableId: 1, name: '客戶名稱', type: 'text' },
+          field_2: { id: 2, tableId: 2, name: '客戶名稱', type: 'text' },
+        },
+        tables: {
+          1: { name: '訂單 A' },
+          2: { name: '訂單 B' },
+        },
+      },
+      rows: [],
+      nextCursor: null,
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(<MasterGridView workspaceId={1} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('master-grid-view')).toBeInTheDocument()
+    })
+
+    localStorage.removeItem('master_unmerged_keys_1')
+  })
+
+  it('searches inside nested objects and link row arrays in quick search', async () => {
+    const mockApiResponse = {
+      meta: {
+        totalCount: 2,
+        hasOverrides: false,
+        fields: {
+          field_1: { id: 1, tableId: 1, name: '關聯專案', type: 'link_row' },
+        },
+        tables: { 1: { name: '專案表' } },
+      },
+      rows: [
+        {
+          id: 101,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { field_1: [{ id: 1, value: '台積電晶圓廠' }] },
+        },
+        {
+          id: 102,
+          tableId: 1,
+          createdAt: new Date().toISOString(),
+          data: { field_1: [{ id: 2, value: '聯發科晶片案' }] },
+        },
+      ],
+      nextCursor: null,
+    }
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockApiResponse,
+    }) as any
+
+    render(<MasterGridView workspaceId={1} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('台積電晶圓廠')).toBeInTheDocument()
+      expect(screen.getByText('聯發科晶片案')).toBeInTheDocument()
+    })
+
+    // Search for "台積電"
+    const searchInput = screen.getByPlaceholderText(/搜尋已載入資料/)
+    fireEvent.change(searchInput, { target: { value: '台積電' } })
+
+    expect(screen.getByText('台積電晶圓廠')).toBeInTheDocument()
+    expect(screen.queryByText('聯發科晶片案')).not.toBeInTheDocument()
+  })
 })
+
+
+
 
 
 

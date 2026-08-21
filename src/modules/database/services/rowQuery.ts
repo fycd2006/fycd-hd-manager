@@ -4,6 +4,7 @@ import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
 
 export interface QueryOptions {
+  rowId?: number | string | null
   sortField?: string | null
   sortOrder?: string | null
   filterParam?: string | null
@@ -422,7 +423,7 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 }
 
 export async function getPopulatedTableRows(tableId: number, options: QueryOptions) {
-  const { sortField, sortOrder = 'asc', filterParam, searchQuery, pageParam, pageSizeParam } = options
+  const { rowId, sortField, sortOrder = 'asc', filterParam, searchQuery, pageParam, pageSizeParam } = options
 
   // 1. Fetch fields to identify special field types
   const fields = await prisma.tableField.findMany({
@@ -456,7 +457,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
     : undefined
   const sortPushable = !sortField || (sortFieldMeta !== undefined && !POPULATED_TYPES.has(sortFieldMeta.type))
 
-  const wantPagination = pageSizeParam !== 'all' && Boolean(pageParam || pageSizeParam)
+  const wantPagination = pageSizeParam !== 'all' && Boolean(pageParam || pageSizeParam) && !rowId
   const page = Math.max(1, parseInt(pageParam || '1') || 1)
   const pageSize = Math.max(1, parseInt(pageSizeParam || '50') || 50)
 
@@ -468,6 +469,13 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
       Prisma.sql`tableId = ${tableId}`,
       Prisma.sql`deletedAt IS NULL`,
     ]
+
+    if (rowId) {
+      const parsedRowId = typeof rowId === 'number' ? rowId : parseInt(String(rowId), 10)
+      if (!isNaN(parsedRowId)) {
+        conditions.push(Prisma.sql`id = ${parsedRowId}`)
+      }
+    }
 
     const sanitized = (searchQuery || '').slice(0, 100).trim()
     if (sanitized) {
@@ -529,6 +537,12 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
   // link_row labels, collaborators, audit) or date operators: the legacy
   // behavior operates on populated values, so rows must be enriched first.
   let whereCondition: any = { tableId, deletedAt: null }
+  if (rowId) {
+    const parsedRowId = typeof rowId === 'number' ? rowId : parseInt(String(rowId), 10)
+    if (!isNaN(parsedRowId)) {
+      whereCondition.id = parsedRowId
+    }
+  }
   if (searchQuery) {
     const sanitized = searchQuery.slice(0, 100).trim()
     if (sanitized) {

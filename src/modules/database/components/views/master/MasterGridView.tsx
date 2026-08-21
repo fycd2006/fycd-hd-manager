@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Layers,
   Search,
@@ -45,8 +45,10 @@ import {
   MessageSquare,
   Paperclip,
   User,
+  ListFilter,
 } from 'lucide-react'
 import { CardDrawer } from '@/modules/database/components/cards/CardDrawer'
+import { WorkspaceGridSkeleton } from '@/modules/database/components/table/WorkspaceGridSkeleton'
 import { formatDateValue } from '@/modules/database/utils'
 import {
   parseSelectItems,
@@ -57,6 +59,7 @@ import { renderFormulaCell } from '@/modules/database/components/views/grid/cell
 import { parseLatestCommentEntries } from '@/modules/database/components/views/grid/GridViewCell'
 
 import { FieldMappingModal } from './FieldMappingModal'
+import { MasterGridCell } from './MasterGridCell'
 import type { MasterViewRowWithOverrides } from '@/modules/database/services/masterViewOverride'
 import {
   type CrossTableFilterRule,
@@ -115,6 +118,8 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
   const [totalRowsCount, setTotalRowsCount] = useState<number | null>(null)
   const [fieldFilterTab, setFieldFilterTab] = useState<'all' | 'shared' | 'specific' | 'filled'>('all')
   const [collapsedTableGroups, setCollapsedTableGroups] = useState<Set<number>>(new Set())
+  const [groupByTable, setGroupByTable] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleToggleCollapseGroup = useCallback((tid: number) => {
     setCollapsedTableGroups((prev) => {
@@ -128,12 +133,33 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
     })
   }, [])
 
+  // Multi-select state
+  const [selectedRowKeys, setSelectedRowKeys] = useState<Set<string>>(new Set())
+
+  const toggleSelectRow = useCallback((tableId: number, rowId: number) => {
+    setSelectedRowKeys((prev) => {
+      const next = new Set(prev)
+      const k = `${tableId}_${rowId}`
+      if (next.has(k)) {
+        next.delete(k)
+      } else {
+        next.add(k)
+      }
+      return next
+    })
+  }, [])
+
   // Pinning & Unmerging states
-
-
-
   const [pinnedKeys, setPinnedKeys] = useState<string[]>([])
-  const [unmergedKeys, setUnmergedKeys] = useState<string[]>([])
+  const [unmergedKeys, setUnmergedKeys] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`master_unmerged_keys_${workspaceId}`)
+        return stored ? JSON.parse(stored) : []
+      } catch { }
+    }
+    return []
+  })
 
   const [customAliasMap, setCustomAliasMap] = useState<Record<string, string>>(() => {
     if (typeof window !== 'undefined') {
@@ -231,597 +257,38 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
     }
   }
 
-  // Helper to render formatted cell value matching regular table display
-  const renderCellValue = (row: MasterViewRowWithOverrides, key: string) => {
-    const val = getRowFieldValue(row, key, unifiedColumnsMap, fieldsMap)
-    if (val == null || val === '') {
-      return <span style={{ color: '#cbd5e1' }}>—</span>
-    }
+  // Dynamic pinned column sticky left offset calculation (avoids fixed width assumptions)
+  const getPinnedStickyLeft = useCallback(
+    (key: string): string => {
+      const pinnedIndex = pinnedKeys.indexOf(key)
+      if (pinnedIndex === -1) return '0px'
+      // Base offset: index (#) = 60px, source table badge = 160px => 220px
+      const baseOffset = 220
+      return `${baseOffset + pinnedIndex * 160}px`
+    },
+    [pinnedKeys]
+  )
 
-    const unifiedCol = unifiedColumnsMap[key]
-    const tableFieldKey = unifiedCol?.tableFieldMap[row.tableId] || key
-    const tableFieldInfo = fieldsMap[tableFieldKey] || fieldsMap[key]
-    const sampleFieldInfo = unifiedCol ? fieldsMap[`field_${unifiedCol.sampleFieldId}`] : null
-    const fieldType = tableFieldInfo?.type || unifiedCol?.type || sampleFieldInfo?.type || 'text'
-
-    // Combine choices from table field, unified column, and all source fields
-    let mergedOptions = mergeFieldOptions(unifiedCol?.options, tableFieldInfo?.options)
-    mergedOptions = mergeFieldOptions(mergedOptions, sampleFieldInfo?.options)
-    if (unifiedCol?.sources) {
-      for (const src of unifiedCol.sources) {
-        if (fieldsMap[src.fieldKey]?.options) {
-          mergedOptions = mergeFieldOptions(mergedOptions, fieldsMap[src.fieldKey]?.options)
-        }
+  // Global keyboard shortcuts for fast navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+      }
+      if (e.key === 'Escape') {
+        setActiveColumnPopover(null)
+        setActiveOverridePopover(null)
+        setActiveExcludedMismatchPopover(null)
+        setShowColumnsBar(false)
+        setShowFilterBar(false)
+        setShowFieldMappingModal(false)
       }
     }
-    const options = mergedOptions
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
-    // 1. Single Select / Multiple Select
-    if (fieldType === 'single_select' || fieldType === 'multiple_select') {
-      const items = parseSelectItems(val, mergedOptions)
-      if (items.length > 0) {
-        return (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
-            {items.map((itemStr, i) => {
-              const isUuidPattern = (s: string) =>
-                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
-                /^[0-9a-f]{24,}$/i.test(s.trim())
-
-              let displayLabel = itemStr
-              if (isUuidPattern(itemStr) || /^opt_[a-z0-9]+$/i.test(itemStr)) {
-                for (const f of Object.values(fieldsMap)) {
-                  const fChoices = extractChoicesList(f.options)
-                  const found = fChoices.find(
-                    (c: any) =>
-                      c &&
-                      (String(c.id).toLowerCase() === itemStr.toLowerCase() ||
-                        String(c.value).toLowerCase() === itemStr.toLowerCase())
-                  )
-                  if (found) {
-                    const candidate = found.name || found.label || found.text || found.value || ''
-                    if (candidate && !isUuidPattern(candidate)) {
-                      displayLabel = candidate
-                      break
-                    }
-                  }
-                }
-              }
-
-              if (isUuidPattern(displayLabel)) {
-                return null
-              }
-
-              const { bg, text } = getOptionColor(
-                displayLabel,
-                mergedOptions?.choices || mergedOptions?.select_options || mergedOptions
-              )
-              return (
-                <span
-                  key={i}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    backgroundColor: bg,
-                    color: text,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
-                  title={displayLabel}
-                >
-                  {displayLabel}
-                </span>
-              )
-            })}
-          </div>
-        )
-      }
-      return <span style={{ color: '#cbd5e1' }}>—</span>
-    }
-
-    // 2. Link Row (關聯資料表列)
-    if (fieldType === 'link_row') {
-      let linkItems: Array<{ id?: number; value: string; tableName?: string }> = []
-      if (Array.isArray(val)) {
-        linkItems = val.map((item) => {
-          if (typeof item === 'object' && item !== null) {
-            return {
-              id: item.id ? Number(item.id) : undefined,
-              value: item.value || item.name || (item.id ? `列 ID: ${item.id}` : ''),
-              tableName: item.tableName,
-            }
-          }
-          return { id: Number(item) || undefined, value: `列 ID: ${item}` }
-        })
-      } else if (typeof val === 'string' && val.trim()) {
-        try {
-          const parsed = JSON.parse(val)
-          if (Array.isArray(parsed)) {
-            linkItems = parsed.map((item: any) => {
-              if (typeof item === 'object' && item !== null) {
-                return {
-                  id: item.id ? Number(item.id) : undefined,
-                  value: item.value || item.name || (item.id ? `列 ID: ${item.id}` : ''),
-                  tableName: item.tableName,
-                }
-              }
-              return { id: Number(item) || undefined, value: `列 ID: ${item}` }
-            })
-          } else if (typeof parsed === 'object' && parsed !== null) {
-            linkItems = [
-              {
-                id: parsed.id ? Number(parsed.id) : undefined,
-                value: parsed.value || parsed.name || (parsed.id ? `列 ID: ${parsed.id}` : ''),
-                tableName: parsed.tableName,
-              },
-            ]
-          } else {
-            linkItems = [{ value: String(parsed) }]
-          }
-        } catch {
-          linkItems = [{ value: val }]
-        }
-      } else if (typeof val === 'object' && val !== null) {
-        linkItems = [
-          {
-            id: val.id ? Number(val.id) : undefined,
-            value: val.value || val.name || (val.id ? `列 ID: ${val.id}` : ''),
-            tableName: val.tableName,
-          },
-        ]
-      }
-
-      if (linkItems.length > 0) {
-        const targetTableId = options?.target_table_id || options?.link_table_id
-        return (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
-            {linkItems.map((item, i) => (
-              <span
-                key={i}
-                onClick={(e) => {
-                  if (targetTableId && item.id) {
-                    e.stopPropagation()
-                    setSelectedDrawerRow({
-                      tableId: targetTableId,
-                      rowId: item.id,
-                      tableName: item.tableName || `資料表 ${targetTableId}`,
-                    })
-                  }
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 8px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 500,
-                  backgroundColor: '#eff6ff',
-                  color: '#1d4ed8',
-                  border: '1px solid #bfdbfe',
-                  cursor: targetTableId && item.id ? 'pointer' : 'default',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-                title={item.value}
-              >
-                <Link2 size={11} color="#2563eb" />
-                <span style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {item.value || (item.id ? `列 ID: ${item.id}` : '—')}
-                </span>
-              </span>
-            ))}
-          </div>
-        )
-      }
-      return <span style={{ color: '#cbd5e1' }}>—</span>
-    }
-
-    // 3. Collaborator (協作成員)
-    if (fieldType === 'collaborator') {
-      let collabItems: Array<{ id?: number; username: string }> = []
-      if (Array.isArray(val)) {
-        collabItems = val.map((item) =>
-          typeof item === 'object' && item !== null
-            ? { id: item.id, username: item.username || item.name || `ID: ${item.id}` }
-            : { username: String(item) }
-        )
-      } else if (typeof val === 'string' && val.trim()) {
-        try {
-          const parsed = JSON.parse(val)
-          if (Array.isArray(parsed)) {
-            collabItems = parsed.map((item: any) =>
-              typeof item === 'object' && item !== null
-                ? { id: item.id, username: item.username || item.name || `ID: ${item.id}` }
-                : { username: String(item) }
-            )
-          } else if (typeof parsed === 'object' && parsed !== null) {
-            collabItems = [{ id: parsed.id, username: parsed.username || parsed.name || `ID: ${parsed.id}` }]
-          } else {
-            collabItems = [{ username: String(parsed) }]
-          }
-        } catch {
-          collabItems = [{ username: val }]
-        }
-      } else if (typeof val === 'object' && val !== null) {
-        collabItems = [{ id: val.id, username: val.username || val.name || `ID: ${val.id}` }]
-      }
-
-      if (collabItems.length > 0) {
-        return (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
-            {collabItems.map((item, i) => (
-              <span
-                key={i}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '11px',
-                  fontWeight: 500,
-                  backgroundColor: '#f5f3ff',
-                  color: '#6d28d9',
-                  border: '1px solid #ddd6fe',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-              >
-                <User size={11} color="#7c3aed" />
-                <span>{item.username}</span>
-              </span>
-            ))}
-          </div>
-        )
-      }
-      return <span style={{ color: '#cbd5e1' }}>—</span>
-    }
-
-    // 4. Latest Comment (最新留言備註)
-    if (fieldType === 'latest_comment') {
-      const entries = parseLatestCommentEntries(val)
-      const latest = entries.length > 0 ? entries[entries.length - 1] : null
-      if (latest) {
-        const dateOnly = latest.time?.includes(' ') ? latest.time.split(' ')[0] : latest.time?.includes('T') ? latest.time.split('T')[0] : (latest.time || '')
-        return (
-          <div
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', overflow: 'hidden', width: '100%', padding: '0 4px' }}
-            title={latest.content}
-          >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', flex: 1, minWidth: 0 }}>
-              <MessageSquare size={12} color="#ea580c" style={{ flexShrink: 0, marginTop: '2px' }} />
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: '#334155',
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
-                  lineHeight: '1.3',
-                  overflow: 'hidden',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  flex: 1,
-                }}
-              >
-                {latest.content}
-              </span>
-            </div>
-            <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
-              {dateOnly}
-            </span>
-          </div>
-        )
-      }
-      return <span style={{ color: '#cbd5e1' }}>—</span>
-    }
-
-    // 5. File / Attachment (檔案 / 附件)
-    if (fieldType === 'file' || fieldType === 'attachment') {
-      let fileItems: Array<{ name: string; url?: string }> = []
-      if (Array.isArray(val)) {
-        fileItems = val.map((f) =>
-          typeof f === 'object' && f !== null ? { name: f.name || '檔案', url: f.url } : { name: String(f) }
-        )
-      } else if (typeof val === 'string' && val.trim()) {
-        try {
-          const parsed = JSON.parse(val)
-          if (Array.isArray(parsed)) {
-            fileItems = parsed.map((f: any) =>
-              typeof f === 'object' && f !== null ? { name: f.name || '檔案', url: f.url } : { name: String(f) }
-            )
-          } else if (typeof parsed === 'object' && parsed !== null) {
-            fileItems = [{ name: parsed.name || '檔案', url: parsed.url }]
-          } else {
-            fileItems = [{ name: String(parsed) }]
-          }
-        } catch {
-          fileItems = [{ name: val }]
-        }
-      }
-      if (fileItems.length > 0) {
-        return (
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'nowrap', overflow: 'hidden', alignItems: 'center' }}>
-            {fileItems.map((f, i) => (
-              <span
-                key={i}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  backgroundColor: '#f1f5f9',
-                  color: '#334155',
-                  border: '1px solid #e2e8f0',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-                title={f.name}
-              >
-                <Paperclip size={11} color="#64748b" />
-                <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</span>
-              </span>
-            ))}
-          </div>
-        )
-      }
-      return <span style={{ color: '#cbd5e1' }}>—</span>
-    }
-
-    // 6. Boolean (核取方塊)
-    if (fieldType === 'boolean' || typeof val === 'boolean') {
-      const isChecked = Boolean(val === true || val === 'true' || val === 1 || val === '1')
-      return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div
-            style={{
-              width: '16px',
-              height: '16px',
-              borderRadius: '4px',
-              border: isChecked ? '1px solid #3F6212' : '1px solid #cbd5e1',
-              backgroundColor: isChecked ? '#3F6212' : '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {isChecked && (
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
-          </div>
-        </div>
-      )
-    }
-
-    // 7. Number (數字 / 貨幣 / 百分比)
-    if (fieldType === 'number' && (typeof val === 'number' || !isNaN(Number(val)))) {
-      const formatted = formatNumberValue(val, options)
-      return (
-        <span style={{ fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace', fontWeight: 500, color: '#1e293b' }}>
-          {formatted}
-        </span>
-      )
-    }
-
-    // 8. Rating (評分星級)
-    if (fieldType === 'rating') {
-      const ratingVal = Math.min(5, Math.max(0, parseInt(String(val || 0)) || 0))
-      return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-          {[1, 2, 3, 4, 5].map((starNum) => (
-            <Star
-              key={starNum}
-              size={13}
-              fill={starNum <= ratingVal ? '#f59e0b' : '#e2e8f0'}
-              color={starNum <= ratingVal ? '#f59e0b' : '#e4e4e7'}
-            />
-          ))}
-        </div>
-      )
-    }
-
-    // 9. URL (網址連結)
-    if (fieldType === 'url') {
-      const urlStr = String(val).trim()
-      if (!urlStr) return <span style={{ color: '#cbd5e1' }}>—</span>
-      const href = urlStr.startsWith('http://') || urlStr.startsWith('https://') ? urlStr : `https://${urlStr}`
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            color: '#ea580c',
-            textDecoration: 'underline',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '12px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '220px',
-          }}
-        >
-          <Link2 size={12} color="#ea580c" style={{ flexShrink: 0 }} />
-          <span>{urlStr}</span>
-        </a>
-      )
-    }
-
-    // 10. Email (電子郵件)
-    if (fieldType === 'email') {
-      const emailStr = String(val).trim()
-      if (!emailStr) return <span style={{ color: '#cbd5e1' }}>—</span>
-      return (
-        <a
-          href={`mailto:${emailStr}`}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            color: '#ea580c',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '12px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '220px',
-          }}
-        >
-          <Mail size={12} color="#ea580c" style={{ flexShrink: 0 }} />
-          <span>{emailStr}</span>
-        </a>
-      )
-    }
-
-    // 11. Phone (電話)
-    if (fieldType === 'phone') {
-      return <span style={{ fontSize: '12px', color: '#0f172a' }}>📞 {String(val)}</span>
-    }
-
-    // 12. Date & Audit Dates (日期 / 建立時間 / 最後修改時間)
-    if (fieldType === 'date' || fieldType === 'created_on' || fieldType === 'last_modified_on') {
-      const dStr = formatDateValue(val)
-      return (
-        <span style={{ fontSize: '12px', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          {fieldType === 'created_on' || fieldType === 'last_modified_on' ? <Clock size={11} color="#94a3b8" /> : null}
-          <span>{dStr || String(val)}</span>
-        </span>
-      )
-    }
-
-    // 13. Audit Users (建立者 / 修改者)
-    if (fieldType === 'created_by' || fieldType === 'last_modified_by') {
-      const userLabel = typeof val === 'object' && val !== null ? val.username || val.name || String(val) : String(val)
-      return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#475569' }}>
-          <User size={11} color="#64748b" />
-          <span>{userLabel || '系統'}</span>
-        </span>
-      )
-    }
-
-    // 14. Formula / Lookup / Rollup
-    if (fieldType === 'formula' || fieldType === 'lookup' || fieldType === 'rollup') {
-      return renderFormulaCell(val)
-    }
-
-    // 15. Password
-    if (fieldType === 'password') {
-      return <span style={{ color: '#64748b', letterSpacing: '2px', fontFamily: 'monospace', fontSize: '12px' }}>••••••••</span>
-    }
-
-    // 16. Autonumber
-    if (fieldType === 'autonumber') {
-      return <span style={{ fontFamily: 'monospace', fontSize: '12px', color: '#64748b', fontWeight: 600 }}>#{val}</span>
-    }
-
-    // 17. Duration
-    if (fieldType === 'duration') {
-      return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#334155', fontFamily: 'monospace' }}>
-          <Clock size={11} color="#ea580c" />
-          <span>{String(val)}</span>
-        </span>
-      )
-    }
-
-    // 18. AI Prompt
-    if (fieldType === 'ai_prompt') {
-      return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#4c1d95', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <Sparkles size={11} color="#ea580c" style={{ flexShrink: 0 }} />
-          <span>{String(val)}</span>
-        </span>
-      )
-    }
-
-    // 19. Fallback & Smart JSON Unpacker (防代碼字串外露)
-    let displayText = ''
-    if (typeof val === 'string') {
-      const trimmed = val.trim()
-      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
-        try {
-          const parsed = JSON.parse(trimmed)
-          if (Array.isArray(parsed)) {
-            displayText = parsed
-              .map((item) =>
-                typeof item === 'object' && item !== null
-                  ? item.value || item.name || item.username || item.title || (item.id ? `ID: ${item.id}` : '')
-                  : String(item)
-              )
-              .filter(Boolean)
-              .join(', ')
-          } else if (typeof parsed === 'object' && parsed !== null) {
-            displayText =
-              parsed.value ||
-              parsed.name ||
-              parsed.username ||
-              parsed.title ||
-              Object.values(parsed)
-                .map((v) => String(v))
-                .filter(Boolean)
-                .join(', ')
-          } else {
-            displayText = String(parsed)
-          }
-        } catch {
-          displayText = trimmed
-        }
-      } else {
-        displayText = trimmed
-      }
-    } else if (typeof val === 'object' && val !== null) {
-      if (Array.isArray(val)) {
-        displayText = val
-          .map((item) =>
-            typeof item === 'object' && item !== null
-              ? item.value || item.name || item.username || item.title || (item.id ? `ID: ${item.id}` : '')
-              : String(item)
-          )
-          .filter(Boolean)
-          .join(', ')
-      } else {
-        displayText =
-          val.value ||
-          val.name ||
-          val.username ||
-          val.title ||
-          Object.values(val)
-            .map((v) => String(v))
-            .filter(Boolean)
-            .join(', ')
-      }
-    } else {
-      displayText = String(val)
-    }
-
-    return (
-      <span
-        style={{
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          maxWidth: '240px',
-          display: 'inline-block',
-          color: '#18181b',
-        }}
-        title={displayText}
-      >
-        {displayText || <span style={{ color: '#cbd5e1' }}>—</span>}
-      </span>
-    )
-  }
 
   // Toggle sort on column header
   const handleToggleSort = (fieldKey: string) => {
@@ -848,6 +315,11 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
   const handleToggleUnmergeColumn = (fieldKey: string) => {
     setUnmergedKeys((prev) => {
       const next = prev.includes(fieldKey) ? prev.filter((k) => k !== fieldKey) : [...prev, fieldKey]
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`master_unmerged_keys_${workspaceId}`, JSON.stringify(next))
+        } catch { }
+      }
       return next
     })
     setActiveColumnPopover(null)
@@ -954,6 +426,9 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
         if (selectedTableIds.length > 0) {
           url += `&tableIds=${encodeURIComponent(selectedTableIds.join(','))}`
         }
+        if (Object.keys(customAliasMap).length > 0) {
+          url += `&aliasMap=${encodeURIComponent(JSON.stringify(customAliasMap))}`
+        }
 
         const res = await fetch(url)
         if (!res.ok) {
@@ -987,12 +462,36 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
         setLoadingMore(false)
       }
     },
-    [workspaceId, masterViewId, sortField, sortOrder, filters, selectedTableIds]
+    [workspaceId, masterViewId, sortField, sortOrder, filters, selectedTableIds, customAliasMap]
   )
 
   useEffect(() => {
     fetchRows(null)
   }, [fetchRows])
+
+  // Global Keyboard Shortcuts (/ to search, Escape to close panels)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement !== searchInputRef.current) {
+        const target = e.target as HTMLElement | null
+        const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+        if (!isInput) {
+          e.preventDefault()
+          searchInputRef.current?.focus()
+        }
+      } else if (e.key === 'Escape') {
+        setShowColumnsBar(false)
+        setShowFilterBar(false)
+        setActiveColumnPopover(null)
+        setActiveOverridePopover(null)
+        setActiveExcludedMismatchPopover(null)
+        setShowFieldMappingModal(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Analyze field frequencies and determine sparse vs default visible columns using unified columns and pinned keys
   const frequencyAnalysis = useMemo(
@@ -1118,8 +617,10 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(`master_alias_map_${workspaceId}`, JSON.stringify(newCustomAliasMap))
+        localStorage.setItem(`master_unmerged_keys_${workspaceId}`, JSON.stringify(newUnmergedKeys))
       } catch { }
     }
+    fetchRows(null)
   }
 
 
@@ -1155,17 +656,105 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
       return allFieldKeys.some((k) => {
         const val = getRowFieldValue(r, k, unifiedColumnsMap, fieldsMap)
         if (val == null) return false
+
+        // Handle arrays (e.g. link rows, multiple select, multiple collaborators)
+        if (Array.isArray(val)) {
+          return val.some((item) => {
+            if (item == null) return false
+            if (typeof item === 'object') {
+              return Object.values(item).some(
+                (v) => v != null && String(v).toLowerCase().includes(q)
+              )
+            }
+            return String(item).toLowerCase().includes(q)
+          })
+        }
+
+        // Handle single object (e.g. single link row, collaborator object)
+        if (typeof val === 'object') {
+          return Object.values(val).some(
+            (v) => v != null && String(v).toLowerCase().includes(q)
+          )
+        }
+
         return String(val).toLowerCase().includes(q)
       })
     })
+
   }, [rows, selectedTableIds, searchQuery, tablesMap, allFieldKeys, unifiedColumnsMap, fieldsMap])
 
 
-  // Export CSV handler
+  // Selection helpers
+  const isAllSelected = useMemo(
+    () => filteredRows.length > 0 && filteredRows.every((r) => selectedRowKeys.has(`${r.tableId}_${r.id}`)),
+    [filteredRows, selectedRowKeys]
+  )
+
+  const isSomeSelected = useMemo(
+    () => filteredRows.some((r) => selectedRowKeys.has(`${r.tableId}_${r.id}`)) && !isAllSelected,
+    [filteredRows, selectedRowKeys, isAllSelected]
+  )
+
+  const toggleSelectAll = useCallback(() => {
+    if (isAllSelected) {
+      setSelectedRowKeys(new Set())
+    } else {
+      setSelectedRowKeys(new Set(filteredRows.map((r) => `${r.tableId}_${r.id}`)))
+    }
+  }, [isAllSelected, filteredRows])
+
+  // Batch revert overrides handler (single batch HTTP request)
+  const handleBatchRevertOverrides = async () => {
+    if (!masterViewId || selectedRowKeys.size === 0) return
+    try {
+      const selectedList = Array.from(selectedRowKeys).map((k) => {
+        const [tableId, rowId] = k.split('_').map(Number)
+        return { sourceTableId: tableId, sourceRowId: rowId }
+      })
+
+      const res = await fetch(`/api/workspaces/${workspaceId}/master-views/${masterViewId}/rows`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: selectedList }),
+      })
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}))
+        throw new Error(errJson.error || '批量還原覆寫失敗')
+      }
+
+      // Optimistically update local rows
+      setRows((prev) =>
+        prev.map((r) => {
+          const k = `${r.tableId}_${r.id}`
+          if (selectedRowKeys.has(k) && r._originalData) {
+            return {
+              ...r,
+              data: { ...r._originalData },
+              _hasOverride: false,
+              _overrideKeys: [],
+            }
+          }
+          return r
+        })
+      )
+      setSelectedRowKeys(new Set())
+    } catch (err) {
+      console.error('Failed to batch revert overrides:', err)
+    }
+  }
+
+
+  // Export CSV handler (supports selected rows or all filtered rows)
   const handleExportCsv = () => {
     if (filteredRows.length === 0) return
+    const rowsToExport = selectedRowKeys.size > 0
+      ? filteredRows.filter((r) => selectedRowKeys.has(`${r.tableId}_${r.id}`))
+      : filteredRows
+
+    if (rowsToExport.length === 0) return
     const headers = ['#', '來源資料表', ...visibleFieldKeys.map((k) => getFieldLabel(k)), '建立時間']
-    const csvRows = filteredRows.map((r, idx) => {
+    const csvRows = rowsToExport.map((r, idx) => {
       const tableName = tablesMap[r.tableId]?.name || `Table ${r.tableId}`
       const values = visibleFieldKeys.map((k) => {
         const val = getRowFieldValue(r, k, unifiedColumnsMap, fieldsMap)
@@ -1302,7 +891,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
               borderRadius: '8px',
               backgroundColor: '#f7fee7',
               border: '1px solid #d9f99d',
-              color: '#3F6212',
+              color: '#52A628',
             }}
           >
             <Layers size={18} />
@@ -1324,7 +913,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                     borderRadius: '12px',
                     backgroundColor: '#f7fee7',
                     border: '1px solid #d9f99d',
-                    color: '#3F6212',
+                    color: '#52A628',
                   }}
                 >
                   <Sparkles size={12} />
@@ -1349,15 +938,17 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
               backgroundColor: '#ffffff',
               border: '1px solid #e4e4e7',
               borderRadius: '6px',
-              width: '240px',
+              width: '260px',
               boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
               transition: 'border-color 0.15s ease',
+              position: 'relative',
             }}
           >
             <Search size={14} color="#a1a1aa" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder={`搜尋已載入資料 (${filteredRows.length}/${rows.length} 筆)...`}
+              placeholder={`搜尋已載入資料 (${filteredRows.length}/${rows.length} 筆) (按 / 搜尋)...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
@@ -1369,6 +960,26 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                 color: '#18181b',
               }}
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                data-testid="clear-search-btn"
+                style={{
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  color: '#a1a1aa',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                }}
+                title="清除搜尋"
+              >
+                <X size={13} />
+              </button>
+            )}
           </div>
 
           {/* Unified View & Columns Hub Button */}
@@ -1380,18 +991,18 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
               alignItems: 'center',
               gap: '6px',
               padding: '6px 12px',
-              backgroundColor: showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#f7fee7' : '#ffffff',
-              border: `1px solid ${showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#bef264' : '#e4e4e7'}`,
+              backgroundColor: showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#f0fdf4' : '#ffffff',
+              border: `1px solid ${showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#86efac' : '#e4e4e7'}`,
               borderRadius: '6px',
               fontSize: '13px',
               fontWeight: 500,
-              color: showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#3F6212' : '#3f3f46',
+              color: showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#166534' : '#3f3f46',
               cursor: 'pointer',
               boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
               transition: 'all 0.15s ease',
             }}
           >
-            <SlidersHorizontal size={14} color={showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#3F6212' : '#71717a'} />
+            <SlidersHorizontal size={14} color={showColumnsBar || selectedTableIds.length > 0 || Object.keys(customAliasMap).length > 0 ? '#52A628' : '#71717a'} />
             <span>
               檢視與欄位{selectedTableIds.length > 0 ? ` (${selectedTableIds.length}表 · ${visibleFieldKeys.length}欄)` : ` (${visibleFieldKeys.length}/${allFieldKeys.length})`}
             </span>
@@ -1399,8 +1010,8 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
               <span
                 style={{
                   fontSize: '10px',
-                  backgroundColor: '#ecfccb',
-                  color: '#365314',
+                  backgroundColor: '#dcfce7',
+                  color: '#166534',
                   padding: '1px 5px',
                   borderRadius: '10px',
                   fontWeight: 600,
@@ -1411,7 +1022,6 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
             )}
           </button>
 
-
           {/* Toggle Filter Bar */}
           <button
             onClick={() => setShowFilterBar((prev) => !prev)}
@@ -1421,19 +1031,44 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
               alignItems: 'center',
               gap: '6px',
               padding: '6px 12px',
-              backgroundColor: showFilterBar || filters.length > 0 ? '#f7fee7' : '#ffffff',
-              border: `1px solid ${showFilterBar || filters.length > 0 ? '#bef264' : '#e4e4e7'}`,
+              backgroundColor: showFilterBar || filters.length > 0 ? '#f0fdf4' : '#ffffff',
+              border: `1px solid ${showFilterBar || filters.length > 0 ? '#86efac' : '#e4e4e7'}`,
               borderRadius: '6px',
               fontSize: '13px',
               fontWeight: 500,
-              color: showFilterBar || filters.length > 0 ? '#3F6212' : '#3f3f46',
+              color: showFilterBar || filters.length > 0 ? '#166534' : '#3f3f46',
               cursor: 'pointer',
               boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
               transition: 'all 0.15s ease',
             }}
           >
-            <Filter size={14} color={filters.length > 0 ? '#3F6212' : '#71717a'} />
+            <Filter size={14} color={filters.length > 0 ? '#52A628' : '#71717a'} />
             <span>篩選{filters.length > 0 ? ` (${filters.length})` : ''}</span>
+          </button>
+
+          {/* Group By Table Toggle */}
+          <button
+            onClick={() => setGroupByTable((prev) => !prev)}
+            data-testid="toggle-group-by-table-btn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              backgroundColor: groupByTable ? '#f0fdf4' : '#ffffff',
+              border: `1px solid ${groupByTable ? '#86efac' : '#e4e4e7'}`,
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: groupByTable ? '#166534' : '#3f3f46',
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.02)',
+              transition: 'all 0.15s ease',
+            }}
+            title="依來源資料表進行群組分塊檢視"
+          >
+            <ListFilter size={14} color={groupByTable ? '#52A628' : '#71717a'} />
+            <span>依資料表分組</span>
           </button>
 
           {/* Export CSV Button */}
@@ -1540,7 +1175,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
             style={{
               border: 'none',
               background: 'none',
-              color: '#3F6212',
+              color: '#52A628',
               fontSize: '12px',
               fontWeight: 600,
               cursor: 'pointer',
@@ -1613,7 +1248,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                 type="checkbox"
                 checked={isChecked}
                 onChange={() => handleToggleColumnVisibility(fieldInfo.key)}
-                style={{ cursor: 'pointer', accentColor: '#3F6212', width: '13px', height: '13px' }}
+                style={{ cursor: 'pointer', accentColor: '#52A628', width: '13px', height: '13px' }}
               />
               <span
                 style={{
@@ -1648,7 +1283,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                     padding: '1px 5px',
                     borderRadius: '4px',
                     fontSize: '10px',
-                    color: isUnmerged ? '#dc2626' : '#3F6212',
+                    color: isUnmerged ? '#dc2626' : '#52A628',
                     backgroundColor: isUnmerged ? '#fee2e2' : '#f7fee7',
                     border: `1px solid ${isUnmerged ? '#fca5a5' : '#d9f99d'}`,
                     cursor: 'pointer',
@@ -1670,7 +1305,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         width: '5px',
                         height: '5px',
                         borderRadius: '50%',
-                        backgroundColor: tablesMap[s.tableId]?.color || '#3F6212',
+                        backgroundColor: tablesMap[s.tableId]?.color || '#52A628',
                       }}
                     />
                   ))}
@@ -1761,7 +1396,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f4f4f5', paddingBottom: '6px' }}>
                   <span style={{ fontSize: '12px', fontWeight: 600, color: '#27272a', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <TableIcon size={13} color="#3F6212" />
+                    <TableIcon size={13} color="#52A628" />
                     來源資料表 ({selectedTableIds.length === 0 ? Object.keys(tablesMap).length : selectedTableIds.length}/{Object.keys(tablesMap).length})
                   </span>
                   <button
@@ -1770,7 +1405,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                       border: 'none',
                       background: 'none',
                       fontSize: '11px',
-                      color: '#3F6212',
+                      color: '#52A628',
                       cursor: 'pointer',
                       fontWeight: 600,
                     }}
@@ -1806,12 +1441,12 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                           width: '8px',
                           height: '8px',
                           borderRadius: '50%',
-                          backgroundColor: '#3F6212',
+                          backgroundColor: '#52A628',
                         }}
                       />
                       <span>全部資料表</span>
                     </div>
-                    <span style={{ fontSize: '11px', color: selectedTableIds.length === 0 ? '#3F6212' : '#a1a1aa', fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ fontSize: '11px', color: selectedTableIds.length === 0 ? '#52A628' : '#a1a1aa', fontVariantNumeric: 'tabular-nums' }}>
                       {totalRowsCount != null ? totalRowsCount : rows.length} 筆
                     </span>
                   </button>
@@ -1867,7 +1502,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                               width: '8px',
                               height: '8px',
                               borderRadius: '50%',
-                              backgroundColor: t.color || '#3F6212',
+                              backgroundColor: t.color || '#52A628',
                               flexShrink: 0,
                             }}
                           />
@@ -1877,7 +1512,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         </button>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                          <span style={{ fontSize: '11px', color: active ? '#3F6212' : '#a1a1aa', fontVariantNumeric: 'tabular-nums' }}>
+                          <span style={{ fontSize: '11px', color: active ? '#52A628' : '#a1a1aa', fontVariantNumeric: 'tabular-nums' }}>
                             {count} 筆
                           </span>
                           <button
@@ -1962,7 +1597,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                           fontSize: '11px',
                           fontWeight: fieldFilterTab === 'shared' ? 600 : 400,
                           backgroundColor: fieldFilterTab === 'shared' ? '#ffffff' : 'transparent',
-                          color: fieldFilterTab === 'shared' ? '#3F6212' : '#71717a',
+                          color: fieldFilterTab === 'shared' ? '#52A628' : '#71717a',
                           borderRadius: '4px',
                           border: 'none',
                           cursor: 'pointer',
@@ -2118,7 +1753,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                           padding: '3px 8px',
                           fontSize: '11px',
                           fontWeight: 600,
-                          color: '#3F6212',
+                          color: '#52A628',
                           cursor: 'pointer',
                           transition: 'all 0.15s ease',
                           display: 'inline-flex',
@@ -2128,7 +1763,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f7fee7')}
                         onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                       >
-                        <Eye size={10} color="#3F6212" />
+                        <Eye size={10} color="#52A628" />
                         <span>全選</span>
                       </button>
 
@@ -2167,7 +1802,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         gap: '4px',
                         padding: '3px 9px',
                         backgroundColor: Object.keys(customAliasMap).length > 0 ? '#f7fee7' : '#ffffff',
-                        color: Object.keys(customAliasMap).length > 0 ? '#3F6212' : '#52525b',
+                        color: Object.keys(customAliasMap).length > 0 ? '#52A628' : '#52525b',
                         border: `1px solid ${Object.keys(customAliasMap).length > 0 ? '#bef264' : '#e4e4e7'}`,
                         borderRadius: '6px',
                         fontSize: '11px',
@@ -2177,7 +1812,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         transition: 'all 0.15s ease',
                       }}
                     >
-                      <Layers size={11} color={Object.keys(customAliasMap).length > 0 ? '#3F6212' : '#71717a'} />
+                      <Layers size={11} color={Object.keys(customAliasMap).length > 0 ? '#52A628' : '#71717a'} />
                       <span>同義詞對照{Object.keys(customAliasMap).length > 0 ? ` (${Object.keys(customAliasMap).length})` : ''}</span>
                     </button>
                   </div>
@@ -2198,7 +1833,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                   {filteredSharedFields.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#3F6212', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#52A628', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           🌐 跨表通用欄位 ({filteredSharedFields.length})
                           <span style={{ fontSize: '10px', color: '#a1a1aa', fontWeight: 400 }}>
                             — 跨多張已選資料表對齊
@@ -2211,7 +1846,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                               border: 'none',
                               background: 'none',
                               fontSize: '10px',
-                              color: '#3F6212',
+                              color: '#52A628',
                               fontWeight: 600,
                               cursor: 'pointer',
                               padding: '0 4px',
@@ -2274,7 +1909,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                                 width: '7px',
                                 height: '7px',
                                 borderRadius: '50%',
-                                backgroundColor: t?.color || '#3F6212',
+                                backgroundColor: t?.color || '#52A628',
                               }}
                             />
                             <span style={{ fontSize: '11px', fontWeight: 600, color: '#27272a' }}>
@@ -2294,7 +1929,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                                 border: 'none',
                                 background: 'none',
                                 fontSize: '10px',
-                                color: '#3F6212',
+                                color: '#52A628',
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 padding: '0 4px',
@@ -2380,7 +2015,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#27272a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Filter size={13} color="#3F6212" />
+              <Filter size={13} color="#52A628" />
               跨表篩選規則 ({filters.length})
             </span>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -2392,7 +2027,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                   alignItems: 'center',
                   gap: '4px',
                   padding: '4px 10px',
-                  backgroundColor: '#3F6212',
+                  backgroundColor: '#52A628',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '6px',
@@ -2537,20 +2172,27 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
           position: 'relative',
         }}
       >
-        {loading && rows.length === 0 ? (
+        {/* Secondary Loading Progress Shimmer */}
+        {loading && rows.length > 0 && (
           <div
+            data-testid="master-reloading-bar"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '300px',
-              gap: '8px',
-              color: '#71717a',
+              position: 'sticky',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '3px',
+              width: '100%',
+              zIndex: 35,
+              background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+              backgroundSize: '200% 100%',
+              animation: 'fycdBarShimmer 1.8s ease-in-out infinite',
             }}
-          >
-            <Loader2 className="animate-spin" size={20} color="#3F6212" />
-            <span>正在彙整跨表資料列...</span>
-          </div>
+          />
+        )}
+
+        {loading && rows.length === 0 ? (
+          <WorkspaceGridSkeleton loadingText="正在彙整跨表資料列..." />
         ) : error ? (
           <div
             style={{
@@ -2618,15 +2260,15 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                 }}
               >
                 <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#fafafa', border: '1px solid #e4e4e7', textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#3F6212', marginBottom: '2px' }}>步驟 1</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#52A628', marginBottom: '2px' }}>步驟 1</div>
                   <div style={{ fontSize: '11px', color: '#52525b' }}>在工作區新增各子資料表</div>
                 </div>
                 <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#fafafa', border: '1px solid #e4e4e7', textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#3F6212', marginBottom: '2px' }}>步驟 2</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#52A628', marginBottom: '2px' }}>步驟 2</div>
                   <div style={{ fontSize: '11px', color: '#52525b' }}>系統自動同名對齊與來源標註</div>
                 </div>
                 <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#fafafa', border: '1px solid #e4e4e7', textAlign: 'center' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#3F6212', marginBottom: '2px' }}>步驟 3</div>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#52A628', marginBottom: '2px' }}>步驟 3</div>
                   <div style={{ fontSize: '11px', color: '#52525b' }}>隨時獨立覆寫與匯出 CSV</div>
                 </div>
               </div>
@@ -2664,7 +2306,19 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                     backgroundColor: '#fafafa',
                   }}
                 >
-                  #
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <input
+                      type="checkbox"
+                      data-testid="select-all-rows-checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeSelected
+                      }}
+                      onChange={toggleSelectAll}
+                      style={{ cursor: 'pointer', accentColor: '#52A628', width: '13px', height: '13px' }}
+                      title="全選 / 取消全選"
+                    />
+                  </div>
                 </th>
                 <th
                   style={{
@@ -2688,11 +2342,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                   const isPinned = pinnedKeys.includes(key)
 
                   // Calculate sticky left offset for pinned columns
-                  let stickyLeft: string | undefined = undefined
-                  if (isPinned) {
-                    const pinnedIndex = pinnedKeys.indexOf(key)
-                    stickyLeft = `${220 + pinnedIndex * 150}px`
-                  }
+                  const stickyLeft = isPinned ? getPinnedStickyLeft(key) : undefined
 
                   return (
                     <th
@@ -2701,7 +2351,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                       data-testid={`sort-header-${key}`}
                       style={{
                         padding: '10px 14px',
-                        color: isSorted ? '#3F6212' : '#3f3f46',
+                        color: isSorted ? '#52A628' : '#3f3f46',
                         backgroundColor: isSorted ? '#f7fee7' : isPinned ? '#f4f4f5' : 'transparent',
                         fontWeight: 600,
                         minWidth: '150px',
@@ -2755,7 +2405,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                               background: 'none',
                               cursor: 'pointer',
                               padding: '2px',
-                              color: isPinned ? '#3F6212' : '#a1a1aa',
+                              color: isPinned ? '#52A628' : '#a1a1aa',
                             }}
                           >
                             {isPinned ? <Pin size={12} /> : <PinOff size={12} />}
@@ -2776,7 +2426,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                                   background: 'none',
                                   cursor: 'pointer',
                                   padding: '2px',
-                                  color: activeColumnPopover === key ? '#3F6212' : '#a1a1aa',
+                                  color: activeColumnPopover === key ? '#52A628' : '#a1a1aa',
                                 }}
                               >
                                 <Info size={12} />
@@ -2864,7 +2514,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                                       borderRadius: '5px',
                                       fontSize: '11px',
                                       fontWeight: 500,
-                                      color: unmergedKeys.includes(key) ? '#3F6212' : '#52525b',
+                                      color: unmergedKeys.includes(key) ? '#52A628' : '#52525b',
                                       cursor: 'pointer',
                                       display: 'flex',
                                       alignItems: 'center',
@@ -2883,9 +2533,9 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
 
                           {isSorted ? (
                             sortOrder === 'asc' ? (
-                              <ArrowUp size={13} color="#3F6212" data-testid="sort-asc-icon" />
+                              <ArrowUp size={13} color="#52A628" data-testid="sort-asc-icon" />
                             ) : (
-                              <ArrowDown size={13} color="#3F6212" data-testid="sort-desc-icon" />
+                              <ArrowDown size={13} color="#52A628" data-testid="sort-desc-icon" />
                             )
                           ) : (
                             <ArrowUpDown size={12} color="#a1a1aa" />
@@ -2901,7 +2551,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                   style={{
                     padding: '10px 14px',
                     width: '160px',
-                    color: sortField === 'createdAt' ? '#3F6212' : '#71717a',
+                    color: sortField === 'createdAt' ? '#52A628' : '#71717a',
                     backgroundColor: sortField === 'createdAt' ? '#f7fee7' : 'transparent',
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -2912,9 +2562,9 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                     <span>建立時間</span>
                     {sortField === 'createdAt' ? (
                       sortOrder === 'asc' ? (
-                        <ArrowUp size={13} color="#3F6212" />
+                        <ArrowUp size={13} color="#52A628" />
                       ) : (
-                        <ArrowDown size={13} color="#3F6212" />
+                        <ArrowDown size={13} color="#52A628" />
                       )
                     ) : (
                       <ArrowUpDown size={12} color="#a1a1aa" />
@@ -2928,243 +2578,364 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
             </thead>
 
             {/* Table Body */}
-            <tbody>
-              {filteredRows.map((row, idx) => {
-                const tableInfo = tablesMap[row.tableId] || {
-                  name: `Table ${row.tableId}`,
-                  color: '#3F6212',
-                }
+            <tbody
+              style={{
+                opacity: loading ? 0.6 : 1,
+                pointerEvents: loading ? 'none' : 'auto',
+                transition: 'opacity 0.2s ease',
+              }}
+            >
+              {groupByTable ? (
+                Object.entries(
+                  filteredRows.reduce<Record<number, MasterViewRowWithOverrides[]>>((acc, r) => {
+                    if (!acc[r.tableId]) acc[r.tableId] = []
+                    acc[r.tableId].push(r)
+                    return acc
+                  }, {})
+                ).map(([tidStr, tableRows]) => {
+                  const tid = Number(tidStr)
+                  const tableInfo = tablesMap[tid] || { name: `資料表 ${tid}`, color: '#52A628' }
+                  const isCollapsed = collapsedTableGroups.has(tid)
 
-                return (
-                  <tr
-                    key={`${row.tableId}-${row.id}`}
-                    data-testid={`master-row-${row.tableId}-${row.id}`}
-                    style={{
-                      borderBottom: '1px solid #f4f4f5',
-                      backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
-                      transition: 'background-color 0.15s ease',
-                    }}
-                  >
-                    {/* Index */}
-                    <td
-                      style={{
-                        padding: '10px 14px',
-                        color: '#a1a1aa',
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        position: 'sticky',
-                        left: 0,
-                        zIndex: 10,
-                        backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
-                      }}
-                    >
-                      {idx + 1}
-                    </td>
-
-                    {/* Source Table Badge */}
-                    <td
-                      style={{
-                        padding: '10px 14px',
-                        position: 'sticky',
-                        left: '60px',
-                        zIndex: 10,
-                        backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
-                        borderRight: '1px solid #f4f4f5',
-                      }}
-                    >
-                      <span
-                        data-testid={`source-table-badge-${row.tableId}`}
+                  return (
+                    <React.Fragment key={`group-${tid}`}>
+                      <tr
+                        onClick={() => handleToggleCollapseGroup(tid)}
                         style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          backgroundColor: '#f4f4f5',
-                          color: '#27272a',
-                          border: '1px solid #e4e4e7',
+                          backgroundColor: '#f8fafc',
+                          borderBottom: '1px solid #e2e8f0',
+                          cursor: 'pointer',
+                          userSelect: 'none',
                         }}
                       >
-                        <TableIcon size={12} color={tableInfo.color || '#3F6212'} />
-                        {tableInfo.name}
-                      </span>
-                    </td>
-
-                    {/* Dynamic Fields */}
-                    {visibleFieldKeys.map((key) => {
-                      const tableFieldKey = unifiedColumnsMap[key]?.tableFieldMap[row.tableId] || key
-                      const isOverridden =
-                        row._hasOverride &&
-                        Array.isArray(row._overrideKeys) &&
-                        (row._overrideKeys.includes(key) || row._overrideKeys.includes(tableFieldKey))
-
-                      const originalVal = getRowFieldValue(
-                        { tableId: row.tableId, data: row._originalData },
-                        key,
-                        unifiedColumnsMap,
-                        fieldsMap
-                      )
-
-                      const isPinned = pinnedKeys.includes(key)
-                      let stickyLeft: string | undefined = undefined
-                      if (isPinned) {
-                        const pinnedIndex = pinnedKeys.indexOf(key)
-                        stickyLeft = `${220 + pinnedIndex * 150}px`
-                      }
-
-                      return (
                         <td
-                          key={key}
+                          colSpan={visibleFieldKeys.length + 4}
                           style={{
-                            padding: '10px 14px',
-                            color: '#18181b',
-                            borderLeft: '1px solid #f4f4f5',
-                            position: isPinned ? 'sticky' : 'relative',
-                            left: stickyLeft,
-                            zIndex: isPinned ? 5 : undefined,
-                            backgroundColor: isOverridden ? '#fffbeb' : isPinned ? (idx % 2 === 0 ? '#f4f4f5' : '#e4e4e7') : 'transparent',
-                            boxShadow: isPinned ? '4px 0 6px -2px rgba(0, 0, 0, 0.04)' : undefined,
+                            padding: '8px 14px',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            color: '#334155',
+                            position: 'sticky',
+                            left: 0,
+                            zIndex: 12,
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                            {renderCellValue(row, key)}
-                            {isOverridden && (
-                              <div style={{ position: 'relative' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {isCollapsed ? <ChevronRight size={14} color="#64748b" /> : <ChevronDown size={14} color="#64748b" />}
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: tableInfo.color || '#52A628',
+                                flexShrink: 0,
+                              }}
+                            />
+                            <span style={{ fontWeight: 600 }}>{tableInfo.name}</span>
+                            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 500 }}>
+                              ({tableRows.length} 筆資料)
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {!isCollapsed &&
+                        tableRows.map((row, idx) => {
+                          return (
+                            <tr
+                              key={`${row.tableId}-${row.id}`}
+                              data-testid={`master-row-${row.tableId}-${row.id}`}
+                              style={{
+                                borderBottom: '1px solid #f4f4f5',
+                                backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
+                                transition: 'background-color 0.15s ease',
+                              }}
+                            >
+                              {/* Index & Selection Checkbox */}
+                              <td
+                                style={{
+                                  padding: '10px 14px',
+                                  color: '#a1a1aa',
+                                  fontSize: '12px',
+                                  textAlign: 'center',
+                                  position: 'sticky',
+                                  left: 0,
+                                  zIndex: 10,
+                                  backgroundColor: selectedRowKeys.has(`${row.tableId}_${row.id}`) ? '#f0fdf4' : idx % 2 === 0 ? '#ffffff' : '#fafaf9',
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                                  <input
+                                    type="checkbox"
+                                    data-testid={`select-row-checkbox-${row.tableId}-${row.id}`}
+                                    checked={selectedRowKeys.has(`${row.tableId}_${row.id}`)}
+                                    onChange={() => toggleSelectRow(row.tableId, row.id)}
+                                    style={{ cursor: 'pointer', accentColor: '#52A628', width: '13px', height: '13px' }}
+                                  />
+                                  <span>{idx + 1}</span>
+                                </div>
+                              </td>
+
+                              {/* Source Table Badge */}
+                              <td
+                                style={{
+                                  padding: '10px 14px',
+                                  position: 'sticky',
+                                  left: '60px',
+                                  zIndex: 10,
+                                  backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
+                                  borderRight: '1px solid #f4f4f5',
+                                }}
+                              >
                                 <span
-                                  data-testid="override-badge"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setActiveOverridePopover(
-                                      activeOverridePopover?.tableId === row.tableId &&
-                                        activeOverridePopover?.rowId === row.id &&
-                                        activeOverridePopover?.key === key
-                                        ? null
-                                        : { tableId: row.tableId, rowId: row.id, key }
-                                    )
-                                  }}
-                                  title={`總表覆寫 (點擊查看與還原原始子表值: ${originalVal != null ? String(originalVal) : '無'})`}
+                                  data-testid={`source-table-badge-${row.tableId}`}
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    padding: '1px 5px',
-                                    fontSize: '10px',
-                                    fontWeight: 600,
-                                    borderRadius: '4px',
-                                    backgroundColor: row._isStaleOverride ? '#fef3c7' : '#fef9c3',
-                                    color: row._isStaleOverride ? '#b45309' : '#854d0e',
-                                    border: row._isStaleOverride ? '1px solid #fde68a' : '1px solid #fef08a',
-                                    cursor: 'pointer',
+                                    gap: '5px',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    backgroundColor: '#f4f4f5',
+                                    color: '#27272a',
+                                    border: '1px solid #e4e4e7',
                                   }}
                                 >
-                                  {row._isStaleOverride ? '覆寫 (來源已更新)' : '覆寫'}
+                                  <TableIcon size={12} color={tableInfo.color || '#52A628'} />
+                                  {tableInfo.name}
                                 </span>
+                              </td>
 
-                                {activeOverridePopover?.tableId === row.tableId &&
-                                  activeOverridePopover?.rowId === row.id &&
-                                  activeOverridePopover?.key === key && (
-                                    <div
-                                      data-testid="override-popover"
-                                      onClick={(e) => e.stopPropagation()}
-                                      style={{
-                                        position: 'absolute',
-                                        top: '100%',
-                                        right: 0,
-                                        marginTop: '4px',
-                                        zIndex: 40,
-                                        width: '220px',
-                                        backgroundColor: '#ffffff',
-                                        border: '1px solid #e4e4e7',
-                                        borderRadius: '6px',
-                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                                        padding: '10px',
-                                        fontSize: '12px',
-                                        color: '#27272a',
-                                        textAlign: 'left',
-                                      }}
-                                    >
-                                      <div style={{ fontWeight: 600, marginBottom: '4px', color: row._isStaleOverride ? '#b45309' : '#854d0e' }}>
-                                        {row._isStaleOverride ? '⚠️ 覆寫（來源資料已被更新）' : '總表專屬覆寫'}
-                                      </div>
-                                      {row._overrideUpdatedAt && (
-                                        <div style={{ fontSize: '10px', color: '#71717a', marginBottom: '4px' }}>
-                                          覆寫時間: {new Date(row._overrideUpdatedAt).toLocaleString()}
-                                        </div>
-                                      )}
-                                      <div style={{ fontSize: '11px', color: '#71717a', marginBottom: '8px' }}>
-                                        原始子表當前值: <strong>{originalVal != null ? String(originalVal) : '（空）'}</strong>
-                                      </div>
-                                      <button
-                                        data-testid="revert-override-btn"
-                                        onClick={() => handleRevertOverride(row.tableId, row.id, key)}
-                                        disabled={revertingOverride}
-                                        style={{
-                                          width: '100%',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          gap: '4px',
-                                          padding: '4px 8px',
-                                          backgroundColor: '#fee2e2',
-                                          border: '1px solid #fca5a5',
-                                          borderRadius: '4px',
-                                          color: '#991b1b',
-                                          fontSize: '11px',
-                                          fontWeight: 500,
-                                          cursor: revertingOverride ? 'not-allowed' : 'pointer',
-                                        }}
-                                      >
-                                        <RotateCcw size={11} className={revertingOverride ? 'animate-spin' : ''} />
-                                        {revertingOverride ? '還原中...' : '還原為原始值'}
-                                      </button>
-                                    </div>
-                                  )}
-                              </div>
-                            )}
+                              {/* Dynamic Fields via MasterGridCell */}
+                              {visibleFieldKeys.map((key) => {
+                                const tableFieldKey = unifiedColumnsMap[key]?.tableFieldMap[row.tableId] || key
+                                const isOverridden =
+                                  row._hasOverride &&
+                                  Array.isArray(row._overrideKeys) &&
+                                  (row._overrideKeys.includes(key) || row._overrideKeys.includes(tableFieldKey))
 
-                          </div>
-                        </td>
-                      )
-                    })}
+                                const originalVal = getRowFieldValue(
+                                  { tableId: row.tableId, data: row._originalData },
+                                  key,
+                                  unifiedColumnsMap,
+                                  fieldsMap
+                                )
 
-                    {/* CreatedAt */}
-                    <td style={{ padding: '10px 14px', color: '#71717a', fontSize: '12px' }}>
-                      {new Date(row.createdAt).toLocaleDateString()}
-                    </td>
+                                const isPinned = pinnedKeys.includes(key)
+                                const stickyLeft = isPinned ? getPinnedStickyLeft(key) : undefined
 
-                    {/* Actions / Detail Drawer Trigger */}
-                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
-                      <button
-                        data-testid="open-drawer-btn"
-                        onClick={() =>
-                          setSelectedDrawerRow({
-                            tableId: row.tableId,
-                            rowId: row.id,
-                            tableName: tableInfo.name,
-                          })
-                        }
+                                return (
+                                  <MasterGridCell
+                                    key={key}
+                                    row={row}
+                                    fieldKey={key}
+                                    rowIndex={idx}
+                                    unifiedColumnsMap={unifiedColumnsMap}
+                                    fieldsMap={fieldsMap}
+                                    isPinned={isPinned}
+                                    stickyLeft={stickyLeft}
+                                    isOverridden={Boolean(isOverridden)}
+                                    originalVal={originalVal}
+                                    activeOverridePopover={activeOverridePopover}
+                                    revertingOverride={revertingOverride}
+                                    onToggleOverridePopover={setActiveOverridePopover}
+                                    onRevertOverride={handleRevertOverride}
+                                    onOpenDrawer={setSelectedDrawerRow}
+                                  />
+                                )
+                              })}
+
+                              {/* CreatedAt */}
+                              <td style={{ padding: '10px 14px', color: '#71717a', fontSize: '12px' }}>
+                                {new Date(row.createdAt).toLocaleDateString()}
+                              </td>
+
+                              {/* Actions / Detail Drawer Trigger */}
+                              <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                <button
+                                  data-testid="open-drawer-btn"
+                                  onClick={() =>
+                                    setSelectedDrawerRow({
+                                      tableId: row.tableId,
+                                      rowId: row.id,
+                                      tableName: tableInfo.name,
+                                    })
+                                  }
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '4px 8px',
+                                    border: '1px solid #e4e4e7',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#ffffff',
+                                    color: '#3f3f46',
+                                    fontSize: '11px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                >
+                                  <ExternalLink size={12} />
+                                  詳情
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                    </React.Fragment>
+                  )
+                })
+              ) : (
+                filteredRows.map((row, idx) => {
+                  const tableInfo = tablesMap[row.tableId] || {
+                    name: `Table ${row.tableId}`,
+                    color: '#52A628',
+                  }
+
+                  return (
+                    <tr
+                      key={`${row.tableId}-${row.id}`}
+                      data-testid={`master-row-${row.tableId}-${row.id}`}
+                      style={{
+                        borderBottom: '1px solid #f4f4f5',
+                        backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                    >
+                      {/* Index & Selection Checkbox */}
+                      <td
                         style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 8px',
-                          border: '1px solid #e4e4e7',
-                          borderRadius: '4px',
-                          backgroundColor: '#ffffff',
-                          color: '#3f3f46',
-                          fontSize: '11px',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease',
+                          padding: '10px 14px',
+                          color: '#a1a1aa',
+                          fontSize: '12px',
+                          textAlign: 'center',
+                          position: 'sticky',
+                          left: 0,
+                          zIndex: 10,
+                          backgroundColor: selectedRowKeys.has(`${row.tableId}_${row.id}`) ? '#f0fdf4' : idx % 2 === 0 ? '#ffffff' : '#fafaf9',
                         }}
                       >
-                        <ExternalLink size={12} />
-                        詳情
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <input
+                            type="checkbox"
+                            data-testid={`select-row-checkbox-${row.tableId}-${row.id}`}
+                            checked={selectedRowKeys.has(`${row.tableId}_${row.id}`)}
+                            onChange={() => toggleSelectRow(row.tableId, row.id)}
+                            style={{ cursor: 'pointer', accentColor: '#52A628', width: '13px', height: '13px' }}
+                          />
+                          <span>{idx + 1}</span>
+                        </div>
+                      </td>
+
+                      {/* Source Table Badge */}
+                      <td
+                        style={{
+                          padding: '10px 14px',
+                          position: 'sticky',
+                          left: '60px',
+                          zIndex: 10,
+                          backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafaf9',
+                          borderRight: '1px solid #f4f4f5',
+                        }}
+                      >
+                        <span
+                          data-testid={`source-table-badge-${row.tableId}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 500,
+                            backgroundColor: '#f4f4f5',
+                            color: '#27272a',
+                            border: '1px solid #e4e4e7',
+                          }}
+                        >
+                          <TableIcon size={12} color={tableInfo.color || '#52A628'} />
+                          {tableInfo.name}
+                        </span>
+                      </td>
+
+                      {/* Dynamic Fields via MasterGridCell */}
+                      {visibleFieldKeys.map((key) => {
+                        const tableFieldKey = unifiedColumnsMap[key]?.tableFieldMap[row.tableId] || key
+                        const isOverridden =
+                          row._hasOverride &&
+                          Array.isArray(row._overrideKeys) &&
+                          (row._overrideKeys.includes(key) || row._overrideKeys.includes(tableFieldKey))
+
+                        const originalVal = getRowFieldValue(
+                          { tableId: row.tableId, data: row._originalData },
+                          key,
+                          unifiedColumnsMap,
+                          fieldsMap
+                        )
+
+                        const isPinned = pinnedKeys.includes(key)
+                        const stickyLeft = isPinned ? getPinnedStickyLeft(key) : undefined
+
+                        return (
+                          <MasterGridCell
+                            key={key}
+                            row={row}
+                            fieldKey={key}
+                            rowIndex={idx}
+                            unifiedColumnsMap={unifiedColumnsMap}
+                            fieldsMap={fieldsMap}
+                            isPinned={isPinned}
+                            stickyLeft={stickyLeft}
+                            isOverridden={Boolean(isOverridden)}
+                            originalVal={originalVal}
+                            activeOverridePopover={activeOverridePopover}
+                            revertingOverride={revertingOverride}
+                            onToggleOverridePopover={setActiveOverridePopover}
+                            onRevertOverride={handleRevertOverride}
+                            onOpenDrawer={setSelectedDrawerRow}
+                          />
+                        )
+                      })}
+
+                      {/* CreatedAt */}
+                      <td style={{ padding: '10px 14px', color: '#71717a', fontSize: '12px' }}>
+                        {new Date(row.createdAt).toLocaleDateString()}
+                      </td>
+
+                      {/* Actions / Detail Drawer Trigger */}
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <button
+                          data-testid="open-drawer-btn"
+                          onClick={() =>
+                            setSelectedDrawerRow({
+                              tableId: row.tableId,
+                              rowId: row.id,
+                              tableName: tableInfo.name,
+                            })
+                          }
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 8px',
+                            border: '1px solid #e4e4e7',
+                            borderRadius: '4px',
+                            backgroundColor: '#ffffff',
+                            color: '#3f3f46',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <ExternalLink size={12} />
+                          詳情
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
 
             {/* Table Footer / Summary Bar (Sticky Bottom) */}
@@ -3241,11 +3012,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                   else if (mode === 'none') displayText = ''
 
                   const isPinned = pinnedKeys.includes(key)
-                  let stickyLeft: string | undefined = undefined
-                  if (isPinned) {
-                    const pinnedIndex = pinnedKeys.indexOf(key)
-                    stickyLeft = `${220 + pinnedIndex * 150}px`
-                  }
+                  const stickyLeft = isPinned ? getPinnedStickyLeft(key) : undefined
 
                   return (
                     <td
@@ -3401,7 +3168,11 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
             <button
               onClick={() => fetchRows(nextCursor)}
               disabled={loadingMore}
+              data-testid="load-more-btn"
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
                 padding: '8px 24px',
                 backgroundColor: '#ffffff',
                 border: '1px solid #e4e4e7',
@@ -3414,7 +3185,14 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                 transition: 'all 0.15s ease',
               }}
             >
-              {loadingMore ? '正在載入更多...' : '載入更多資料列'}
+              {loadingMore ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" color="#52A628" />
+                  <span>正在載入更多...</span>
+                </>
+              ) : (
+                <span>載入更多資料列</span>
+              )}
             </button>
           </div>
         )}
@@ -3443,6 +3221,103 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
           readOnly={readOnly}
           isMasterViewContext={true}
         />
+      )}
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedRowKeys.size > 0 && (
+        <div
+          data-testid="bulk-actions-floating-bar"
+          style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '8px 16px',
+            backgroundColor: '#18181b',
+            color: '#ffffff',
+            borderRadius: '10px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#52A628' }} />
+            <span>已選取 {selectedRowKeys.size} 筆資料</span>
+          </div>
+
+          <div style={{ height: '16px', width: '1px', backgroundColor: '#3f3f46' }} />
+
+          <button
+            onClick={handleExportCsv}
+            data-testid="bulk-export-csv-btn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '5px 12px',
+              backgroundColor: '#27272a',
+              color: '#ffffff',
+              border: '1px solid #3f3f46',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3f3f46')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#27272a')}
+          >
+            <Download size={13} color="#52A628" />
+            <span>匯出所選 CSV ({selectedRowKeys.size})</span>
+          </button>
+
+          {masterViewId && (
+            <button
+              onClick={handleBatchRevertOverrides}
+              data-testid="bulk-revert-overrides-btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 12px',
+                backgroundColor: '#27272a',
+                color: '#ffffff',
+                border: '1px solid #3f3f46',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#3f3f46')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#27272a')}
+            >
+              <RotateCcw size={13} color="#f59e0b" />
+              <span>批量還原覆寫</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setSelectedRowKeys(new Set())}
+            data-testid="deselect-all-btn"
+            style={{
+              padding: '5px 10px',
+              backgroundColor: 'transparent',
+              color: '#a1a1aa',
+              border: 'none',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = '#a1a1aa')}
+          >
+            取消選取
+          </button>
+        </div>
       )}
     </div>
   )

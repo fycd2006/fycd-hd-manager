@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { authorizeAction } from '@/lib/authorize'
-import { upsertMasterViewOverride, revertMasterViewOverride } from '@/modules/database/services/masterViewOverride'
+import {
+  upsertMasterViewOverride,
+  revertMasterViewOverride,
+  revertBatchMasterViewOverrides,
+} from '@/modules/database/services/masterViewOverride'
 import { invalidateMasterViewCache } from '@/modules/database/services/masterViewCache'
 
 export const dynamic = 'force-dynamic'
@@ -83,7 +87,30 @@ export async function DELETE(
       return NextResponse.json({ error: '無效的 JSON 請求內容' }, { status: 400 })
     }
 
-    const { sourceTableId, sourceRowId, fieldKey } = body
+    // 1. Support Batch Items Deletion: { items: Array<{ sourceTableId, sourceRowId, fieldKey? }> }
+    if (Array.isArray(body?.items)) {
+      const validItems = body.items
+        .map((it: any) => ({
+          sourceTableId: parseInt(it?.sourceTableId),
+          sourceRowId: parseInt(it?.sourceRowId),
+          fieldKey: typeof it?.fieldKey === 'string' && it.fieldKey.trim() ? it.fieldKey.trim() : undefined,
+        }))
+        .filter((it: any) => !isNaN(it.sourceTableId) && !isNaN(it.sourceRowId))
+
+      if (validItems.length === 0) {
+        return NextResponse.json({ error: '缺少有效的 items 批次還原清單' }, { status: 400 })
+      }
+
+      const result = await revertBatchMasterViewOverrides(masterViewId, validItems)
+
+      // Invalidate master view cache
+      await invalidateMasterViewCache(workspaceId, masterViewId)
+
+      return NextResponse.json({ ...result })
+    }
+
+    // 2. Support Single Row/Field Deletion: { sourceTableId, sourceRowId, fieldKey? }
+    const { sourceTableId, sourceRowId, fieldKey } = body || {}
     const srcTableId = parseInt(sourceTableId)
     const srcRowId = parseInt(sourceRowId)
 
@@ -103,10 +130,10 @@ export async function DELETE(
 
     return NextResponse.json({ ...result })
   } catch (error: unknown) {
-
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[API DELETE /api/workspaces/[id]/master-views/[viewId]/rows Error]:', error)
     return NextResponse.json({ error: msg || '還原總表覆寫欄位失敗' }, { status: 500 })
   }
 }
+
 

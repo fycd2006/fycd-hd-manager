@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { parseSelectItems } from '../grid/cells/utils'
+import { KanbanViewSkeleton } from './KanbanViewSkeleton'
 
 interface TableField {
   id: number
@@ -30,6 +31,7 @@ interface KanbanViewProps {
   onUpdateCell: (rowId: number, fieldKey: string, value: CellValue) => Promise<void>
   onExpandRow: (row: TableRow) => void
   readOnly?: boolean
+  loading?: boolean
 }
 
 export default function KanbanView({
@@ -37,22 +39,29 @@ export default function KanbanView({
   rows,
   onUpdateCell,
   onExpandRow,
-  readOnly = false
+  readOnly = false,
+  loading = false,
 }: KanbanViewProps) {
   const { t } = useI18n()
   const [isMounted, setIsMounted] = useState(false)
-  
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  // Find all single select fields
   const singleSelectFields = fields.filter(f => f.type === 'single_select')
   const [selectedFieldId, setSelectedFieldId] = useState<number | null>(
     singleSelectFields[0]?.id || null
   )
 
-  if (!isMounted) return null
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (selectedFieldId === null && singleSelectFields.length > 0) {
+      setSelectedFieldId(singleSelectFields[0].id)
+    }
+  }, [singleSelectFields, selectedFieldId])
+
+  if (loading || !isMounted) {
+    return <KanbanViewSkeleton />
+  }
 
   const activeField = fields.find(f => f.id === selectedFieldId)
 
@@ -218,7 +227,7 @@ export default function KanbanView({
                         gap: '8px',
                         overflowY: 'auto',
                         scrollbarWidth: 'thin',
-                        background: snapshot.isDraggingOver ? 'rgba(63, 98, 18, 0.05)' : 'transparent',
+                        background: snapshot.isDraggingOver ? 'rgba(82, 166, 40, 0.08)' : 'transparent',
                         transition: 'background-color 0.2s ease',
                       }}
                     >

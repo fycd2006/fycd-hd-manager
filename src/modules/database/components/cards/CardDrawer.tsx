@@ -57,7 +57,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
 
     Promise.all([
       fetch(`/api/tables/${tableId}/fields`),
-      fetch(`/api/tables/${tableId}/rows?page=1&pageSize=100`),
+      fetch(`/api/tables/${tableId}/rows?rowId=${rowId}`),
     ])
       .then(async ([fieldsRes, rowsRes]) => {
         if (!fieldsRes.ok) {
@@ -75,7 +75,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
         if (!isMounted) return
 
         const rowsArray = Array.isArray(rowsData) ? rowsData : rowsData.rows || []
-        const foundRow = rowsArray.find((r: any) => r.id === rowId)
+        const foundRow = rowsArray.find((r: any) => r.id === rowId) || (rowsArray.length === 1 ? rowsArray[0] : null)
 
         if (!foundRow) {
           throw new Error(`找不到 ID 為 ${rowId} 的資料列或已被刪除`)

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   X,
   Layers,
@@ -38,11 +38,20 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
 }) => {
   const [unmergedKeys, setUnmergedKeys] = useState<string[]>(initialUnmergedKeys)
   const [customAliasMap, setCustomAliasMap] = useState<Record<string, string>>(initialCustomAliasMap)
-  const [targetMergeColName, setTargetMergeColName] = useState<string>('')
+  const [newCustomTargetName, setNewCustomTargetName] = useState<string>('')
+  const [customTargetNames, setCustomTargetNames] = useState<string[]>([])
+
+  // Synchronize internal state with external props on modal open or when props update
+  useEffect(() => {
+    if (show) {
+      setUnmergedKeys(initialUnmergedKeys || [])
+      setCustomAliasMap(initialCustomAliasMap || {})
+      setNewCustomTargetName('')
+    }
+  }, [show, initialUnmergedKeys, initialCustomAliasMap])
 
   // Compute unified preview based on current modal state
   const unifiedColumns = buildUnifiedColumns(fieldsMap, unmergedKeys, tablesMap, customAliasMap)
-
 
   // Find all raw field keys and strictly deduplicate by (tableId, fieldKey)
   const allRawFields = React.useMemo(() => {
@@ -67,25 +76,101 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
     return result
   }, [fieldsMap, tablesMap])
 
-  // Separate multi-source merged columns vs single-source columns
-  const mergedColumns = unifiedColumns.filter((c) => c.sources.length > 1)
-  const singleColumns = unifiedColumns.filter((c) => c.sources.length === 1)
+  // Available target column names for merging
+  const availableTargetOptions = React.useMemo(() => {
+    const names = new Set<string>()
+    allRawFields.forEach((f) => {
+      const trimmed = f.name?.trim()
+      if (trimmed) names.add(trimmed)
+    })
+    customTargetNames.forEach((n) => {
+      const trimmed = n.trim()
+      if (trimmed) names.add(trimmed)
+    })
+    Object.values(customAliasMap).forEach((val) => {
+      if (val && typeof val === 'string' && val.trim()) {
+        names.add(val.trim())
+      }
+    })
+    return Array.from(names)
+  }, [allRawFields, customTargetNames, customAliasMap])
 
+  // Detect same-table field collision for a target column name
+  const isSameTableCollision = (targetName: string, currentField: (typeof allRawFields)[0]) => {
+    return allRawFields.some((other) => {
+      if (other.tableId !== currentField.tableId) return false
+      if (other.fieldKey === currentField.fieldKey) return false
+
+      const otherTarget = customAliasMap[other.fieldKey] || other.name
+      return otherTarget === targetName
+    })
+  }
+
+  // Separate multi-source merged columns
+  const mergedColumns = unifiedColumns.filter((c) => c.sources.length > 1)
+
+  // Independent / unmerged fields: strictly all raw fields that are NOT part of any merged column
+  const independentFields = React.useMemo(() => {
+    const mergedFieldKeySet = new Set<string>()
+    mergedColumns.forEach((col) => {
+      col.sources.forEach((s) => {
+        mergedFieldKeySet.add(`${s.tableId}-${s.fieldKey}`)
+      })
+    })
+
+    return allRawFields.filter((f) => !mergedFieldKeySet.has(`${f.tableId}-${f.fieldKey}`))
+  }, [allRawFields, mergedColumns])
+
+  const handleAddCustomTarget = () => {
+    const trimmed = newCustomTargetName.trim()
+    if (!trimmed) return
+    if (!customTargetNames.includes(trimmed)) {
+      setCustomTargetNames((prev) => [...prev, trimmed])
+    }
+    setNewCustomTargetName('')
+  }
 
   const handleToggleUnmerge = (colKey: string) => {
+    const targetCol = unifiedColumns.find((c) => c.key === colKey)
     if (unmergedKeys.includes(colKey)) {
-      setUnmergedKeys((prev) => prev.filter((k) => k !== colKey))
+      setUnmergedKeys((prev) => prev.filter((k) => k !== colKey && k !== targetCol?.name))
     } else {
       setUnmergedKeys((prev) => [...prev, colKey])
+      if (targetCol) {
+        setCustomAliasMap((prev) => {
+          const next = { ...prev }
+          targetCol.sources.forEach((s) => {
+            delete next[s.fieldKey]
+            delete next[s.fieldName]
+          })
+          return next
+        })
+      }
     }
   }
 
+  const handleRestoreAutoMerge = (field: (typeof allRawFields)[0]) => {
+    setUnmergedKeys((prev) =>
+      prev.filter((k) => k !== field.fieldKey && k !== field.name)
+    )
+    setCustomAliasMap((prev) => {
+      const next = { ...prev }
+      delete next[field.fieldKey]
+      delete next[field.name]
+      return next
+    })
+  }
+
   const handleMapFieldToColumn = (rawFieldKey: string, targetCol: string) => {
+    const matchedField = allRawFields.find((f) => f.fieldKey === rawFieldKey)
     if (!targetCol) {
       // Remove alias
       setCustomAliasMap((prev) => {
         const next = { ...prev }
         delete next[rawFieldKey]
+        if (matchedField?.name) {
+          delete next[matchedField.name]
+        }
         return next
       })
       return
@@ -95,13 +180,21 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
       ...prev,
       [rawFieldKey]: targetCol,
     }))
-    // Also remove from unmergedKeys if present
-    setUnmergedKeys((prev) => prev.filter((k) => k !== rawFieldKey && k !== targetCol))
+    // Also remove from unmergedKeys if present to allow immediate merging
+    setUnmergedKeys((prev) =>
+      prev.filter(
+        (k) =>
+          k !== rawFieldKey &&
+          k !== targetCol &&
+          k !== matchedField?.name
+      )
+    )
   }
 
   const handleResetToAuto = () => {
     setUnmergedKeys([])
     setCustomAliasMap({})
+    setCustomTargetNames([])
   }
 
   const handleSave = () => {
@@ -114,7 +207,6 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
   return (
     <div
       data-testid="field-mapping-modal-overlay"
-
       style={{
         position: 'fixed',
         inset: 0,
@@ -130,7 +222,7 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
         data-testid="field-mapping-modal"
         style={{
           width: '100%',
-          maxWidth: '860px',
+          maxWidth: '880px',
           maxHeight: '90vh',
           backgroundColor: '#ffffff',
           borderRadius: '12px',
@@ -157,9 +249,9 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
                 width: '34px',
                 height: '34px',
                 borderRadius: '8px',
-                backgroundColor: '#f7fee7',
-                border: '1px solid #d9f99d',
-                color: '#3F6212',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #86efac',
+                color: '#52A628',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -172,7 +264,7 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
                 跨表欄位對照與合併確認
               </h3>
               <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>
-                檢查系統自動偵測之對齊結果，可手動將同義詞欄位合併，或拆開不相關的同名欄位。
+                左側顯示已跨表合併的欄位（可隨時拆散）；右側顯示未合併的獨立欄位（可指定歸併至特定統一欄位）。
               </p>
             </div>
           </div>
@@ -234,7 +326,7 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
                   fontSize: '12px',
                 }}
               >
-                目前無跨表合併欄位（各表欄位均為獨立顯示）
+                目前無跨表合併欄位（所有子表欄位均為獨立顯示）
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -319,7 +411,7 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <TableIcon size={11} color="#3F6212" />
+                            <TableIcon size={11} color="#52A628" />
                             <span style={{ fontWeight: 500, color: '#27272a' }}>
                               {s.tableName || `表 ${s.tableId}`}
                             </span>
@@ -335,91 +427,203 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
             )}
           </div>
 
-          {/* Right Column: Independent Fields / Synonym Merge Assistant */}
+          {/* Right Column: Independent / Unmerged Fields */}
           <div>
             <div
               style={{
                 fontSize: '13px',
                 fontWeight: 600,
                 color: '#18181b',
-                marginBottom: '12px',
+                marginBottom: '10px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <span>獨立/未合併欄位 ({allRawFields.length})</span>
+              <span>獨立/未合併欄位 ({independentFields.length})</span>
               <span style={{ fontSize: '11px', color: '#71717a', fontWeight: 400 }}>
-                手動指定同義詞歸併
+                指定歸併目標
               </span>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                maxHeight: '400px',
-                overflowY: 'auto',
-              }}
-            >
-              {allRawFields.map((field) => {
-                const currentAlias = customAliasMap[field.fieldKey] || customAliasMap[field.name] || ''
-                const isUnmerged = unmergedKeys.includes(field.name) || unmergedKeys.includes(field.fieldKey)
-
-                return (
-                  <div
-                    key={`${field.tableId}-${field.fieldKey}`}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '6px',
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #e4e4e7',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: '12px', fontWeight: 500, color: '#18181b' }}>
-                        {field.name}
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#71717a' }}>
-                        {field.tableName} · {field.type}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <select
-                        value={currentAlias}
-                        data-testid={`merge-select-${field.fieldKey}`}
-                        onChange={(e) => handleMapFieldToColumn(field.fieldKey, e.target.value)}
-                        style={{
-                          fontSize: '11px',
-                          padding: '3px 6px',
-                          borderRadius: '4px',
-                          border: `1px solid ${currentAlias ? '#bef264' : '#e4e4e7'}`,
-                          backgroundColor: currentAlias ? '#f7fee7' : '#ffffff',
-                          color: currentAlias ? '#365314' : '#52525b',
-                          fontWeight: currentAlias ? 600 : 400,
-                        }}
-                      >
-                        <option value="">獨立顯示 (不歸併)</option>
-                        {Array.from(new Set(allRawFields.map((f) => f.name))).map((name, optIdx) => (
-                          <option key={`target-opt-${name}-${optIdx}`} value={name}>
-                            歸併至「{name}」
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                )
-              })}
-
+            {/* Quick Add Custom Target Name */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+              <input
+                type="text"
+                data-testid="new-custom-target-input"
+                placeholder="自訂新統一欄位 (如: 統編/稅號)..."
+                value={newCustomTargetName}
+                onChange={(e) => setNewCustomTargetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddCustomTarget()
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  fontSize: '11px',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid #e4e4e7',
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCustomTarget}
+                disabled={!newCustomTargetName.trim()}
+                data-testid="add-custom-target-btn"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  padding: '4px 8px',
+                  backgroundColor: newCustomTargetName.trim() ? '#f0fdf4' : '#f4f4f5',
+                  color: newCustomTargetName.trim() ? '#166534' : '#a1a1aa',
+                  border: `1px solid ${newCustomTargetName.trim() ? '#86efac' : '#e4e4e7'}`,
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  cursor: newCustomTargetName.trim() ? 'pointer' : 'not-allowed',
+                }}
+              >
+                <Plus size={12} />
+                新增目標
+              </button>
             </div>
+
+            {independentFields.length === 0 ? (
+              <div
+                style={{
+                  padding: '24px',
+                  textAlign: 'center',
+                  backgroundColor: '#f4f4f5',
+                  borderRadius: '8px',
+                  border: '1px dashed #d4d4d8',
+                  color: '#a1a1aa',
+                  fontSize: '12px',
+                }}
+              >
+                目前所有子表欄位均已完成跨表合併
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  maxHeight: '380px',
+                  overflowY: 'auto',
+                }}
+              >
+                {independentFields.map((field) => {
+                  const currentAlias = customAliasMap[field.fieldKey] || customAliasMap[field.name] || ''
+                  const isManuallyUnmerged =
+                    unmergedKeys.includes(field.name) ||
+                    unmergedKeys.includes(field.fieldKey) ||
+                    unmergedKeys.includes(currentAlias)
+
+                  return (
+                    <div
+                      key={`${field.tableId}-${field.fieldKey}`}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e4e4e7',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 500, color: '#18181b' }}>
+                            {field.name}
+                          </span>
+                          {isManuallyUnmerged && (
+                            <span
+                              style={{
+                                fontSize: '9px',
+                                padding: '1px 4px',
+                                backgroundColor: '#fef2f2',
+                                color: '#dc2626',
+                                borderRadius: '3px',
+                                fontWeight: 500,
+                              }}
+                            >
+                              手動拆分
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#71717a' }}>
+                          {field.tableName} · {field.type}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {isManuallyUnmerged && (
+                          <button
+                            type="button"
+                            onClick={() => handleRestoreAutoMerge(field)}
+                            data-testid={`restore-automerge-${field.fieldKey}`}
+                            style={{
+                              border: '1px solid #d9f99d',
+                              backgroundColor: '#f7fee7',
+                              color: '#365314',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              padding: '2px 6px',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                            }}
+                          >
+                            恢復自動合併
+                          </button>
+                        )}
+                        <select
+                          value={currentAlias}
+                          data-testid={`merge-select-${field.fieldKey}`}
+                          onChange={(e) => handleMapFieldToColumn(field.fieldKey, e.target.value)}
+                          style={{
+                            fontSize: '11px',
+                            padding: '3px 6px',
+                            borderRadius: '4px',
+                            border: `1px solid ${currentAlias ? '#bef264' : '#e4e4e7'}`,
+                            backgroundColor: currentAlias ? '#f7fee7' : '#ffffff',
+                            color: currentAlias ? '#365314' : '#52525b',
+                            fontWeight: currentAlias ? 600 : 400,
+                            maxWidth: '160px',
+                          }}
+                        >
+                          <option value="">保持獨立 (不歸併)</option>
+                          {availableTargetOptions
+                            .filter((name) => name !== field.name || currentAlias === name)
+                            .map((name, optIdx) => {
+                              const isCollision = isSameTableCollision(name, field)
+                              return (
+                                <option
+                                  key={`target-opt-${name}-${optIdx}`}
+                                  value={name}
+                                  disabled={isCollision}
+                                >
+                                  歸併至「{name}」{isCollision ? ' (同表已佔用)' : ''}
+                                </option>
+                              )
+                            })}
+                        </select>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
+
+
 
         {/* Modal Footer */}
         <div
@@ -477,7 +681,7 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
                 alignItems: 'center',
                 gap: '4px',
                 padding: '6px 16px',
-                backgroundColor: '#3F6212',
+                backgroundColor: '#52A628',
                 border: 'none',
                 borderRadius: '6px',
                 fontSize: '12px',

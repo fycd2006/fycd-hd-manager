@@ -2,7 +2,11 @@
 
 import React from 'react';
 
-export const WorkspaceGridSkeleton: React.FC = () => {
+export interface WorkspaceGridSkeletonProps {
+  loadingText?: string
+}
+
+export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ loadingText }) => {
   return (
     <div style={{
       width: '100%',
@@ -23,6 +27,24 @@ export const WorkspaceGridSkeleton: React.FC = () => {
         backgroundSize: '200% 100%',
         animation: 'fycdBarShimmer 2s ease-in-out infinite',
       }} />
+
+      {/* Optional Loading Banner */}
+      {loadingText && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 16px',
+          backgroundColor: '#f8fafc',
+          borderBottom: '1px solid #f1f5f9',
+          fontSize: '12px',
+          color: '#64748b',
+          fontWeight: 500,
+        }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#52A628' }} />
+          <span>{loadingText}</span>
+        </div>
+      )}
 
       {/* Skeleton Table Header */}
       <div style={{

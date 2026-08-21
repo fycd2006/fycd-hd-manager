@@ -67,6 +67,18 @@ export async function GET(
       } catch {}
     }
 
+    // Parse custom alias mapping (e.g. { field_205: "客戶名稱" })
+    let customAliasMap: Record<string, string> | undefined = undefined
+    const aliasMapParam = searchParams.get('aliasMap')
+    if (aliasMapParam) {
+      try {
+        const parsedAliases = JSON.parse(aliasMapParam)
+        if (parsedAliases && typeof parsedAliases === 'object' && !Array.isArray(parsedAliases)) {
+          customAliasMap = parsedAliases
+        }
+      } catch {}
+    }
+
     const tableIdsParam = searchParams.get('tableIds')
     let targetTableIds = authorizedTableIds
     let requestedTableIds: number[] | null = null
@@ -107,6 +119,7 @@ export async function GET(
       sortOrder,
       filters,
       tableIds: requestedTableIds,
+      aliasMap: customAliasMap,
     })
 
     const cached = await getCachedMasterViewRows(cacheKey)
@@ -153,10 +166,47 @@ export async function GET(
       fieldMapByTable[f.tableId][String(f.id)] = `field_${f.id}`
     })
 
+    // Inject custom synonym alias mappings into fieldMapByTable for SQL pushdown
+    if (customAliasMap) {
+      for (const [rawKey, targetAlias] of Object.entries(customAliasMap)) {
+        if (!targetAlias || typeof targetAlias !== 'string') continue
+        const target = targetAlias.trim()
+        if (!target) continue
+
+        tableFields.forEach((f) => {
+          const isMatch =
+            rawKey === `field_${f.id}` ||
+            rawKey === String(f.id) ||
+            rawKey === f.name?.trim()
+
+          if (isMatch) {
+            if (!fieldMapByTable[f.tableId]) {
+              fieldMapByTable[f.tableId] = {}
+            }
+            fieldMapByTable[f.tableId][target] = `field_${f.id}`
+          }
+        })
+      }
+    }
+
     let sortFieldType: string | undefined
     if (sortField) {
       sortFieldType = fieldsMap[sortField]?.type
+      if (!sortFieldType) {
+        for (const f of tableFields) {
+          const isMatch =
+            f.name?.trim() === sortField ||
+            customAliasMap?.[`field_${f.id}`] === sortField ||
+            customAliasMap?.[f.name?.trim() || ''] === sortField
+
+          if (isMatch && f.type) {
+            sortFieldType = f.type
+            break
+          }
+        }
+      }
     }
+
 
     const result = await getMultiTableRows({
       tableIds: targetTableIds,
@@ -169,6 +219,7 @@ export async function GET(
       fieldMapByTable,
       masterViewId: masterViewId && !isNaN(masterViewId) ? masterViewId : null,
     })
+
 
     let rows: any[] = result.rows
     if (masterViewId && !isNaN(masterViewId)) {

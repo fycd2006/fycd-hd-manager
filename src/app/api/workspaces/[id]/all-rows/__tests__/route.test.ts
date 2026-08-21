@@ -223,5 +223,43 @@ describe('GET /api/workspaces/[id]/all-rows', () => {
       })
     )
   })
+
+  it('should parse aliasMap and inject custom alias mappings into fieldMapByTable for SQL pushdown', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({
+      membership: { userId: 1, user: { id: 1, username: 'testuser' }, role: 'member', workspaceId: 40 },
+    })
+    ;(getAuthorizedTableIds as jest.Mock).mockResolvedValue([401, 402])
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 101, tableId: 401, name: '客戶名稱', type: 'text', options: null },
+      { id: 205, tableId: 402, name: '聯絡窗口', type: 'text', options: null },
+    ])
+    ;(getMultiTableRows as jest.Mock).mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+    })
+
+    const aliasMap = { field_205: '客戶名稱' }
+    const request = new Request(
+      `http://localhost:3000/api/workspaces/40/all-rows?sortField=客戶名稱&aliasMap=${encodeURIComponent(JSON.stringify(aliasMap))}`
+    )
+    const response = await GET(request, { params: Promise.resolve({ id: '40' }) })
+
+    expect(response.status).toBe(200)
+    expect(getMultiTableRows).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sortField: '客戶名稱',
+        fieldMapByTable: {
+          401: expect.objectContaining({
+            '客戶名稱': 'field_101',
+          }),
+          402: expect.objectContaining({
+            '聯絡窗口': 'field_205',
+            '客戶名稱': 'field_205',
+          }),
+        },
+      })
+    )
+  })
 })
+
 

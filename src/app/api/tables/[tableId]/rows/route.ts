@@ -37,6 +37,7 @@ export async function GET(
     if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
+    const rowIdParam = searchParams.get('rowId')
     const sortField = searchParams.get('sort')
     const sortOrder = searchParams.get('order') || 'asc'
     const filterParam = searchParams.get('filter')
@@ -45,6 +46,7 @@ export async function GET(
     const pageSizeParam = searchParams.get('pageSize')
 
     const result = await getPopulatedTableRows(id, {
+      rowId: rowIdParam ? parseInt(rowIdParam, 10) : undefined,
       sortField,
       sortOrder,
       filterParam,

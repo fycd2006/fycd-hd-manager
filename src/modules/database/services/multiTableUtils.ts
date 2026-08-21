@@ -152,9 +152,13 @@ export function buildUnifiedColumns(
     // Check if customAliasMap maps this field to a target column
     const aliasedColName = customAliasMap?.[fieldKey] || customAliasMap?.[rawColName] || rawColName
 
-    const isUnmerged = unmergedKeys.includes(rawColName) || unmergedKeys.includes(fieldKey)
+    const isUnmerged =
+      unmergedKeys.includes(rawColName) ||
+      unmergedKeys.includes(fieldKey) ||
+      unmergedKeys.includes(aliasedColName)
     const colName = isUnmerged ? `${rawColName} (表 ${field.tableId})` : aliasedColName
     const colKey = isUnmerged ? fieldKey : colName
+
 
     const srcInfo: UnifiedColumnSource = {
       tableId: field.tableId,

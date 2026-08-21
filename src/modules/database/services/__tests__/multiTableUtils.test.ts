@@ -192,4 +192,24 @@ describe('multiTableUtils - Cross-Table Unified Columns', () => {
       value: 'N/A',
     })
   })
+
+  it('buildUnifiedColumns unmerges both original and aliased fields when unified column name is in unmergedKeys', () => {
+    const synonymFieldsMap: Record<string, MasterFieldInfo> = {
+      field_101: { id: 101, tableId: 1, name: '姓名', type: 'text' },
+      field_205: { id: 205, tableId: 2, name: '顧客姓名', type: 'text' },
+    }
+
+    // Map 'field_205' to '姓名', but '姓名' is in unmergedKeys
+    const unified = buildUnifiedColumns(synonymFieldsMap, ['姓名'], undefined, { field_205: '姓名' })
+    expect(unified).toHaveLength(2)
+
+    const table1Col = unified.find((c) => c.key === 'field_101')
+    const table2Col = unified.find((c) => c.key === 'field_205')
+
+    expect(table1Col).toBeDefined()
+    expect(table1Col?.name).toBe('姓名 (表 1)')
+    expect(table2Col).toBeDefined()
+    expect(table2Col?.name).toBe('顧客姓名 (表 2)')
+  })
 })
+

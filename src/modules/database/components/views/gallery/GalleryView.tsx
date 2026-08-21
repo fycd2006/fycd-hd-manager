@@ -1,7 +1,6 @@
-'use client'
-
 import React from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { GalleryViewSkeleton } from './GalleryViewSkeleton'
 
 interface TableField {
   id: number
@@ -25,15 +24,21 @@ interface GalleryViewProps {
   fields: TableField[]
   rows: TableRow[]
   onExpandRow: (row: TableRow) => void
+  loading?: boolean
 }
 
 export default function GalleryView({
   fields,
   rows,
   onExpandRow,
+  loading = false,
 }: GalleryViewProps) {
   const { t } = useI18n()
   const firstTextField = fields.find(f => f.type === 'text')
+
+  if (loading) {
+    return <GalleryViewSkeleton />
+  }
 
   if (rows.length === 0) {
     return (

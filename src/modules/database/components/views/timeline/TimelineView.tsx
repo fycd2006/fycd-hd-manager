@@ -1,7 +1,6 @@
-'use client'
-
 import React, { useState, useRef, useEffect } from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { TimelineViewSkeleton } from './TimelineViewSkeleton'
 
 interface TableField {
   id: number
@@ -27,6 +26,7 @@ interface TimelineViewProps {
   onExpandRow: (row: TableRow) => void
   onUpdateCell?: (rowId: number, fieldKey: string, value: CellValue) => void
   onAddRow?: () => void
+  loading?: boolean
 }
 
 export default function TimelineView({
@@ -34,7 +34,8 @@ export default function TimelineView({
   rows,
   onExpandRow,
   onUpdateCell,
-  onAddRow
+  onAddRow,
+  loading = false,
 }: TimelineViewProps) {
   const { t } = useI18n()
   const dateField = fields.find(f => f.type === 'date')
@@ -83,10 +84,14 @@ export default function TimelineView({
     }
   }, [currentDate])
 
+  if (loading) {
+    return <TimelineViewSkeleton />
+  }
+
   if (!dateField) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '60px', color: 'var(--text-muted)' }}>
-        <div style={{ width: '48px', height: '48px', background: 'rgba(63, 98, 18, 0.1)', border: '1px solid rgba(63, 98, 18, 0.25)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+        <div style={{ width: '48px', height: '48px', background: 'rgba(82, 166, 40, 0.1)', border: '1px solid rgba(82, 166, 40, 0.25)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" strokeWidth="2">
             <rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h8"/>
           </svg>

@@ -1,7 +1,6 @@
-'use client'
-
 import React, { useState } from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { CalendarViewSkeleton } from './CalendarViewSkeleton'
 
 interface TableField {
   id: number
@@ -21,9 +20,10 @@ interface CalendarViewProps {
   fields: TableField[]
   rows: TableRow[]
   onExpandRow: (row: TableRow) => void
+  loading?: boolean
 }
 
-export default function CalendarView({ fields, rows, onExpandRow }: CalendarViewProps) {
+export default function CalendarView({ fields, rows, onExpandRow, loading = false }: CalendarViewProps) {
   const { t, locale } = useI18n()
   const [currentDate, setCurrentDate] = useState(new Date())
   
@@ -35,6 +35,10 @@ export default function CalendarView({ fields, rows, onExpandRow }: CalendarView
 
   // Expanded day modal state
   const [expandedDate, setExpandedDate] = useState<{ dateStr: string; rows: TableRow[] } | null>(null)
+
+  if (loading) {
+    return <CalendarViewSkeleton />
+  }
 
   const activeDateField = dateFields.find(f => f.id === selectedDateFieldId) || dateFields[0]
 

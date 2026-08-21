@@ -244,8 +244,8 @@ export default function WorkspaceDashboard({
                   padding: '0 16px',
                   borderRadius: '8px',
                   backgroundColor: '#ffffff',
-                  color: '#4f46e5',
-                  border: '1px solid #c7d2fe',
+                  color: '#365314',
+                  border: '1px solid #bef264',
                   fontSize: '13px',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -253,20 +253,20 @@ export default function WorkspaceDashboard({
                   alignItems: 'center',
                   gap: '8px',
                   transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(79, 70, 229, 0.08)',
+                  boxShadow: '0 1px 2px rgba(63, 98, 18, 0.06)',
                   whiteSpace: 'nowrap',
-                  flexShrink: 0
+                  flexShrink: 0,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#eef2ff'
-                  e.currentTarget.style.borderColor = '#a5b4fc'
+                  e.currentTarget.style.backgroundColor = '#f7fee7'
+                  e.currentTarget.style.borderColor = '#a3e635'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#ffffff'
-                  e.currentTarget.style.borderColor = '#c7d2fe'
+                  e.currentTarget.style.borderColor = '#bef264'
                 }}
               >
-                <Layers size={16} color="#4f46e5" />
+                <Layers size={16} color="#3F6212" />
                 <span>跨表總表</span>
               </button>
             )}

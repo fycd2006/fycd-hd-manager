@@ -200,6 +200,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
         <GalleryView
           rows={displayRows}
           fields={fields}
+          loading={gridLoading}
           onExpandRow={(row: any) => {
             setSelectedRow(row)
             setShowDetailModal(true)
@@ -212,6 +213,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           rows={displayRows}
           fields={fields}
           readOnly={readOnly}
+          loading={gridLoading}
           onExpandRow={(row: any) => {
             setSelectedRow(row)
             setShowDetailModal(true)
@@ -224,6 +226,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
         <CalendarView
           rows={displayRows}
           fields={fields}
+          loading={gridLoading}
           onExpandRow={(row: any) => {
             setSelectedRow(row)
             setShowDetailModal(true)
@@ -235,6 +238,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
         <TimelineView
           rows={displayRows}
           fields={fields}
+          loading={gridLoading}
           onExpandRow={(row: any) => {
             setSelectedRow(row)
             setShowDetailModal(true)
@@ -247,6 +251,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           tableId={activeTableId || 0}
           tableName="Form View"
           fields={fields as any}
+          loading={gridLoading}
         />
       )}
     </div>

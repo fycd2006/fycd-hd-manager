@@ -3,6 +3,7 @@ import {
   mergeMasterViewOverrides,
   softDeleteMasterViewOverrides,
   revertMasterViewOverride,
+  revertBatchMasterViewOverrides,
 } from '../masterViewOverride'
 import prisma from '@/lib/prisma'
 import type { MultiTableParsedRow } from '../multiTableQuery'
@@ -38,6 +39,7 @@ describe('MasterViewOverride Service (Phase 3 Hybrid Architecture)', () => {
         deletedAt: null,
       }
 
+      ;(prisma.masterViewOverride.findUnique as jest.Mock).mockResolvedValue(null)
       ;(prisma.masterViewOverride.upsert as jest.Mock).mockResolvedValue(mockResult)
 
       const res = await upsertMasterViewOverride({
@@ -71,6 +73,44 @@ describe('MasterViewOverride Service (Phase 3 Hybrid Architecture)', () => {
 
       expect(res.overrides).toEqual({ priority: 'URGENT', customNote: 'Reviewed by GM' })
     })
+
+    it('merges new overrides with existing overrides on the same row', async () => {
+      const existingRecord = {
+        id: 1,
+        masterViewId: 10,
+        sourceTableId: 2,
+        sourceRowId: 100,
+        overrides: JSON.stringify({ field_1: 'Original Field 1' }),
+        deletedAt: null,
+      }
+
+      ;(prisma.masterViewOverride.findUnique as jest.Mock).mockResolvedValue(existingRecord)
+      ;(prisma.masterViewOverride.upsert as jest.Mock).mockImplementation(async ({ create }: any) => ({
+        ...existingRecord,
+        overrides: JSON.stringify(create.overrides),
+      }))
+
+      const res = await upsertMasterViewOverride({
+        masterViewId: 10,
+        sourceTableId: 2,
+        sourceRowId: 100,
+        overrides: { field_2: 'New Field 2' },
+      })
+
+      expect(prisma.masterViewOverride.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            overrides: { field_1: 'Original Field 1', field_2: 'New Field 2' },
+          }),
+          update: expect.objectContaining({
+            overrides: { field_1: 'Original Field 1', field_2: 'New Field 2' },
+          }),
+        })
+      )
+
+      expect(res.overrides).toEqual({ field_1: 'Original Field 1', field_2: 'New Field 2' })
+    })
+
 
     it('throws error when required parameters are missing', async () => {
       await expect(
@@ -260,5 +300,71 @@ describe('MasterViewOverride Service (Phase 3 Hybrid Architecture)', () => {
       })
     })
   })
-})
 
+  describe('revertBatchMasterViewOverrides', () => {
+    it('returns count 0 when items array is empty', async () => {
+      const res = await revertBatchMasterViewOverrides(10, [])
+      expect(res.success).toBe(true)
+      expect(res.count).toBe(0)
+      expect(prisma.masterViewOverride.updateMany).not.toHaveBeenCalled()
+    })
+
+    it('batch soft-deletes full row overrides via single updateMany query', async () => {
+      ;(prisma.masterViewOverride.updateMany as jest.Mock).mockResolvedValue({ count: 3 })
+
+      const items = [
+        { sourceTableId: 1, sourceRowId: 101 },
+        { sourceTableId: 1, sourceRowId: 102 },
+        { sourceTableId: 2, sourceRowId: 201 },
+      ]
+
+      const res = await revertBatchMasterViewOverrides(10, items)
+
+      expect(res.success).toBe(true)
+      expect(res.count).toBe(3)
+      expect(prisma.masterViewOverride.updateMany).toHaveBeenCalledWith({
+        where: {
+          masterViewId: 10,
+          deletedAt: null,
+          OR: [
+            { sourceTableId: 1, sourceRowId: 101 },
+            { sourceTableId: 1, sourceRowId: 102 },
+            { sourceTableId: 2, sourceRowId: 201 },
+          ],
+        },
+        data: {
+          deletedAt: expect.any(Date),
+        },
+      })
+    })
+
+    it('handles mixed full-row and field-specific reverts properly', async () => {
+      ;(prisma.masterViewOverride.updateMany as jest.Mock).mockResolvedValue({ count: 2 })
+
+      const mockExisting = {
+        id: 99,
+        masterViewId: 10,
+        sourceTableId: 2,
+        sourceRowId: 205,
+        overrides: JSON.stringify({ priority: 'HIGH', status: 'IN_PROGRESS' }),
+        deletedAt: null,
+      }
+      prisma.masterViewOverride.findUnique = jest.fn().mockResolvedValue(mockExisting)
+      prisma.masterViewOverride.update = jest.fn().mockResolvedValue({ ...mockExisting })
+
+      const items = [
+        { sourceTableId: 1, sourceRowId: 101 },
+        { sourceTableId: 1, sourceRowId: 102 },
+        { sourceTableId: 2, sourceRowId: 205, fieldKey: 'status' },
+      ]
+
+      const res = await revertBatchMasterViewOverrides(10, items)
+
+      expect(res.success).toBe(true)
+      expect(res.count).toBe(3)
+      expect(prisma.masterViewOverride.updateMany).toHaveBeenCalledTimes(1)
+      expect(prisma.masterViewOverride.findUnique).toHaveBeenCalledTimes(1)
+      expect(prisma.masterViewOverride.update).toHaveBeenCalledTimes(1)
+    })
+  })
+})

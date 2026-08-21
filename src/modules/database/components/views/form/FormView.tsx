@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { Share2, Copy, Check } from 'lucide-react'
 import { useUIStore } from '@/modules/database/store'
+import { FormViewSkeleton } from './FormViewSkeleton'
 
 interface TableField {
   id: number
@@ -18,6 +19,7 @@ interface FormViewProps {
   tableId: number
   tableName: string
   fields: TableField[]
+  loading?: boolean
 }
 
 interface FormSettings {
@@ -34,6 +36,7 @@ export default function FormView({
   tableId,
   tableName,
   fields,
+  loading = false,
 }: FormViewProps) {
   const { t } = useI18n()
   const [, uiActions] = useUIStore()
@@ -41,6 +44,10 @@ export default function FormView({
   const [shareLoading, setShareLoading] = useState(false)
   const [shareUrl, setShareUrl] = useState('')
   const [shareCopied, setShareCopied] = useState(false)
+
+  if (loading) {
+    return <FormViewSkeleton />
+  }
 
   const handleShareForm = async () => {
     try {
