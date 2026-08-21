@@ -28,7 +28,7 @@ export async function POST(
     const body = await request.json()
     const { sourceTableId, rows, socket_id } = body
     const sourceTableIdNum = parseInt(sourceTableId)
-    
+
     if (isNaN(sourceTableIdNum)) {
       return NextResponse.json({ error: '無效的來源 Table ID' }, { status: 400 })
     }
@@ -50,7 +50,7 @@ export async function POST(
       if (sourceFields.length !== targetFields.length) {
         return NextResponse.json({ error: '來源與目標表格的欄位數量不一致，無法搬移' }, { status: 400 })
       }
-      
+
       const mismatchedFields: string[] = []
       for (let i = 0; i < sourceFields.length; i++) {
         const s = sourceFields[i]
@@ -77,14 +77,14 @@ export async function POST(
       if (!rowObj.clientId || !rowObj.sourceRowId) {
         return NextResponse.json({ error: '移動資料缺少 clientId 或 sourceRowId' }, { status: 400 })
       }
-      
+
       const rowData: Record<string, any> = {}
       for (let i = 0; i < targetFields.length; i++) {
         const targetF = targetFields[i]
         const sourceF = sourceFields[i]
         const targetKey = `field_${targetF.id}`
         const sourceKey = `field_${sourceF.id}`
-        
+
         if (targetF.type === 'created_by' || targetF.type === 'last_modified_by') {
           rowData[targetKey] = username
         } else if (targetF.type === 'created_on' || targetF.type === 'last_modified_on') {
@@ -94,7 +94,7 @@ export async function POST(
           let fOpts = typeof targetF.options === 'string' ? JSON.parse(targetF.options) : (targetF.options || {})
           const fieldType = FieldRegistry.get(targetF.type)
           const validateRes = fieldType.validateValue(rawValue, fOpts)
-          
+
           if (!validateRes.valid) {
             return NextResponse.json({ error: `欄位 [${targetF.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
           }
@@ -143,7 +143,7 @@ export async function POST(
                 if (!isNaN(val) && val > maxVal) {
                   maxVal = val
                 }
-              } catch {}
+              } catch { }
             })
           })
           if (maxVal > 0) {
@@ -155,9 +155,9 @@ export async function POST(
           where: { id: targetTableId },
           data: { autonumberCounter: { increment: rows.length } }
         })
-        
+
         let currentAutoNumber = updatedTable.autonumberCounter - rows.length + 1
-        
+
         parsedRowsData.forEach(row => {
           autonumberFields.forEach(f => {
             const key = `field_${f.id}`
@@ -166,7 +166,7 @@ export async function POST(
           currentAutoNumber++
         })
       }
-      
+
       const toCreate = parsedRowsData.map(r => {
         let orderToUse = r.order
         if (orderToUse === 0) {
@@ -180,7 +180,7 @@ export async function POST(
           order: orderToUse,
         }
       })
-      
+
       await tx.tableRow.createMany({ data: toCreate })
 
       // Retrieve created rows by clientId

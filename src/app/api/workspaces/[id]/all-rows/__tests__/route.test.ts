@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server'
 import { GET } from '../route'
+import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
 import { getMultiTableRows, getAuthorizedTableIds } from '@/modules/database/services/multiTableQuery'
 import { clearAllMemoryCache } from '@/modules/database/services/masterViewCache'
+
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    databaseTable: { count: jest.fn().mockResolvedValue(1) },
+    tableRow: { groupBy: jest.fn().mockResolvedValue([]) },
+    tableField: { findMany: jest.fn().mockResolvedValue([]) },
+  },
+}))
 
 jest.mock('@/lib/authorize', () => ({
   authorizeAction: jest.fn(),
@@ -185,6 +195,33 @@ describe('GET /api/workspaces/[id]/all-rows', () => {
     expect(body2.rows).toHaveLength(1)
     // getMultiTableRows should NOT have been called a second time
     expect(getMultiTableRows).toHaveBeenCalledTimes(1)
+  })
+
+  it('should correctly pass masterViewId and sortFieldType derived from tableFields to getMultiTableRows', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({
+      membership: { userId: 1, user: { id: 1, username: 'testuser' }, role: 'member', workspaceId: 30 },
+    })
+    ;(getAuthorizedTableIds as jest.Mock).mockResolvedValue([301])
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 99, tableId: 301, name: 'Amount', type: 'number', options: null },
+    ])
+    ;(getMultiTableRows as jest.Mock).mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+    })
+
+    const request = new Request('http://localhost:3000/api/workspaces/30/all-rows?masterViewId=888&sortField=field_99&sortOrder=asc')
+    const response = await GET(request, { params: Promise.resolve({ id: '30' }) })
+
+    expect(response.status).toBe(200)
+    expect(getMultiTableRows).toHaveBeenCalledWith(
+      expect.objectContaining({
+        masterViewId: 888,
+        sortField: 'field_99',
+        sortOrder: 'asc',
+        sortFieldType: 'number',
+      })
+    )
   })
 })
 

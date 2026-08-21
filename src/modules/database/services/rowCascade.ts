@@ -1,7 +1,9 @@
+import { after } from 'next/server'
 import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { evaluateFormula, detectCircularDependency, extractFormulaExpression } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
+import { invalidateMasterViewCacheForTable } from './masterViewCache'
 
 /** Number of rows recomputed synchronously for immediate UI response */
 export const SYNC_CASCADE_LIMIT = 50
@@ -66,6 +68,15 @@ async function persistRowBatch(
       })
     )
   )
+
+  const distinctTids = Array.from(new Set(rows.map((r) => r.tableId)))
+  for (const tid of distinctTids) {
+    try {
+      await invalidateMasterViewCacheForTable(tid)
+    } catch (cacheErr) {
+      console.warn(`[MasterViewCache Warning in rowCascade for table ${tid}]:`, cacheErr)
+    }
+  }
 }
 
 /**
@@ -110,25 +121,40 @@ export async function cascadeRecomputeSingleLevel(
     },
   })
 
-  const dependentTableIds = new Set<number>()
+  // Map: tableId -> Set of fieldKeys (e.g. 2 -> Set(['field_10', 'field_12']))
+  const tableLinkFieldsMap = new Map<number, Set<string>>()
   relationFields.forEach((f) => {
     try {
       const opts: any = typeof f.options === 'string' ? safeJsonParse(f.options, {}) : f.options || {}
       if (opts.targetTableId === updatedTableId || opts.relationTableId === updatedTableId) {
-        dependentTableIds.add(f.tableId)
+        if (!tableLinkFieldsMap.has(f.tableId)) {
+          tableLinkFieldsMap.set(f.tableId, new Set<string>())
+        }
+        tableLinkFieldsMap.get(f.tableId)!.add(`field_${f.id}`)
       }
     } catch {}
   })
 
-  if (dependentTableIds.size === 0) return []
+  if (tableLinkFieldsMap.size === 0) return []
 
-  // 2. Query candidate rows containing the updated row ID
-  const candidateRowsRaw = await prisma.$queryRaw<{ id: number }[]>`
-    SELECT id FROM TableRow
-    WHERE tableId IN (${Prisma.join(Array.from(dependentTableIds))})
-    AND deletedAt IS NULL
-    AND data LIKE ${'%' + String(updatedRowId) + '%'}
-  `
+  // 2. Query candidate rows using structured JSON_CONTAINS specifically on relation field keys
+  const tableConditions: Prisma.Sql[] = []
+  for (const [tableId, fieldKeys] of tableLinkFieldsMap.entries()) {
+    const fieldOrClauses: Prisma.Sql[] = []
+    for (const fieldKey of fieldKeys) {
+      const jsonPath = `$."${fieldKey}"`
+      const jsonObjPath = `$."${fieldKey}"[*].id`
+      fieldOrClauses.push(Prisma.sql`
+        JSON_CONTAINS(COALESCE(JSON_EXTRACT(data, ${jsonPath}), '[]'), ${String(updatedRowId)})
+        OR JSON_CONTAINS(COALESCE(JSON_EXTRACT(data, ${jsonObjPath}), '[]'), ${String(updatedRowId)})
+      `)
+    }
+    tableConditions.push(Prisma.sql`(tableId = ${tableId} AND (${Prisma.join(fieldOrClauses, ' OR ')}))`)
+  }
+
+  const candidateRowsRaw = await prisma.$queryRaw<{ id: number }[]>(
+    Prisma.sql`SELECT id FROM TableRow WHERE deletedAt IS NULL AND (${Prisma.join(tableConditions, ' OR ')})`
+  )
 
   if (!candidateRowsRaw || candidateRowsRaw.length === 0) return []
 
@@ -192,15 +218,29 @@ export async function cascadeRecomputeSingleLevel(
 
   // 6. Background Engine: Process remaining slice if total rows > SYNC_CASCADE_LIMIT
   if (asyncSlice.length > 0) {
-    const bgTask = processCascadeChunksInBackground(asyncSlice, fieldsByTableId)
-      .catch((err) => {
+    const executeBackgroundCascade = async () => {
+      let bgTask: Promise<void> | null = null
+      try {
+        bgTask = processCascadeChunksInBackground(asyncSlice, fieldsByTableId)
+        pendingBackgroundTasks.add(bgTask)
+        await bgTask
+      } catch (err) {
         console.error('[Async Cascade Background Worker Unhandled Error]:', err)
-      })
-      .finally(() => {
-        pendingBackgroundTasks.delete(bgTask)
-      })
+      } finally {
+        if (bgTask) pendingBackgroundTasks.delete(bgTask)
+      }
+    }
 
-    pendingBackgroundTasks.add(bgTask)
+    try {
+      if (typeof after === 'function') {
+        after(executeBackgroundCascade)
+      } else {
+        executeBackgroundCascade()
+      }
+    } catch {
+      // Fallback in testing or non-request environments
+      executeBackgroundCascade()
+    }
   }
 
   return syncSlice

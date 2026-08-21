@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { cascadeRecomputeSingleLevel } from './rowCascade'
 
 /**
@@ -83,26 +84,7 @@ export async function syncBiDirectionalLinkRow(
 
   if (addedTargetRowIds.length === 0 && removedTargetRowIds.length === 0) return null
 
-  // Fetch primary value or label for sourceRowId
-  const sourceRow = await prisma.tableRow.findUnique({
-    where: { id: sourceRowId },
-  })
-
-  let sourceLabel = `列 ID: ${sourceRowId}`
-  if (sourceRow?.data) {
-    try {
-      const sData: any = typeof sourceRow.data === 'string' ? JSON.parse(sourceRow.data) : (sourceRow.data || {})
-      const primaryField = await prisma.tableField.findFirst({
-        where: { tableId: sourceTableId, deletedAt: null },
-        orderBy: { order: 'asc' },
-      })
-      if (primaryField && sData[`field_${primaryField.id}`] != null) {
-        sourceLabel = String(sData[`field_${primaryField.id}`])
-      }
-    } catch {}
-  }
-
-  // Handle Added Relations -> Insert sourceRowId into target row's relatedFieldKey
+  // Handle Added Relations -> Insert sourceRowId into target row's relatedFieldKey as pure ID array
   const modifiedRowIds: number[] = []
 
   if (addedTargetRowIds.length > 0) {
@@ -117,9 +99,7 @@ export async function syncBiDirectionalLinkRow(
       const currentIds = parseLinkRowIds(existingValues)
 
       if (!currentIds.includes(sourceRowId)) {
-        let updatedList: any[] = Array.isArray(existingValues) ? [...existingValues] : []
-        updatedList.push({ id: sourceRowId, value: sourceLabel })
-
+        const updatedList: number[] = [...currentIds, sourceRowId]
         tData[relatedFieldKey] = updatedList
 
         await prisma.tableRow.update({
@@ -136,7 +116,7 @@ export async function syncBiDirectionalLinkRow(
     }
   }
 
-  // Handle Removed Relations -> Filter out sourceRowId from target row's relatedFieldKey
+  // Handle Removed Relations -> Filter out sourceRowId from target row's relatedFieldKey as pure ID array
   if (removedTargetRowIds.length > 0) {
     const targetRows = await prisma.tableRow.findMany({
       where: { id: { in: removedTargetRowIds }, tableId: targetTableId, deletedAt: null },
@@ -149,14 +129,7 @@ export async function syncBiDirectionalLinkRow(
       const currentIds = parseLinkRowIds(existingValues)
 
       if (currentIds.includes(sourceRowId)) {
-        let updatedList: any[] = []
-        if (Array.isArray(existingValues)) {
-          updatedList = existingValues.filter((item: any) => {
-            const itemNum = typeof item === 'object' && item !== null ? Number(item.id) : Number(item)
-            return itemNum !== sourceRowId
-          })
-        }
-
+        const updatedList: number[] = currentIds.filter(id => id !== sourceRowId)
         tData[relatedFieldKey] = updatedList
 
         await prisma.tableRow.update({
@@ -177,16 +150,73 @@ export async function syncBiDirectionalLinkRow(
 }
 
 /**
+ * Removes all inbound link_row references pointing to targetRowId across all tables.
+ * Can be executed inside an existing Prisma transaction.
+ */
+export async function cleanupInboundLinkRowReferences(
+  targetRowId: number,
+  txClient?: Prisma.TransactionClient
+): Promise<number> {
+  const db = txClient || prisma
+
+  const linkRowFields = await db.tableField.findMany({
+    where: { type: 'link_row', deletedAt: null },
+    select: { id: true, tableId: true },
+  })
+
+  if (linkRowFields.length === 0) return 0
+
+  const tableIds = Array.from(new Set(linkRowFields.map((f) => f.tableId)))
+  const rows = await db.tableRow.findMany({
+    where: { tableId: { in: tableIds }, deletedAt: null },
+    select: { id: true, tableId: true, data: true },
+  })
+
+  let cleanedCount = 0
+
+  for (const r of rows) {
+    const data = typeof r.data === 'string' ? JSON.parse(r.data || '{}') : ((r.data as Record<string, any>) || {})
+    const tableFields = linkRowFields.filter((f) => f.tableId === r.tableId)
+    let modified = false
+
+    for (const f of tableFields) {
+      const fieldKey = `field_${f.id}`
+      const val = data[fieldKey]
+      const targetIds = parseLinkRowIds(val)
+      if (targetIds.includes(targetRowId)) {
+        modified = true
+        cleanedCount++
+        data[fieldKey] = targetIds.filter((id) => id !== targetRowId)
+      }
+    }
+
+    if (modified) {
+      await db.tableRow.update({
+        where: { id: r.id },
+        data: { data: data as Prisma.InputJsonValue },
+      })
+    }
+  }
+
+  return cleanedCount
+}
+
+/**
  * Cleanup reverse link references when a source row is deleted
  */
-export async function cleanupRowLinkRowRelations(sourceTableId: number, sourceRowId: number) {
-  const linkRowFields = await prisma.tableField.findMany({
+export async function cleanupRowLinkRowRelations(
+  sourceTableId: number,
+  sourceRowId: number,
+  txClient?: Prisma.TransactionClient
+) {
+  const db = txClient || prisma
+  const linkRowFields = await db.tableField.findMany({
     where: { tableId: sourceTableId, type: 'link_row', deletedAt: null },
   })
 
   if (linkRowFields.length === 0) return
 
-  const sourceRow = await prisma.tableRow.findUnique({
+  const sourceRow = await db.tableRow.findUnique({
     where: { id: sourceRowId },
   })
 

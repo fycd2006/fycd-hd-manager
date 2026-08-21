@@ -18,7 +18,7 @@ jest.mock('@/lib/prisma', () => ({
 
 describe('getPopulatedTableRows', () => {
   beforeEach(() => {
-    jest.clearAllMocks()
+    jest.resetAllMocks()
   })
 
   it('populates lookup fields correctly using linked row data', async () => {
@@ -118,6 +118,144 @@ describe('getPopulatedTableRows', () => {
 
     const result = await getPopulatedTableRows(1, {})
     expect(result.rows![0].data['field_1']).toBe('JohnDoe')
+  })
+
+  it('filters out soft-deleted or non-existent target rows from link_row display values completely', async () => {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'TargetRowLink', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+      ])
+      .mockResolvedValueOnce([
+        { id: 10, tableId: 2, name: 'TargetTitle', type: 'text' },
+      ]);
+
+    // Row 101 links to target rows [501, 502]
+    // 501 is alive, 502 is soft-deleted or does not exist
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 101,
+        tableId: 1,
+        data: { field_1: '[501, 502]' },
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    ]);
+
+    // findMany only returns alive row 501
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 501,
+        tableId: 2,
+        data: JSON.stringify({ field_10: 'Alive Target' }),
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    ]);
+
+    const result = await getPopulatedTableRows(1, {})
+    // console.log('DEBUG result:', JSON.stringify(result.rows![0].data))
+    const linkValues = result.rows![0].data['field_1']
+
+    expect(linkValues).toHaveLength(1)
+    expect(linkValues[0]).toEqual({ id: 501, value: 'Alive Target' })
+    expect(linkValues.find((item: any) => item.id === 502)).toBeUndefined()
+  })
+
+  it('guarantees strictly read-only operations without triggering any prisma updates', async () => {
+    (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 5, tableId: 1, name: 'Status', type: 'single_select', options: JSON.stringify({ choices: [] }) },
+    ]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 201,
+        tableId: 1,
+        data: { field_5: 'Raw Legacy Value' },
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    ]);
+
+    const result = await getPopulatedTableRows(1, {})
+    expect(result.rows).toBeDefined()
+    expect(prisma.tableField.update).not.toHaveBeenCalled()
+  })
+
+  it('correctly populates mixed-format link_row values (legacy {id, value} snapshot + pure ID numbers + {id} objects) with latest live titles', async () => {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'TargetRowLink', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+      ])
+      .mockResolvedValueOnce([
+        { id: 10, tableId: 2, name: 'TargetName', type: 'text' },
+      ]);
+
+    // Raw row containing mixed format items: legacy object with stale title, pure number ID, and object without value
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 101,
+        tableId: 1,
+        data: {
+          field_1: [
+            { id: 501, value: 'Stale Old Snapshot' },
+            502,
+            { id: 503 },
+          ],
+        },
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    ]);
+
+    // Database target rows with fresh, current names
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 501,
+        tableId: 2,
+        data: JSON.stringify({ field_10: 'Fresh Alpha Name' }),
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+      {
+        id: 502,
+        tableId: 2,
+        data: JSON.stringify({ field_10: 'Fresh Beta Name' }),
+        order: 2,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+      {
+        id: 503,
+        tableId: 2,
+        data: JSON.stringify({ field_10: 'Fresh Gamma Name' }),
+        order: 3,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    ]);
+
+    const result = await getPopulatedTableRows(1, {})
+    const linkValues = result.rows![0].data['field_1']
+
+    // Assert all 3 items are parsed and populated with their fresh live titles
+    expect(linkValues).toHaveLength(3)
+    expect(linkValues).toEqual([
+      { id: 501, value: 'Fresh Alpha Name' },
+      { id: 502, value: 'Fresh Beta Name' },
+      { id: 503, value: 'Fresh Gamma Name' },
+    ])
   })
 })
 

@@ -153,14 +153,21 @@ export async function GET(
       fieldMapByTable[f.tableId][String(f.id)] = `field_${f.id}`
     })
 
+    let sortFieldType: string | undefined
+    if (sortField) {
+      sortFieldType = fieldsMap[sortField]?.type
+    }
+
     const result = await getMultiTableRows({
       tableIds: targetTableIds,
       cursor,
       limit,
       sortField,
       sortOrder,
+      sortFieldType,
       filters,
       fieldMapByTable,
+      masterViewId: masterViewId && !isNaN(masterViewId) ? masterViewId : null,
     })
 
     let rows: any[] = result.rows

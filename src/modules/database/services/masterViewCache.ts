@@ -1,4 +1,5 @@
 import { createHash } from 'crypto'
+import prisma from '@/lib/prisma'
 import redisClient, { getCache, setCache, delCache } from '@/lib/redis'
 import type { MasterViewRowWithOverrides } from './masterViewOverride'
 
@@ -149,4 +150,22 @@ export async function invalidateMasterViewCache(
  */
 export function clearAllMemoryCache(): void {
   memoryCache.clear()
+}
+
+/**
+ * Invalidate master view cache for all workspaces referencing a given tableId.
+ */
+export async function invalidateMasterViewCacheForTable(tableId: number): Promise<void> {
+  if (!tableId || isNaN(tableId) || !prisma?.databaseTable?.findUnique) return
+  try {
+    const table = await prisma.databaseTable.findUnique({
+      where: { id: tableId },
+      select: { database: { select: { workspaceId: true } } },
+    })
+    if (table?.database?.workspaceId) {
+      await invalidateMasterViewCache(table.database.workspaceId)
+    }
+  } catch (err) {
+    console.warn(`[MasterViewCache] Invalidation for table ${tableId} failed:`, err)
+  }
 }

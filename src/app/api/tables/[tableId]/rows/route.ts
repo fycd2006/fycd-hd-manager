@@ -8,7 +8,7 @@ import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCasc
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds, type LinkSyncResult } from '@/modules/database/services/linkRowSync'
 import { authorizeLinkRowOperation } from '@/modules/database/services/linkRowOperations'
 import { softDeleteMasterViewOverrides } from '@/modules/database/services/masterViewOverride'
-import { invalidateMasterViewCache } from '@/modules/database/services/masterViewCache'
+import { invalidateMasterViewCache, invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { FieldRegistry } from '@/modules/database/fields/types'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { createTableRow } from '@/modules/database/services/createRow'
@@ -105,6 +105,8 @@ export async function POST(
   }
 }
 
+import { validateRowPatchPayload } from '@/modules/database/services/rowValidation'
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ tableId: string }> }
@@ -132,22 +134,20 @@ export async function PATCH(
       return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
     }
 
-    // Consolidate into single transaction to use 1 connection instead of 4+
-    const { currentRow, fields } = await prisma.$transaction(async (tx) => {
-      const row = await tx.tableRow.findFirst({
-        where: { id: rid, tableId: tid, deletedAt: null },
-        select: { data: true }
-      })
-      const flds = await tx.tableField.findMany({ 
-        where: { tableId: tid, deletedAt: null },
-        orderBy: { order: 'asc' }
-      })
-      return { currentRow: row, fields: flds }
-    }, { maxWait: 5000, timeout: 10000 })
+    const fields = await prisma.tableField.findMany({
+      where: { tableId: tid, deletedAt: null },
+      orderBy: { order: 'asc' },
+    })
+
+    const currentRow = await prisma.tableRow.findFirst({
+      where: { id: rid, tableId: tid, deletedAt: null },
+      select: { id: true, data: true },
+    })
 
     if (!currentRow) {
       return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
     }
+
     const username = await getSessionUsername()
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
@@ -160,158 +160,190 @@ export async function PATCH(
       updateMap[fieldKey] = value
     }
 
+    // Auto-update audit fields if present
     for (const f of fields) {
       const key = `field_${f.id}`
       if (f.type === 'last_modified_by') {
         updateMap[key] = username
       } else if (f.type === 'last_modified_on') {
         updateMap[key] = nowStr
-      } else if (key in updateMap) {
-        let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
+      }
+    }
+
+    // 1. Zod Schema Dynamic Validation
+    const validationRes = validateRowPatchPayload(updateMap, fields)
+    if (!validationRes.valid) {
+      return NextResponse.json({ error: validationRes.error }, { status: 400 })
+    }
+
+    // 2. FieldRegistry validation / transformation
+    for (const f of fields) {
+      const key = `field_${f.id}`
+      if (key in updateMap && f.type !== 'last_modified_by' && f.type !== 'last_modified_on') {
+        const fOpts = typeof f.options === 'string' ? safeJsonParse(f.options, {}) : (f.options || {})
         const fieldType = FieldRegistry.get(f.type)
         const validateRes = fieldType.validateValue(updateMap[key], fOpts)
         if (!validateRes.valid) {
-          console.warn(`[PATCH 400] Validation failed for field ${f.name} (id: ${f.id}) on row ${rid}. Value:`, updateMap[key], `Error:`, validateRes.error);
           return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
         }
         updateMap[key] = validateRes.parsedValue
       }
     }
 
-    const validFieldKeys = new Set(fields.map(f => `field_${f.id}`))
+    const validFieldKeys = new Set(fields.map((f) => `field_${f.id}`))
     const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k) && validFieldKeys.has(k))
+
     if (entries.length > 0) {
-      let currentData: Record<string, any> = {}
-      if (currentRow.data) {
-        try {
-          currentData = typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data
-        } catch {
-          currentData = {}
+      const currentData = safeJsonParse<Record<string, any>>(currentRow.data, {})
+
+      // Detect link_row field changes to trigger bi-directional synchronization and validate target permissions
+      const linkRowFields = fields.filter((f) => f.type === 'link_row')
+      const linkRowSyncTasks: Promise<LinkSyncResult | null>[] = []
+
+      for (const f of linkRowFields) {
+        const key = `field_${f.id}`
+        if (key in updateMap) {
+          const oldVal = currentData[key]
+          const newVal = updateMap[key]
+
+          const oldIds = parseLinkRowIds(oldVal)
+          const newIds = parseLinkRowIds(newVal)
+
+          const newlyAddedIds = newIds.filter((id) => !oldIds.includes(id))
+          if (newlyAddedIds.length > 0) {
+            const fOpts: Record<string, any> = typeof f.options === 'string' ? safeJsonParse(f.options, {}) : (f.options || {})
+            const targetTableId = Number(fOpts.targetTableId ?? fOpts.link_row_table_id ?? fOpts.target_table_id)
+            if (targetTableId) {
+              const { allowed, errorResponse } = await authorizeLinkRowOperation({
+                operation: 'link_existing',
+                sourceTableId: tid,
+                targetTableId,
+              })
+              if (!allowed && errorResponse) {
+                return errorResponse
+              }
+            }
+          }
+
+          linkRowSyncTasks.push(
+            syncBiDirectionalLinkRow(tid, rid, f.id, newIds, oldIds).catch((err) => {
+              console.warn('[Bi-directional Sync Warning]:', err)
+              return null
+            })
+          )
         }
       }
 
-        // Detect link_row field changes to trigger bi-directional synchronization and validate target permissions
-        const linkRowFields = fields.filter(f => f.type === 'link_row')
-        const linkRowSyncTasks: Promise<LinkSyncResult | null>[] = []
-
-        for (const f of linkRowFields) {
-          const key = `field_${f.id}`
-          if (key in updateMap) {
-            const oldVal = currentData[key]
-            const newVal = updateMap[key]
-
-            const oldIds = parseLinkRowIds(oldVal)
-            const newIds = parseLinkRowIds(newVal)
-
-            // Security: If new target IDs are being linked, ensure the user has canViewData on the target table (Case #10 Blind linking prevention)
-            const newlyAddedIds = newIds.filter(id => !oldIds.includes(id))
-            if (newlyAddedIds.length > 0) {
-              const fOpts: Record<string, any> = typeof f.options === 'string' ? safeJsonParse(f.options, {}) : (f.options || {})
-              const targetTableId = Number(fOpts.targetTableId ?? fOpts.link_row_table_id ?? fOpts.target_table_id)
-              if (targetTableId) {
-                const { allowed, errorResponse } = await authorizeLinkRowOperation({
-                  operation: 'link_existing',
-                  sourceTableId: tid,
-                  targetTableId,
-                })
-                if (!allowed && errorResponse) {
-                  return errorResponse
-                }
-              }
-            }
-
-            // Per-task error isolation: one failing field must not block the others
-            linkRowSyncTasks.push(
-              syncBiDirectionalLinkRow(tid, rid, f.id, newIds, oldIds).catch(err => {
-                console.warn('[Bi-directional Sync Warning]:', err)
-                return null
-              })
-            )
-          }
+      // 3. MySQL JSON_SET Atomic Parameterized Partial Update
+      const setFragments: Prisma.Sql[] = []
+      for (const [k, val] of entries) {
+        const jsonPath = `$.${k}`
+        if (val === null || val === undefined) {
+          setFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
+        } else if (typeof val === 'number') {
+          setFragments.push(Prisma.sql`${jsonPath}, ${val}`)
+        } else if (typeof val === 'boolean') {
+          setFragments.push(Prisma.sql`${jsonPath}, CAST(${val ? 'true' : 'false'} AS JSON)`)
+        } else if (typeof val === 'object') {
+          setFragments.push(Prisma.sql`${jsonPath}, CAST(${JSON.stringify(val)} AS JSON)`)
+        } else {
+          setFragments.push(Prisma.sql`${jsonPath}, ${String(val)}`)
         }
+      }
 
-        // Normalize currentData: migrate legacy numeric keys and purge stale numeric keys
-        const normalizedData: Record<string, any> = {}
-        Object.entries(currentData).forEach(([k, v]) => {
-          const fid = parseInt(k.replace('field_', ''))
-          if (!isNaN(fid) && validFieldKeys.has(`field_${fid}`)) {
-            normalizedData[`field_${fid}`] = v
-          } else if (/^field_\d+$/.test(k)) {
-            normalizedData[k] = v
-          }
-        })
-        currentData = normalizedData
+      const now = new Date()
+      await prisma.$executeRaw(
+        Prisma.sql`UPDATE TableRow SET data = JSON_SET(COALESCE(data, '{}'), ${Prisma.join(setFragments, ', ')}), updatedAt = ${now} WHERE id = ${rid} AND tableId = ${tid} AND deletedAt IS NULL`
+      )
 
-        entries.forEach(([k, val]) => {
-          const fid = parseInt(k.replace('field_', ''))
-          if (!isNaN(fid)) {
-            delete currentData[String(fid)]
-            delete currentData[fid]
-          }
-          currentData[k] = val ?? null
-        })
+      let updatedRow = await prisma.tableRow.findUnique({
+        where: { id: rid },
+      })
+      if (!updatedRow) return NextResponse.json({ error: '找不到該列' }, { status: 404 })
 
-        // Recompute current row formulas dynamically when any cell in row is updated
-        const formulaFields = fields.filter(f => f.type === 'formula')
-        formulaFields.forEach(ff => {
+      let rowData = safeJsonParse<Record<string, any>>(updatedRow.data, {})
+
+      // 4. Recompute formula fields dynamically if present
+      const formulaFields = fields.filter((f) => f.type === 'formula')
+      if (formulaFields.length > 0) {
+        const formulaFragments: Prisma.Sql[] = []
+        let formulaChanged = false
+        const fieldOrder = fields.map((f) => f.id)
+        for (const ff of formulaFields) {
           const destKey = `field_${ff.id}`
-          let expr = extractFormulaExpression(ff.options)
-          if (!expr) return
+          const expr = extractFormulaExpression(ff.options)
+          if (!expr) continue
           try {
-            const fieldOrder = fields.map(f => f.id)
-            const res = evaluateFormula(expr, currentData, fieldOrder)
-            currentData[destKey] = res != null ? String(res) : ''
+            const res = evaluateFormula(expr, rowData, fieldOrder)
+            const computedVal = res != null ? String(res) : ''
+            if (rowData[destKey] !== computedVal) {
+              rowData[destKey] = computedVal
+              formulaFragments.push(Prisma.sql`$.${destKey}, ${computedVal}`)
+              formulaChanged = true
+            }
           } catch {
-            currentData[destKey] = '#VALUE!'
+            if (rowData[destKey] !== '#VALUE!') {
+              rowData[destKey] = '#VALUE!'
+              formulaFragments.push(Prisma.sql`$.${destKey}, '#VALUE!'`)
+              formulaChanged = true
+            }
           }
-        })
+        }
+        if (formulaChanged && formulaFragments.length > 0) {
+          await prisma.$executeRaw(
+            Prisma.sql`UPDATE TableRow SET data = JSON_SET(COALESCE(data, '{}'), ${Prisma.join(formulaFragments, ', ')}) WHERE id = ${rid} AND tableId = ${tid}`
+          )
+        }
+      }
 
-        const updatedRow = await prisma.tableRow.update({
-          where: { id: rid },
-          data: {
-            data: currentData as Prisma.InputJsonValue,
-            updatedAt: new Date()
-          }
-        })
+      // Single-level cascade recomputation
+      let affectedRows: any[] = []
+      try {
+        affectedRows = (await cascadeRecomputeSingleLevel(tid, rid)) || []
+      } catch (e) {
+        console.warn('[Cascade Recompute Warning]:', e)
+      }
 
-        // Single-level cascade recomputation: computes dependent lookup/formula fields and returns affectedRows
-        let affectedRows: any[] = []
+      if (linkRowSyncTasks.length > 0) {
         try {
-          affectedRows = (await cascadeRecomputeSingleLevel(tid, rid)) || []
-        } catch (e) {
-          console.warn('[Cascade Recompute Warning]:', e)
+          const syncResults = await Promise.allSettled(linkRowSyncTasks)
+          syncResults.forEach((res, i) => {
+            if (res.status === 'rejected') {
+              console.warn(`[Bi-directional Sync Warning] Task ${i} failed:`, res.reason)
+            }
+          })
+        } catch (err) {
+          console.warn('[Bi-directional Sync Fatal Warning]:', err)
         }
+      }
 
-        // Execute bi-directional link_row sync tasks asynchronously but wait for them
-        if (linkRowSyncTasks.length > 0) {
-          try {
-            const syncResults = await Promise.allSettled(linkRowSyncTasks)
-            syncResults.forEach((res, i) => {
-              if (res.status === 'rejected') {
-                console.warn(`[Bi-directional Sync Warning] Task ${i} failed:`, res.reason)
-              }
-            })
-          } catch (err) {
-            console.warn('[Bi-directional Sync Fatal Warning]:', err)
-          }
-        }
+      // 5. Invalidate Master View Cache for this table
+      try {
+        await invalidateMasterViewCacheForTable(tid)
+      } catch (cacheErr) {
+        console.warn('[MasterViewCache Warning on PATCH row]:', cacheErr)
+      }
 
-        triggerTableEvent(tid, 'row-updated', {
+      // 6. Trigger Real-time Pusher Event
+      triggerTableEvent(
+        tid,
+        'row-updated',
+        {
           rowId: rid,
-          data: currentData,
+          data: rowData,
           affectedRows,
           fieldKey,
           value,
-          updatedAt: updatedRow.updatedAt
-        }, socketId)
+          updatedAt: updatedRow.updatedAt,
+        },
+        socketId
+      )
 
-        // Return immediately with updated row and affected dependent rows
-        return NextResponse.json({ ...updatedRow, data: currentData, affectedRows })
-      }
+      return NextResponse.json({ ...updatedRow, data: rowData, affectedRows })
+    }
 
-    // If no fields were updated (entries.length === 0), re-fetch
     const updated = await prisma.tableRow.findUnique({
-      where: { id: rid }
+      where: { id: rid },
     })
 
     if (!updated) return NextResponse.json({ error: '找不到該列' }, { status: 404 })

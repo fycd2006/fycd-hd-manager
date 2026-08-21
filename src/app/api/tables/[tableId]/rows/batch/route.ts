@@ -317,7 +317,7 @@ export async function PATCH(
             originalDataObj = {}
           }
         }
-        
+
         let currentData: Record<string, any> = { ...originalDataObj }
 
         const normalizedData: Record<string, any> = {}

@@ -140,7 +140,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
       try {
         const stored = localStorage.getItem(`master_alias_map_${workspaceId}`)
         return stored ? JSON.parse(stored) : {}
-      } catch {}
+      } catch { }
     }
     return {}
   })
@@ -1036,7 +1036,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
     frequencyAnalysis.allFields.forEach((field) => {
       const col = unifiedColumnsMap[field.key]
       const sourceTableIds = col?.sources?.map((s) => s.tableId) || (fieldsMap[field.key] ? [fieldsMap[field.key].tableId] : [])
-      
+
       const activeSources = sourceTableIds.filter((tid) => activeTableIds.includes(tid))
 
       if (activeSources.length === 0) {
@@ -1118,7 +1118,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem(`master_alias_map_${workspaceId}`, JSON.stringify(newCustomAliasMap))
-      } catch {}
+      } catch { }
     }
   }
 
@@ -3038,8 +3038,8 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                                     e.stopPropagation()
                                     setActiveOverridePopover(
                                       activeOverridePopover?.tableId === row.tableId &&
-                                      activeOverridePopover?.rowId === row.id &&
-                                      activeOverridePopover?.key === key
+                                        activeOverridePopover?.rowId === row.id &&
+                                        activeOverridePopover?.key === key
                                         ? null
                                         : { tableId: row.tableId, rowId: row.id, key }
                                     )

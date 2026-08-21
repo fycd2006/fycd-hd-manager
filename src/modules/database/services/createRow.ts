@@ -10,6 +10,7 @@ import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { FieldRegistry } from '@/modules/database/fields/types'
 import { safeJsonParse } from '@/lib/json-utils'
+import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 
 /** Field types that can never be written through a public form submission. */
 export const FORM_READONLY_TYPES = [
@@ -106,7 +107,7 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
               if (!isNaN(val) && val > maxVal) {
                 maxVal = val
               }
-            } catch {}
+            } catch { }
           })
         })
         if (maxVal > 0) {
@@ -147,6 +148,13 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
     maxWait: 5000,
     timeout: 10000
   })
+
+  // Invalidate master view cache for this table's workspace
+  try {
+    await invalidateMasterViewCacheForTable(tableId)
+  } catch (cacheErr) {
+    console.warn('[MasterViewCache Warning on createRow]:', cacheErr)
+  }
 
   return { ok: true, row: { ...row, data: safeJsonParse(row.data, {}) } }
 }

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
 import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 import { createGeneratedColumn, dropGeneratedColumn } from '@/modules/database/services/schemaService'
+import { migrateSelectFieldsForTable } from '@/modules/database/services/selectFieldMigration'
 
 export async function PATCH(
   request: Request,
@@ -34,6 +35,15 @@ export async function PATCH(
         }),
       },
     })
+
+    const currentType = updated.type || oldField?.type
+    if ((body.options !== undefined || body.type !== undefined) && (currentType === 'single_select' || currentType === 'multiple_select')) {
+      try {
+        await migrateSelectFieldsForTable(tid, fid)
+      } catch (migErr) {
+        console.warn('[Select Field Migration Warning on Field Edit]:', migErr)
+      }
+    }
 
     if (oldField) {
       const isIndexed = body.isIndexed !== undefined ? body.isIndexed : oldField.isIndexed

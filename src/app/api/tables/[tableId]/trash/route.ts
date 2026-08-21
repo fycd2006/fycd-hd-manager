@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
+import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
+import { cleanupInboundLinkRowReferences, cleanupRowLinkRowRelations } from '@/modules/database/services/linkRowSync'
+import { softDeleteMasterViewOverrides } from '@/modules/database/services/masterViewOverride'
 
 // GET: list all soft-deleted items (fields, rows) of the table
 export async function GET(
@@ -71,6 +74,12 @@ export async function POST(
       return NextResponse.json({ error: '無效的類型' }, { status: 400 })
     }
 
+    try {
+      await invalidateMasterViewCacheForTable(tid)
+    } catch (cacheErr) {
+      console.warn('[MasterViewCache Warning on trash restore]:', cacheErr)
+    }
+
     return NextResponse.json({ message: '還原成功' })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '還原項目失敗' }, { status: 500 })
@@ -98,15 +107,40 @@ export async function DELETE(
     if (isNaN(targetId)) return NextResponse.json({ error: '無效的目標 ID' }, { status: 400 })
 
     if (type === 'field') {
-      await prisma.tableField.delete({
-        where: { id: targetId, tableId: tid }
+      await prisma.$transaction(async (tx) => {
+        // 1. Remove the residual field_X key from all TableRow.data in this table
+        const fieldKey = `$.field_${targetId}`
+        await tx.$executeRaw`
+          UPDATE TableRow
+          SET data = JSON_REMOVE(COALESCE(data, '{}'), ${fieldKey})
+          WHERE tableId = ${tid}
+        `
+
+        // 2. Permanently delete TableField record
+        await tx.tableField.delete({
+          where: { id: targetId, tableId: tid }
+        })
       })
     } else if (type === 'row') {
-      await prisma.tableRow.delete({
-        where: { id: targetId, tableId: tid }
+      await prisma.$transaction(async (tx) => {
+        // 1. Cleanup all reverse link references and overrides
+        await cleanupRowLinkRowRelations(tid, targetId, tx)
+        await cleanupInboundLinkRowReferences(targetId, tx)
+        await softDeleteMasterViewOverrides(tid, targetId)
+
+        // 2. Permanently delete row record
+        await tx.tableRow.delete({
+          where: { id: targetId, tableId: tid }
+        })
       })
     } else {
       return NextResponse.json({ error: '無效的類型' }, { status: 400 })
+    }
+
+    try {
+      await invalidateMasterViewCacheForTable(tid)
+    } catch (cacheErr) {
+      console.warn('[MasterViewCache Warning on trash permanent delete]:', cacheErr)
     }
 
     return NextResponse.json({ message: '永久刪除成功' })

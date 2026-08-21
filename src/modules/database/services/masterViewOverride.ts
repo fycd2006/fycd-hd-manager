@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { safeJsonParse } from '@/lib/json-utils'
 import type { MultiTableParsedRow } from './multiTableQuery'
+import { invalidateMasterViewCacheForTable } from './masterViewCache'
 
 export interface MasterViewOverrideInput {
   masterViewId: number
@@ -51,6 +52,12 @@ export async function upsertMasterViewOverride(input: MasterViewOverrideInput) {
       updatedAt: new Date(),
     },
   })
+
+  try {
+    await invalidateMasterViewCacheForTable(sourceTableId)
+  } catch (cacheErr) {
+    console.warn(`[MasterViewCache Warning on upsertOverride for table ${sourceTableId}]:`, cacheErr)
+  }
 
   return {
     ...result,
@@ -135,7 +142,7 @@ export async function mergeMasterViewOverrides(
 export async function softDeleteMasterViewOverrides(sourceTableId: number, sourceRowId: number) {
   if (!sourceTableId || !sourceRowId) return { count: 0 }
 
-  return prisma.masterViewOverride.updateMany({
+  const res = await prisma.masterViewOverride.updateMany({
     where: {
       sourceTableId,
       sourceRowId,
@@ -145,6 +152,14 @@ export async function softDeleteMasterViewOverrides(sourceTableId: number, sourc
       deletedAt: new Date(),
     },
   })
+
+  try {
+    await invalidateMasterViewCacheForTable(sourceTableId)
+  } catch (cacheErr) {
+    console.warn(`[MasterViewCache Warning on softDeleteOverride for table ${sourceTableId}]:`, cacheErr)
+  }
+
+  return res
 }
 
 export interface MasterViewOverrideRevertInput {
@@ -184,6 +199,13 @@ export async function revertMasterViewOverride(input: MasterViewOverrideRevertIn
       where: { id: existing.id },
       data: { deletedAt: new Date() },
     })
+
+    try {
+      await invalidateMasterViewCacheForTable(sourceTableId)
+    } catch (cacheErr) {
+      console.warn(`[MasterViewCache Warning on revertOverride for table ${sourceTableId}]:`, cacheErr)
+    }
+
     return { success: true, count: 1 }
   }
 
@@ -203,6 +225,12 @@ export async function revertMasterViewOverride(input: MasterViewOverrideRevertIn
         updatedAt: new Date(),
       },
     })
+  }
+
+  try {
+    await invalidateMasterViewCacheForTable(sourceTableId)
+  } catch (cacheErr) {
+    console.warn(`[MasterViewCache Warning on revertOverride for table ${sourceTableId}]:`, cacheErr)
   }
 
   return { success: true, count: 1, remainingOverrides: currentOverrides }

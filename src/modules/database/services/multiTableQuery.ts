@@ -5,14 +5,20 @@ import { safeJsonParse } from '@/lib/json-utils'
 export * from './multiTableUtils'
 import type { CrossTableFilterRule } from './multiTableUtils'
 
+export const NUMERIC_TYPES = new Set(['number', 'rating', 'percent', 'currency', 'autonumber'])
+
 export interface MultiTableQueryOptions {
   tableIds: number[]
   cursor?: string | null // base64url-encoded JSON
   limit?: number
   sortField?: string | null
   sortOrder?: 'asc' | 'desc'
+  sortFieldType?: string | null
+  fieldTypeMap?: Record<string, string> // e.g. { field_2: 'number' }
   filters?: CrossTableFilterRule[]
   fieldMapByTable?: Record<number, Record<string, string>> // tableId -> { fieldName: "field_123" }
+  masterViewId?: number | null
+  allowedFieldIds?: Set<number> | number[] | Set<string> | string[]
 }
 
 export interface MultiTableParsedRow {
@@ -21,6 +27,7 @@ export interface MultiTableParsedRow {
   data: Record<string, any>
   createdAt: Date
   updatedAt?: Date
+  sort_val?: any
 }
 
 
@@ -61,13 +68,102 @@ export async function getAuthorizedTableIds(workspaceId: number): Promise<number
   return tables.map((t) => t.id)
 }
 
+export interface EffectiveFieldSqlOptions {
+  fieldKey: string
+  masterViewId?: number | null
+  allowedFieldIds?: Set<number> | number[] | Set<string> | string[]
+  tableAlias?: string
+  overrideAlias?: string
+}
+
+/**
+ * Validates and safely constructs the SQL extraction expression for a column.
+ * If masterViewId is provided, wraps in COALESCE(override.overrides->>'$.field_X', table.data->>'$.field_X', '').
+ * Includes strict whitelist verification and regex sanitization to guard against SQL injection.
+ */
+export function buildEffectiveFieldSql(
+  fieldKeyOrOptions: string | EffectiveFieldSqlOptions | null | undefined,
+  legacyMasterViewId?: number | null,
+  allowedFieldIdsParam?: Set<number> | number[] | Set<string> | string[]
+): Prisma.Sql | null {
+  if (!fieldKeyOrOptions) return null
+
+  const options: EffectiveFieldSqlOptions =
+    typeof fieldKeyOrOptions === 'string'
+      ? {
+          fieldKey: fieldKeyOrOptions,
+          masterViewId: legacyMasterViewId,
+          allowedFieldIds: allowedFieldIdsParam,
+        }
+      : fieldKeyOrOptions
+
+  const {
+    fieldKey: rawFieldKey,
+    masterViewId,
+    allowedFieldIds,
+    tableAlias = 'r',
+    overrideAlias = 'o',
+  } = options || {}
+
+  if (!rawFieldKey || typeof rawFieldKey !== 'string') return null
+  const fieldKey = rawFieldKey.trim()
+
+  // 1. Handle system fields (createdAt, id, tableId)
+  if (fieldKey === 'createdAt') {
+    return tableAlias ? Prisma.raw(`${tableAlias}.createdAt`) : Prisma.sql`createdAt`
+  }
+  if (fieldKey === 'id') {
+    return tableAlias ? Prisma.raw(`${tableAlias}.id`) : Prisma.sql`id`
+  }
+  if (fieldKey === 'tableId') {
+    return tableAlias ? Prisma.raw(`${tableAlias}.tableId`) : Prisma.sql`tableId`
+  }
+
+  // 2. Strict regex check: must match field_\d+ (e.g. field_123)
+  const match = fieldKey.match(/^field_([1-9]\d*)$/)
+  if (!match) {
+    // Rejects non-field format (e.g. custom_column, field_abc, injection payloads)
+    return null
+  }
+
+  const numericId = parseInt(match[1], 10)
+
+  // 3. Whitelist check (if allowedFieldIds provided)
+  if (allowedFieldIds) {
+    const isAllowed =
+      allowedFieldIds instanceof Set
+        ? (allowedFieldIds as Set<unknown>).has(numericId) || (allowedFieldIds as Set<unknown>).has(fieldKey)
+        : Array.isArray(allowedFieldIds)
+        ? (allowedFieldIds as (string | number)[]).includes(numericId) || (allowedFieldIds as (string | number)[]).includes(fieldKey)
+        : false
+
+    if (!isAllowed) {
+      return null
+    }
+  }
+
+  const jsonPath = `$."${fieldKey}"`
+  const tableDataCol = tableAlias ? `${tableAlias}.data` : 'data'
+  const baseExtract = Prisma.raw(`JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(${tableDataCol}), '${jsonPath}'))`)
+
+  if (masterViewId && masterViewId > 0) {
+    const overrideCol = overrideAlias ? `${overrideAlias}.overrides` : 'overrides'
+    const overrideExtract = Prisma.raw(`JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(${overrideCol}), '${jsonPath}'))`)
+    return Prisma.sql`COALESCE(${overrideExtract}, ${baseExtract}, '')`
+  }
+
+  return Prisma.sql`COALESCE(${baseExtract}, '')`
+}
+
 /**
  * Builds an injection-safe Prisma SQL condition for a single cross-table filter rule.
  */
 export function buildCrossTableFilterSql(
   rule: CrossTableFilterRule,
   tableId?: number,
-  fieldMapByTable?: Record<number, Record<string, string>>
+  fieldMapByTable?: Record<number, Record<string, string>>,
+  masterViewId?: number | null,
+  allowedFieldIds?: Set<number> | number[] | Set<string> | string[]
 ): Prisma.Sql | null {
   if (!rule || !rule.field || !rule.operator) return null
 
@@ -76,23 +172,18 @@ export function buildCrossTableFilterSql(
     field = fieldMapByTable[tableId][field]
   }
 
+  const targetSql = buildEffectiveFieldSql({
+    fieldKey: field,
+    masterViewId,
+    allowedFieldIds,
+    tableAlias: 'r',
+    overrideAlias: 'o',
+  })
+
+  if (!targetSql) return null
+
   const op = rule.operator
   const rawVal = rule.value != null ? String(rule.value) : ''
-
-  const isCreatedAt = field === 'createdAt'
-  const isId = field === 'id'
-
-  let targetSql: Prisma.Sql
-  if (isCreatedAt) {
-    targetSql = Prisma.sql`createdAt`
-  } else if (isId) {
-    targetSql = Prisma.sql`id`
-  } else {
-    const jsonPath = `$."${field.replace(/"/g, '\\"')}"`
-    targetSql = Prisma.sql`COALESCE(JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(data), ${jsonPath})), '')`
-  }
-
-
 
   switch (op) {
     case 'contains':
@@ -106,12 +197,12 @@ export function buildCrossTableFilterSql(
     case 'higher_than': {
       const num = Number(rawVal)
       if (isNaN(num)) return null
-      return Prisma.sql`CAST(${targetSql} AS DECIMAL(30,10)) > ${num}`
+      return Prisma.sql`CASE WHEN ${targetSql} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' THEN CAST(${targetSql} AS DECIMAL(30,10)) ELSE NULL END > ${num}`
     }
     case 'lower_than': {
       const num = Number(rawVal)
       if (isNaN(num)) return null
-      return Prisma.sql`CAST(${targetSql} AS DECIMAL(30,10)) < ${num}`
+      return Prisma.sql`CASE WHEN ${targetSql} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' THEN CAST(${targetSql} AS DECIMAL(30,10)) ELSE NULL END < ${num}`
     }
     case 'is_empty':
       return Prisma.sql`(${targetSql} IS NULL OR ${targetSql} = '' OR ${targetSql} = 'null')`
@@ -181,8 +272,12 @@ export function generateCursor(
   } else if (sortField === 'id') {
     sortValue = lastRow.id
   } else {
-    const rawVal = lastRow.data?.[sortField]
-    sortValue = rawVal != null ? String(rawVal) : ''
+    if ((lastRow as any).sort_val !== undefined) {
+      sortValue = (lastRow as any).sort_val !== null ? (lastRow as any).sort_val : null
+    } else {
+      const rawVal = lastRow.data?.[sortField]
+      sortValue = rawVal != null ? rawVal : null
+    }
   }
 
   const payload: ParsedCursor = {
@@ -209,6 +304,8 @@ export async function getMultiTableRows(options: MultiTableQueryOptions) {
     sortOrder: rawSortOrder,
     filters = [],
     fieldMapByTable,
+    masterViewId,
+    allowedFieldIds,
   } = options
 
   if (!tableIds || tableIds.length === 0) {
@@ -220,6 +317,9 @@ export async function getMultiTableRows(options: MultiTableQueryOptions) {
   const isAsc = sortOrder === 'asc'
   const isCreatedAt = sortField === 'createdAt'
   const isId = sortField === 'id'
+  const hasMasterView = Boolean(masterViewId && masterViewId > 0)
+  const effectiveFieldType = options.sortFieldType ?? options.fieldTypeMap?.[sortField]
+  const isNumeric = Boolean(effectiveFieldType && NUMERIC_TYPES.has(effectiveFieldType))
 
   // 1. Build UNION ALL derived query
   const unionQueries: Prisma.Sql[] = tableIds.map((tid) => {
@@ -231,7 +331,7 @@ export async function getMultiTableRows(options: MultiTableQueryOptions) {
 
     // Build filter SQL pushdown specifically for this table
     const tableFilterSqls = filters
-      .map((f) => buildCrossTableFilterSql(f, tid, fieldMapByTable))
+      .map((f) => buildCrossTableFilterSql(f, tid, fieldMapByTable, masterViewId, allowedFieldIds))
       .filter((s): s is Prisma.Sql => s !== null)
 
     const tableFilterClause =
@@ -239,11 +339,55 @@ export async function getMultiTableRows(options: MultiTableQueryOptions) {
         ? Prisma.sql`AND (${Prisma.join(tableFilterSqls, ' AND ')})`
         : Prisma.sql``
 
-    if (isCreatedAt || isId) {
-      return Prisma.sql`SELECT id, tableId, data, createdAt, updatedAt FROM TableRow WHERE tableId = ${tid} AND deletedAt IS NULL ${tableFilterClause}`
+    if (hasMasterView) {
+      // 【重要：TiDB / MySQL 查詢優化器等價推導防護 (Optimizer Barrier)】
+      // 為什麼這裡必須寫 `o.sourceRowId = (r.id + 0)` 而不是 `o.sourceRowId = r.id`：
+      // 1. 在 Keyset Cursor 翻頁情境中，外層查詢包含複合條件 `WHERE (sort_val > ?) OR (... id > cursorRowId)`。
+      // 2. 若直接寫 `o.sourceRowId = r.id`，TiDB / MySQL 優化器會做等價推導 (Equivalence Propagation)，
+      //    將外層的 `id > cursorRowId` 條件推入作為 LEFT JOIN 右表 (MasterViewOverride) 的掃描條件。
+      // 3. 這會導致前面頁數已讀取過、但 id <= cursorRowId 的列在 LEFT JOIN 時被強制濾除 Override 紀錄 (變為 NULL)，
+      //    進而觸發 COALESCE 回退為原始 r.data 值，使該列在後續頁數中以原始值「重複出現」造成分頁資料嚴重錯亂。
+      // 4. 加上 `(r.id + 0)` 運算式能破壞優化器的直接等價識別，阻斷非法下推，同時在 MySQL / TiDB 中仍可正常利用索引執行 IndexLookup。
+      // ※ 若未來升級 TiDB 版本或調整結構，請務必執行 `scripts/verifyPhase3Pagination.ts` 驗證分頁正確性。
+      const joinClause = Prisma.sql`LEFT JOIN MasterViewOverride o ON o.masterViewId = ${masterViewId} AND o.sourceTableId = r.tableId AND o.sourceRowId = (r.id + 0) AND o.deletedAt IS NULL`
+      if (isCreatedAt || isId) {
+        return Prisma.sql`SELECT r.id, r.tableId, r.data, r.createdAt, r.updatedAt FROM TableRow r ${joinClause} WHERE r.tableId = ${tid} AND r.deletedAt IS NULL ${tableFilterClause}`
+      } else {
+        const rawEffectiveSortSql =
+          buildEffectiveFieldSql({
+            fieldKey: actualSortField,
+            masterViewId,
+            allowedFieldIds,
+            tableAlias: 'r',
+            overrideAlias: 'o',
+          }) ??
+          Prisma.sql`COALESCE(JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(r.data), ${`$."${actualSortField.replace(/"/g, '\\"')}"`})), '')`
+
+        const effectiveSortSql = isNumeric
+          ? Prisma.sql`CASE WHEN ${rawEffectiveSortSql} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' THEN CAST(${rawEffectiveSortSql} AS DECIMAL(30,10)) ELSE NULL END`
+          : rawEffectiveSortSql
+
+        return Prisma.sql`SELECT r.id, r.tableId, r.data, r.createdAt, r.updatedAt, ${effectiveSortSql} AS sort_val FROM TableRow r ${joinClause} WHERE r.tableId = ${tid} AND r.deletedAt IS NULL ${tableFilterClause}`
+      }
     } else {
-      const jsonPath = `$."${actualSortField.replace(/"/g, '\\"')}"`
-      return Prisma.sql`SELECT id, tableId, data, createdAt, updatedAt, COALESCE(JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(data), ${jsonPath})), '') AS sort_val FROM TableRow WHERE tableId = ${tid} AND deletedAt IS NULL ${tableFilterClause}`
+      if (isCreatedAt || isId) {
+        return Prisma.sql`SELECT r.id, r.tableId, r.data, r.createdAt, r.updatedAt FROM TableRow r WHERE r.tableId = ${tid} AND r.deletedAt IS NULL ${tableFilterClause}`
+      } else {
+        const rawEffectiveSortSql =
+          buildEffectiveFieldSql({
+            fieldKey: actualSortField,
+            masterViewId: null,
+            allowedFieldIds,
+            tableAlias: 'r',
+          }) ??
+          Prisma.sql`COALESCE(JSON_UNQUOTE(JSON_EXTRACT(JSON_UNQUOTE(r.data), ${`$."${actualSortField.replace(/"/g, '\\"')}"`})), '')`
+
+        const effectiveSortSql = isNumeric
+          ? Prisma.sql`CASE WHEN ${rawEffectiveSortSql} REGEXP '^-?[0-9]+(\\.[0-9]+)?$' THEN CAST(${rawEffectiveSortSql} AS DECIMAL(30,10)) ELSE NULL END`
+          : rawEffectiveSortSql
+
+        return Prisma.sql`SELECT r.id, r.tableId, r.data, r.createdAt, r.updatedAt, ${effectiveSortSql} AS sort_val FROM TableRow r WHERE r.tableId = ${tid} AND r.deletedAt IS NULL ${tableFilterClause}`
+      }
     }
   })
 
@@ -257,17 +401,32 @@ export async function getMultiTableRows(options: MultiTableQueryOptions) {
       if (isCreatedAt) {
         const dateVal = parsed.sortValue instanceof Date ? parsed.sortValue : new Date(parsed.sortValue)
         cursorCondition = isAsc
-          ? Prisma.sql`WHERE (createdAt, tableId, id) > (${dateVal}, ${parsed.tableId}, ${parsed.rowId})`
-          : Prisma.sql`WHERE (createdAt, tableId, id) < (${dateVal}, ${parsed.tableId}, ${parsed.rowId})`
+          ? Prisma.sql`WHERE (createdAt > ${dateVal}) OR (createdAt = ${dateVal} AND tableId > ${parsed.tableId}) OR (createdAt = ${dateVal} AND tableId = ${parsed.tableId} AND id > ${parsed.rowId})`
+          : Prisma.sql`WHERE (createdAt < ${dateVal}) OR (createdAt = ${dateVal} AND tableId < ${parsed.tableId}) OR (createdAt = ${dateVal} AND tableId = ${parsed.tableId} AND id < ${parsed.rowId})`
       } else if (isId) {
         cursorCondition = isAsc
-          ? Prisma.sql`WHERE (id, tableId) > (${parsed.rowId}, ${parsed.tableId})`
-          : Prisma.sql`WHERE (id, tableId) < (${parsed.rowId}, ${parsed.tableId})`
+          ? Prisma.sql`WHERE (id > ${parsed.rowId}) OR (id = ${parsed.rowId} AND tableId > ${parsed.tableId})`
+          : Prisma.sql`WHERE (id < ${parsed.rowId}) OR (id = ${parsed.rowId} AND tableId < ${parsed.tableId})`
+      } else if (isNumeric) {
+        const numVal =
+          parsed.sortValue === null || parsed.sortValue === '' || isNaN(Number(parsed.sortValue))
+            ? null
+            : Number(parsed.sortValue)
+
+        if (numVal === null) {
+          cursorCondition = isAsc
+            ? Prisma.sql`WHERE (sort_val IS NULL AND tableId > ${parsed.tableId}) OR (sort_val IS NULL AND tableId = ${parsed.tableId} AND id > ${parsed.rowId})`
+            : Prisma.sql`WHERE (sort_val IS NULL AND tableId < ${parsed.tableId}) OR (sort_val IS NULL AND tableId = ${parsed.tableId} AND id < ${parsed.rowId})`
+        } else {
+          cursorCondition = isAsc
+            ? Prisma.sql`WHERE (sort_val > ${numVal}) OR (sort_val = ${numVal} AND tableId > ${parsed.tableId}) OR (sort_val = ${numVal} AND tableId = ${parsed.tableId} AND id > ${parsed.rowId}) OR (sort_val IS NULL)`
+            : Prisma.sql`WHERE (sort_val < ${numVal}) OR (sort_val = ${numVal} AND tableId < ${parsed.tableId}) OR (sort_val = ${numVal} AND tableId = ${parsed.tableId} AND id < ${parsed.rowId}) OR (sort_val IS NULL)`
+        }
       } else {
         const strVal = String(parsed.sortValue ?? '')
         cursorCondition = isAsc
-          ? Prisma.sql`WHERE (sort_val, tableId, id) > (${strVal}, ${parsed.tableId}, ${parsed.rowId})`
-          : Prisma.sql`WHERE (sort_val, tableId, id) < (${strVal}, ${parsed.tableId}, ${parsed.rowId})`
+          ? Prisma.sql`WHERE (sort_val > ${strVal}) OR (sort_val = ${strVal} AND tableId > ${parsed.tableId}) OR (sort_val = ${strVal} AND tableId = ${parsed.tableId} AND id > ${parsed.rowId})`
+          : Prisma.sql`WHERE (sort_val < ${strVal}) OR (sort_val = ${strVal} AND tableId < ${parsed.tableId}) OR (sort_val = ${strVal} AND tableId = ${parsed.tableId} AND id < ${parsed.rowId})`
       }
     }
   }
@@ -282,6 +441,10 @@ export async function getMultiTableRows(options: MultiTableQueryOptions) {
     orderByClause = isAsc
       ? Prisma.sql`ORDER BY id ASC, tableId ASC`
       : Prisma.sql`ORDER BY id DESC, tableId DESC`
+  } else if (isNumeric) {
+    orderByClause = isAsc
+      ? Prisma.sql`ORDER BY (sort_val IS NULL) ASC, sort_val ASC, tableId ASC, id ASC`
+      : Prisma.sql`ORDER BY (sort_val IS NULL) ASC, sort_val DESC, tableId DESC, id DESC`
   } else {
     orderByClause = isAsc
       ? Prisma.sql`ORDER BY sort_val ASC, tableId ASC, id ASC`
@@ -308,6 +471,12 @@ export async function getMultiTableRows(options: MultiTableQueryOptions) {
     createdAt: r.createdAt ? new Date(r.createdAt as any) : new Date(),
     updatedAt: r.updatedAt ? new Date(r.updatedAt as any) : undefined,
     data: safeJsonParse<Record<string, any>>(r.data, {}),
+    ...(r.sort_val !== undefined && {
+      sort_val:
+        r.sort_val !== null && typeof r.sort_val === 'object' && 'toNumber' in (r.sort_val as any)
+          ? (r.sort_val as any).toNumber()
+          : r.sort_val,
+    }),
   }))
 
 

@@ -2,7 +2,6 @@ import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
-import { randomUUID } from 'crypto'
 
 export interface QueryOptions {
   sortField?: string | null
@@ -157,152 +156,6 @@ function parseLinkRowIds(val: any): number[] {
   }).filter(n => !isNaN(n) && n > 0)
 }
 
-const DEFAULT_COLORS = [
-  'gray', 'blue', 'green', 'orange', 'red', 'yellow', 'cyan', 'purple', 'pink'
-]
-
-/**
- * Migration on read: Auto-create missing options (ghost strings) and update Row to use IDs.
- */
-async function migrateSelectFieldsOnRead(rows: ParsedRow[], fields: FieldMeta[]) {
-  const selectFields = fields.filter(f => f.type === 'single_select' || f.type === 'multiple_select')
-  if (selectFields.length === 0 || rows.length === 0) return
-
-  const fieldUpdates = new Map<number, any>()
-  const rowUpdates = new Map<number, Record<string, any>>()
-
-  for (const field of selectFields) {
-    const fieldKey = `field_${field.id}`
-    let options = typeof field.options === 'string' ? safeJsonParse(field.options, { choices: [] }) : (field.options as any || { choices: [] })
-    if (!options.choices || !Array.isArray(options.choices)) options.choices = []
-
-    let optionsChanged = false
-    const choicesByName = new Map<string, any>()
-    const choicesById = new Map<string, any>()
-    
-    for (let i = 0; i < options.choices.length; i++) {
-      const c = options.choices[i]
-      if (typeof c === 'string') {
-        const newC = { id: randomUUID(), name: c, color: DEFAULT_COLORS[i % DEFAULT_COLORS.length] }
-        options.choices[i] = newC
-        optionsChanged = true
-        choicesByName.set(newC.name, newC)
-        choicesById.set(newC.id, newC)
-      } else {
-        choicesByName.set(c.name, c)
-        choicesById.set(c.id, c)
-      }
-    }
-
-    for (const row of rows) {
-      const val = row.data[fieldKey]
-      if (val == null || val === '') continue
-
-      let rowChanged = false
-      let newRowVal: any = null
-
-      if (field.type === 'single_select') {
-        const strVal = String(val)
-        if (!choicesById.has(strVal)) {
-          if (choicesByName.has(strVal)) {
-            newRowVal = choicesByName.get(strVal).id
-            rowChanged = true
-          } else {
-            const newChoice = {
-              id: randomUUID(),
-              name: strVal.trim() || '未命名',
-              color: 'gray'
-            }
-            options.choices.push(newChoice)
-            choicesByName.set(newChoice.name, newChoice)
-            choicesById.set(newChoice.id, newChoice)
-            optionsChanged = true
-            newRowVal = newChoice.id
-            rowChanged = true
-          }
-        }
-      } else if (field.type === 'multiple_select') {
-        let items: string[] = []
-        if (Array.isArray(val)) {
-          items = val.map(String)
-        } else if (typeof val === 'string') {
-          try {
-            const parsed = JSON.parse(val)
-            if (Array.isArray(parsed)) items = parsed.map(String)
-            else items = [val]
-          } catch {
-            items = val.split(',').map(s => s.trim()).filter(Boolean)
-          }
-        } else {
-          items = [String(val)]
-        }
-
-        const newItems: string[] = []
-        for (const item of items) {
-          if (choicesById.has(item)) {
-            newItems.push(item)
-          } else if (choicesByName.has(item)) {
-            newItems.push(choicesByName.get(item).id)
-            rowChanged = true
-          } else {
-            const newChoice = {
-              id: randomUUID(),
-              name: item.trim() || '未命名',
-              color: 'gray'
-            }
-            options.choices.push(newChoice)
-            choicesByName.set(newChoice.name, newChoice)
-            choicesById.set(newChoice.id, newChoice)
-            optionsChanged = true
-            newItems.push(newChoice.id)
-            rowChanged = true
-          }
-        }
-        
-        if (rowChanged || typeof val === 'string') {
-          newRowVal = JSON.stringify(newItems.length ? newItems : [])
-          rowChanged = true
-        }
-      }
-
-      if (rowChanged) {
-        if (!rowUpdates.has(row.id)) rowUpdates.set(row.id, { ...row.data })
-        const rowData = rowUpdates.get(row.id)!
-        rowData[fieldKey] = newRowVal
-        row.data[fieldKey] = newRowVal 
-      }
-    }
-
-    if (optionsChanged) {
-      fieldUpdates.set(field.id, options)
-      field.options = options
-    }
-  }
-
-  const promises: Promise<any>[] = []
-  
-  if (fieldUpdates.size > 0) {
-    for (const [fieldId, newOptions] of fieldUpdates.entries()) {
-      promises.push(prisma.tableField.update({
-        where: { id: fieldId },
-        data: { options: newOptions }
-      }))
-    }
-  }
-
-  if (rowUpdates.size > 0) {
-    for (const [rowId, newData] of rowUpdates.entries()) {
-      promises.push(prisma.tableRow.update({
-        where: { id: rowId },
-        data: { data: newData }
-      }))
-    }
-  }
-
-  if (promises.length > 0) {
-    await Promise.allSettled(promises)
-  }
-}
 
 /**
  * Populates display values (link_row labels, collaborators, lookup, rollup,
@@ -417,21 +270,15 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
       const key = `field_${f.id}`
       const val = newData[key]
       const ids = parseLinkRowIds(val)
-      newData[key] = ids.map(id => {
-        const displayLabel = targetDisplayMap.get(id)
-        let existingLabel = ''
-        if (Array.isArray(val)) {
-          const foundObj = val.find((item: any) => typeof item === 'object' && item !== null && Number(item.id) === id)
-          if (foundObj && foundObj.value && !String(foundObj.value).startsWith('列 ID:')) {
-            existingLabel = String(foundObj.value)
+      newData[key] = ids
+        .filter(id => targetDisplayMap.has(id))
+        .map(id => {
+          const displayLabel = targetDisplayMap.get(id)
+          return {
+            id,
+            value: displayLabel || `列 ID: ${id}`
           }
-        }
-        const finalLabel = (displayLabel && !displayLabel.startsWith('列 ID:')) ? displayLabel : (existingLabel || displayLabel || `列 ID: ${id}`)
-        return {
-          id,
-          value: finalLabel
-        }
-      })
+        })
     })
 
     collaboratorFields.forEach(f => {
@@ -657,7 +504,6 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
     )
 
     let rawParsed = rawRows.map(sanitizeRawRow)
-    await migrateSelectFieldsOnRead(rawParsed, fields)
     const populated = await populateRows(rawParsed, fields)
 
     if (wantPagination) {
@@ -702,7 +548,6 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
   })
 
   let parsed: ParsedRow[] = rows.map(r => ({ ...r, data: safeJsonParse<Record<string, any>>(r.data, {}) }))
-  await migrateSelectFieldsOnRead(parsed, fields)
   parsed = await populateRows(parsed, fields)
 
   // Apply filters (operates on populated values)

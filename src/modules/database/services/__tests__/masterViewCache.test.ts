@@ -116,20 +116,35 @@ describe('masterViewCache service (Phase 4.5)', () => {
     expect(await getCachedMasterViewRows(ws2Key)).not.toBeNull()
   })
 
-  it('invalidates only specific masterViewId when specified', async () => {
-    const ws1All = 'master_view:ws_1:all:hash1'
-    const ws1View5 = 'master_view:ws_1:view_5:hash2'
-
+  it('invalidates workspace cache when invalidateMasterViewCacheForTable is called', async () => {
+    const ws1Key = 'master_view:ws_42:all:hash_table_inval'
     const sample = { rows: [], nextCursor: null }
 
-    await setCachedMasterViewRows(ws1All, sample, 10)
-    await setCachedMasterViewRows(ws1View5, sample, 10)
+    await setCachedMasterViewRows(ws1Key, sample, 10)
+    expect(await getCachedMasterViewRows(ws1Key)).not.toBeNull()
 
-    // Invalidate only view 5
-    await invalidateMasterViewCache(1, 5)
+    // Mock prisma.databaseTable.findUnique to return workspaceId = 42
+    jest.spyOn(require('@/lib/prisma').default.databaseTable, 'findUnique').mockResolvedValue({
+      id: 99,
+      database: { workspaceId: 42 },
+    })
 
-    expect(await getCachedMasterViewRows(ws1View5)).toBeNull()
-    // ws1 general view remains cached
-    expect(await getCachedMasterViewRows(ws1All)).not.toBeNull()
+    const { invalidateMasterViewCacheForTable } = require('../masterViewCache')
+    await invalidateMasterViewCacheForTable(99)
+
+    expect(await getCachedMasterViewRows(ws1Key)).toBeNull()
+  })
+
+  it('handles redis error gracefully during invalidateMasterViewCache without throwing', async () => {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const { invalidateMasterViewCacheForTable } = require('../masterViewCache')
+    
+    // Simulate database lookup exception
+    jest.spyOn(require('@/lib/prisma').default.databaseTable, 'findUnique').mockRejectedValue(new Error('DB Timeout'))
+
+    await expect(invalidateMasterViewCacheForTable(99)).resolves.not.toThrow()
+    expect(consoleSpy).toHaveBeenCalled()
+    consoleSpy.mockRestore()
   })
 })
+

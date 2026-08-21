@@ -132,18 +132,39 @@ describe('Row Cascade Engine (P1 Debt Resolution: Unlimited Chunked Cascade)', (
       expect(result).toEqual([])
       expect(prisma.$queryRaw).not.toHaveBeenCalled()
     })
+
+    it('generates structured JSON_CONTAINS SQL queries specifically on relation field keys instead of loose LIKE', async () => {
+      ;(prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
+        { id: 10, tableId: 2, type: 'link_row', options: JSON.stringify({ targetTableId: 1 }) },
+      ])
+
+      ;(prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([])
+
+      await cascadeRecomputeSingleLevel(1, 5)
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1)
+      const sqlObj = (prisma.$queryRaw as jest.Mock).mock.calls[0][0]
+      const rawSql = sqlObj?.sql || ''
+      const values = sqlObj?.values || []
+
+      // Verify JSON_CONTAINS is used, parameters contain field_10 and updatedRowId, and LIKE is NOT present
+      expect(rawSql).toContain('JSON_CONTAINS')
+      expect(values).toContain('$."field_10"')
+      expect(values).toContain('5')
+      expect(rawSql).not.toContain('LIKE')
+    })
   })
 
   describe('cleanupFieldDependencies', () => {
     it('sets referenced deletedFieldId to null in lookup and rollup options', async () => {
-      ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      ;(prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
         {
           id: 50,
           type: 'lookup',
           options: JSON.stringify({ relationFieldId: 999, targetFieldId: 888 }),
         },
       ])
-      ;(prisma.tableField.update as jest.Mock).mockResolvedValue({})
+      ;(prisma.tableField.update as jest.Mock).mockResolvedValueOnce({})
 
       await cleanupFieldDependencies(999)
 
