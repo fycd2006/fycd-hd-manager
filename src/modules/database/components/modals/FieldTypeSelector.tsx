@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Type, AlignLeft, Plug, Hash, Star, CheckCircle2, Calendar, Edit3, User,
   Plus, UserCheck, Clock, Link2, Mail, CheckCircle, List, Phone,
@@ -6,6 +6,7 @@ import {
   Sparkles, Search, ChevronDown, MessageSquare
 } from 'lucide-react'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import PopoverPortal from '@/components/ui/PopoverPortal'
 
 interface FieldTypeSelectorProps {
   type: string
@@ -24,6 +25,8 @@ export function FieldTypeSelector({
 }: FieldTypeSelectorProps) {
   const { t } = useI18n()
   const [typeSearch, setTypeSearch] = useState('')
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   const fieldTypeItems = [
     { key: 'text', label: t('fieldTypes.text'), icon: <Type size={16} /> },
@@ -63,10 +66,34 @@ export function FieldTypeSelector({
 
   const selectedTypeObj = fieldTypeItems.find(ft => ft.key === type || (ft.key === 'phone_number' && type === 'phone') || (ft.key === 'collaborators' && type === 'collaborator')) || fieldTypeItems[0]
 
+  const handleToggleDropdown = () => {
+    if (!typeDropdownOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      const screenHeight = typeof window !== 'undefined' ? window.innerHeight : 800
+      const dropdownHeight = 320
+      
+      let top = rect.bottom + 4
+      if (top + dropdownHeight > screenHeight - 16 && rect.top > dropdownHeight + 16) {
+        top = rect.top - dropdownHeight - 4
+      }
+
+      setDropdownPos({
+        top,
+        left: rect.left,
+        width: rect.width
+      })
+      setTypeDropdownOpen(true)
+    } else {
+      setTypeDropdownOpen(false)
+      setDropdownPos(null)
+    }
+  }
+
   return (
     <div style={{ position: 'relative', marginBottom: '16px' }}>
       <div
-        onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
+        ref={triggerRef}
+        onClick={handleToggleDropdown}
         style={{
           width: '100%',
           padding: '10px 14px',
@@ -77,7 +104,8 @@ export function FieldTypeSelector({
           justifyContent: 'space-between',
           cursor: 'pointer',
           background: '#ffffff',
-          fontSize: '14px'
+          fontSize: '14px',
+          boxSizing: 'border-box'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#334155' }}>
@@ -86,86 +114,96 @@ export function FieldTypeSelector({
           </span>
           <span>{selectedTypeObj.label}</span>
         </div>
-        <ChevronDown size={16} style={{ color: '#64748b' }} />
+        <ChevronDown size={16} style={{ color: '#64748b', transform: typeDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
       </div>
 
-      {typeDropdownOpen && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            width: '100%',
-            maxHeight: '300px',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column'
+      {typeDropdownOpen && dropdownPos && (
+        <PopoverPortal
+          show={typeDropdownOpen}
+          onClose={() => {
+            setTypeDropdownOpen(false)
+            setDropdownPos(null)
           }}
+          position={dropdownPos}
+          zIndex={1000005}
         >
-          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #e2e8f0' }}>
-            <Search size={16} style={{ color: '#94a3b8', marginRight: '8px' }} />
-            <input
-              type="text"
-              value={typeSearch}
-              onChange={(e) => setTypeSearch(e.target.value)}
-              placeholder="Search"
-              autoFocus
-              style={{
-                width: '100%',
-                border: 'none',
-                outline: 'none',
-                fontSize: '13px',
-                background: 'transparent'
-              }}
-            />
-          </div>
-
-          <div style={{ overflowY: 'auto', padding: '4px', flex: 1 }}>
-            {filteredTypes.map((ft) => (
-              <div
-                key={ft.key}
-                onClick={() => {
-                  setType(ft.key)
-                  setName(ft.label)
-                  setTypeDropdownOpen(false)
-                  setTypeSearch('')
-                }}
+          <div
+            style={{
+              width: `${dropdownPos.width}px`,
+              maxHeight: '320px',
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              boxShadow: '0 10px 30px -5px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
+              display: 'flex',
+              flexDirection: 'column',
+              boxSizing: 'border-box',
+              overflow: 'hidden'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid #e2e8f0', background: '#fafafa' }}>
+              <Search size={16} style={{ color: '#94a3b8', marginRight: '8px', flexShrink: 0 }} />
+              <input
+                type="text"
+                value={typeSearch}
+                onChange={(e) => setTypeSearch(e.target.value)}
+                placeholder="Search"
+                autoFocus
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
+                  width: '100%',
+                  border: 'none',
+                  outline: 'none',
                   fontSize: '13px',
-                  background: type === ft.key ? '#f1f5f9' : 'transparent',
-                  fontWeight: type === ft.key ? 500 : 400,
-                  color: '#334155'
+                  background: 'transparent'
                 }}
-                onMouseEnter={(e) => {
-                  if (type !== ft.key) e.currentTarget.style.background = '#f8fafc'
-                }}
-                onMouseLeave={(e) => {
-                  if (type !== ft.key) e.currentTarget.style.background = 'transparent'
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
-                  {ft.icon}
-                </span>
-                <span>{ft.label}</span>
-              </div>
-            ))}
-            {filteredTypes.length === 0 && (
-              <div style={{ padding: '12px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>
-                No results found
-              </div>
-            )}
+              />
+            </div>
+
+            <div style={{ overflowY: 'auto', padding: '6px', maxHeight: '260px' }}>
+              {filteredTypes.map((ft) => (
+                <div
+                  key={ft.key}
+                  onClick={() => {
+                    setType(ft.key)
+                    setName(ft.label)
+                    setTypeDropdownOpen(false)
+                    setDropdownPos(null)
+                    setTypeSearch('')
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    background: type === ft.key ? '#f1f5f9' : 'transparent',
+                    fontWeight: type === ft.key ? 500 : 400,
+                    color: '#334155',
+                    transition: 'background 0.1s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (type !== ft.key) e.currentTarget.style.background = '#f8fafc'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (type !== ft.key) e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', color: '#64748b' }}>
+                    {ft.icon}
+                  </span>
+                  <span>{ft.label}</span>
+                </div>
+              ))}
+              {filteredTypes.length === 0 && (
+                <div style={{ padding: '16px', fontSize: '13px', color: '#94a3b8', textAlign: 'center' }}>
+                  找不到符合的欄位類型
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </PopoverPortal>
       )}
     </div>
   )

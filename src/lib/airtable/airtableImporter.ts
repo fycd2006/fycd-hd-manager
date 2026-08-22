@@ -66,7 +66,7 @@ export function mapAirtableFieldToInternal(airtableType: string): { type: string
       return { type: 'url' }
     case 'phone':             // v0.3 internal
     case 'phoneNumber':       // REST API
-      return { type: 'phone_number' }
+      return { type: 'phone' }
 
     // ── Numeric ──
     case 'number':
@@ -79,6 +79,8 @@ export function mapAirtableFieldToInternal(airtableType: string): { type: string
       return { type: 'count' }
     case 'autoNumber':
       return { type: 'autonumber' }
+    case 'duration':
+      return { type: 'duration' }
 
     // ── Select ──
     case 'select':            // v0.3 internal
@@ -88,16 +90,14 @@ export function mapAirtableFieldToInternal(airtableType: string): { type: string
     case 'multipleSelects':   // REST API
       return { type: 'multiple_select' }
 
-    // ── Relations ──
+    // ── Relations & Computed ──
     case 'foreignKey':        // v0.3 internal
     case 'multipleRecordLinks': // REST API
       return { type: 'link_row' }
-
-    // ── Computed ──
     case 'formula':
       return { type: 'formula' }
     case 'rollup':
-      return { type: 'formula' }
+      return { type: 'rollup' }
     case 'lookup':
       return { type: 'lookup' }
 
@@ -110,22 +110,22 @@ export function mapAirtableFieldToInternal(airtableType: string): { type: string
     case 'lastModifiedTime':
       return { type: 'last_modified_on' }
 
-    // ── Boolean ──
+    // ── Collaborator & Audit ──
+    case 'collaborator':
+    case 'singleCollaborator':
+    case 'multipleCollaborators':
+      return { type: 'collaborator' }
+    case 'createdBy':
+      return { type: 'created_by' }
+    case 'lastModifiedBy':
+      return { type: 'last_modified_by' }
+
+    // ── Boolean & Files ──
     case 'checkbox':
       return { type: 'boolean' }
-
-    // ── File ──
     case 'multipleAttachment':  // v0.3 internal
     case 'multipleAttachments': // REST API
       return { type: 'file' }
-
-    // ── Collaborator ──
-    case 'collaborator':
-      return { type: 'collaborators' }
-
-    // ── Duration ──
-    case 'duration':
-      return { type: 'duration' }
 
     default:
       return { type: 'text' }
@@ -169,6 +169,10 @@ function canonicalCategory(rawType: string): string {
     case 'multipleAttachments':
       return 'attachment'
     case 'collaborator':
+    case 'singleCollaborator':
+    case 'multipleCollaborators':
+    case 'createdBy':
+    case 'lastModifiedBy':
       return 'collaborator'
     default:
       return 'text'
@@ -274,6 +278,11 @@ function convertCellValue(
     }
 
     case 'collaborator': {
+      if (Array.isArray(val)) {
+        return val
+          .map(u => (typeof u === 'object' && u !== null ? (u.name ?? u.email ?? u.id ?? JSON.stringify(u)) : String(u)))
+          .join(', ')
+      }
       if (typeof val === 'object' && val !== null) {
         return val.name ?? val.email ?? val.id ?? JSON.stringify(val)
       }
@@ -353,13 +362,17 @@ export function parseAirtableBasePayload(payload: AirtableBasePayload): Converte
     const convertedFields: ConvertedField[] = table.fields.map(field => {
       const { type } = mapAirtableFieldToInternal(field.type)
 
-      // For select fields, convert options.choices from {id, name, color} objects
-      // to simple name strings for our system's getFieldOptions()
+      // For select fields, preserve choices with id, name, and color
       let options: any = field.options || null
       if ((type === 'single_select' || type === 'multiple_select') && field.options?.choices) {
-        const choiceNames = field.options.choices.map(c => c.name).filter(Boolean)
         options = {
-          choices: choiceNames,
+          choices: field.options.choices
+            .map(c => ({
+              id: c.id || `opt_${Math.random().toString(36).slice(2, 9)}`,
+              name: c.name,
+              color: c.color || undefined,
+            }))
+            .filter(c => Boolean(c.name)),
         }
       }
 

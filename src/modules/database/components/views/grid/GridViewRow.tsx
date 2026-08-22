@@ -144,6 +144,10 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         className="grid-view__column grid-view__column--no-border-right"
         style={{
           width: `${rowDetailsWidth}px`,
+          minWidth: `${rowDetailsWidth}px`,
+          maxWidth: `${rowDetailsWidth}px`,
+          flexShrink: 0,
+          boxSizing: 'border-box',
           height: 'var(--row-height, 32px)',
           maxHeight: 'var(--row-height, 32px)',
           overflow: 'hidden',
@@ -154,8 +158,8 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             ? '#F4F4F5' 
             : (isHovered ? '#F5F5F4' : (matchedColorBg || '#ffffff')),
           borderRight: '1px solid var(--border-color, #E7E5E4)',
-          borderLeft: isRowSelected ? '3px solid #3F6212' : (isHovered ? '3px solid #A8A29E' : 'none'),
-          transition: 'background-color 0.12s ease, border-left-color 0.12s ease',
+          boxShadow: isRowSelected ? 'inset 3px 0 0 0 #3F6212' : (isHovered ? 'inset 3px 0 0 0 #A8A29E' : undefined),
+          transition: 'background-color 0.12s ease, box-shadow 0.12s ease',
           padding: '0 4px',
           display: 'flex',
           alignItems: 'center',
@@ -175,19 +179,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         onMouseLeave={() => setIsHovered(false)}
       >
         {isHovered || isRowSelected ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', color: '#64748b' }}>
-            <span
-              draggable={true}
-              onDragStart={(e) => {
-                e.dataTransfer.setData('text/plain', String(rowIndex));
-                e.dataTransfer.setData('text', String(rowIndex));
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'grab', padding: '2px', borderRadius: '4px' }}
-              title={t('gridRow.dragRowTooltip')}
-            >
-              <GripVertical style={{ width: '14px', height: '14px', cursor: 'grab' }} />
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', color: '#64748b' }}>
             <input
               type="checkbox"
               checked={isRowSelected}
@@ -197,18 +189,46 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
               }}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
-              style={{ width: '14px', height: '14px', cursor: 'pointer' }}
+              style={{
+                width: '13px',
+                height: '13px',
+                cursor: 'pointer',
+                accentColor: '#3F6212',
+                borderRadius: '3px',
+              }}
+              title="選取列"
             />
-            <Maximize2 
-              style={{ width: '14px', height: '14px', cursor: 'pointer' }} 
+            <div
               onClick={(e) => {
                 e.stopPropagation();
                 onExpandRow?.();
               }}
-            />
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '18px',
+                height: '18px',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                color: '#64748b',
+                transition: 'all 0.12s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#e2e8f0';
+                e.currentTarget.style.color = '#0f172a';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#64748b';
+              }}
+              title="展開詳細資料 (Space)"
+            >
+              <Maximize2 style={{ width: '12px', height: '12px' }} />
+            </div>
           </div>
         ) : (
-          <span style={{ fontFamily: 'monospace', fontSize: '11px', color: isRowSelected ? '#3F6212' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
+          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', color: isRowSelected ? '#3F6212' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
             {rowIndex + 1}
           </span>
         )}
@@ -262,19 +282,6 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           />
         );
       })}
-
-      {/* 3. Add Field Spacer Cell */}
-      <div
-        className="grid-view__column"
-        style={{
-          width: '40px',
-          minWidth: '40px',
-          flexShrink: 0,
-          borderRight: '1px solid var(--border-color, #e2e8f0)',
-          boxSizing: 'border-box',
-          background: isRowSelected ? '#F4F4F5' : (matchedColorBg || '#ffffff')
-        }}
-      />
     </div>
   );
 };

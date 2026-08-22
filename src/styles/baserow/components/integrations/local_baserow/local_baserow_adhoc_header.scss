@@ -19,7 +19,7 @@
     font-weight: var(--button-font-weight, 400);
     border: var(--button-border-size, 0) solid var(--button-border-color, black);
     border-radius: var(--button-border-radius, 4px);
-    font-family: var(--button-font-family, Inter);
+    font-family: var(--button-font-family, inherit);
     padding: var(--button-vertical-padding, 4px)
       var(--button-horizontal-padding, 12px);
     height: auto;

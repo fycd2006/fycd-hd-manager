@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Option 3: Warm Charcoal & Sage Gray (Notion / Craft / Editorial Aesthetic) */
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Airtable Native System Font Stack */
+  --font-sans: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --bg-primary: #FAFAF9;        /* Warm Cream Base Canvas */
   --bg-secondary: #FFFFFF;      /* Pure White Surface */
   --bg-tertiary: #F5F5F4;       /* Soft Warm Gray Surface */
@@ -255,10 +256,12 @@ button {
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-sans) !important;
   line-height: 1.5;
   overflow: hidden;
   height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ===== Layout ===== */
@@ -1617,8 +1620,6 @@ body {
   overflow: auto;
   background: var(--bg-tertiary);
   padding: 18px 20px 20px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(63, 98, 18, 0.2) transparent;
 }
 
 .grid-table {
@@ -2246,23 +2247,51 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* ===== Scrollbar styling ===== */
+/* ===== Global Unified Brand Scrollbar (Strict Zero Stepper Arrows, 6px Width) ===== */
+*::-webkit-scrollbar,
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px !important;
+  height: 6px !important;
 }
 
+*::-webkit-scrollbar-button,
+::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:vertical:decrement,
+::-webkit-scrollbar-button:vertical:decrement,
+*::-webkit-scrollbar-button:vertical:increment,
+::-webkit-scrollbar-button:vertical:increment,
+*::-webkit-scrollbar-button:horizontal:decrement,
+::-webkit-scrollbar-button:horizontal:decrement,
+*::-webkit-scrollbar-button:horizontal:increment,
+::-webkit-scrollbar-button:horizontal:increment {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+}
+
+*::-webkit-scrollbar-track,
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent !important;
 }
 
+*::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb {
-  background: rgba(63, 98, 18, 0.2);
-  border-radius: 4px;
+  background: rgba(63, 98, 18, 0.35) !important;
+  border-radius: 4px !important;
+  transition: background-color 0.15s ease;
 }
 
+*::-webkit-scrollbar-thumb:hover,
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(63, 98, 18, 0.35);
+  background: rgba(63, 98, 18, 0.65) !important;
+}
+
+*::-webkit-scrollbar-corner,
+::-webkit-scrollbar-corner {
+  background: transparent !important;
 }
 
 /* Input for inline table name editing */
@@ -3131,6 +3160,47 @@ select option {
     padding: 12px 14px !important;
   }
 }
+
+/* Column Resize Handle & Hover Accent Pill */
+.grid-view__column-resize-handle {
+  position: absolute;
+  right: -5px;
+  top: 4px;
+  bottom: 4px;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 25;
+  touch-action: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-view__column-resize-handle .resize-handle-pill {
+  width: 3px;
+  height: 24px;
+  border-radius: 3px;
+  background-color: transparent;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  pointer-events: none;
+}
+
+.grid-view__column-resize-handle:hover .resize-handle-pill,
+.grid-view__column-resize-handle.active .resize-handle-pill {
+  background-color: #3F6212 !important;
+  box-shadow: 0 0 6px rgba(63, 98, 18, 0.4) !important;
+}
+
+
+/* Add Field Button Hover Effects */
+.grid-view__add-field:hover .add-field-icon-box {
+  background-color: #e2e8f0;
+}
+.grid-view__add-field:hover svg {
+  color: #1e293b !important;
+}
+
 
 
 

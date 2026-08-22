@@ -95,14 +95,16 @@ export default function GridViewFieldFooter({
       className="grid-view__summary-cell"
       style={{
         width: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+        minWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+        maxWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
         position: isPrimary ? 'sticky' : 'relative',
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
         zIndex: isPrimary ? 24 : 1,
         flexShrink: 0,
-        height: '44px',
+        boxSizing: 'border-box',
+        height: '38px',
         padding: '0 10px',
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid #e2e8f0',
-
         boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.08)' : undefined,
         whiteSpace: 'nowrap',
         overflow: 'visible',

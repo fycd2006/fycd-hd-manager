@@ -134,6 +134,7 @@ export default function Home() {
 
   // Modals
   const [showNewFieldModal, setShowNewFieldModal] = useState(false)
+  const [newFieldPopoverPos, setNewFieldPopoverPos] = useState<{ top: number; left: number } | null>(null)
   const [newFieldName, setNewFieldName] = useState('')
   const [newFieldType, setNewFieldType] = useState('text')
   const [newFieldOptions, setNewFieldOptions] = useState('')
@@ -440,9 +441,11 @@ export default function Home() {
       console.log('Views loaded:', data)
       if (Array.isArray(data) && data.length > 0) {
         setViews(data)
-        const firstView = data[0]
-        wsActions.setActiveViewId(firstView.id)
-        applyViewConfig(firstView)
+        const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
+        const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
+        const targetView = (savedViewId && data.find(v => v.id === savedViewId)) || data[0]
+        wsActions.setActiveViewId(targetView.id)
+        applyViewConfig(targetView)
       } else {
         // If no views exist, create a default grid view
         setCurrentView('grid')
@@ -465,33 +468,28 @@ export default function Home() {
     setSortField(view.sortField)
     setSortOrder(view.sortOrder || 'asc')
 
-    try {
-      const parsedFilters = view.filters ? JSON.parse(view.filters) : []
-      setFilterRules(Array.isArray(parsedFilters) ? parsedFilters : [])
-    } catch {
-      setFilterRules([])
+    const safeParse = (val: any, fallback: any) => {
+      if (!val) return fallback
+      try {
+        let parsed = typeof val === 'string' ? JSON.parse(val) : val
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed) // Handle legacy double-stringified JSON
+        return parsed ?? fallback
+      } catch {
+        return fallback
+      }
     }
 
-    try {
-      const parsedHidden = view.hiddenFields ? JSON.parse(view.hiddenFields) : []
-      setHiddenFieldKeys(parsedHidden)
-    } catch {
-      setHiddenFieldKeys([])
-    }
+    const parsedFilters = safeParse(view.filters, [])
+    setFilterRules(Array.isArray(parsedFilters) ? parsedFilters : [])
 
-    try {
-      const parsedColors = view.rowColors ? JSON.parse(view.rowColors) : []
-      setRowColorRules(parsedColors)
-    } catch {
-      setRowColorRules([])
-    }
+    const parsedHidden = safeParse(view.hiddenFields, [])
+    setHiddenFieldKeys(Array.isArray(parsedHidden) ? parsedHidden : [])
 
-    try {
-      const parsedWidths = view.columnWidths ? JSON.parse(view.columnWidths) : {}
-      setColumnWidths(parsedWidths)
-    } catch {
-      setColumnWidths({})
-    }
+    const parsedColors = safeParse(view.rowColors, [])
+    setRowColorRules(Array.isArray(parsedColors) ? parsedColors : [])
+
+    const parsedWidths = safeParse(view.columnWidths, {})
+    setColumnWidths(typeof parsedWidths === 'object' && parsedWidths !== null && !Array.isArray(parsedWidths) ? parsedWidths : {})
 
     setGroupByField(view.groupByField || null)
   }
@@ -776,7 +774,7 @@ export default function Home() {
   batchUpdateCellsRef.current = batchUpdateCells
 
   // Add row using new service
-  const addRow = async () => {
+  const addRow = async (overrides?: Record<string, CellValue>) => {
     if (!wsState.activeTableId) return
     try {
       let baseData: Record<string, CellValue> = {}
@@ -803,6 +801,10 @@ export default function Home() {
         })
       }
 
+      if (overrides) {
+        Object.assign(baseData, overrides)
+      }
+
       const result = await rowService.createRow(wsState.activeTableId, baseData)
       if (result.ok && result.row) {
         setRows(prev => [...prev, result.row!])
@@ -824,6 +826,38 @@ export default function Home() {
       }
     } catch {
       uiActions.addToast('新增列失敗', 'error')
+    }
+  }
+
+  // Batch add multiple rows
+  const batchAddRows = async (rowsToCreate: Array<Record<string, any>>) => {
+    if (!wsState.activeTableId || rowsToCreate.length === 0) return
+    try {
+      const createdRows: TableRow[] = []
+      for (const rowData of rowsToCreate) {
+        let baseData: Record<string, CellValue> = {}
+        fields.forEach(f => {
+          const key = `field_${f.id}`
+          switch (f.type) {
+            case 'boolean': baseData[key] = false; break
+            case 'number': baseData[key] = null; break
+            case 'link_row': baseData[key] = []; break
+            case 'multiple_select': baseData[key] = []; break
+            default: baseData[key] = ''
+          }
+        })
+        Object.assign(baseData, rowData)
+        const result = await rowService.createRow(wsState.activeTableId, baseData)
+        if (result.ok && result.row) {
+          createdRows.push(result.row as any)
+        }
+      }
+      if (createdRows.length > 0) {
+        setRows(prev => [...prev, ...createdRows])
+        uiActions.addToast(`成功新增 ${createdRows.length} 列資料`, 'success')
+      }
+    } catch {
+      uiActions.addToast('批次新增列失敗', 'error')
     }
   }
 
@@ -1190,7 +1224,7 @@ export default function Home() {
     setSortOrder(nextOrder)
 
     if (wsState.activeViewId) {
-      viewService.updateViewConfig(wsState.activeTableId!, wsState.activeViewId, { sortField: nextField, sortOrder: nextOrder })
+      saveViewConfig(wsState.activeViewId, { sortField: nextField, sortOrder: nextOrder })
     }
   }
 
@@ -1204,7 +1238,7 @@ export default function Home() {
     }
     setHiddenFieldKeys(nextHidden)
     if (wsState.activeViewId) {
-      viewService.updateViewConfig(wsState.activeTableId!, wsState.activeViewId, { hiddenFields: nextHidden })
+      saveViewConfig(wsState.activeViewId, { hiddenFields: nextHidden })
     }
   }
 
@@ -1312,6 +1346,9 @@ export default function Home() {
         }),
       }
 
+      // Optimistically update local views list
+      setViews(prev => prev.map(v => v.id === updatedViewId ? { ...v, ...(serializedChanges as any) } : v))
+
       await viewService.updateViewConfig(wsState.activeTableId, updatedViewId, serializedChanges)
     } catch { }
   }
@@ -1323,6 +1360,9 @@ export default function Home() {
       if (result.ok && result.view) {
         setViews(prev => [...prev, result.view!])
         wsActions.setActiveViewId(result.view!.id)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`activeViewId_${wsState.activeTableId}`, String(result.view!.id))
+        }
         applyViewConfig(result.view!)
         setShowNewViewModal(false)
         setNewViewName('')
@@ -1348,6 +1388,9 @@ export default function Home() {
       setViews(remaining)
       if (remaining.length > 0) {
         wsActions.setActiveViewId(remaining[0].id)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`activeViewId_${wsState.activeTableId}`, String(remaining[0].id))
+        }
         applyViewConfig(remaining[0])
       }
       uiActions.addToast('視圖已刪除', 'success')
@@ -1363,9 +1406,30 @@ export default function Home() {
     try {
       const result = await viewService.createView(wsState.activeTableId, duplicateName, sourceView.type || 'grid')
       if (result.ok && result.view) {
-        setViews(prev => [...prev, result.view!])
-        wsActions.setActiveViewId(result.view!.id)
-        applyViewConfig(result.view!)
+        const viewConfig: ViewConfigPatch = {
+          filters: sourceView.filters,
+          sortField: sourceView.sortField,
+          sortOrder: sourceView.sortOrder,
+          hiddenFields: sourceView.hiddenFields,
+          columnWidths: sourceView.columnWidths,
+          rowColors: sourceView.rowColors,
+          groupByField: sourceView.groupByField,
+        }
+        await saveViewConfig(result.view.id, viewConfig)
+        const fullView: TableView = {
+          ...result.view,
+          ...viewConfig,
+          filters: typeof viewConfig.filters === 'string' || viewConfig.filters === null ? viewConfig.filters : JSON.stringify(viewConfig.filters),
+          hiddenFields: typeof viewConfig.hiddenFields === 'string' || viewConfig.hiddenFields === null ? viewConfig.hiddenFields : JSON.stringify(viewConfig.hiddenFields),
+          columnWidths: typeof viewConfig.columnWidths === 'string' || viewConfig.columnWidths === null ? viewConfig.columnWidths : JSON.stringify(viewConfig.columnWidths),
+          rowColors: typeof viewConfig.rowColors === 'string' || viewConfig.rowColors === null ? viewConfig.rowColors : JSON.stringify(viewConfig.rowColors),
+        } as TableView
+        setViews(prev => [...prev.filter(v => v.id !== result.view!.id), fullView])
+        wsActions.setActiveViewId(result.view.id)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`activeViewId_${wsState.activeTableId}`, String(result.view.id))
+        }
+        applyViewConfig(fullView)
         uiActions.addToast(`已成功複製視圖「${duplicateName}」`, 'success')
       } else {
         uiActions.addToast(result.error || '複製視圖失敗', 'error')
@@ -1386,6 +1450,9 @@ export default function Home() {
       setViews(remaining)
       if (remaining.length > 0 && wsState.activeViewId === targetViewId) {
         wsActions.setActiveViewId(remaining[0].id)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`activeViewId_${wsState.activeTableId}`, String(remaining[0].id))
+        }
         applyViewConfig(remaining[0])
       }
       uiActions.addToast('視圖已刪除', 'success')
@@ -1937,7 +2004,12 @@ export default function Home() {
                 setIsSidebarCollapsed={setIsSidebarCollapsed}
                 views={views}
                 activeViewId={wsState.activeViewId}
-                setActiveViewId={wsActions.setActiveViewId}
+                setActiveViewId={(id) => {
+                  wsActions.setActiveViewId(id)
+                  if (typeof window !== 'undefined' && wsState.activeTableId) {
+                    localStorage.setItem(`activeViewId_${wsState.activeTableId}`, String(id))
+                  }
+                }}
                 applyViewConfig={applyViewConfig}
                 setShowNewViewModal={setShowNewViewModal}
                 saveViewConfig={saveViewConfig}
@@ -1965,7 +2037,12 @@ export default function Home() {
                   }
                 }}
                 groupByField={groupByField}
-                setGroupByField={setGroupByField}
+                setGroupByField={(field) => {
+                  setGroupByField(field)
+                  if (wsState.activeViewId) {
+                    saveViewConfig(wsState.activeViewId, { groupByField: field })
+                  }
+                }}
                 fields={fields}
                 hiddenFieldKeys={hiddenFieldKeys}
                 setHiddenFieldKeys={setHiddenFieldKeys}
@@ -2036,7 +2113,12 @@ export default function Home() {
                     duplicateRow={duplicateRow}
                     deleteRow={deleteRow}
                     addRow={addRow}
+                    batchAddRows={batchAddRows}
                     setShowNewFieldModal={setShowNewFieldModal}
+                    onAddFieldPopover={(pos) => {
+                      setNewFieldPopoverPos(pos)
+                      setShowNewFieldModal(true)
+                    }}
                     handleUpdateField={handleUpdateField}
                     setFieldContextMenu={setFieldContextMenu}
                     onUndo={undo}
@@ -2097,6 +2179,8 @@ export default function Home() {
         createView={createView}
         showNewFieldModal={showNewFieldModal}
         setShowNewFieldModal={setShowNewFieldModal}
+        newFieldPopoverPos={newFieldPopoverPos}
+        setNewFieldPopoverPos={setNewFieldPopoverPos}
         editingFieldForModal={editingFieldForModal}
         setEditingFieldForModal={setEditingFieldForModal}
         handleUpdateField={handleUpdateField}
@@ -2123,7 +2207,12 @@ export default function Home() {
         setHiddenFieldKeys={setHiddenFieldKeys}
         saveViewConfig={saveViewConfig}
         toggleSort={toggleSort}
-        setGroupByField={setGroupByField}
+        setGroupByField={(field) => {
+          setGroupByField(field)
+          if (wsState.activeViewId) {
+            saveViewConfig(wsState.activeViewId, { groupByField: field })
+          }
+        }}
         deleteField={deleteField}
         onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId) }}
         onOpenAirtableImport={() => setShowAirtableModal(true)}

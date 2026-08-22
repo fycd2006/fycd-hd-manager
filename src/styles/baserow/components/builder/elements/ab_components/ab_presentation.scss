@@ -20,7 +20,7 @@
   font-weight: var(--body-font-weight, 400);
   color: var(--body-text-color, $black);
   text-align: var(--body-text-alignment, left);
-  font-family: var(--body-font-family, Inter);
+  font-family: var(--body-font-family, inherit);
   line-height: 1.3em;
 
   @extend %ellipsis;

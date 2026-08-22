@@ -63,11 +63,13 @@ interface GridViewHeadProps {
   isSomeRowsSelected?: boolean;
   onToggleSelectAllRows?: () => void;
   onAddField?: () => void;
+  onAddFieldPopover?: (position: { top: number; left: number }) => void;
   onFieldClick?: (field: TableField, e: React.MouseEvent) => void;
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
   onResizeColumnEnd?: (fieldId: number, newWidth: number) => void;
   onReorderFields?: (sourceFieldId: number, targetFieldId: number) => void;
+  totalTableWidth?: number;
 }
 
 export const GridViewHead: React.FC<GridViewHeadProps> = ({
@@ -79,11 +81,12 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   isSomeRowsSelected = false,
   onToggleSelectAllRows,
   onAddField,
-  onFieldClick,
+  onAddFieldPopover,
   onOpenFieldContextMenu,
   onResizeColumn,
   onResizeColumnEnd,
   onReorderFields,
+  totalTableWidth,
 }) => {
   const { t } = useI18n();
   const [draggedFieldId, setDraggedFieldId] = React.useState<number | null>(null);
@@ -91,21 +94,39 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   const [resizingFieldId, setResizingFieldId] = React.useState<number | null>(null);
   const [hoveringResizeFieldId, setHoveringResizeFieldId] = React.useState<number | null>(null);
 
+  const headWidth = totalTableWidth ?? (fields.reduce((sum, f) => sum + (f.width || 180), rowDetailsWidth) + 200);
+
   return (
-    <div className="grid-view__head" style={{ display: 'flex', width: 'max-content', minWidth: '100%', height: '36px', minHeight: '36px', maxHeight: '36px', position: 'relative', boxSizing: 'border-box' }}>
+    <div 
+      className="grid-view__head" 
+      style={{ 
+        display: 'flex', 
+        width: `${headWidth}px`, 
+        minWidth: '100%', 
+        height: '36px', 
+        minHeight: '36px', 
+        maxHeight: '36px', 
+        position: 'relative', 
+        boxSizing: 'border-box',
+        background: '#ffffff',
+        borderBottom: '1px solid var(--border-color, #e2e8f0)',
+      }}
+    >
       {/* 1. Row Identifier / Number Header Column (Sticky Frozen Left: 0) */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
         onClick={onToggleSelectAllRows}
         style={{
           width: `${rowDetailsWidth}px`,
-          height: '36px',
+          minWidth: `${rowDetailsWidth}px`,
+          maxWidth: `${rowDetailsWidth}px`,
+          flexShrink: 0,
+          height: '100%',
           position: 'sticky',
           left: 0,
           zIndex: 25,
           backgroundColor: '#f8fafc',
-          borderRight: '1px solid #e2e8f0',
-          borderBottom: '1px solid #e2e8f0',
+          borderRight: '1px solid var(--border-color, #e2e8f0)',
           boxSizing: 'border-box',
           display: 'flex',
           alignItems: 'center',
@@ -119,7 +140,6 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
         }}
         title={t('gridHead.selectAllTooltip')}
       >
-
         <input
           type="checkbox"
           checked={Boolean(isAllRowsSelected)}
@@ -131,7 +151,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             onToggleSelectAllRows?.();
           }}
           onClick={(e) => e.stopPropagation()}
-          style={{ width: '13px', height: '13px', cursor: 'pointer' }}
+          style={{ width: '13px', height: '13px', cursor: 'pointer', accentColor: '#3F6212' }}
         />
         <span>#</span>
       </div>
@@ -187,7 +207,10 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             }}
             style={{
               width: `var(--field-width-${field.id}, ${columnWidth}px)`,
-              height: '36px',
+              minWidth: `var(--field-width-${field.id}, ${columnWidth}px)`,
+              maxWidth: `var(--field-width-${field.id}, ${columnWidth}px)`,
+              flexShrink: 0,
+              height: '100%',
               position: isPrimary ? 'sticky' : 'relative',
               left: isPrimary ? `${rowDetailsWidth}px` : undefined,
               zIndex: isPrimary ? 24 : 1,
@@ -199,12 +222,10 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               backgroundColor: isDraggingThis ? '#e0f2fe' : 'var(--bg-secondary, #ffffff)',
               opacity: isDraggingThis ? 0.6 : 1,
               boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 #3F6212' : undefined),
-              borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid #e2e8f0',
-              borderBottom: '1px solid #e2e8f0',
+              borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid var(--border-color, #e2e8f0)',
               boxSizing: 'border-box',
               transition: 'background-color 0.15s, box-shadow 0.15s',
             }}
-
             onClick={(e) => {
               e.stopPropagation();
               onOpenFieldContextMenu?.(field, e.clientX, e.clientY);
@@ -237,23 +258,9 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
               />
             </div>
 
-            {/* Baserow Style Column Resize Handle with Blue Accent Pill */}
+            {/* Column Resize Handle */}
             <div
-              className="grid-view__column-resize-handle"
-              style={{
-                position: 'absolute',
-                right: '-8px',
-                top: 0,
-                bottom: 0,
-                width: '16px',
-                cursor: 'col-resize',
-                zIndex: 35,
-                touchAction: 'none',
-                userSelect: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+              className={`grid-view__column-resize-handle ${isResizingThis || isHoveringResize ? 'active' : ''}`}
               onMouseEnter={() => setHoveringResizeFieldId(field.id)}
               onMouseLeave={() => {
                 if (resizingFieldId !== field.id) {
@@ -331,16 +338,12 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
                 window.addEventListener('touchend', onTouchEnd);
               }}
             >
-              {/* Baserow Blue Accent Pill Indicator on Hover/Drag */}
+              {/* Baserow Accent Pill Indicator on Hover/Drag */}
               <div
+                className="resize-handle-pill"
                 style={{
-                  width: (isHoveringResize || isResizingThis) ? '4px' : '2px',
-                  height: (isHoveringResize || isResizingThis) ? '24px' : '100%',
-                  borderRadius: (isHoveringResize || isResizingThis) ? '4px' : '0px',
-                  backgroundColor: (isHoveringResize || isResizingThis) ? '#3F6212' : 'transparent',
-                  boxShadow: (isHoveringResize || isResizingThis) ? '0 0 8px rgba(63, 98, 18, 0.6)' : 'none',
-                  transition: 'all 0.15s ease',
-                  pointerEvents: 'none'
+                  backgroundColor: (isHoveringResize || isResizingThis) ? '#3F6212' : undefined,
+                  boxShadow: (isHoveringResize || isResizingThis) ? '0 0 6px rgba(63, 98, 18, 0.4)' : undefined,
                 }}
               />
             </div>
@@ -348,30 +351,58 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
         );
       })}
 
-      {/* 3. Add Field Column */}
+      {/* 3. Add Field Column (100px wide, matching Baserow) */}
       <div
         className="grid-view__column grid-view__add-field"
         style={{
-          width: '40px',
-          minWidth: '40px',
+          width: '100px',
+          minWidth: '100px',
           flexShrink: 0,
+          height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          borderRight: '1px solid var(--border-color, #cbd5e1)',
-          borderBottom: '1px solid var(--border-color, #cbd5e1)',
+          borderRight: '1px solid var(--border-color, #e2e8f0)',
           boxSizing: 'border-box',
           background: '#f8fafc',
           transition: 'background 0.15s ease'
         }}
-        onClick={onAddField}
-        onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-        onMouseLeave={(e) => (e.currentTarget.style.background = '#f8fafc')}
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          onAddFieldPopover?.({ top: rect.bottom + 4, left: Math.max(16, rect.left - 100) });
+          onAddField?.();
+        }}
         title={t('gridHead.addFieldTooltip')}
       >
-        <Plus style={{ width: '15px', height: '15px', color: '#64748b' }} />
+        <div
+          className="add-field-icon-box"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            height: '24px',
+            borderRadius: '4px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <Plus style={{ width: '16px', height: '16px', color: '#64748b' }} />
+        </div>
       </div>
+
+      {/* 4. Right Buffer Space (100px buffer, matching Baserow width += 100 + 100) */}
+      <div
+        className="grid-view__column grid-view__head-buffer"
+        style={{
+          width: '100px',
+          minWidth: '100px',
+          flexShrink: 0,
+          height: '100%',
+          boxSizing: 'border-box',
+          background: '#ffffff',
+        }}
+      />
     </div>
   );
 };

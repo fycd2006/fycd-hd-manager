@@ -70,7 +70,7 @@
   margin: 0 4px 3px;
   user-select: none;
   border-radius: var(--input-border-radius, 0);
-  font-family: var(--input-font-family, Inter);
+  font-family: var(--input-font-family, inherit);
   font-weight: var(--input-font-weight, 400);
 
   &:last-child {

@@ -43,7 +43,7 @@
   font-size: 13px;
   user-select: none;
   min-width: 120px;
-  font-family: Inter, sans-serif;
+  font-family: inherit;
   cursor: pointer;
 
   @include rounded($rounded-md);

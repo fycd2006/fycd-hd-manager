@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from './Modals'
+import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, TableModal } from './Modals'
+import { CreateFieldPopover } from '../field/CreateFieldPopover'
 import RowEditModal from './RowEditModal'
 import MembersModal from './MembersModal'
 import NotificationsModal from './NotificationsModal'
@@ -25,6 +26,8 @@ interface GlobalModalsContainerProps {
   createView: (name: string, type: any) => Promise<void>
   showNewFieldModal: boolean
   setShowNewFieldModal: (show: boolean) => void
+  newFieldPopoverPos?: { top: number; left: number } | null
+  setNewFieldPopoverPos?: (pos: { top: number; left: number } | null) => void
   editingFieldForModal: TableField | null
   setEditingFieldForModal: (field: TableField | null) => void
   handleUpdateField: (fieldId: number, updates: Partial<TableField>) => Promise<void>
@@ -75,6 +78,8 @@ export default function GlobalModalsContainer({
   createView,
   showNewFieldModal,
   setShowNewFieldModal,
+  newFieldPopoverPos,
+  setNewFieldPopoverPos,
   editingFieldForModal,
   setEditingFieldForModal,
   handleUpdateField,
@@ -215,14 +220,19 @@ export default function GlobalModalsContainer({
         />
       )}
 
-      {/* FieldModal */}
+      {/* CreateFieldPopover (Anchor-positioned like Baserow CreateFieldContext) */}
       {showNewFieldModal && (
-        <FieldModal
+        <CreateFieldPopover
           show={showNewFieldModal}
+          position={
+            newFieldPopoverPos ||
+            (fieldContextMenu ? { top: fieldContextMenu.y, left: fieldContextMenu.x } : { top: 80, left: typeof window !== 'undefined' ? Math.max(16, window.innerWidth / 2 - 190) : 300 })
+          }
           onClose={() => {
             setShowNewFieldModal(false)
             setEditingFieldForModal(null)
             setInsertFieldContext(null)
+            setNewFieldPopoverPos?.(null)
           }}
           onSubmit={async (name, type, options) => {
             if (!wsState.activeTableId) return
@@ -251,6 +261,7 @@ export default function GlobalModalsContainer({
             setShowNewFieldModal(false)
             setEditingFieldForModal(null)
             setInsertFieldContext(null)
+            setNewFieldPopoverPos?.(null)
           }}
           tables={wsState.workspaces.flatMap((w: any) => w.databases?.flatMap((d: any) => d.tables || []) || [])}
           fields={fields}

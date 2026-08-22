@@ -50,6 +50,7 @@ interface DatabaseViewRouterProps {
   addRow: () => void
   batchAddRows?: (rowsToCreate: Array<Record<string, any>>) => void
   setShowNewFieldModal: (show: boolean) => void
+  onAddFieldPopover?: (pos: { top: number; left: number }) => void
   handleUpdateField: (fieldId: number, updates: Partial<TableField>) => void
   setFieldContextMenu: (menu: { field: TableField; x: number; y: number } | null) => void
   onUndo?: () => void
@@ -104,6 +105,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   addRow,
   batchAddRows,
   setShowNewFieldModal,
+  onAddFieldPopover,
   handleUpdateField,
   setFieldContextMenu,
   onUndo,
@@ -185,6 +187,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           onDeleteRow={deleteRow}
           onAddRow={addRow}
           onShowNewFieldModal={() => setShowNewFieldModal(true)}
+          onAddFieldPopover={onAddFieldPopover}
           onUpdateField={handleUpdateField}
           onOpenFieldContextMenu={(field, x, y) => setFieldContextMenu({ field, x, y })}
           onUndo={onUndo}

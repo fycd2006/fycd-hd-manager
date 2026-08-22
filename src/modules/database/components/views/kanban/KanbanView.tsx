@@ -166,7 +166,6 @@ export default function KanbanView({
             padding: '16px 24px',
             overflowX: 'auto',
             overflowY: 'hidden',
-            scrollbarWidth: 'thin',
           }}
         >
           {columns.map(col => {
@@ -226,7 +225,6 @@ export default function KanbanView({
                         flexDirection: 'column',
                         gap: '8px',
                         overflowY: 'auto',
-                        scrollbarWidth: 'thin',
                         background: snapshot.isDraggingOver ? 'rgba(82, 166, 40, 0.08)' : 'transparent',
                         transition: 'background-color 0.2s ease',
                       }}

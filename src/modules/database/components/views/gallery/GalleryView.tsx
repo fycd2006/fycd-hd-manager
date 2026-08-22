@@ -62,7 +62,6 @@ export default function GalleryView({
         gap: '20px',
         maxHeight: '100%',
         alignContent: 'start',
-        scrollbarWidth: 'thin',
       }}
     >
       {rows.map(row => {

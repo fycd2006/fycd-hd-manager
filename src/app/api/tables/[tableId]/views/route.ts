@@ -83,20 +83,26 @@ export async function PATCH(
     if (errorResponse) return errorResponse
 
     const body = await request.json()
-    const { viewId, name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors } = body
+    const { viewId, name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField } = body
     const vid = parseInt(viewId)
     if (isNaN(vid)) return NextResponse.json({ error: '無效的 View ID' }, { status: 400 })
+
+    const toJsonString = (val: any) => {
+      if (val === undefined || val === null) return null
+      return typeof val === 'string' ? val : JSON.stringify(val)
+    }
 
     const updated = await prisma.tableView.update({
       where: { id: vid, tableId: tid },
       data: {
-        ...(name && { name }),
-        ...(filters !== undefined && { filters: filters ? JSON.stringify(filters) : null }),
+        ...(name !== undefined && { name }),
+        ...(filters !== undefined && { filters: toJsonString(filters) }),
         ...(sortField !== undefined && { sortField }),
         ...(sortOrder !== undefined && { sortOrder }),
-        ...(hiddenFields !== undefined && { hiddenFields: hiddenFields ? JSON.stringify(hiddenFields) : null }),
-        ...(columnWidths !== undefined && { columnWidths: columnWidths ? JSON.stringify(columnWidths) : null }),
-        ...(rowColors !== undefined && { rowColors: rowColors ? JSON.stringify(rowColors) : null }),
+        ...(hiddenFields !== undefined && { hiddenFields: toJsonString(hiddenFields) }),
+        ...(columnWidths !== undefined && { columnWidths: toJsonString(columnWidths) }),
+        ...(rowColors !== undefined && { rowColors: toJsonString(rowColors) }),
+        ...(groupByField !== undefined && { groupByField }),
       }
     })
 

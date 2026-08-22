@@ -7,7 +7,7 @@
   font-size: var(--input-font-size, 13px);
   font-weight: var(--input-font-weight, 400);
   color: var(--input-text-color, $color-neutral-900);
-  font-family: var(--input-font-family, Inter);
+  font-family: var(--input-font-family, inherit);
   background-color: var(--input-background-color, $white);
   padding: var(--input-vertical-padding, 8px)
     var(--input-horizontal-padding, 12px);

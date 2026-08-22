@@ -9,6 +9,7 @@ import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
 import { MultiCellContextMenu } from '@/modules/database/components/menu/MultiCellContextMenu';
+import PopoverPortal from '@/components/ui/PopoverPortal';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
 
 export interface RowData {
@@ -29,6 +30,7 @@ interface GridViewProps {
   onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void;
   onAddRow?: () => void;
   onAddField?: () => void;
+  onAddFieldPopover?: (position: { top: number; left: number }) => void;
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
   onResizeColumnEnd?: (fieldId: number, newWidth: number) => void;
   onExpandRow?: (rowId: number) => void;
@@ -59,6 +61,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onBatchUpdateCells,
   onAddRow,
   onAddField,
+  onAddFieldPopover,
   onResizeColumn,
   onResizeColumnEnd,
   onExpandRow,
@@ -92,8 +95,26 @@ export const GridView: React.FC<GridViewProps> = ({
   const [autofillStart, setAutofillStart] = useState<[number, number] | null>(null);
   const [autofillEnd, setAutofillEnd] = useState<[number, number] | null>(null);
   const [cellContextMenu, setCellContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [batchAddMenuPosition, setBatchAddMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  // Auto-scroll when new fields or rows are created
+  const prevFieldsCountRef = useRef(fields.length);
+  useEffect(() => {
+    if (fields.length > prevFieldsCountRef.current && bodyRef.current) {
+      bodyRef.current.scrollTo({ left: bodyRef.current.scrollWidth, behavior: 'smooth' });
+    }
+    prevFieldsCountRef.current = fields.length;
+  }, [fields.length]);
+
+  const prevRowsCountRef = useRef(rows.length);
+  useEffect(() => {
+    if (rows.length > prevRowsCountRef.current && bodyRef.current) {
+      bodyRef.current.scrollTo({ top: bodyRef.current.scrollHeight, behavior: 'smooth' });
+    }
+    prevRowsCountRef.current = rows.length;
+  }, [rows.length]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -442,6 +463,16 @@ export const GridView: React.FC<GridViewProps> = ({
   }, [groupByField, groupedSections, collapsedGroups]);
 
   const handleNavigateCell = useCallback((rIndex: number, cIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => {
+    // If at the bottom-most row and pressing down/enter, or at the bottom-right cell and pressing Tab: auto add row!
+    if (direction === 'nextRow' && rIndex === rows.length - 1) {
+      onAddRow?.();
+      return;
+    }
+    if (direction === 'nextCol' && cIndex === fields.length - 1 && rIndex === rows.length - 1) {
+      onAddRow?.();
+      return;
+    }
+
     let nextRow = rIndex;
     let nextCol = cIndex;
 
@@ -475,7 +506,7 @@ export const GridView: React.FC<GridViewProps> = ({
       setIsEditing(false);
       setEditingCellInfo(null);
     }
-  }, [rows, fields.length, visualGroupedRows]);
+  }, [rows, fields.length, visualGroupedRows, onAddRow]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -863,9 +894,14 @@ export const GridView: React.FC<GridViewProps> = ({
     return result;
   }, [fields, rows]);
 
-  const totalTableWidth = useMemo(() => {
-    return fields.reduce((sum, f) => sum + (f.width || 180), rowDetailsWidth) + 40;
+  const fieldsWidth = useMemo(() => {
+    return fields.reduce((sum, f) => sum + (f.width || 180), rowDetailsWidth);
   }, [fields, rowDetailsWidth]);
+
+  const totalTableWidth = useMemo(() => {
+    // 100px for add field button + 100px buffer space, matching Baserow
+    return fieldsWidth + 100 + 100;
+  }, [fieldsWidth]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -877,51 +913,11 @@ export const GridView: React.FC<GridViewProps> = ({
       className="grid-view"
       style={{ outline: 'none', height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
-      {/* 1. Header Container (Synchronized Horizontal Scroll) */}
-      <div
-        ref={headerScrollRef}
-        className="grid-view__head-container"
-        onWheel={(e) => {
-          if (bodyRef.current && (e.deltaX !== 0 || e.shiftKey)) {
-            const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
-            bodyRef.current.scrollLeft += delta;
-          }
-        }}
-        style={{
-          width: '100%',
-          overflowX: 'hidden',
-          overflowY: 'hidden',
-          flexShrink: 0,
-          background: '#ffffff',
-          borderBottom: '1px solid var(--border-color, #e2e8f0)',
-          zIndex: 30
-        }}
-      >
-        <GridViewHead
-          fields={fields}
-          rowDetailsWidth={rowDetailsWidth}
-          sortField={sortField}
-          sortOrder={sortOrder}
-          isAllRowsSelected={isAllRowsSelected}
-          isSomeRowsSelected={isSomeRowsSelected}
-          onToggleSelectAllRows={handleToggleSelectAllRows}
-          onAddField={onAddField}
-          onResizeColumn={handleResizeColumnLocal}
-          onResizeColumnEnd={onResizeColumnEnd}
-          onFieldClick={onFieldClick}
-          onOpenFieldContextMenu={onOpenFieldContextMenu}
-          onReorderFields={onReorderFields}
-        />
-      </div>
-
-      {/* 2. Scrollable Rows Body Container */}
+      {/* Single Unified GPU Scroll Container (Natively synchronizes Head, Rows, and Footer) */}
       <div 
         ref={bodyRef}
-        className="grid-view__scroll-container" 
+        className="grid-view__scroll-container"
         onScroll={(e) => {
-          if (headerScrollRef.current) {
-            headerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
-          }
           if (footerScrollRef.current) {
             footerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
           }
@@ -932,17 +928,49 @@ export const GridView: React.FC<GridViewProps> = ({
             setCellContextMenu({ x: e.clientX, y: e.clientY });
           }
         }}
-        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative', background: '#f4f5f8' }}
+        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative', background: '#fafaf9' }}
       >
-        <div style={{ minWidth: '100%', width: 'max-content', display: 'flex', flexDirection: 'column' }}>
-          {/* Rows Body */}
-          <div className="grid-view__body-inner" style={{ width: 'max-content', minWidth: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+        <div style={{ minWidth: '100%', width: `${totalTableWidth}px`, display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          {/* 1. Header (Sticky Top: 0 inside unified scroll container) */}
+          <div
+            ref={headerScrollRef}
+            className="grid-view__head-container"
+            style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 35,
+              width: `${totalTableWidth}px`,
+              background: '#ffffff',
+              boxSizing: 'border-box',
+            }}
+          >
+            <GridViewHead
+              fields={fields}
+              rowDetailsWidth={rowDetailsWidth}
+              sortField={sortField}
+              sortOrder={sortOrder}
+              isAllRowsSelected={isAllRowsSelected}
+              isSomeRowsSelected={isSomeRowsSelected}
+              onToggleSelectAllRows={handleToggleSelectAllRows}
+              onAddField={onAddField}
+              onAddFieldPopover={onAddFieldPopover}
+              onResizeColumn={handleResizeColumnLocal}
+              onResizeColumnEnd={onResizeColumnEnd}
+              onFieldClick={onFieldClick}
+              onOpenFieldContextMenu={onOpenFieldContextMenu}
+              onReorderFields={onReorderFields}
+              totalTableWidth={totalTableWidth}
+            />
+          </div>
+
+          {/* 2. Rows Body */}
+          <div className="grid-view__body-inner" style={{ flex: 1, width: `${totalTableWidth}px`, minWidth: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
             {groupedSections ? (
               <div className="grid-view__grouped-body" style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
                 {groupedSections.map(([groupKey, groupData]) => {
                   const isCollapsed = collapsedGroups[groupKey];
                   return (
-                    <div key={groupKey} className="grid-view__group-section" style={{ width: '100%', marginBottom: '8px' }}>
+                    <div key={groupKey} className="grid-view__group-section" style={{ width: '100%', marginBottom: '10px' }}>
                       {/* Group By Banner */}
                       <div
                         className="grid-view__group-by-banner"
@@ -950,22 +978,41 @@ export const GridView: React.FC<GridViewProps> = ({
                         style={{
                           display: 'flex',
                           alignItems: 'center',
-                          height: '34px',
-                          backgroundColor: '#f8fafc',
+                          height: '36px',
+                          backgroundColor: '#ffffff',
                           borderTop: '1px solid #e2e8f0',
                           borderBottom: '1px solid #e2e8f0',
+                          borderLeft: '4px solid #3F6212',
                           paddingLeft: '12px',
+                          paddingRight: '16px',
                           fontWeight: 600,
                           fontSize: '13px',
-                          color: '#334155',
+                          color: '#1e293b',
                           cursor: 'pointer',
-                          userSelect: 'none'
+                          userSelect: 'none',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                          transition: 'background-color 0.15s ease',
                         }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
                       >
-                        {isCollapsed ? <ChevronRight size={16} style={{ marginRight: '6px' }} /> : <ChevronDown size={16} style={{ marginRight: '6px' }} />}
-                        <span>{groupKey}</span>
-                        <span style={{ marginLeft: '8px', fontSize: '12px', color: '#64748b', fontWeight: 400 }}>
-                          ({groupData.rows.length} 筆資料)
+                        <div style={{ display: 'flex', alignItems: 'center', transition: 'transform 0.15s ease', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', marginRight: '6px', color: '#64748b' }}>
+                          <ChevronDown size={15} />
+                        </div>
+                        <span style={{ fontWeight: 600 }}>{groupKey || '（空白未指定）'}</span>
+                        <span
+                          style={{
+                            marginLeft: '10px',
+                            fontSize: '11px',
+                            color: '#475569',
+                            fontWeight: 500,
+                            backgroundColor: '#f1f5f9',
+                            padding: '1px 7px',
+                            borderRadius: '10px',
+                            border: '1px solid #e2e8f0',
+                          }}
+                        >
+                          {groupData.rows.length} 筆
                         </span>
                       </div>
 
@@ -1033,6 +1080,40 @@ export const GridView: React.FC<GridViewProps> = ({
                               />
                             );
                           })}
+                          {/* Group-specific Add Row Bar */}
+                          <div
+                            className="grid-view__group-add-row-bar"
+                            onClick={() => {
+                              const grpField = groupedField ? `field_${groupedField.id}` : groupByField;
+                              const rawVal = groupData.rows[0] ? ((groupData.rows[0] as any).data?.[grpField!] ?? groupData.rows[0].values?.[parseInt(grpField!.replace('field_', ''))]) : undefined;
+                              if (grpField) {
+                                onBatchAddRows ? onBatchAddRows([{ [grpField]: rawVal ?? (groupKey === '（空白）' ? '' : groupKey) }]) : onAddRow?.();
+                              } else {
+                                onAddRow?.();
+                              }
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              height: '32px',
+                              width: `${fieldsWidth}px`,
+                              paddingLeft: `${rowDetailsWidth + 12}px`,
+                              borderRight: '1px solid #e2e8f0',
+                              borderBottom: '1px solid #f1f5f9',
+                              background: '#fafafa',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              color: '#64748b',
+                              gap: '6px',
+                              boxSizing: 'border-box',
+                              transition: 'background 0.15s ease'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#fafafa'}
+                          >
+                            <Plus style={{ width: '13px', height: '13px', color: '#64748b' }} />
+                            <span>在「{groupKey}」新增資料列</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1044,7 +1125,7 @@ export const GridView: React.FC<GridViewProps> = ({
                 className="grid-view__rows"
                 style={{
                   height: `${rowVirtualizer.getTotalSize()}px`,
-                  width: `${totalTableWidth}px`,
+                  width: `${fieldsWidth}px`,
                   position: 'relative',
                   userSelect: isDraggingSelection ? 'none' : 'auto'
                 }}
@@ -1061,7 +1142,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         position: 'absolute',
                         top: 0,
                         left: 0,
-                        width: `${totalTableWidth}px`,
+                        width: `${fieldsWidth}px`,
                         transform: `translateY(${virtualRow.start}px)`,
                         zIndex: selectedCell?.[0] === rIndex && isEditing ? 100 : (selectedCell?.[0] === rIndex ? 10 : 1),
                       }}
@@ -1132,11 +1213,17 @@ export const GridView: React.FC<GridViewProps> = ({
             <div
               className="grid-view__add-row-bar"
               onClick={onAddRow}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setBatchAddMenuPosition({ top: e.clientY, left: e.clientX });
+              }}
               style={{
                 display: 'flex',
-                width: `${totalTableWidth}px`,
+                width: `${fieldsWidth}px`,
                 height: 'var(--row-height, 33px)',
                 borderBottom: '1px solid var(--border-color, #e2e8f0)',
+                borderRight: '1px solid var(--border-color, #e2e8f0)',
                 background: '#ffffff',
                 cursor: 'pointer',
                 userSelect: 'none',
@@ -1168,112 +1255,166 @@ export const GridView: React.FC<GridViewProps> = ({
               {/* Add row text spanning remaining width matching row length */}
               <div
                 style={{
-                  width: `${totalTableWidth - rowDetailsWidth}px`,
+                  width: `${fieldsWidth - rowDetailsWidth}px`,
                   display: 'flex',
                   alignItems: 'center',
                   paddingLeft: '12px',
                   fontSize: '13px',
                   color: '#18181B',
                   fontWeight: 500,
-                  borderRight: '1px solid var(--border-color, #e2e8f0)',
                   boxSizing: 'border-box',
                 }}
               >
-                新增資料列
+                新增資料列（右鍵可批次新增）
               </div>
             </div>
 
             {/* Scroll padding area below table */}
-            <div style={{ height: '80px', width: '100%' }} />
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Fixed Bottom Summary Footer Bar */}
-      <div
-        ref={footerScrollRef}
-        className="grid-view__footer-container"
-        onWheel={(e) => {
-          if (bodyRef.current && (e.deltaX !== 0 || e.shiftKey)) {
-            const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
-            bodyRef.current.scrollLeft += delta;
-          }
-        }}
-        style={{
-          flexShrink: 0,
-          width: '100%',
-          height: '44px',
-          minHeight: '44px',
-          maxHeight: '44px',
-          overflowX: 'hidden',
-          borderTop: '1px solid #e2e8f0',
-          background: '#ffffff',
-          zIndex: 35,
-          boxShadow: '0 -2px 10px rgba(15, 23, 42, 0.04)',
-        }}
-      >
-        <div
-          className="grid-view__summary-bar"
-          style={{
-            display: 'flex',
-            height: '44px',
-            width: `${totalTableWidth}px`,
-            boxSizing: 'border-box',
-            fontSize: '12px',
-            color: '#475569',
-          }}
-        >
-          <div style={{
-            width: `${rowDetailsWidth}px`,
-            height: '44px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'sticky',
-            left: 0,
-            zIndex: 25,
-            flexShrink: 0,
-            padding: '0 8px',
-            textAlign: 'center',
-            fontWeight: 600,
-            borderRight: '2px solid #cbd5e1',
-            background: '#f8fafc',
-            color: '#18181B'
-          }}>
-            {rows.length} 筆
+            <div style={{ height: '20px', width: '100%' }} />
           </div>
 
-          {fields.map((field, fieldIndex) => {
-            const summary = fieldSummaries[field.id];
-            const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
-            return (
-              <GridViewFieldFooter
-                key={field.id}
-                field={field}
-                fieldIndex={fieldIndex}
-                rowDetailsWidth={rowDetailsWidth}
-                summaryData={summary}
-                totalRowCount={rows.length}
-                aggregationMode={mode}
-                onSelectAggregationMode={(fieldId, newMode) => {
-                  setAggregationModes(prev => ({ ...prev, [fieldId]: newMode }))
+          {/* 3. Sticky Bottom Summary Footer Bar (Height: 38px + 6px Scrollbar = 44px matching Sidebar) */}
+          <div
+            ref={footerScrollRef}
+            className="grid-view__footer-container"
+            style={{
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 35,
+              flexShrink: 0,
+              width: `${totalTableWidth}px`,
+              height: '38px',
+              minHeight: '38px',
+              maxHeight: '38px',
+              borderTop: '1px solid #e2e8f0',
+              background: '#ffffff',
+              boxShadow: '0 -2px 10px rgba(15, 23, 42, 0.04)',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              className="grid-view__summary-bar"
+              style={{
+                display: 'flex',
+                height: '38px',
+                width: `${totalTableWidth}px`,
+                boxSizing: 'border-box',
+                fontSize: '12px',
+                color: '#475569',
+              }}
+            >
+              <div style={{
+                width: `${rowDetailsWidth}px`,
+                minWidth: `${rowDetailsWidth}px`,
+                maxWidth: `${rowDetailsWidth}px`,
+                boxSizing: 'border-box',
+                height: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'sticky',
+                left: 0,
+                zIndex: 25,
+                flexShrink: 0,
+                padding: '0 8px',
+                textAlign: 'center',
+                fontWeight: 600,
+                borderRight: '1px solid #e2e8f0',
+                background: '#f8fafc',
+                color: '#18181B'
+              }}>
+                {rows.length} 筆
+              </div>
+
+              {fields.map((field, fieldIndex) => {
+                const summary = fieldSummaries[field.id];
+                const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
+                return (
+                  <GridViewFieldFooter
+                    key={field.id}
+                    field={field}
+                    fieldIndex={fieldIndex}
+                    rowDetailsWidth={rowDetailsWidth}
+                    summaryData={summary}
+                    totalRowCount={rows.length}
+                    aggregationMode={mode}
+                    onSelectAggregationMode={(fieldId, newMode) => {
+                      setAggregationModes(prev => ({ ...prev, [fieldId]: newMode }))
+                    }}
+                  />
+                );
+              })}
+              {/* Footer Right Extension Area (Clean seamless canvas without fake dividing lines) */}
+              <div
+                style={{
+                  width: '200px',
+                  minWidth: '200px',
+                  flexShrink: 0,
+                  boxSizing: 'border-box',
+                  background: '#ffffff'
                 }}
               />
-            );
-          })}
-          {/* Footer Add Field Spacer */}
-          <div
-            style={{
-              width: '40px',
-              minWidth: '40px',
-              flexShrink: 0,
-              borderRight: '1px solid #e2e8f0',
-              boxSizing: 'border-box',
-              background: '#f8fafc'
-            }}
-          />
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Batch Add Rows Popover Menu */}
+      {batchAddMenuPosition && (
+        <PopoverPortal
+          show={Boolean(batchAddMenuPosition)}
+          onClose={() => setBatchAddMenuPosition(null)}
+          position={batchAddMenuPosition}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08)',
+              padding: '4px',
+              minWidth: '180px',
+              fontSize: '13px',
+              color: '#334155'
+            }}
+          >
+            <div style={{ padding: '6px 10px', fontSize: '11px', fontWeight: 600, color: '#94a3b8', borderBottom: '1px solid #f1f5f9' }}>
+              新增資料列
+            </div>
+            <div
+              onClick={() => { onAddRow?.(); setBatchAddMenuPosition(null); }}
+              style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.1s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Plus size={14} /> 建立 1 列
+            </div>
+            <div
+              onClick={() => { onBatchAddRows?.(Array(5).fill({})); setBatchAddMenuPosition(null); }}
+              style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.1s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Plus size={14} /> 批次建立 5 列
+            </div>
+            <div
+              onClick={() => { onBatchAddRows?.(Array(10).fill({})); setBatchAddMenuPosition(null); }}
+              style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.1s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Plus size={14} /> 批次建立 10 列
+            </div>
+            <div
+              onClick={() => { onBatchAddRows?.(Array(50).fill({})); setBatchAddMenuPosition(null); }}
+              style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'background 0.1s' }}
+              onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Plus size={14} /> 批次建立 50 列
+            </div>
+          </div>
+        </PopoverPortal>
+      )}
 
       {cellContextMenu && (selectionBounds || selectedRowIds.size > 0) && (
         <MultiCellContextMenu

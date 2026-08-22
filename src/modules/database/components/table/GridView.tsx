@@ -43,6 +43,7 @@ interface GridViewProps {
   onDeleteRow?: (rowId: number) => void
   onAddRow?: () => void
   onShowNewFieldModal?: () => void
+  onAddFieldPopover?: (pos: { top: number; left: number }) => void
   onUpdateCell?: (rowId: number, fieldKey: string, value: any) => void
   onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void
@@ -70,6 +71,7 @@ export default function GridView({
   isOffline = false,
   onAddRow,
   onShowNewFieldModal,
+  onAddFieldPopover,
   onHandleResizeStart,
   onHandleResizeEnd,
   onUpdateCell,
@@ -151,6 +153,7 @@ export default function GridView({
         onBatchUpdateCells={readOnly ? undefined : onBatchUpdateCells}
         onAddRow={readOnly ? () => {} : onAddRow}
         onAddField={readOnly ? () => {} : onShowNewFieldModal}
+        onAddFieldPopover={readOnly ? undefined : onAddFieldPopover}
         onResizeColumn={handleResizeColumn}
         onResizeColumnEnd={handleResizeColumnEnd}
         onExpandRow={handleExpandRow}

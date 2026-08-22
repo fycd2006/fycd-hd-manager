@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Maximize2, Minimize2, Star, Search, Link2, Mail, Clock, Sparkles, AlertTriangle, ExternalLink, ArrowUpRight, MessageSquare, Send, Edit2, Trash2, Check, X } from 'lucide-react';
+import { Maximize2, Minimize2, Star, Search, Link2, Mail, Clock, Sparkles, AlertTriangle, ExternalLink, ArrowUpRight, MessageSquare, Send, Edit2, Trash2, Check, X, Paperclip } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
 import { CardDrawer } from '@/modules/database/components/cards';
@@ -566,7 +566,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   useEffect(() => {
     if (wasEditingRef.current && !isEditing) {
       if (!hasCommittedRef.current && 
-          ['text', 'number', 'date', 'email', 'url', 'phone'].includes(field.type)) {
+          ['text', 'number', 'date', 'email', 'url', 'phone', 'phone_number'].includes(field.type)) {
         hasCommittedRef.current = true;
         if (field.type === 'number') {
           const trimmed = String(localValRef.current ?? '').trim();
@@ -1687,7 +1687,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         : field.type === 'date' ? 'date' 
         : field.type === 'email' ? 'email' 
         : field.type === 'url' ? 'url' 
-        : field.type === 'phone' ? 'tel' 
+        : (field.type === 'phone' || field.type === 'phone_number') ? 'tel' 
         : 'text';
 
       return (
@@ -1815,7 +1815,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       );
     }
 
-    if (field.type === 'collaborator') {
+    if (field.type === 'collaborator' || field.type === 'collaborators') {
       let collabItems: Array<{ id: number; username: string }> = [];
       if (Array.isArray(value)) {
         collabItems = value.map(item => {
@@ -2054,7 +2054,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       );
     }
 
-    if (field.type === 'phone') {
+    if (field.type === 'phone' || field.type === 'phone_number') {
       const phoneStr = value != null ? String(value).trim() : '';
       if (!phoneStr) return null;
       return (
@@ -2066,6 +2066,55 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           >
             📞 {phoneStr}
           </a>
+        </div>
+      );
+    }
+
+    if (field.type === 'file' || field.type === 'attachment') {
+      let fileList: Array<{ url?: string; name?: string }> = [];
+      if (Array.isArray(value)) {
+        fileList = value;
+      } else if (typeof value === 'string' && value.trim()) {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) fileList = parsed;
+          else if (typeof parsed === 'object' && parsed !== null) fileList = [parsed];
+          else fileList = [{ name: value }];
+        } catch {
+          fileList = [{ name: value }];
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        fileList = [value];
+      }
+
+      if (fileList.length === 0) return null;
+
+      return (
+        <div style={{ display: 'flex', gap: '4px', padding: '0 6px', overflow: 'hidden', alignItems: 'center', height: '100%', width: '100%', flexWrap: 'nowrap' }}>
+          {fileList.map((file, i) => (
+            <span
+              key={i}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: '6px',
+                padding: '1px 6px',
+                fontSize: '11px',
+                color: '#334155',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              title={file.name || '附件'}
+            >
+              <Paperclip size={11} color="#EA580C" />
+              <span style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {file.name || '附件'}
+              </span>
+            </span>
+          ))}
         </div>
       );
     }
@@ -2321,10 +2370,14 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       }}
       style={{ 
         width: `var(--field-width-${field.id}, ${cellWidth}px)`,
+        minWidth: `var(--field-width-${field.id}, ${cellWidth}px)`,
+        maxWidth: `var(--field-width-${field.id}, ${cellWidth}px)`,
+        flexShrink: 0,
         position: isPrimary ? 'sticky' : 'relative',
         left: isPrimary ? `${rowDetailsWidth}px` : undefined,
         boxShadow: finalBoxShadow,
-        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : undefined,
+        borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid var(--border-color, #e2e8f0)',
+        borderBottom: '1px solid var(--border-color, #e2e8f0)',
         background: cellBg ? `linear-gradient(${cellBg}, ${cellBg}), ${rowColorBg || '#ffffff'}` : (rowColorBg || '#ffffff'),
         transition: 'background 0.12s ease, box-shadow 0.12s ease',
         boxSizing: 'border-box',

@@ -16,6 +16,7 @@ export interface MasterViewCacheQueryParams {
   sortOrder?: 'asc' | 'desc'
   filters?: any[]
   tableIds?: number[] | string | null
+  aliasMap?: Record<string, any> | null
 }
 
 // In-Memory Fallback Cache when Redis is not configured or in unit testing
@@ -52,6 +53,7 @@ export function hashQueryParams(params: MasterViewCacheQueryParams): string {
     tableIds: Array.isArray(params.tableIds)
       ? [...params.tableIds].sort()
       : params.tableIds || null,
+    aliasMap: params.aliasMap || null,
   }
   return createHash('sha256').update(JSON.stringify(normalized)).digest('hex').substring(0, 16)
 }
