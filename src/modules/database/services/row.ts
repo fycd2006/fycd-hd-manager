@@ -172,10 +172,11 @@ export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: b
  */
 export const reorderRows = async (tableId: number, rowIds: number[]): Promise<{ ok: boolean; error?: string }> => {
   try {
+    const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/reorder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rowIds }),
+      body: JSON.stringify({ rowIds, socket_id: socketId }),
     })
     if (res.ok) {
       return { ok: true }
