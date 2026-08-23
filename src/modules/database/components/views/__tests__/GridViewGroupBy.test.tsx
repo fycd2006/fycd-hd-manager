@@ -124,4 +124,43 @@ describe('GridView Group By & Group Aggregations', () => {
     // Title changes to expand hint
     expect(screen.getByTitle('點擊展開分組')).toBeInTheDocument()
   })
+
+  test('renders multi-level hierarchical grouping with nested banners and sub-groups', () => {
+    const multiLevelFields: TableField[] = [
+      { id: 1, tableId: 10, name: '姓名', type: 'text', order: 1, width: 180 },
+      { id: 2, tableId: 10, name: '成全階段', type: 'single_select', order: 2, width: 160 },
+      { id: 3, tableId: 10, name: '班級', type: 'single_select', order: 3, width: 160 },
+    ]
+
+    const multiLevelRows = [
+      { id: 201, order: 1, values: { 1: '張小明', 2: '培訓階段', 3: '週六上午班' }, data: { field_1: '張小明', field_2: '培訓階段', field_3: '週六上午班' } },
+      { id: 202, order: 2, values: { 1: '李小華', 2: '培訓階段', 3: '週日上午班' }, data: { field_1: '李小華', field_2: '培訓階段', field_3: '週日上午班' } },
+      { id: 203, order: 3, values: { 1: '王大同', 2: '實習階段', 3: '週六下午班' }, data: { field_1: '王大同', field_2: '實習階段', field_3: '週六下午班' } },
+    ]
+
+    render(
+      <GridView
+        fields={multiLevelFields}
+        rows={multiLevelRows}
+        groupByRules={[
+          { fieldKey: 'field_2', order: 'asc' },
+          { fieldKey: 'field_3', order: 'asc' },
+        ]}
+      />
+    )
+
+    // Check top level group banners
+    expect(screen.getAllByText('成全階段:').length).toBe(2)
+    expect(screen.getAllByText('培訓階段').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('實習階段').length).toBeGreaterThan(0)
+
+    // Check nested sub-level group banner (Then by)
+    expect(screen.getAllByText('Then by 班級:').length).toBe(3)
+    expect(screen.getAllByText('週六上午班').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('週日上午班').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('週六下午班').length).toBeGreaterThan(0)
+  })
 })
+
+
+

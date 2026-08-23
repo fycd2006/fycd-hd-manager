@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
-import { TableField, RowColorRule, GroupCollapseState } from '@/modules/database/types';
+import { TableField, RowColorRule, GroupCollapseState, GroupByRule } from '@/modules/database/types';
 import { getOptionColor, parseSelectItems } from '@/modules/database/components/views/grid/cells/utils';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
@@ -273,6 +273,7 @@ interface GridViewProps {
   sortField?: string | null;
   sortOrder?: 'asc' | 'desc';
   groupByField?: string | null;
+  groupByRules?: GroupByRule[];
   groupCollapseState?: GroupCollapseState;
   onUpdateGroupCollapseState?: (state: GroupCollapseState | ((prev: GroupCollapseState) => GroupCollapseState)) => void;
   rowColorRules?: RowColorRule[];
@@ -310,6 +311,7 @@ export const GridView: React.FC<GridViewProps> = ({
   sortField,
   sortOrder,
   groupByField,
+  groupByRules,
   groupCollapseState,
   onUpdateGroupCollapseState,
   rowColorRules,
@@ -692,94 +694,199 @@ export const GridView: React.FC<GridViewProps> = ({
     });
   }, [updateCollapseState]);
 
-  const groupedField = useMemo(() => {
-    if (!groupByField) return null;
-    return fields.find(f => `field_${f.id}` === groupByField || String(f.id) === groupByField) || null;
-  }, [fields, groupByField]);
+  const effectiveGroupByRules = useMemo<GroupByRule[]>(() => {
+    if (groupByRules && groupByRules.length > 0) return groupByRules;
+    if (groupByField) {
+      if (typeof groupByField === 'string' && groupByField.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(groupByField);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+      return [{ fieldKey: groupByField, order: 'asc' }];
+    }
+    return [];
+  }, [groupByRules, groupByField]);
 
   const [relationRowsMap, setRelationRowsMap] = useState<Map<string | number, string>>(new Map());
 
   useEffect(() => {
-    if (!groupedField || groupedField.type !== 'link_row') return;
-    let opts: any = groupedField.options;
-    if (typeof opts === 'string') {
-      try { opts = JSON.parse(opts); } catch {}
-    }
-    const targetTableId = Number(opts?.targetTableId ?? opts?.link_row_table_id ?? opts?.target_table_id);
-    if (!targetTableId) return;
+    if (effectiveGroupByRules.length === 0) return;
+    const linkRowFields = effectiveGroupByRules
+      .map(r => fields.find(f => `field_${f.id}` === r.fieldKey || String(f.id) === r.fieldKey))
+      .filter((f): f is TableField => !!f && f.type === 'link_row');
 
-    fetch(`/api/tables/${targetTableId}/rows`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        const rowsList = Array.isArray(data) ? data : (data.rows || []);
-        const newMap = new Map<string | number, string>();
-        rowsList.forEach((r: any) => {
-          const primaryVal = r.data ? Object.values(r.data).find(v => v != null && v !== '' && typeof v !== 'object') : null;
-          const name = primaryVal ? String(primaryVal) : `列 ID: ${r.id}`;
-          newMap.set(r.id, name);
-          newMap.set(String(r.id), name);
-        });
-        setRelationRowsMap(newMap);
-      })
-      .catch(() => {});
-  }, [groupedField]);
+    if (linkRowFields.length === 0) return;
 
-  const frozenGroupedSectionsRef = useRef<[string, { rows: RowData[]; originalIndices: number[]; displayTitle: string; badges: GroupBadge[]; isBlank: boolean }][] | null>(null);
+    const targetTableIds = new Set<number>();
+    linkRowFields.forEach(f => {
+      let opts: any = f.options;
+      if (typeof opts === 'string') {
+        try { opts = JSON.parse(opts); } catch {}
+      }
+      const targetTableId = Number(opts?.targetTableId ?? opts?.link_row_table_id ?? opts?.target_table_id);
+      if (targetTableId) targetTableIds.add(targetTableId);
+    });
 
-  const groupedSections = useMemo(() => {
-    if (!groupByField) {
-      frozenGroupedSectionsRef.current = null;
+    if (targetTableIds.size === 0) return;
+
+    Promise.all(
+      Array.from(targetTableIds).map(tId =>
+        fetch(`/api/tables/${tId}/rows`)
+          .then(res => res.ok ? res.json() : [])
+          .then(data => Array.isArray(data) ? data : (data.rows || []))
+          .catch(() => [])
+      )
+    ).then(results => {
+      const newMap = new Map<string | number, string>();
+      results.flat().forEach((r: any) => {
+        const primaryVal = r.data ? Object.values(r.data).find(v => v != null && v !== '' && typeof v !== 'object') : null;
+        const name = primaryVal ? String(primaryVal) : `列 ID: ${r.id}`;
+        newMap.set(r.id, name);
+        newMap.set(String(r.id), name);
+      });
+      setRelationRowsMap(newMap);
+    }).catch(() => {});
+  }, [effectiveGroupByRules, fields]);
+
+  // Hierarchical Group Section Node Interface
+  interface GroupSectionNode {
+    key: string;
+    fieldKey: string;
+    field: TableField | null;
+    level: number;
+    displayTitle: string;
+    badges: GroupBadge[];
+    isBlank: boolean;
+    rows: RowData[];
+    originalIndices: number[];
+    subGroups?: GroupSectionNode[];
+    groupValues: Record<string, any>;
+  }
+
+  const frozenGroupedTreeRef = useRef<GroupSectionNode[] | null>(null);
+
+  const groupedTree = useMemo<GroupSectionNode[] | null>(() => {
+    if (effectiveGroupByRules.length === 0) {
+      frozenGroupedTreeRef.current = null;
       return null;
     }
-    // If currently editing, preserve the existing group section layout so rows do not jump while typing/selecting
-    if (isEditing && frozenGroupedSectionsRef.current) {
+
+    if (isEditing && frozenGroupedTreeRef.current) {
       const rowMap = new Map<number, RowData>();
       rows.forEach(r => rowMap.set(r.id, r));
-      return frozenGroupedSectionsRef.current.map(([key, data]) => [
-        key,
-        {
-          ...data,
-          rows: data.rows.map(r => rowMap.get(r.id) || r)
-        }
-      ] as [string, { rows: RowData[]; originalIndices: number[]; displayTitle: string; badges: GroupBadge[]; isBlank: boolean }]);
+
+      const updateNodeRows = (node: GroupSectionNode): GroupSectionNode => ({
+        ...node,
+        rows: node.rows.map(r => rowMap.get(r.id) || r),
+        subGroups: node.subGroups ? node.subGroups.map(updateNodeRows) : undefined,
+      });
+
+      return frozenGroupedTreeRef.current.map(updateNodeRows);
     }
 
-    const map = new Map<string, { rows: RowData[]; originalIndices: number[]; displayTitle: string; badges: GroupBadge[]; isBlank: boolean }>();
-    rows.forEach((row, idx) => {
-      const rawVal = (row as any).data ? (row as any).data[groupByField] : (row.values ? row.values[parseInt(groupByField.replace('field_', ''))] : undefined);
-      const { key, displayTitle, badges, isBlank } = parseGroupValue(rawVal, groupedField, relationRowsMap);
+    const buildTree = (
+      subRows: RowData[],
+      subIndices: number[],
+      level: number,
+      parentPath: string,
+      parentValues: Record<string, any>
+    ): GroupSectionNode[] => {
+      if (level >= effectiveGroupByRules.length || subRows.length === 0) return [];
 
-      if (!map.has(key)) {
-        map.set(key, {
-          rows: [],
-          originalIndices: [],
-          displayTitle,
-          badges,
-          isBlank,
-        });
-      }
-      const grp = map.get(key)!;
-      grp.rows.push(row);
-      grp.originalIndices.push(idx);
-    });
-    const result = Array.from(map.entries());
-    frozenGroupedSectionsRef.current = result;
+      const rule = effectiveGroupByRules[level];
+      const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey) || null;
+
+      const map = new Map<string, {
+        rawVal: any;
+        displayTitle: string;
+        badges: GroupBadge[];
+        isBlank: boolean;
+        rows: RowData[];
+        originalIndices: number[];
+      }>();
+
+      subRows.forEach((row, rIdx) => {
+        const rawVal = (row as any).data ? (row as any).data[rule.fieldKey] : (row.values ? row.values[parseInt(rule.fieldKey.replace('field_', ''))] : undefined);
+        const { key: groupValKey, displayTitle, badges, isBlank } = parseGroupValue(rawVal, field, relationRowsMap);
+
+        if (!map.has(groupValKey)) {
+          map.set(groupValKey, {
+            rawVal,
+            displayTitle,
+            badges,
+            isBlank,
+            rows: [],
+            originalIndices: [],
+          });
+        }
+        const grp = map.get(groupValKey)!;
+        grp.rows.push(row);
+        grp.originalIndices.push(subIndices[rIdx]);
+      });
+
+      const sortedEntries = Array.from(map.entries()).sort(([keyA, dataA], [keyB, dataB]) => {
+        if (dataA.isBlank && !dataB.isBlank) return 1;
+        if (!dataA.isBlank && dataB.isBlank) return -1;
+        const cmp = dataA.displayTitle.localeCompare(dataB.displayTitle, 'zh-TW', { numeric: true });
+        return rule.order === 'desc' ? -cmp : cmp;
+      });
+
+      return sortedEntries.map(([groupValKey, data]) => {
+        const nodeKey = parentPath ? `${parentPath}:::${rule.fieldKey}:${groupValKey}` : `${rule.fieldKey}:${groupValKey}`;
+        const currentValues = { ...parentValues, [rule.fieldKey]: data.rawVal };
+        const hasNextLevel = level + 1 < effectiveGroupByRules.length;
+        const subGroups = hasNextLevel
+          ? buildTree(data.rows, data.originalIndices, level + 1, nodeKey, currentValues)
+          : undefined;
+
+        return {
+          key: nodeKey,
+          fieldKey: rule.fieldKey,
+          field,
+          level,
+          displayTitle: data.displayTitle,
+          badges: data.badges,
+          isBlank: data.isBlank,
+          rows: data.rows,
+          originalIndices: data.originalIndices,
+          subGroups,
+          groupValues: currentValues,
+        };
+      });
+    };
+
+    const initialIndices = rows.map((_, i) => i);
+    const result = buildTree(rows, initialIndices, 0, '', {});
+    frozenGroupedTreeRef.current = result;
     return result;
-  }, [rows, groupByField, groupedField, relationRowsMap, isEditing]);
+  }, [rows, effectiveGroupByRules, fields, relationRowsMap, isEditing]);
+
+  // Backward compatibility alias for single group sections
+  const groupedSections = useMemo(() => {
+    if (!groupedTree || groupedTree.length === 0) return null;
+    return groupedTree.map(node => [node.key, node] as [string, GroupSectionNode]);
+  }, [groupedTree]);
 
   // Flat list of rows according to visible/expanded group sections
   const visualGroupedRows = useMemo(() => {
-    if (!groupByField || !groupedSections) return null;
+    if (!groupedTree || groupedTree.length === 0) return null;
     const result: { row: RowData; originalIndex: number }[] = [];
-    groupedSections.forEach(([groupKey, groupData]) => {
-      if (!isGroupCollapsed(groupKey, activeCollapseState)) {
-        groupData.rows.forEach((r, idx) => {
-          result.push({ row: r, originalIndex: groupData.originalIndices[idx] });
+
+    const traverse = (node: GroupSectionNode) => {
+      if (isGroupCollapsed(node.key, activeCollapseState)) return;
+      if (node.subGroups && node.subGroups.length > 0) {
+        node.subGroups.forEach(traverse);
+      } else {
+        node.rows.forEach((r, idx) => {
+          result.push({ row: r, originalIndex: node.originalIndices[idx] });
         });
       }
-    });
+    };
+
+    groupedTree.forEach(traverse);
     return result;
-  }, [groupByField, groupedSections, activeCollapseState]);
+  }, [groupedTree, activeCollapseState]);
 
   const handleNavigateCell = useCallback((rIndex: number, cIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => {
     // If at the bottom-most row and pressing down/enter, or at the bottom-right cell and pressing Tab: auto add row!
@@ -1332,316 +1439,328 @@ export const GridView: React.FC<GridViewProps> = ({
 
           {/* 2. Rows Body */}
           <div className="grid-view__body-inner" style={{ flex: 1, width: `${totalTableWidth}px`, minWidth: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
-            {groupedSections ? (
+            {groupedTree && groupedTree.length > 0 ? (
               <div className="grid-view__grouped-body" style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-                {groupedSections.map(([groupKey, groupData]) => {
-                  const isCollapsed = isGroupCollapsed(groupKey, activeCollapseState);
-                  const groupSummaries = groupSummariesMap?.get(groupKey);
+                {(() => {
+                  const renderGroupNode = (node: GroupSectionNode): React.ReactNode => {
+                    const isCollapsed = isGroupCollapsed(node.key, activeCollapseState);
+                    const groupSummaries = computeFieldSummaries(node.rows, fields);
+                    const isTopLevel = node.level === 0;
 
-                  return (
-                    <div key={groupKey} className="grid-view__group-section" style={{ width: '100%', marginBottom: '12px' }}>
-                      {/* Group By Banner (Aligned with Table Columns) */}
-                      <div
-                        className="grid-view__group-by-banner"
-                        style={{
-                          position: 'relative',
-                          display: 'flex',
-                          alignItems: 'stretch',
-                          height: '38px',
-                          backgroundColor: isCollapsed ? '#f1f5f9' : '#f8fafc',
-                          borderTop: '1px solid #e2e8f0',
-                          borderBottom: '1px solid #cbd5e1',
-                          width: `${totalTableWidth}px`,
-                          minWidth: '100%',
-                          boxSizing: 'border-box',
-                          userSelect: 'none',
-                          transition: 'background-color 0.15s ease',
-                        }}
-                      >
-                        {/* Primary Group Info Column (Sticky Left: 0, Auto-expanding so Field Name & Badges are NEVER clipped) */}
+                    return (
+                      <div key={node.key} className="grid-view__group-section" style={{ width: '100%', marginBottom: isTopLevel ? '12px' : '4px' }}>
+                        {/* Group By Banner (Aligned with Table Columns) */}
                         <div
-                          onClick={() => handleToggleGroup(groupKey)}
+                          className="grid-view__group-by-banner"
                           style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            height: '100%',
-                            minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
-                            maxWidth: '85%',
-                            paddingLeft: '10px',
-                            paddingRight: '14px',
-                            position: 'sticky',
-                            left: 0,
-                            zIndex: 22,
-                            backgroundColor: isCollapsed ? '#f1f5f9' : '#f8fafc',
-                            borderLeft: '4px solid #3F6212',
-                            borderRight: '1px solid #cbd5e1',
-                            boxShadow: '3px 0 6px -2px rgba(0, 0, 0, 0.08)',
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'stretch',
+                            height: isTopLevel ? '38px' : '34px',
+                            backgroundColor: isTopLevel
+                              ? (isCollapsed ? '#f1f5f9' : '#f8fafc')
+                              : (isCollapsed ? '#f8fafc' : '#ffffff'),
+                            borderTop: '1px solid #e2e8f0',
+                            borderBottom: '1px solid #cbd5e1',
+                            width: `${totalTableWidth}px`,
+                            minWidth: '100%',
                             boxSizing: 'border-box',
-                            cursor: 'pointer',
-                            gap: '8px',
-                            flexShrink: 0,
+                            userSelect: 'none',
                             transition: 'background-color 0.15s ease',
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isCollapsed ? '#f1f5f9' : '#f8fafc'}
-                          title={isCollapsed ? '點擊展開分組' : '點擊折疊分組'}
                         >
-                          {/* Chevron Toggle Button */}
+                          {/* Primary Group Info Column (Sticky Left: 0, Auto-expanding so Field Name & Badges are NEVER clipped) */}
                           <div
+                            onClick={() => handleToggleGroup(node.key)}
                             style={{
-                              display: 'flex',
+                              display: 'inline-flex',
                               alignItems: 'center',
-                              justifyContent: 'center',
-                              width: '20px',
-                              height: '20px',
-                              borderRadius: '4px',
-                              transition: 'transform 0.15s ease',
-                              transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-                              color: '#475569',
-                              flexShrink: 0,
-                            }}
-                          >
-                            <ChevronDown size={14} />
-                          </div>
-
-                          {/* Group Field Name */}
-                          {groupedField && (
-                            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
-                              {groupedField.name}:
-                            </span>
-                          )}
-
-                          {/* Group Value Badges */}
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
-                            {groupData.badges.length > 0 ? (
-                              groupData.badges.map((b, bIdx) => (
-                                <span
-                                  key={bIdx}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    padding: '2px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '12px',
-                                    fontWeight: 600,
-                                    backgroundColor: b.bg || '#f1f5f9',
-                                    color: b.color || '#334155',
-                                    border: `1px solid ${b.border || 'transparent'}`,
-                                    whiteSpace: 'nowrap',
-                                  }}
-                                  title={b.label}
-                                >
-                                  {b.label}
-                                </span>
-                              ))
-                            ) : (
-                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
-                                （空白未指定）
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Row Count Badge */}
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              color: '#475569',
-                              fontWeight: 600,
-                              backgroundColor: '#e2e8f0',
-                              padding: '1px 8px',
-                              borderRadius: '10px',
-                              border: '1px solid #cbd5e1',
-                              flexShrink: 0,
-                              marginLeft: '4px',
-                            }}
-                          >
-                            {groupData.rows.length} 筆
-                          </span>
-                        </div>
-
-                        {/* Group Field Aggregation Cells (Columns 1..N) */}
-                        {fields.slice(1).map((field) => {
-                          const summary = groupSummaries?.[field.id];
-                          const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'none');
-                          const displayText = formatGroupSummaryText(summary, mode);
-
-                          return (
-                            <div
-                              key={field.id}
-                              style={{
-                                width: `var(--field-width-${field.id}, ${field.width || 180}px)`,
-                                minWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
-                                maxWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'flex-end',
-                                padding: '0 10px',
-                                borderRight: '1px solid #f1f5f9',
-                                boxSizing: 'border-box',
-                                backgroundColor: 'inherit',
-                              }}
-                            >
-                              {displayText ? (
-                                <span
-                                  style={{
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    color: '#334155',
-                                    fontFamily: 'monospace',
-                                    backgroundColor: '#e2e8f0',
-                                    padding: '2px 7px',
-                                    borderRadius: '5px',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    border: '1px solid #cbd5e1',
-                                  }}
-                                >
-                                  {displayText}
-                                </span>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-
-                        {/* Trailing Spacer */}
-                        <div style={{ flex: 1, backgroundColor: 'inherit', minWidth: '90px' }} />
-                      </div>
-
-                      {/* Grouped Rows */}
-                      {!isCollapsed && (
-                        <div className="grid-view__grouped-rows" style={{ display: 'flex', flexDirection: 'column' }}>
-                          {groupData.rows.map((row: RowData, inGrpIdx: number) => {
-                            const rIndex = groupData.originalIndices[inGrpIdx];
-                            return (
-                              <GridViewRow
-                                key={row.id}
-                                row={row}
-                                rowIndex={rIndex >= 0 ? rIndex : 0}
-                                fields={fields}
-                                rowColorRules={rowColorRules}
-                                rowDetailsWidth={rowDetailsWidth}
-                                selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
-                                isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
-                                selectionBounds={selectionBounds}
-                                isRowSelectedDirectly={selectedRowIds.has(row.id)}
-                                onToggleRowCheckbox={handleToggleRowCheckbox}
-                                onSelectRowHeader={handleSelectRowHeader}
-                                onMouseEnterRowHeader={handleMouseEnterRowHeader}
-                                onSelectCell={(cIndex, e) => {
-                                  if (e?.shiftKey && selectedCell) {
-                                    setSelectionStart(selectedCell);
-                                    setSelectionEnd([rIndex, cIndex]);
-                                  } else {
-                                    setSelectedCell([rIndex, cIndex]);
-                                    setSelectionStart([rIndex, cIndex]);
-                                    setSelectionEnd([rIndex, cIndex]);
-                                  }
-                                  setIsEditing(false);
-                                  setEditingCellInfo(null);
-                                }}
-                                onMouseEnterCell={(cIndex) => {
-                                  if (isDraggingSelection && selectionStart) {
-                                    setSelectionEnd([rIndex, cIndex]);
-                                  }
-                                }}
-                                onStartAutofillCell={(cIndex, e) => {
-                                  e.stopPropagation();
-                                  setIsAutofilling(true);
-                                  setAutofillStart([rIndex, cIndex]);
-                                  setAutofillEnd([rIndex, cIndex]);
-                                  setSelectionStart([rIndex, cIndex]);
-                                  setSelectionEnd([rIndex, cIndex]);
-                                }}
-                                onStartEditCell={(cIndex) => {
-                                  setSelectedCell([rIndex, cIndex]);
-                                  setEditingCellInfo({ rowId: row.id, colIndex: cIndex });
-                                  setIsEditing(true);
-                                }}
-                                onUpdateCell={(fieldId, val) => {
-                                  onUpdateCell?.(row.id, fieldId, val);
-                                }}
-                                onUpdateField={onUpdateField}
-                                onCancelEditCell={() => {
-                                  setIsEditing(false);
-                                  setEditingCellInfo(null);
-                                }}
-                                onExpandRow={() => onExpandRow?.(row.id)}
-                                onReorderRows={onReorderRows}
-                                onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}
-                              />
-                            );
-                          })}
-                          {/* Group-specific Add Row Bar */}
-                          <div
-                            className="grid-view__group-add-row-bar"
-                            onClick={() => {
-                              const grpField = groupedField ? `field_${groupedField.id}` : groupByField;
-                              const rawVal = groupData.rows[0] ? ((groupData.rows[0] as any).data?.[grpField!] ?? groupData.rows[0].values?.[parseInt(grpField!.replace('field_', ''))]) : undefined;
-                              if (grpField) {
-                                onBatchAddRows ? onBatchAddRows([{ [grpField]: rawVal ?? (groupData.isBlank ? '' : groupData.displayTitle) }]) : onAddRow?.();
-                              } else {
-                                onAddRow?.();
-                              }
-                            }}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              height: '32px',
-                              width: `${fieldsWidth}px`,
-                              borderBottom: '1px solid #e2e8f0',
-                              background: '#ffffff',
-                              cursor: 'pointer',
+                              height: '100%',
+                              minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                              maxWidth: '85%',
+                              paddingLeft: `${8 + node.level * 22}px`,
+                              paddingRight: '14px',
+                              position: 'sticky',
+                              left: 0,
+                              zIndex: 22 - node.level,
+                              backgroundColor: isTopLevel
+                                ? (isCollapsed ? '#f1f5f9' : '#f8fafc')
+                                : (isCollapsed ? '#f8fafc' : '#ffffff'),
+                              borderLeft: isTopLevel ? '4px solid #3F6212' : '3px solid #84cc16',
+                              borderRight: '1px solid #cbd5e1',
+                              boxShadow: '3px 0 6px -2px rgba(0, 0, 0, 0.08)',
                               boxSizing: 'border-box',
-                              transition: 'background 0.15s ease',
+                              cursor: 'pointer',
+                              gap: '8px',
+                              flexShrink: 0,
+                              transition: 'background-color 0.15s ease',
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                            onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isTopLevel ? (isCollapsed ? '#f1f5f9' : '#f8fafc') : (isCollapsed ? '#f8fafc' : '#ffffff')}
+                            title={isCollapsed ? '點擊展開分組' : '點擊折疊分組'}
                           >
+                            {/* Chevron Toggle Button */}
                             <div
                               style={{
-                                width: `${rowDetailsWidth}px`,
-                                minWidth: `${rowDetailsWidth}px`,
-                                maxWidth: `${rowDetailsWidth}px`,
-                                height: '100%',
-                                position: 'sticky',
-                                left: 0,
-                                zIndex: 15,
-                                background: 'inherit',
-                                borderRight: '1px solid #e2e8f0',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                color: '#64748b',
-                                boxSizing: 'border-box',
+                                width: '20px',
+                                height: '20px',
+                                borderRadius: '4px',
+                                transition: 'transform 0.15s ease',
+                                transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                                color: '#475569',
+                                flexShrink: 0,
                               }}
                             >
-                              <Plus style={{ width: '13px', height: '13px' }} />
+                              <ChevronDown size={isTopLevel ? 14 : 13} />
                             </div>
-                            <div
-                              style={{
-                                paddingLeft: '12px',
-                                fontSize: '12px',
-                                color: '#64748b',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                userSelect: 'none',
-                              }}
-                            >
-                              <span>+ 在「</span>
-                              <span style={{ fontWeight: 600, color: '#334155' }}>
-                                {groupData.isBlank ? '未指定' : groupData.displayTitle}
+
+                            {/* Group Field Name */}
+                            {node.field && (
+                              <span style={{ fontSize: isTopLevel ? '12px' : '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
+                                {isTopLevel ? `${node.field.name}:` : `Then by ${node.field.name}:`}
                               </span>
-                              <span>」新增資料列</span>
+                            )}
+
+                            {/* Group Value Badges */}
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
+                              {node.badges.length > 0 ? (
+                                node.badges.map((b, bIdx) => (
+                                  <span
+                                    key={bIdx}
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      padding: isTopLevel ? '2px 8px' : '1px 6px',
+                                      borderRadius: '6px',
+                                      fontSize: isTopLevel ? '12px' : '11px',
+                                      fontWeight: 600,
+                                      backgroundColor: b.bg || '#f1f5f9',
+                                      color: b.color || '#334155',
+                                      border: `1px solid ${b.border || 'transparent'}`,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                    title={b.label}
+                                  >
+                                    {b.label}
+                                  </span>
+                                ))
+                              ) : (
+                                <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                  （空白未指定）
+                                </span>
+                              )}
                             </div>
+
+                            {/* Row Count Badge */}
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                color: '#475569',
+                                fontWeight: 600,
+                                backgroundColor: '#e2e8f0',
+                                padding: '1px 8px',
+                                borderRadius: '10px',
+                                border: '1px solid #cbd5e1',
+                                flexShrink: 0,
+                                marginLeft: '4px',
+                              }}
+                            >
+                              {node.rows.length} 筆
+                            </span>
                           </div>
+
+                          {/* Group Field Aggregation Cells (Columns 1..N) */}
+                          {fields.slice(1).map((field) => {
+                            const summary = groupSummaries?.[field.id];
+                            const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'none');
+                            const displayText = formatGroupSummaryText(summary, mode);
+
+                            return (
+                              <div
+                                key={field.id}
+                                style={{
+                                  width: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+                                  minWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+                                  maxWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'flex-end',
+                                  padding: '0 10px',
+                                  borderRight: '1px solid #f1f5f9',
+                                  boxSizing: 'border-box',
+                                  backgroundColor: 'inherit',
+                                }}
+                              >
+                                {displayText ? (
+                                  <span
+                                    style={{
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      color: '#334155',
+                                      fontFamily: 'monospace',
+                                      backgroundColor: '#e2e8f0',
+                                      padding: '2px 7px',
+                                      borderRadius: '5px',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      border: '1px solid #cbd5e1',
+                                    }}
+                                  >
+                                    {displayText}
+                                  </span>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+
+                          {/* Trailing Spacer */}
+                          <div style={{ flex: 1, backgroundColor: 'inherit', minWidth: '90px' }} />
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+
+                        {/* Children: Subgroups or Leaf Rows */}
+                        {!isCollapsed && (
+                          <>
+                            {node.subGroups && node.subGroups.length > 0 ? (
+                              <div className="grid-view__sub-groups" style={{ display: 'flex', flexDirection: 'column', width: '100%', marginTop: '4px' }}>
+                                {node.subGroups.map(subNode => renderGroupNode(subNode))}
+                              </div>
+                            ) : (
+                              <div className="grid-view__grouped-rows" style={{ display: 'flex', flexDirection: 'column' }}>
+                                {node.rows.map((row: RowData, inGrpIdx: number) => {
+                                  const rIndex = node.originalIndices[inGrpIdx];
+                                  return (
+                                    <GridViewRow
+                                      key={row.id}
+                                      row={row}
+                                      rowIndex={rIndex >= 0 ? rIndex : 0}
+                                      fields={fields}
+                                      rowColorRules={rowColorRules}
+                                      rowDetailsWidth={rowDetailsWidth}
+                                      selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
+                                      isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
+                                      selectionBounds={selectionBounds}
+                                      isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                                      onToggleRowCheckbox={handleToggleRowCheckbox}
+                                      onSelectRowHeader={handleSelectRowHeader}
+                                      onMouseEnterRowHeader={handleMouseEnterRowHeader}
+                                      onSelectCell={(cIndex, e) => {
+                                        if (e?.shiftKey && selectedCell) {
+                                          setSelectionStart(selectedCell);
+                                          setSelectionEnd([rIndex, cIndex]);
+                                        } else {
+                                          setSelectedCell([rIndex, cIndex]);
+                                          setSelectionStart([rIndex, cIndex]);
+                                          setSelectionEnd([rIndex, cIndex]);
+                                        }
+                                        setIsEditing(false);
+                                        setEditingCellInfo(null);
+                                      }}
+                                      onMouseEnterCell={(cIndex) => {
+                                        if (isDraggingSelection && selectionStart) {
+                                          setSelectionEnd([rIndex, cIndex]);
+                                        }
+                                      }}
+                                      onStartAutofillCell={(cIndex, e) => {
+                                        e.stopPropagation();
+                                        setIsAutofilling(true);
+                                        setAutofillStart([rIndex, cIndex]);
+                                        setAutofillEnd([rIndex, cIndex]);
+                                        setSelectionStart([rIndex, cIndex]);
+                                        setSelectionEnd([rIndex, cIndex]);
+                                      }}
+                                      onStartEditCell={(cIndex) => {
+                                        setSelectedCell([rIndex, cIndex]);
+                                        setEditingCellInfo({ rowId: row.id, colIndex: cIndex });
+                                        setIsEditing(true);
+                                      }}
+                                      onUpdateCell={(fieldId, val) => {
+                                        onUpdateCell?.(row.id, fieldId, val);
+                                      }}
+                                      onUpdateField={onUpdateField}
+                                      onCancelEditCell={() => {
+                                        setIsEditing(false);
+                                        setEditingCellInfo(null);
+                                      }}
+                                      onExpandRow={() => onExpandRow?.(row.id)}
+                                      onReorderRows={onReorderRows}
+                                      onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}
+                                    />
+                                  );
+                                })}
+                                {/* Group-specific Add Row Bar */}
+                                <div
+                                  className="grid-view__group-add-row-bar"
+                                  onClick={() => {
+                                    if (onBatchAddRows) {
+                                      onBatchAddRows([node.groupValues]);
+                                    } else {
+                                      onAddRow?.();
+                                    }
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    height: '32px',
+                                    width: `${fieldsWidth}px`,
+                                    borderBottom: '1px solid #e2e8f0',
+                                    background: '#ffffff',
+                                    cursor: 'pointer',
+                                    boxSizing: 'border-box',
+                                    transition: 'background 0.15s ease',
+                                    paddingLeft: `${node.level * 16}px`,
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                                  onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
+                                >
+                                  <div
+                                    style={{
+                                      width: `${rowDetailsWidth}px`,
+                                      minWidth: `${rowDetailsWidth}px`,
+                                      maxWidth: `${rowDetailsWidth}px`,
+                                      height: '100%',
+                                      position: 'sticky',
+                                      left: 0,
+                                      zIndex: 15,
+                                      background: 'inherit',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderRight: '1px solid #e2e8f0',
+                                      color: '#94a3b8',
+                                      fontSize: '14px',
+                                    }}
+                                  >
+                                    +
+                                  </div>
+                                  <div
+                                    style={{
+                                      paddingLeft: '12px',
+                                      fontSize: '12px',
+                                      color: '#64748b',
+                                      fontWeight: 500,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    + 在「{node.isBlank ? '未指定' : node.displayTitle}」新增資料列
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  return groupedTree.map(renderGroupNode);
+                })()}
               </div>
             ) : (
               <div

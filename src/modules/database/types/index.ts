@@ -73,6 +73,11 @@ export type CellValue = string | number | boolean | null | CellValue[] | { [key:
 export type ViewType = 'grid' | 'kanban' | 'gallery' | 'calendar' | 'timeline' | 'form'
 export type SortOrder = 'asc' | 'desc'
 
+export interface GroupByRule {
+  fieldKey: string
+  order: 'asc' | 'desc'
+}
+
 export interface TableView {
   id: number
   tableId: number
@@ -84,6 +89,7 @@ export interface TableView {
   hiddenFields: string | null
   columnWidths?: string | null
   groupByField?: string | null
+  groupByRules?: GroupByRule[] | string | null
   rowColors: string | null
   aggregations?: string | null
 }
@@ -96,6 +102,7 @@ export type ViewConfigPatch = {
   hiddenFields?: string[] | string | null
   columnWidths?: Record<string, number> | string | null
   groupByField?: string | null
+  groupByRules?: GroupByRule[] | string | null
   rowColors?: RowColorRule[] | string | null
   aggregations?: Record<string | number, string> | string | null
 }

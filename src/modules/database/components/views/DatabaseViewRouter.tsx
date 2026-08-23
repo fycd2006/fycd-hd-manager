@@ -5,7 +5,7 @@ import KanbanView from './kanban/KanbanView'
 import CalendarView from './calendar/CalendarView'
 import TimelineView from './timeline/TimelineView'
 import FormView from './form/FormView'
-import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule, GroupCollapseState } from '../../types'
+import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule, GroupCollapseState, GroupByRule } from '../../types'
 import { formatDateValue } from '../../utils'
 
 interface DatabaseViewRouterProps {
@@ -20,6 +20,7 @@ interface DatabaseViewRouterProps {
   sortField: string | null
   sortOrder: 'asc' | 'desc'
   groupByField: string | null
+  groupByRules?: GroupByRule[]
   groupCollapseState?: GroupCollapseState
   onUpdateGroupCollapseState?: (state: GroupCollapseState | ((prev: GroupCollapseState) => GroupCollapseState)) => void
   rowColorRules?: RowColorRule[]
@@ -78,6 +79,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   sortField,
   sortOrder,
   groupByField,
+  groupByRules,
   groupCollapseState,
   onUpdateGroupCollapseState,
   rowColorRules,
@@ -148,6 +150,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           sortField={sortField}
           sortOrder={sortOrder}
           groupByField={groupByField}
+          groupByRules={groupByRules}
           groupCollapseState={groupCollapseState}
           onUpdateGroupCollapseState={onUpdateGroupCollapseState}
           rowColorRules={rowColorRules}

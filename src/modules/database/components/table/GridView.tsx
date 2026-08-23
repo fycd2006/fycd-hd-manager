@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { TableField, TableRow, FilterRule, RowColorRule, GroupCollapseState } from '@/modules/database/types'
+import type { TableField, TableRow, FilterRule, RowColorRule, GroupCollapseState, GroupByRule } from '@/modules/database/types'
 import { GridView as GridViewContent, RowData } from '../views/grid/GridView'
 import { WorkspaceGridSkeleton } from './WorkspaceGridSkeleton'
 
@@ -14,6 +14,7 @@ interface GridViewProps {
   sortField?: string | null
   sortOrder?: 'asc' | 'desc'
   groupByField?: string | null
+  groupByRules?: GroupByRule[]
   groupCollapseState?: GroupCollapseState
   onUpdateGroupCollapseState?: (state: GroupCollapseState | ((prev: GroupCollapseState) => GroupCollapseState)) => void
   rowColorRules?: RowColorRule[]
@@ -72,6 +73,7 @@ export default function GridView({
   sortField,
   sortOrder,
   groupByField,
+  groupByRules,
   groupCollapseState,
   onUpdateGroupCollapseState,
   rowColorRules,
@@ -160,6 +162,7 @@ export default function GridView({
         sortField={sortField}
         sortOrder={sortOrder}
         groupByField={groupByField}
+        groupByRules={groupByRules}
         rowColorRules={rowColorRules}
         onUpdateCell={handleUpdateCell}
         onBatchUpdateCells={readOnly ? undefined : onBatchUpdateCells}

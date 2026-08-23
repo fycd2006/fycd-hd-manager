@@ -75,7 +75,8 @@ import type {
   ContextMenu,
   FilterRule,
   RowColorRule,
-  GroupCollapseState
+  GroupCollapseState,
+  GroupByRule
 } from '@/modules/database/types'
 
 export default function Home() {
@@ -132,6 +133,7 @@ export default function Home() {
   const [showRowColorsPanel, setShowRowColorsPanel] = useState(false)
   const [showGroupByPanel, setShowGroupByPanel] = useState(false)
   const [groupByField, setGroupByField] = useState<string | null>(null)
+  const [groupByRules, setGroupByRules] = useState<GroupByRule[]>([])
 
   // Modals
   const [showNewFieldModal, setShowNewFieldModal] = useState(false)
@@ -351,7 +353,30 @@ export default function Home() {
     const parsedWidths = safeParse(view.columnWidths, {})
     setColumnWidths(typeof parsedWidths === 'object' && parsedWidths !== null && !Array.isArray(parsedWidths) ? parsedWidths : {})
 
-    setGroupByField(view.groupByField || null)
+    const parsedGroupBy = safeParse(view.groupByRules || view.groupByField, null)
+    if (Array.isArray(parsedGroupBy)) {
+      setGroupByRules(parsedGroupBy)
+      setGroupByField(parsedGroupBy.length > 0 ? parsedGroupBy[0].fieldKey : null)
+    } else if (typeof view.groupByField === 'string' && view.groupByField) {
+      if (view.groupByField.startsWith('[')) {
+        try {
+          const arr = JSON.parse(view.groupByField)
+          if (Array.isArray(arr)) {
+            setGroupByRules(arr)
+            setGroupByField(arr.length > 0 ? arr[0].fieldKey : null)
+          }
+        } catch {
+          setGroupByRules([{ fieldKey: view.groupByField, order: 'asc' }])
+          setGroupByField(view.groupByField)
+        }
+      } else {
+        setGroupByRules([{ fieldKey: view.groupByField, order: 'asc' }])
+        setGroupByField(view.groupByField)
+      }
+    } else {
+      setGroupByRules([])
+      setGroupByField(null)
+    }
   }, [])
 
   // Fetch table data using parallel services with race-condition protection & atomic state hydration
@@ -2052,11 +2077,18 @@ export default function Home() {
                   }
                 }}
                 groupByField={groupByField}
-                setGroupByField={(field) => {
-                  setGroupByField(field)
+                setGroupByField={setGroupByField}
+                groupByRules={groupByRules}
+                setGroupByRules={(rules) => {
+                  setGroupByRules(rules)
+                  const primaryKey = rules.length > 0 ? rules[0].fieldKey : null
+                  setGroupByField(primaryKey)
                   setGroupCollapseState({ mode: 'expand', exceptions: {} })
                   if (wsState.activeViewId) {
-                    saveViewConfig(wsState.activeViewId, { groupByField: field })
+                    saveViewConfig(wsState.activeViewId, {
+                      groupByField: rules.length > 0 ? JSON.stringify(rules) : null,
+                      groupByRules: rules,
+                    })
                   }
                 }}
                 onToggleCollapseAllGroups={(collapse) => {
@@ -2108,6 +2140,7 @@ export default function Home() {
                     sortField={sortField}
                     sortOrder={sortOrder}
                     groupByField={groupByField}
+                    groupByRules={groupByRules}
                     groupCollapseState={groupCollapseState}
                     onUpdateGroupCollapseState={setGroupCollapseState}
                     rowColorRules={rowColorRules}

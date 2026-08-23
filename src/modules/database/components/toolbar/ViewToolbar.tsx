@@ -1,13 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2 } from 'lucide-react'
-import type { TableView, TableField, FilterRule, RowColorRule } from '@/modules/database/types'
+import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import { ViewContextMenu } from '@/modules/database/components/menu/ViewContextMenu'
 import { FilterMenu } from './menu/FilterMenu'
 import { SortMenu } from './menu/SortMenu'
 import { ColorMenu } from './menu/ColorMenu'
+import { GroupMenu } from './menu/GroupMenu'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
@@ -47,8 +48,10 @@ interface ViewToolbarProps {
   setRowColorRules: (v: RowColorRule[]) => void
 
   // Group
-  groupByField: string | null
-  setGroupByField: (v: string | null) => void
+  groupByField?: string | null
+  setGroupByField?: (v: string | null) => void
+  groupByRules?: GroupByRule[]
+  setGroupByRules?: (v: GroupByRule[]) => void
   onToggleCollapseAllGroups?: (collapse: boolean) => void
 
   // Fields (hide/show)
@@ -96,6 +99,8 @@ export function ViewToolbar({
   setRowColorRules,
   groupByField,
   setGroupByField,
+  groupByRules,
+  setGroupByRules,
   onToggleCollapseAllGroups,
   fields,
   hiddenFieldKeys,
@@ -113,6 +118,32 @@ export function ViewToolbar({
   canRedo = false
 }: ViewToolbarProps) {
   const { t } = useI18n()
+
+  const activeGroupByRules: GroupByRule[] = React.useMemo(() => {
+    if (groupByRules && groupByRules.length > 0) return groupByRules;
+    if (groupByField) {
+      if (typeof groupByField === 'string' && groupByField.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(groupByField);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+      return [{ fieldKey: groupByField, order: 'asc' }];
+    }
+    return [];
+  }, [groupByRules, groupByField]);
+
+  const handleSetGroupByRules = React.useCallback((rules: GroupByRule[]) => {
+    setGroupByRules?.(rules);
+    const primaryKey = rules.length > 0 ? rules[0].fieldKey : null;
+    setGroupByField?.(primaryKey);
+    if (activeViewId) {
+      saveViewConfig(activeViewId, {
+        groupByField: rules.length > 0 ? JSON.stringify(rules) : null,
+        groupByRules: rules,
+      });
+    }
+  }, [setGroupByRules, setGroupByField, activeViewId, saveViewConfig]);
   const safeRowColorRules = Array.isArray(rowColorRules) ? rowColorRules : [];
   const safeFilterRules = Array.isArray(filterRules) ? filterRules : [];
   const safeFields = Array.isArray(fields) ? fields : [];
@@ -433,12 +464,18 @@ export function ViewToolbar({
 
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${groupByField ? 'active' : activeHeaderMenu === 'group' ? 'active' : ''}`}
+            className={`header__filter-link ${activeGroupByRules.length > 0 ? 'active' : activeHeaderMenu === 'group' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('group', e)}
             style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <Layers size={16} color={groupByField || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: groupByField ? '#3F6212' : '#44403C' }}>{t('toolbar.group')}</span>
+            <Layers size={16} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 ? '#3F6212' : '#44403C' }}>
+              {activeGroupByRules.length === 0
+                ? t('toolbar.group')
+                : activeGroupByRules.length === 1
+                ? `1 ${t('toolbar.group')}`
+                : `Group by ${activeGroupByRules.length} fields`}
+            </span>
           </a>
         </li>
       </ul>
@@ -1336,101 +1373,12 @@ export function ViewToolbar({
 
             {/* Group Content */}
             {activeHeaderMenu === 'group' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div
-                  onClick={() => {
-                    setGroupByField(null);
-                    if (activeViewId) saveViewConfig(activeViewId, { groupByField: null });
-                  }}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    backgroundColor: !groupByField ? '#F4F4F5' : '#f8fafc',
-                    color: !groupByField ? '#3F6212' : '#0f172a',
-                    fontWeight: !groupByField ? 700 : 500,
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <span>({t('toolbar.noGrouping')})</span>
-                  {!groupByField && <Check size={16} color="#3F6212" />}
-                </div>
-                {fields.map(f => {
-                  const key = `field_${f.id}`;
-                  const isSelected = groupByField === key;
-                  return (
-                    <div
-                      key={f.id}
-                      onClick={() => {
-                        setGroupByField(key);
-                        if (activeViewId) saveViewConfig(activeViewId, { groupByField: key });
-                      }}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        backgroundColor: isSelected ? '#F4F4F5' : '#f8fafc',
-                        color: isSelected ? '#3F6212' : '#0f172a',
-                        fontWeight: isSelected ? 700 : 500,
-                        fontSize: '13px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <span>{f.name}</span>
-                      {isSelected && <Check size={16} color="#3F6212" />}
-                    </div>
-                  );
-                })}
-                {groupByField && (
-                  <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '10px', paddingTop: '10px', display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onToggleCollapseAllGroups?.(true);
-                        setActiveHeaderMenu(null);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        color: '#475569',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      全部折疊
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onToggleCollapseAllGroups?.(false);
-                        setActiveHeaderMenu(null);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '10px 12px',
-                        fontSize: '13px',
-                        fontWeight: 600,
-                        color: '#475569',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      全部展開
-                    </button>
-                  </div>
-                )}
-              </div>
+              <GroupMenu
+                fields={fields}
+                groupByRules={activeGroupByRules}
+                setGroupByRules={handleSetGroupByRules}
+                onCollapseAll={(collapse) => onToggleCollapseAllGroups?.(collapse)}
+              />
             )}
 
             {/* Hide Fields Content */}
