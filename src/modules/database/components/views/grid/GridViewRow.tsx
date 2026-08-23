@@ -28,7 +28,7 @@ interface GridViewRowProps {
   onSelectCell: (colIndex: number, e?: React.MouseEvent) => void;
   onSelectRowHeader?: (rowIndex: number, e: React.MouseEvent) => void;
   onToggleRowCheckbox?: (rowId: number, e: React.MouseEvent) => void;
-  onMouseEnterRowHeader?: (rowIndex: number) => void;
+  onMouseEnterRowHeader?: (rowIndex: number, e?: React.MouseEvent) => void;
   onMouseEnterCell?: (colIndex: number) => void;
   onStartAutofillCell?: (colIndex: number, e: React.MouseEvent) => void;
   onStartEditCell: (colIndex: number) => void;
@@ -185,9 +185,12 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             onSelectRowHeader?.(rowIndex, e);
           }
         }}
-        onMouseEnter={() => {
+        onMouseEnter={(e) => {
           setIsHovered(true);
-          onMouseEnterRowHeader?.(rowIndex);
+          onMouseEnterRowHeader?.(rowIndex, e);
+        }}
+        onDragEnd={() => {
+          setIsDragTarget(false);
         }}
         onMouseLeave={() => setIsHovered(false)}
         title={!canDrag ? (t('toolbar.sortActiveDragDisabled') || '已套用排序條件，無法手動拖曳調整順序') : undefined}

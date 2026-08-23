@@ -707,7 +707,13 @@ export const GridView: React.FC<GridViewProps> = ({
       setAutofillEnd(null);
     };
     window.addEventListener('mouseup', handleMouseUp);
-    return () => window.removeEventListener('mouseup', handleMouseUp);
+    window.addEventListener('dragend', handleMouseUp);
+    window.addEventListener('drop', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('dragend', handleMouseUp);
+      window.removeEventListener('drop', handleMouseUp);
+    };
   }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell]);
 
 
@@ -1146,7 +1152,11 @@ export const GridView: React.FC<GridViewProps> = ({
     }
   }, [selectionStart, fields.length, rows, selectedRowIds, handleToggleRowCheckbox]);
 
-  const handleMouseEnterRowHeader = useCallback((rIndex: number) => {
+  const handleMouseEnterRowHeader = useCallback((rIndex: number, e?: React.MouseEvent) => {
+    if (e && e.buttons !== 1) {
+      setIsDraggingSelection(false);
+      return;
+    }
     if (isDraggingSelection && selectionStart) {
       setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
       const minR = Math.min(selectionStart[0], rIndex);

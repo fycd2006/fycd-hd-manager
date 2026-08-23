@@ -99,6 +99,31 @@ export const updateCell = async (
 }
 
 /**
+ * Update an entire row's fields
+ */
+export const updateRow = async (
+  tableId: number,
+  rowId: number,
+  data: Record<string, any>
+): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
+  try {
+    const socketId = getSocketId()
+    const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates: [{ rowId, data }], socket_id: socketId }),
+    })
+    const resData = await res.json()
+    if (res.ok) {
+      return { ok: true }
+    }
+    return { ok: false, error: resData.error || '更新列失敗' }
+  } catch {
+    return { ok: false, error: '更新列失敗' }
+  }
+}
+
+/**
  * Batch update multiple rows in a single HTTP request
  */
 export const batchUpdateRows = async (
