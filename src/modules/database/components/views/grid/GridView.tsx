@@ -1344,6 +1344,7 @@ export const GridView: React.FC<GridViewProps> = ({
                       <div
                         className="grid-view__group-by-banner"
                         style={{
+                          position: 'relative',
                           display: 'flex',
                           alignItems: 'stretch',
                           height: '38px',
@@ -1357,18 +1358,18 @@ export const GridView: React.FC<GridViewProps> = ({
                           transition: 'background-color 0.15s ease',
                         }}
                       >
-                        {/* Primary Group Info Column (Sticky Left) */}
+                        {/* Primary Group Info Column (Sticky Left: aligned with Column 0 + Column 1) */}
                         <div
                           onClick={() => handleToggleGroup(groupKey)}
                           style={{
-                            width: `${Math.max(340, rowDetailsWidth + (fields[0]?.width || 180))}px`,
-                            minWidth: `${Math.max(340, rowDetailsWidth + (fields[0]?.width || 180))}px`,
-                            maxWidth: `${Math.max(340, rowDetailsWidth + (fields[0]?.width || 180))}px`,
+                            width: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                            minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                            maxWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
                             height: '100%',
                             display: 'flex',
                             alignItems: 'center',
-                            paddingLeft: '10px',
-                            paddingRight: '12px',
+                            paddingLeft: '8px',
+                            paddingRight: '8px',
                             position: 'sticky',
                             left: 0,
                             zIndex: 22,
@@ -1378,7 +1379,7 @@ export const GridView: React.FC<GridViewProps> = ({
                             boxShadow: '2px 0 5px -2px rgba(0, 0, 0, 0.06)',
                             boxSizing: 'border-box',
                             cursor: 'pointer',
-                            gap: '8px',
+                            gap: '6px',
                             transition: 'background-color 0.15s ease',
                           }}
                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
@@ -1391,8 +1392,8 @@ export const GridView: React.FC<GridViewProps> = ({
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              width: '22px',
-                              height: '22px',
+                              width: '20px',
+                              height: '20px',
                               borderRadius: '4px',
                               transition: 'transform 0.15s ease',
                               transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
@@ -1400,35 +1401,36 @@ export const GridView: React.FC<GridViewProps> = ({
                               flexShrink: 0,
                             }}
                           >
-                            <ChevronDown size={15} />
+                            <ChevronDown size={14} />
                           </div>
 
                           {/* Group Field Name & Badges (Clean Horizontal Layout) */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
                             {groupedField && (
                               <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
                                 {groupedField.name}:
                               </span>
                             )}
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', overflow: 'hidden', flexWrap: 'nowrap' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', overflow: 'hidden', flexWrap: 'nowrap' }}>
                               {groupData.badges.map((b, bIdx) => (
                                 <span
                                   key={bIdx}
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    padding: '2px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '12px',
+                                    padding: '1px 6px',
+                                    borderRadius: '5px',
+                                    fontSize: '11px',
                                     fontWeight: 600,
                                     backgroundColor: b.bg || '#f1f5f9',
                                     color: b.color || '#334155',
                                     border: `1px solid ${b.border || 'transparent'}`,
-                                    maxWidth: '180px',
+                                    maxWidth: '120px',
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap',
                                   }}
+                                  title={b.label}
                                 >
                                   {b.label}
                                 </span>
@@ -1443,7 +1445,7 @@ export const GridView: React.FC<GridViewProps> = ({
                               color: '#475569',
                               fontWeight: 600,
                               backgroundColor: '#e2e8f0',
-                              padding: '1px 8px',
+                              padding: '1px 7px',
                               borderRadius: '10px',
                               border: '1px solid #cbd5e1',
                               flexShrink: 0,
