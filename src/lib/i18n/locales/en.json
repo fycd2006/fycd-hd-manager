@@ -161,12 +161,18 @@
   "sort": {
     "title": "Sort Rules",
     "noSort": "Records in this view are not sorted",
+    "addSortRule": "Add sort rule",
+    "sortBy": "Sort by",
+    "thenBy": "Then by",
     "asc": "A-Z (Ascending)",
     "desc": "Z-A (Descending)"
   },
   "group": {
     "title": "Group Rules",
     "noGroup": "Records in this view are not grouped",
+    "addGroupRule": "Add group rule",
+    "groupBy": "Group by",
+    "thenBy": "Then by",
     "selectGroupField": "Select Group Field"
   },
   "color": {

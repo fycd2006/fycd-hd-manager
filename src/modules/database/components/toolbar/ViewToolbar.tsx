@@ -187,11 +187,12 @@ export function ViewToolbar({
   const [showViewContext, setShowViewContext] = useState(false)
   const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
   const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null)
   const [fieldSearchQuery, setFieldSearchQuery] = useState('')
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
+    const checkMobile = () => setIsMobile(window.innerWidth < 640)
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -480,7 +481,7 @@ export function ViewToolbar({
         {/* Sort Button */}
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
-            className={`header__filter-link ${sortField ? 'active' : activeHeaderMenu === 'sort' ? 'active' : ''}`}
+            className={`header__filter-link ${activeSortRules.length > 0 ? 'active' : activeHeaderMenu === 'sort' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('sort', e)}
             style={{ 
               cursor: 'pointer', 
@@ -488,7 +489,7 @@ export function ViewToolbar({
               alignItems: 'center', 
               gap: '6px',
               height: '32px',
-              backgroundColor: sortField || activeHeaderMenu === 'sort' ? '#F4F4F5' : 'transparent',
+              backgroundColor: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#F4F4F5' : 'transparent',
               border: 'none',
               borderRadius: '6px',
               padding: '0 12px',
@@ -496,15 +497,15 @@ export function ViewToolbar({
               transition: 'background-color 0.15s ease',
             }}
             onMouseEnter={(e) => {
-              if (!sortField && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = '#F4F4F5';
+              if (activeSortRules.length === 0 && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = '#F4F4F5';
             }}
             onMouseLeave={(e) => {
-              if (!sortField && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = 'transparent';
+              if (activeSortRules.length === 0 && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            <ArrowDownAZ size={16} color={sortField || activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: sortField || activeHeaderMenu === 'sort' ? '#3F6212' : '#44403C', fontWeight: sortField || activeHeaderMenu === 'sort' ? 600 : 500 }}>
-              {sortField ? `1 ${t('toolbar.sort')}` : t('toolbar.sort')}
+            <ArrowDownAZ size={16} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#44403C', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 600 : 500 }}>
+              {activeSortRules.length > 0 ? `${activeSortRules.length} ${t('toolbar.sort')}` : t('toolbar.sort')}
             </span>
           </a>
         </li>
@@ -770,13 +771,18 @@ export function ViewToolbar({
       </ul>
 
       {/* Top-Layer Floating Portal for Toolbar Menus (Prevents any overflow clipping across all viewports) */}
-      {activeHeaderMenu && menuAnchorRect && createPortal(
+      {activeHeaderMenu && (isMobile || menuAnchorRect) && createPortal(
         <div
           style={{
             position: 'fixed',
             inset: 0,
             zIndex: 99999998,
-            backgroundColor: 'transparent',
+            backgroundColor: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
+            backdropFilter: isMobile ? 'blur(3px)' : 'none',
+            display: isMobile ? 'flex' : 'block',
+            alignItems: isMobile ? 'center' : undefined,
+            justifyContent: isMobile ? 'center' : undefined,
+            padding: isMobile ? '16px' : 0,
             pointerEvents: 'auto'
           }}
           onClick={() => setActiveHeaderMenu(null)}
@@ -786,19 +792,19 @@ export function ViewToolbar({
             className="toolbar-popover-card"
             data-portal-root="true"
             style={{
-              position: 'fixed',
-              top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`,
-              left: `${Math.max(8, Math.min(menuAnchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 800) - (activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? 380 : activeHeaderMenu === 'sort' ? 320 : 220)))}px`,
+              position: isMobile ? 'relative' : 'fixed',
+              top: isMobile ? undefined : `${(menuAnchorRect?.top || 0) + (menuAnchorRect?.height || 0) + 6}px`,
+              left: isMobile ? undefined : `${Math.max(8, Math.min(menuAnchorRect?.left || 8, (typeof window !== 'undefined' ? window.innerWidth : 800) - (activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? 540 : activeHeaderMenu === 'sort' || activeHeaderMenu === 'group' ? 490 : 290)))}px`,
               zIndex: 99999999,
               backgroundColor: '#ffffff',
-              borderRadius: '10px',
+              borderRadius: isMobile ? '16px' : '10px',
               boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
               border: '1px solid #e2e8f0',
               padding: activeHeaderMenu === 'hide' || activeHeaderMenu === 'rowHeight' ? '6px' : '12px',
-              minWidth: activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? '340px' : activeHeaderMenu === 'sort' ? '300px' : '200px',
-              maxWidth: '92vw',
+              maxWidth: isMobile ? '100%' : '92vw',
               maxHeight: 'calc(100vh - 100px)',
-              overflowY: 'auto'
+              overflowY: 'auto',
+              overflowX: 'hidden',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -844,13 +850,13 @@ export function ViewToolbar({
 
             {/* Hide Fields Content */}
             {activeHeaderMenu === 'hide' && (
-              <div className="hidings" style={{ width: '280px', maxWidth: '90vw', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="hidings" style={{ width: '300px', maxWidth: '90vw', overflowX: 'hidden', overflowY: 'hidden', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div className="hidings__head" style={{ padding: '2px 0 6px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div className="hidings__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <Search size={14} className="hidings__search-icon" style={{ position: 'absolute', left: '8px', color: '#94a3b8' }} />
                     <input
                       type="text"
-                      placeholder="Search fields"
+                      placeholder={t('hideFields.searchFields') || "Search fields"}
                       value={fieldSearchQuery}
                       onChange={(e) => setFieldSearchQuery(e.target.value)}
                       className="hidings__search-input"
@@ -879,12 +885,12 @@ export function ViewToolbar({
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      {t('toolbar.showAll') || 'Show all'}
+                      {t('hideFields.showAll') || '全部顯示'}
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        const allKeys = fields.map(f => `field_${f.id}`)
+                        const allKeys = fields.filter((_, idx) => idx > 0).map(f => `field_${f.id}`)
                         setHiddenFieldKeys(allKeys)
                         if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify(allKeys) })
                       }}
@@ -902,13 +908,14 @@ export function ViewToolbar({
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#ef4444'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
                     >
-                      {t('toolbar.hideAll') || 'Hide all'}
+                      {t('hideFields.hideAll') || '全部隱藏'}
                     </button>
                   </div>
                 </div>
-                <div className="hidings__body" style={{ maxHeight: '240px', overflowY: 'auto', padding: '2px 0' }}>
+                <div className="hidings__body" style={{ maxHeight: '240px', overflowY: 'auto', overflowX: 'hidden', padding: '2px 0' }}>
                   <ul className="hidings__list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    {filteredFieldsForHide.map(field => {
+                    {filteredFieldsForHide.map((field) => {
+                      const isPrimary = fields.length > 0 && fields[0].id === field.id
                       const key = `field_${field.id}`
                       const isHidden = hiddenFieldKeys.includes(key) || hiddenFieldKeys.includes(String(field.id))
                       return (
@@ -916,6 +923,7 @@ export function ViewToolbar({
                           key={field.id}
                           className="hidings__item"
                           onClick={() => {
+                            if (isPrimary) return
                             const newHidden = isHidden
                               ? hiddenFieldKeys.filter(k => k !== key && k !== String(field.id))
                               : [...hiddenFieldKeys, key]
@@ -928,7 +936,7 @@ export function ViewToolbar({
                             justifyContent: 'space-between',
                             padding: '6px 8px',
                             borderRadius: '6px',
-                            cursor: 'pointer',
+                            cursor: isPrimary ? 'not-allowed' : 'pointer',
                             fontSize: '13px',
                             backgroundColor: isHidden ? 'transparent' : '#ffffff',
                             transition: 'background-color 0.15s ease'
@@ -943,6 +951,11 @@ export function ViewToolbar({
                             <span style={{ color: isHidden ? '#94a3b8' : '#1e293b', fontWeight: isHidden ? 400 : 500 }}>
                               {field.name}
                             </span>
+                            {isPrimary && (
+                              <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: 600 }}>
+                                Primary
+                              </span>
+                            )}
                           </div>
                           {/* Modern toggle badge */}
                           <div
@@ -955,6 +968,7 @@ export function ViewToolbar({
                               transition: 'background-color 0.2s ease',
                               flexShrink: 0,
                               marginLeft: '8px',
+                              opacity: isPrimary ? 0.7 : 1,
                             }}
                           >
                             <div
@@ -1131,432 +1145,6 @@ export function ViewToolbar({
                   <Plus size={14} style={{ marginRight: '8px' }} />
                   新增視圖
                 </a>
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Mobile Top-Layer Portal for Toolbar Menus (Prevents any clipping or overlap) */}
-      {isMobile && activeHeaderMenu && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999999,
-            backgroundColor: 'rgba(15, 23, 42, 0.45)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            pointerEvents: 'auto',
-            touchAction: 'manipulation'
-          }}
-          onClick={() => setActiveHeaderMenu(null)}
-        >
-          <div
-            className="toolbar-popover-card"
-            data-portal-root="true"
-            style={{
-              width: '100%',
-              maxWidth: '420px',
-              maxHeight: '80vh',
-              backgroundColor: '#ffffff',
-              borderRadius: '24px',
-              boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.22)',
-              padding: '20px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-                {activeHeaderMenu === 'filter' && t('filter.title')}
-                {activeHeaderMenu === 'sort' && t('sort.title')}
-                {activeHeaderMenu === 'color' && t('color.title')}
-                {activeHeaderMenu === 'group' && t('group.title')}
-                {activeHeaderMenu === 'hide' && t('hideFields.title')}
-                {activeHeaderMenu === 'rowHeight' && t('toolbar.rowHeight')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setActiveHeaderMenu(null)}
-                style={{ width: '30px', height: '30px', borderRadius: '9999px', backgroundColor: '#f1f5f9', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Filter Content */}
-            {activeHeaderMenu === 'filter' && (
-              filterRules.length === 0 ? (
-                <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '24px 0' }}>
-                  {t('filter.noRules')}
-                  <div style={{ marginTop: '14px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newRule = { fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '', operator: 'contains' as const, value: '' };
-                        setFilterRules([newRule]);
-                      }}
-                      style={{ padding: '8px 16px', backgroundColor: '#18181B', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      + {t('filter.addRule')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {filterRules.map((rule, idx) => (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{idx === 0 ? t('filter.where') : t('filter.and')}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newRules = filterRules.filter((_, i) => i !== idx);
-                            setFilterRules(newRules);
-                          }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '12px' }}
-                        >
-                          {t('common.remove')}
-                        </button>
-                      </div>
-                      <select
-                        value={rule.fieldKey}
-                        onChange={(e) => {
-                          const newRules = [...filterRules];
-                          newRules[idx].fieldKey = e.target.value;
-                          setFilterRules(newRules);
-                        }}
-                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      >
-                        {fields.map(f => <option key={f.id} value={`field_${f.id}`}>{f.name}</option>)}
-                      </select>
-                      <select
-                        value={rule.operator}
-                        onChange={(e) => {
-                          const newRules = [...filterRules];
-                          newRules[idx].operator = e.target.value as any;
-                          setFilterRules(newRules);
-                        }}
-                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      >
-                        <option value="contains">{t('filter.contains')}</option>
-                        <option value="not_contains">{t('filter.notContains')}</option>
-                        <option value="equals">{t('filter.equals')}</option>
-                        <option value="not_equals">{t('filter.notEquals')}</option>
-                        <option value="empty">{t('filter.isEmpty')}</option>
-                        <option value="not_empty">{t('filter.isNotEmpty')}</option>
-                      </select>
-                      {rule.operator !== 'empty' && rule.operator !== 'not_empty' && (
-                        <input
-                          type="text"
-                          value={rule.value}
-                          onChange={(e) => {
-                            const newRules = [...filterRules];
-                            newRules[idx].value = e.target.value;
-                            setFilterRules(newRules);
-                          }}
-                          placeholder={t('toolbar.enterValuePlaceholder')}
-                          style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newRule = { fieldKey: fields.length > 0 ? `field_${fields[0].id}` : '', operator: 'contains' as const, value: '' };
-                      setFilterRules([...filterRules, newRule]);
-                    }}
-                    style={{ padding: '10px', backgroundColor: '#F4F4F5', color: '#18181B', border: 'none', borderRadius: '12px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', marginTop: '6px' }}
-                  >
-                    + {t('toolbar.addCondition')}
-                  </button>
-                </div>
-              )
-            )}
-
-            {/* Sort Content */}
-            {activeHeaderMenu === 'sort' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>{t('toolbar.selectSortField')}</div>
-                {fields.map(f => {
-                  const key = `field_${f.id}`
-                  const isSelected = sortField === key
-                  return (
-                    <div
-                      key={f.id}
-                      onClick={() => {
-                        setSortField(isSelected ? null : key)
-                        if (activeViewId) saveViewConfig(activeViewId, { sortField: isSelected ? null : key })
-                      }}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        backgroundColor: isSelected ? '#F4F4F5' : '#f8fafc',
-                        color: isSelected ? '#3F6212' : '#0f172a',
-                        fontWeight: isSelected ? 700 : 500,
-                        fontSize: '13px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}
-                    >
-                      <span>{f.name}</span>
-                      {isSelected && <Check size={16} color="#3F6212" />}
-                    </div>
-                  )
-                })}
-                {sortField && (
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortOrder('asc')
-                        if (activeViewId) saveViewConfig(activeViewId, { sortOrder: 'asc' })
-                      }}
-                      style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', backgroundColor: sortOrder === 'asc' ? '#3F6212' : '#f1f5f9', color: sortOrder === 'asc' ? '#fff' : '#475569', fontSize: '12px', fontWeight: 600 }}
-                    >
-                      {t('sort.asc')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortOrder('desc')
-                        if (activeViewId) saveViewConfig(activeViewId, { sortOrder: 'desc' })
-                      }}
-                      style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', backgroundColor: sortOrder === 'desc' ? '#3F6212' : '#f1f5f9', color: sortOrder === 'desc' ? '#fff' : '#475569', fontSize: '12px', fontWeight: 600 }}
-                    >
-                      {t('sort.desc')}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Color Content */}
-            {activeHeaderMenu === 'color' && (
-              safeRowColorRules.length === 0 ? (
-                <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '24px 0' }}>
-                  {t('toolbar.noColorRules')}
-                  <div style={{ marginTop: '14px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newRule: RowColorRule = {
-                          fieldKey: safeFields.length > 0 ? `field_${safeFields[0].id}` : '',
-                          operator: 'contains',
-                          value: '',
-                          color: 'blue'
-                        };
-                        const updated = [...safeRowColorRules, newRule];
-                        setRowColorRules(updated);
-                        if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                      }}
-                      style={{ padding: '8px 16px', backgroundColor: '#18181B', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      + {t('color.addRule')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {safeRowColorRules.map((rule, idx) => (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#64748b' }}>{idx === 0 ? t('filter.where') : t('filter.and')}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = safeRowColorRules.filter((_, i) => i !== idx);
-                            setRowColorRules(updated);
-                            if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                          }}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '12px' }}
-                        >
-                          {t('common.delete')}
-                        </button>
-                      </div>
-                      <select
-                        value={rule.fieldKey}
-                        onChange={(e) => {
-                          const updated = [...safeRowColorRules];
-                          updated[idx].fieldKey = e.target.value;
-                          setRowColorRules(updated);
-                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                        }}
-                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      >
-                        {safeFields.map(f => <option key={f.id} value={`field_${f.id}`}>{f.name}</option>)}
-                      </select>
-                      <select
-                        value={rule.operator}
-                        onChange={(e) => {
-                          const updated = [...safeRowColorRules];
-                          updated[idx].operator = e.target.value as any;
-                          setRowColorRules(updated);
-                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                        }}
-                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      >
-                        <option value="contains">{t('filter.contains')}</option>
-                        <option value="equals">{t('filter.equals')}</option>
-                      </select>
-                      <input
-                        type="text"
-                        value={rule.value}
-                        placeholder={t('toolbar.enterValuePlaceholder')}
-                        onChange={(e) => {
-                          const updated = [...safeRowColorRules];
-                          updated[idx].value = e.target.value;
-                          setRowColorRules(updated);
-                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                        }}
-                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      />
-                      <select
-                        value={rule.color}
-                        onChange={(e) => {
-                          const updated = [...safeRowColorRules];
-                          updated[idx].color = e.target.value as any;
-                          setRowColorRules(updated);
-                          if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                        }}
-                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                      >
-                        <option value="red">{t('color.red')}</option>
-                        <option value="green">{t('color.green')}</option>
-                        <option value="blue">{t('color.blue')}</option>
-                        <option value="yellow">{t('color.yellow')}</option>
-                        <option value="purple">{t('color.purple')}</option>
-                        <option value="orange">{t('color.orange')}</option>
-                      </select>
-                    </div>
-                  ))}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newRule: RowColorRule = {
-                          fieldKey: safeFields.length > 0 ? `field_${safeFields[0].id}` : '',
-                          operator: 'contains',
-                          value: '',
-                          color: 'blue'
-                        };
-                        const updated = [...safeRowColorRules, newRule];
-                        setRowColorRules(updated);
-                        if (activeViewId) saveViewConfig(activeViewId, { rowColors: JSON.stringify(updated) });
-                      }}
-                      style={{ padding: '8px 14px', backgroundColor: '#F4F4F5', color: '#18181B', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      + {t('color.addRule')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRowColorRules([]);
-                        if (activeViewId) saveViewConfig(activeViewId, { rowColors: '[]' });
-                      }}
-                      style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      {t('common.remove')}
-                    </button>
-                  </div>
-                </div>
-              )
-            )}
-
-            {/* Group Content */}
-            {activeHeaderMenu === 'group' && (
-              <GroupMenu
-                fields={fields}
-                groupByRules={activeGroupByRules}
-                setGroupByRules={handleSetGroupByRules}
-                onCollapseAll={(collapse) => onToggleCollapseAllGroups?.(collapse)}
-              />
-            )}
-
-            {/* Hide Fields Content */}
-            {activeHeaderMenu === 'hide' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {fields.map(f => {
-                  const key = `field_${f.id}`
-                  const isHidden = hiddenFieldKeys.includes(key) || hiddenFieldKeys.includes(String(f.id))
-                  return (
-                    <div
-                      key={f.id}
-                      onClick={() => {
-                        const newHidden = isHidden
-                          ? hiddenFieldKeys.filter(k => k !== key && k !== String(f.id))
-                          : [...hiddenFieldKeys, key]
-                        setHiddenFieldKeys(newHidden)
-                        if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify(newHidden) })
-                      }}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        cursor: 'pointer',
-                        backgroundColor: '#f8fafc',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        fontSize: '13px',
-                        color: isHidden ? '#94a3b8' : '#0f172a',
-                        fontWeight: 500
-                      }}
-                    >
-                      <span>{f.name}</span>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: isHidden ? '#ef4444' : '#10b981' }}>
-                        {isHidden ? 'Hidden' : 'Visible'}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Row Height Content */}
-            {activeHeaderMenu === 'rowHeight' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {[
-                  { id: 'small', label: t('toolbar.rowHeightSmall') },
-                  { id: 'medium', label: t('toolbar.rowHeightMedium') },
-                  { id: 'large', label: t('toolbar.rowHeightLarge') },
-                  { id: 'extra', label: t('toolbar.rowHeightExtra') }
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setRowHeightSize(opt.id as any)
-                      setActiveHeaderMenu(null)
-                    }}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      backgroundColor: rowHeightSize === opt.id ? '#F4F4F5' : '#f8fafc',
-                      color: rowHeightSize === opt.id ? '#3F6212' : '#0f172a',
-                      fontWeight: rowHeightSize === opt.id ? 700 : 500,
-                      fontSize: '13px',
-                      border: 'none',
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <span>{opt.label}</span>
-                    {rowHeightSize === opt.id && <Check size={16} color="#3F6212" />}
-                  </button>
-                ))}
               </div>
             )}
           </div>

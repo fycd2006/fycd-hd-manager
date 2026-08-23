@@ -127,7 +127,7 @@ export function SortMenu({
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff' }}
             >
               <Plus size={14} />
-              {t('sort.title')}
+              {t('sort.addSortRule') || '新增排序條件'}
             </button>
           </div>
         </div>
@@ -138,7 +138,7 @@ export function SortMenu({
   return (
     <div style={{ width: '480px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Sort Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', paddingRight: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeRules.map((rule, idx) => {
           const sortLabels = getSortLabels(rule.fieldKey)
           const isDragging = draggedIdx === idx
@@ -162,6 +162,7 @@ export function SortMenu({
                 border: `1px solid ${isOver ? '#86efac' : '#e2e8f0'}`,
                 opacity: isDragging ? 0.6 : 1,
                 transition: 'all 0.15s ease',
+                boxSizing: 'border-box',
               }}
             >
               {/* Drag Handle */}
@@ -212,11 +213,12 @@ export function SortMenu({
                   fontSize: '13px',
                   fontWeight: 600,
                   color: '#475569',
-                  width: '58px',
+                  width: '60px',
                   flexShrink: 0,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {idx === 0 ? 'Sort by' : 'Then by'}
+                {idx === 0 ? (t('sort.sortBy') || '排序依據') : (t('sort.thenBy') || '次要排序')}
               </span>
 
               {/* Field Select */}
@@ -320,7 +322,7 @@ export function SortMenu({
           }}
         >
           <Plus size={15} />
-          {t('viewSortContext.addSort') || 'choose a field to sort by'}
+          {t('sort.addSortRule') || '新增排序條件'}
         </button>
 
         {safeRules.length > 0 && (

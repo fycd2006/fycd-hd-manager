@@ -161,12 +161,18 @@
   "sort": {
     "title": "排序條件",
     "noSort": "在此視圖中的記錄將不會被排序",
+    "addSortRule": "新增排序條件",
+    "sortBy": "排序依據",
+    "thenBy": "次要排序",
     "asc": "A-Z (升遞)",
     "desc": "Z-A (降遞)"
   },
   "group": {
     "title": "分組條件",
     "noGroup": "在此視圖中的記錄將不會被分組",
+    "addGroupRule": "新增分組條件",
+    "groupBy": "主要分組",
+    "thenBy": "次要分組",
     "selectGroupField": "選擇分組欄位"
   },
   "color": {

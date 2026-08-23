@@ -101,9 +101,9 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
   }
 
   return (
-    <div style={{ width: '480px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ width: '500px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Filter Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', paddingRight: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeFilterRules.map((rule, idx) => {
           const selectedField = safeFields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey)
           const selectOptions = getFieldSelectOptions(selectedField)
@@ -122,6 +122,7 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
                 borderRadius: '8px',
                 backgroundColor: '#ffffff',
                 border: '1px solid #e2e8f0',
+                boxSizing: 'border-box',
                 transition: 'all 0.15s ease',
               }}
             >
@@ -162,8 +163,9 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
                   fontSize: '13px',
                   fontWeight: 600,
                   color: '#475569',
-                  width: '54px',
+                  width: '40px',
                   flexShrink: 0,
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {idx === 0 ? t('filter.where') : t('filter.and')}
@@ -185,7 +187,7 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
               </div>
 
               {/* Operator Select */}
-              <div style={{ width: '125px', flexShrink: 0 }}>
+              <div style={{ width: '115px', flexShrink: 0 }}>
                 <CustomSelect
                   value={rule.operator}
                   options={operatorOptions}

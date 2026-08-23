@@ -125,9 +125,9 @@ export function ColorMenu({
   }
 
   return (
-    <div style={{ width: '520px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ width: '530px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Color Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', paddingRight: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeRowColorRules.map((rule, idx) => (
           <div
             key={idx}
@@ -139,6 +139,7 @@ export function ColorMenu({
               borderRadius: '8px',
               backgroundColor: '#ffffff',
               border: '1px solid #e2e8f0',
+              boxSizing: 'border-box',
               transition: 'all 0.15s ease',
             }}
           >
@@ -180,15 +181,16 @@ export function ColorMenu({
                 fontSize: '13px',
                 fontWeight: 600,
                 color: '#475569',
-                width: '54px',
+                width: '40px',
                 flexShrink: 0,
+                whiteSpace: 'nowrap',
               }}
             >
               {idx === 0 ? t('filter.where') : t('filter.and')}
             </span>
 
             {/* Field Select */}
-            <div style={{ flex: 1, minWidth: '100px' }}>
+            <div style={{ flex: 1, minWidth: '110px' }}>
               <CustomSelect
                 value={rule.fieldKey}
                 options={fieldOptions}
@@ -203,7 +205,7 @@ export function ColorMenu({
             </div>
 
             {/* Operator Select */}
-            <div style={{ width: '115px', flexShrink: 0 }}>
+            <div style={{ width: '105px', flexShrink: 0 }}>
               <CustomSelect
                 value={rule.operator}
                 options={operatorOptions}
@@ -235,9 +237,10 @@ export function ColorMenu({
                 border: '1px solid #cbd5e1',
                 fontSize: '13px',
                 flex: 1,
-                minWidth: '80px',
+                minWidth: '90px',
                 outline: 'none',
                 backgroundColor: '#ffffff',
+                boxSizing: 'border-box',
               }}
             />
 

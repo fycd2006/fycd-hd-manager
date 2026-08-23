@@ -102,9 +102,9 @@ export function GroupMenu({
 
   if (safeRules.length === 0) {
     return (
-      <div style={{ padding: '8px 4px', width: '320px', boxSizing: 'border-box' }}>
+      <div style={{ padding: '8px 4px', width: '380px', maxWidth: '90vw', boxSizing: 'border-box' }}>
         <div style={{ fontSize: '13px', color: '#64748b', textAlign: 'center', padding: '16px 8px' }}>
-          尚未設定任何分組條件
+          {t('group.noGroup')}
           <div style={{ marginTop: '12px' }}>
             <button
               type="button"
@@ -125,11 +125,11 @@ export function GroupMenu({
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
                 transition: 'all 0.15s ease',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#ffffff' }}
             >
               <Plus size={14} />
-              choose a field to group by
+              {t('group.addGroupRule') || '新增分組條件'}
             </button>
           </div>
         </div>
@@ -140,7 +140,7 @@ export function GroupMenu({
   return (
     <div style={{ width: '480px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Group By Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', paddingRight: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeRules.map((rule, idx) => {
           const sortLabels = getSortLabels(rule.fieldKey)
           const isDragging = draggedIdx === idx
@@ -164,6 +164,7 @@ export function GroupMenu({
                 border: `1px solid ${isOver ? '#86efac' : '#e2e8f0'}`,
                 opacity: isDragging ? 0.6 : 1,
                 transition: 'all 0.15s ease',
+                boxSizing: 'border-box',
               }}
             >
               {/* Drag Handle */}
@@ -195,9 +196,15 @@ export function GroupMenu({
                   borderRadius: '4px',
                   transition: 'color 0.15s ease, background-color 0.15s ease',
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fee2e2'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                title="刪除此分組層級"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#ef4444'
+                  e.currentTarget.style.backgroundColor = '#fee2e2'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#64748b'
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                title={t('common.delete')}
               >
                 <X size={15} />
               </button>
@@ -208,11 +215,12 @@ export function GroupMenu({
                   fontSize: '13px',
                   fontWeight: 600,
                   color: '#475569',
-                  width: '68px',
+                  width: '60px',
                   flexShrink: 0,
+                  whiteSpace: 'nowrap',
                 }}
               >
-                {idx === 0 ? 'Group by' : 'Then by'}
+                {idx === 0 ? (t('group.groupBy') || '主要分組') : (t('group.thenBy') || '次要分組')}
               </span>
 
               {/* Field Select Dropdown */}
@@ -221,7 +229,7 @@ export function GroupMenu({
                   value={rule.fieldKey}
                   options={fieldOptions}
                   onChange={(val) => handleUpdateRuleField(idx, val)}
-                  placeholder="選擇欄位"
+                  placeholder={t('filter.selectField')}
                 />
               </div>
 
@@ -279,6 +287,52 @@ export function GroupMenu({
         })}
       </div>
 
+      {/* Collapse All / Expand All Quick Actions */}
+      {onCollapseAll && (
+        <div style={{ display: 'flex', gap: '8px', padding: '4px 0', borderTop: '1px solid #f1f5f9' }}>
+          <button
+            type="button"
+            onClick={() => onCollapseAll(false)}
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              fontSize: '12px',
+              fontWeight: 500,
+              color: '#334155',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
+          >
+            全部展開 (Expand all)
+          </button>
+          <button
+            type="button"
+            onClick={() => onCollapseAll(true)}
+            style={{
+              flex: 1,
+              padding: '6px 10px',
+              borderRadius: '6px',
+              border: '1px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              fontSize: '12px',
+              fontWeight: 500,
+              color: '#334155',
+              cursor: 'pointer',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9' }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc' }}
+          >
+            全部收合 (Collapse all)
+          </button>
+        </div>
+      )}
+
       {/* Footer Bottom Actions */}
       <div
         style={{
@@ -290,7 +344,6 @@ export function GroupMenu({
           marginTop: '4px',
         }}
       >
-        {/* Add Next Level Grouping */}
         <button
           type="button"
           onClick={() => handleAddRule()}
@@ -312,21 +365,22 @@ export function GroupMenu({
           onMouseEnter={(e) => {
             if (availableFieldsToAdd.length > 0) e.currentTarget.style.backgroundColor = '#f0fdf4'
           }}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent'
+          }}
         >
           <Plus size={15} />
-          choose a field to group by
+          {t('group.addGroupRule') || '新增分組條件'}
         </button>
 
-        {/* Global Collapse All / Expand All */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+        {safeRules.length > 0 && (
           <button
             type="button"
-            onClick={() => onCollapseAll?.(true)}
+            onClick={() => setGroupByRules([])}
             style={{
               border: 'none',
               background: 'none',
-              color: '#475569',
+              color: '#64748b',
               fontSize: '12px',
               fontWeight: 500,
               cursor: 'pointer',
@@ -334,32 +388,18 @@ export function GroupMenu({
               borderRadius: '6px',
               transition: 'all 0.15s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#475569'; }}
-          >
-            Collapse all
-          </button>
-          <span style={{ color: '#cbd5e1', fontSize: '12px' }}>|</span>
-          <button
-            type="button"
-            onClick={() => onCollapseAll?.(false)}
-            style={{
-              border: 'none',
-              background: 'none',
-              color: '#475569',
-              fontSize: '12px',
-              fontWeight: 500,
-              cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '6px',
-              transition: 'all 0.15s ease',
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f1f5f9'
+              e.currentTarget.style.color = '#ef4444'
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#475569'; }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+              e.currentTarget.style.color = '#64748b'
+            }}
           >
-            Expand all
+            {t('common.clear')}
           </button>
-        </div>
+        )}
       </div>
     </div>
   )
