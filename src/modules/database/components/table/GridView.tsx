@@ -56,6 +56,8 @@ interface GridViewProps {
   stageMoveRows?: (rowIds: number[]) => void
   cancelMoveRows?: () => void
   isOffline?: boolean
+  tableId?: number | null
+  viewId?: number | null
 }
 
 export default function GridView({
@@ -67,6 +69,8 @@ export default function GridView({
   sortOrder,
   groupByField,
   rowColorRules,
+  tableId,
+  viewId,
   readOnly = false,
   isOffline = false,
   onAddRow,
@@ -170,6 +174,8 @@ export default function GridView({
         stageMoveRows={stageMoveRows}
         cancelMoveRows={cancelMoveRows}
         isOffline={isOffline}
+        tableId={tableId}
+        viewId={viewId}
       />
     </div>
   )

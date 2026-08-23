@@ -106,7 +106,54 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [filters, setFilters] = useState<CrossTableFilterRule[]>([])
   const [showFilterBar, setShowFilterBar] = useState(false)
-  const [aggregationModes, setAggregationModes] = useState<Record<string, string>>({})
+
+  const masterStorageKey = useMemo(() => {
+    if (workspaceId && masterViewId) return `master_agg_modes_${workspaceId}_${masterViewId}`;
+    if (workspaceId) return `master_agg_modes_${workspaceId}`;
+    return null;
+  }, [workspaceId, masterViewId]);
+
+  const [aggregationModes, setAggregationModes] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined' && masterStorageKey) {
+      try {
+        const saved = localStorage.getItem(masterStorageKey);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse master aggregation modes', e);
+      }
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && masterStorageKey) {
+      try {
+        const saved = localStorage.getItem(masterStorageKey);
+        if (saved) {
+          setAggregationModes(JSON.parse(saved));
+        } else {
+          setAggregationModes({});
+        }
+      } catch (e) {
+        console.error('Failed to load master aggregation modes', e);
+      }
+    }
+  }, [masterStorageKey]);
+
+  const handleUpdateMasterAggregationMode = useCallback((key: string, newMode: string) => {
+    setAggregationModes((prev) => {
+      const next = { ...prev, [key]: newMode };
+      if (typeof window !== 'undefined' && masterStorageKey) {
+        try {
+          localStorage.setItem(masterStorageKey, JSON.stringify(next));
+        } catch (e) {
+          console.error('Failed to save master aggregation modes', e);
+        }
+      }
+      return next;
+    });
+  }, [masterStorageKey]);
+
   const [customVisibleKeys, setCustomVisibleKeys] = useState<string[] | null>(null)
   const [showColumnsBar, setShowColumnsBar] = useState(false)
   const [showFieldMappingModal, setShowFieldMappingModal] = useState(false)
@@ -3124,10 +3171,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                           value={mode}
                           data-testid={`summary-select-${key}`}
                           onChange={(e) =>
-                            setAggregationModes((prev) => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
+                            handleUpdateMasterAggregationMode(key, e.target.value)
                           }
                           style={{
                             fontSize: '11px',

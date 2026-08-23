@@ -47,6 +47,8 @@ interface GridViewProps {
   stageMoveRows?: (rowIds: number[]) => void;
   cancelMoveRows?: () => void;
   isOffline?: boolean;
+  tableId?: number | null;
+  viewId?: number | null;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -57,6 +59,8 @@ export const GridView: React.FC<GridViewProps> = ({
   groupByField,
   rowColorRules,
   rowDetailsWidth = 56,
+  tableId,
+  viewId,
   onUpdateCell,
   onBatchUpdateCells,
   onAddRow,
@@ -817,8 +821,55 @@ export const GridView: React.FC<GridViewProps> = ({
     [selectedCell, isEditing, fields.length, rows.length]
   );
 
-  // Column aggregation mode selection state
-  const [aggregationModes, setAggregationModes] = useState<Record<number, string>>({});
+  const storageKey = useMemo(() => {
+    if (tableId && viewId) return `grid_agg_modes_${tableId}_${viewId}`;
+    if (tableId) return `grid_agg_modes_${tableId}`;
+    return null;
+  }, [tableId, viewId]);
+
+  // Column aggregation mode selection state with localStorage persistence
+  const [aggregationModes, setAggregationModes] = useState<Record<number, string>>(() => {
+    if (typeof window !== 'undefined' && storageKey) {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved aggregation modes', e);
+      }
+    }
+    return {};
+  });
+
+  // Re-sync when tableId or viewId changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && storageKey) {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          setAggregationModes(JSON.parse(saved));
+        } else {
+          setAggregationModes({});
+        }
+      } catch (e) {
+        console.error('Failed to load saved aggregation modes', e);
+      }
+    }
+  }, [storageKey]);
+
+  const handleSelectAggregationMode = useCallback((fieldId: number, newMode: string) => {
+    setAggregationModes(prev => {
+      const next = { ...prev, [fieldId]: newMode };
+      if (typeof window !== 'undefined' && storageKey) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(next));
+        } catch (e) {
+          console.error('Failed to save aggregation modes', e);
+        }
+      }
+      return next;
+    });
+  }, [storageKey]);
+
   const [aggMenuState, setAggMenuState] = useState<{ fieldId: number; x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -1339,7 +1390,7 @@ export const GridView: React.FC<GridViewProps> = ({
                     totalRowCount={rows.length}
                     aggregationMode={mode}
                     onSelectAggregationMode={(fieldId, newMode) => {
-                      setAggregationModes(prev => ({ ...prev, [fieldId]: newMode }))
+                      handleSelectAggregationMode(fieldId, newMode);
                     }}
                   />
                 );
@@ -1488,7 +1539,7 @@ export const GridView: React.FC<GridViewProps> = ({
               <div
                 key={item.key}
                 onClick={() => {
-                  setAggregationModes(prev => ({ ...prev, [targetField.id]: item.key }));
+                  handleSelectAggregationMode(targetField.id, item.key);
                   setAggMenuState(null);
                 }}
                 style={{

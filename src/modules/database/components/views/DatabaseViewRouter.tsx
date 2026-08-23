@@ -119,6 +119,8 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
     <div key={currentView} className="w-full h-full animate-in fade-in duration-200 ease-out">
       {currentView === 'grid' && (
         <GridView
+          tableId={activeTableId}
+          viewId={activeViewId}
           visibleFields={fields.filter(f => !hiddenFieldKeys.includes(`field_${f.id}`))}
           displayRows={displayRows}
           gridLoading={gridLoading}
