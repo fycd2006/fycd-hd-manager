@@ -316,27 +316,84 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo, wsState.activeTableId])
 
-  // Fetch table data using new services
+  const tableFetchRequestId = useRef<number>(0)
+
+  const applyViewConfig = useCallback((view: TableView) => {
+    setCurrentView(view.type)
+    setSortField(view.sortField)
+    setSortOrder(view.sortOrder || 'asc')
+
+    const safeParse = (val: any, fallback: any) => {
+      if (!val) return fallback
+      try {
+        let parsed = typeof val === 'string' ? JSON.parse(val) : val
+        if (typeof parsed === 'string') parsed = JSON.parse(parsed) // Handle legacy double-stringified JSON
+        return parsed ?? fallback
+      } catch {
+        return fallback
+      }
+    }
+
+    const parsedFilters = safeParse(view.filters, [])
+    setFilterRules(Array.isArray(parsedFilters) ? parsedFilters : [])
+
+    const parsedHidden = safeParse(view.hiddenFields, [])
+    setHiddenFieldKeys(Array.isArray(parsedHidden) ? parsedHidden : [])
+
+    const parsedColors = safeParse(view.rowColors, [])
+    setRowColorRules(Array.isArray(parsedColors) ? parsedColors : [])
+
+    const parsedWidths = safeParse(view.columnWidths, {})
+    setColumnWidths(typeof parsedWidths === 'object' && parsedWidths !== null && !Array.isArray(parsedWidths) ? parsedWidths : {})
+
+    setGroupByField(view.groupByField || null)
+  }, [])
+
+  // Fetch table data using parallel services with race-condition protection & atomic state hydration
   const fetchTableData = useCallback(async (tableId: number) => {
+    const currentRequestId = ++tableFetchRequestId.current
     setGridLoading(true)
     try {
-      const [fieldsData, rowsData] = await Promise.all([
+      const [fieldsData, rowsData, viewsData] = await Promise.all([
         fieldService.fetchFields(tableId),
         rowService.fetchRows(tableId),
+        viewService.fetchViews(tableId),
       ])
+
+      // Drop stale response if user switched to another table before this finished
+      if (currentRequestId !== tableFetchRequestId.current) return
+
       setFields(fieldsData)
       mergeServerRows(rowsData)
-      console.log('Table data loaded:', { fields: fieldsData.length, rows: rowsData.length })
 
-      // Load views
-      fetchViews(tableId)
+      if (Array.isArray(viewsData) && viewsData.length > 0) {
+        setViews(viewsData)
+        const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
+        const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
+        const targetView = (savedViewId && viewsData.find(v => v.id === savedViewId)) || viewsData[0]
+        wsActions.setActiveViewId(targetView.id)
+        applyViewConfig(targetView)
+      } else {
+        setViews([])
+        setCurrentView('grid')
+        setFilterRules([])
+        setHiddenFieldKeys([])
+        setRowColorRules([])
+        setColumnWidths({})
+        setSortField(null)
+        setSortOrder('asc')
+        setGroupByField(null)
+      }
     } catch (error) {
+      if (currentRequestId !== tableFetchRequestId.current) return
       console.error('Failed to load table data:', error)
       uiActions.addToast(t('toasts.loadTableFailed'), 'error')
     } finally {
-      setGridLoading(false)
+      if (currentRequestId === tableFetchRequestId.current) {
+        setGridLoading(false)
+      }
     }
-  }, [uiActions, mergeServerRows, t])
+  }, [uiActions, mergeServerRows, t, wsActions, applyViewConfig])
 
   // Real-time multi-user WebSocket synchronization via Pusher
   useEffect(() => {
@@ -435,64 +492,12 @@ export default function Home() {
     addToast: uiActions.addToast,
   })
 
-  const fetchViews = useCallback(async (tableId: number) => {
-    try {
-      const data = await viewService.fetchViews(tableId)
-      console.log('Views loaded:', data)
-      if (Array.isArray(data) && data.length > 0) {
-        setViews(data)
-        const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
-        const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
-        const targetView = (savedViewId && data.find(v => v.id === savedViewId)) || data[0]
-        wsActions.setActiveViewId(targetView.id)
-        applyViewConfig(targetView)
-      } else {
-        // If no views exist, create a default grid view
-        setCurrentView('grid')
-      }
-    } catch (error) {
-      console.error('Failed to load views:', error)
-      setCurrentView('grid')
-    }
-  }, [wsActions])
-
   // Load table data when activeTableId changes
   useEffect(() => {
     if (wsState.activeTableId) {
       fetchTableData(wsState.activeTableId)
     }
   }, [wsState.activeTableId, fetchTableData])
-
-  const applyViewConfig = (view: TableView) => {
-    setCurrentView(view.type)
-    setSortField(view.sortField)
-    setSortOrder(view.sortOrder || 'asc')
-
-    const safeParse = (val: any, fallback: any) => {
-      if (!val) return fallback
-      try {
-        let parsed = typeof val === 'string' ? JSON.parse(val) : val
-        if (typeof parsed === 'string') parsed = JSON.parse(parsed) // Handle legacy double-stringified JSON
-        return parsed ?? fallback
-      } catch {
-        return fallback
-      }
-    }
-
-    const parsedFilters = safeParse(view.filters, [])
-    setFilterRules(Array.isArray(parsedFilters) ? parsedFilters : [])
-
-    const parsedHidden = safeParse(view.hiddenFields, [])
-    setHiddenFieldKeys(Array.isArray(parsedHidden) ? parsedHidden : [])
-
-    const parsedColors = safeParse(view.rowColors, [])
-    setRowColorRules(Array.isArray(parsedColors) ? parsedColors : [])
-
-    const parsedWidths = safeParse(view.columnWidths, {})
-    setColumnWidths(typeof parsedWidths === 'object' && parsedWidths !== null && !Array.isArray(parsedWidths) ? parsedWidths : {})
-
-    setGroupByField(view.groupByField || null)
-  }
 
   // Cell or multi-field row update using new service
   const updateCell = async (rowId: number, fieldKeyOrId: any, value?: CellValue, skipPushHistory: boolean = false) => {
