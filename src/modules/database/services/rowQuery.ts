@@ -493,7 +493,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
     const orderSql = sortFieldMeta
       ? buildOrderSql(sortField as string, sortFieldMeta.type, sortOrder || 'asc')
       : Prisma.sql`` // fall through to default ordering below
-    const defaultOrder = Prisma.sql`\`order\` ASC`
+    const defaultOrder = Prisma.sql`\`order\` ASC, id ASC`
     const effectiveOrder = sortFieldMeta ? orderSql : defaultOrder
 
     const offset = (page - 1) * pageSize
@@ -558,7 +558,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
 
   const rows = await prisma.tableRow.findMany({
     where: whereCondition,
-    orderBy: { order: 'asc' },
+    orderBy: [{ order: 'asc' }, { id: 'asc' }],
   })
 
   let parsed: ParsedRow[] = rows.map(r => ({ ...r, data: safeJsonParse<Record<string, any>>(r.data, {}) }))

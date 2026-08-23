@@ -1075,6 +1075,14 @@ export default function Home() {
     setRows(updatedRows)
 
     const rowIds = updatedRows.map(r => r.id)
+    if (sortField || (sortRules && sortRules.length > 0)) {
+      setSortField(null)
+      setSortRules([])
+      if (wsState.activeViewId) {
+        saveViewConfig(wsState.activeViewId, { sortField: null, sortRules: [] })
+      }
+    }
+
     try {
       if (fieldUpdates) {
         await rowService.updateRow(wsState.activeTableId, sourceRow.id, fieldUpdates);
