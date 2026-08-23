@@ -412,7 +412,7 @@ export const GridView: React.FC<GridViewProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
-  // Auto-scroll when new fields or rows are created
+  // Auto-scroll when new fields are created
   const prevFieldsCountRef = useRef(fields.length);
   useEffect(() => {
     if (fields.length > prevFieldsCountRef.current && bodyRef.current) {
@@ -420,14 +420,6 @@ export const GridView: React.FC<GridViewProps> = ({
     }
     prevFieldsCountRef.current = fields.length;
   }, [fields.length]);
-
-  const prevRowsCountRef = useRef(rows.length);
-  useEffect(() => {
-    if (rows.length > prevRowsCountRef.current && bodyRef.current) {
-      bodyRef.current.scrollTo({ top: bodyRef.current.scrollHeight, behavior: 'smooth' });
-    }
-    prevRowsCountRef.current = rows.length;
-  }, [rows.length]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -1215,19 +1207,12 @@ export const GridView: React.FC<GridViewProps> = ({
     };
   }, [rowVirtualizer]);
 
-  // Auto scroll to selected cell row when selectedCell changes
+  // Auto scroll to selected cell row when selectedCell changes (ONLY in flat non-grouped view)
   useEffect(() => {
-    if (selectedCell && rowVirtualizer) {
+    if (selectedCell && rowVirtualizer && (!effectiveGroupByRules || effectiveGroupByRules.length === 0)) {
       rowVirtualizer.scrollToIndex(selectedCell[0], { align: 'auto' });
     }
-  }, [selectedCell, rowVirtualizer]);
-
-  // Reset scroll position to top when sort/filter/fields change
-  useEffect(() => {
-    if (bodyRef.current && !selectedCell) {
-      bodyRef.current.scrollTop = 0;
-    }
-  }, [sortField, sortOrder, groupByField]);
+  }, [selectedCell, rowVirtualizer, effectiveGroupByRules]);
 
   const handleResizeColumnLocal = useCallback((fieldId: number, newWidth: number) => {
     if (containerRef.current) {
