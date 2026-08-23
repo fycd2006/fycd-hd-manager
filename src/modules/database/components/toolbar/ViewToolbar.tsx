@@ -44,6 +44,8 @@ interface ViewToolbarProps {
   // Filter
   filterRules: FilterRule[]
   setFilterRules: (v: FilterRule[]) => void
+  filterType?: 'AND' | 'OR'
+  setFilterType?: (v: 'AND' | 'OR') => void
 
   // Color rules
   rowColorRules: RowColorRule[]
@@ -99,6 +101,8 @@ export function ViewToolbar({
   setSortRules,
   filterRules,
   setFilterRules,
+  filterType = 'AND',
+  setFilterType,
   rowColorRules,
   setRowColorRules,
   groupByField,
@@ -813,6 +817,8 @@ export function ViewToolbar({
                 fields={fields}
                 filterRules={filterRules}
                 setFilterRules={setFilterRules}
+                filterType={filterType}
+                setFilterType={setFilterType}
               />
             )}
 

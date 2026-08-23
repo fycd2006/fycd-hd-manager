@@ -89,6 +89,7 @@ export interface TableView {
   name: string
   type: ViewType
   filters: string | null
+  filterType?: 'AND' | 'OR' | null
   sortField: string | null
   sortOrder: SortOrder | null
   sortRules?: SortRule[] | string | null
@@ -102,7 +103,8 @@ export interface TableView {
 
 export type ViewConfigPatch = {
   type?: ViewType
-  filters?: FilterRule[] | string | null
+  filters?: FilterRule[] | FilterGroupConfig | string | null
+  filterType?: 'AND' | 'OR' | null
   sortField?: string | null
   sortOrder?: SortOrder | null
   sortRules?: SortRule[] | string | null

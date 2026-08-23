@@ -8,9 +8,17 @@ interface FilterMenuProps {
   fields: TableField[]
   filterRules: FilterRule[]
   setFilterRules: (rules: FilterRule[]) => void
+  filterType?: 'AND' | 'OR'
+  setFilterType?: (type: 'AND' | 'OR') => void
 }
 
-export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuProps) {
+export function FilterMenu({
+  fields,
+  filterRules,
+  setFilterRules,
+  filterType = 'AND',
+  setFilterType,
+}: FilterMenuProps) {
   const { t } = useI18n()
   const safeFields = Array.isArray(fields) ? fields : []
   const safeFilterRules = Array.isArray(filterRules) ? filterRules : []
@@ -101,7 +109,7 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
   }
 
   return (
-    <div style={{ width: '500px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ width: '520px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Filter Rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeFilterRules.map((rule, idx) => {
@@ -157,19 +165,41 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
                 <X size={15} />
               </button>
 
-              {/* Level Label */}
-              <span
-                style={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#475569',
-                  width: '40px',
-                  flexShrink: 0,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {idx === 0 ? t('filter.where') : t('filter.and')}
-              </span>
+              {/* Where / And / Or Operator Selector (Baserow Standard) */}
+              <div style={{ width: '64px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                {idx === 0 ? (
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#475569',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('filter.where') || '當'}
+                  </span>
+                ) : idx === 1 ? (
+                  <CustomSelect
+                    value={filterType || 'AND'}
+                    options={[
+                      { value: 'AND', label: t('filter.and') || '且' },
+                      { value: 'OR', label: t('filter.or') || '或' },
+                    ]}
+                    onChange={(val) => setFilterType?.(val as 'AND' | 'OR')}
+                  />
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#475569',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {(filterType || 'AND') === 'OR' ? (t('filter.or') || '或') : (t('filter.and') || '且')}
+                  </span>
+                )}
+              </div>
 
               {/* Field Select */}
               <div style={{ flex: 1, minWidth: '110px' }}>

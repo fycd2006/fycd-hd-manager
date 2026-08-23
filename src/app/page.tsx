@@ -126,6 +126,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [filterRules, setFilterRules] = useState<FilterRule[]>([])
+  const [filterType, setFilterType] = useState<'AND' | 'OR'>('AND')
 
   // Hidden Fields & Row Colors Config
   const [hiddenFieldKeys, setHiddenFieldKeys] = useState<string[]>([])
@@ -372,7 +373,13 @@ export default function Home() {
     }
 
     const parsedFilters = safeParse(view.filters, [])
-    setFilterRules(Array.isArray(parsedFilters) ? parsedFilters : [])
+    if (parsedFilters && typeof parsedFilters === 'object' && !Array.isArray(parsedFilters)) {
+      setFilterRules(Array.isArray(parsedFilters.rules) ? parsedFilters.rules : [])
+      setFilterType(parsedFilters.filterType === 'OR' ? 'OR' : 'AND')
+    } else {
+      setFilterRules(Array.isArray(parsedFilters) ? parsedFilters : [])
+      setFilterType(view.filterType === 'OR' ? 'OR' : 'AND')
+    }
 
     const parsedHidden = safeParse(view.hiddenFields, [])
     setHiddenFieldKeys(Array.isArray(parsedHidden) ? parsedHidden : [])
@@ -1136,6 +1143,13 @@ export default function Home() {
     // Advanced filters
     if (Array.isArray(filterRules) && filterRules.length > 0) {
       result = result.filter(row => {
+        if (filterType === 'OR') {
+          return filterRules.some(rule => {
+            const val = getCellValue(row, rule.fieldKey)
+            const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
+            return evaluateCellCondition(val, field, rule.operator, rule.value)
+          })
+        }
         return filterRules.every(rule => {
           const val = getCellValue(row, rule.fieldKey)
           const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
@@ -2122,7 +2136,20 @@ export default function Home() {
                 setFilterRules={(rules) => {
                   setFilterRules(rules)
                   if (wsState.activeViewId) {
-                    saveViewConfig(wsState.activeViewId, { filters: JSON.stringify(rules) })
+                    saveViewConfig(wsState.activeViewId, {
+                      filters: JSON.stringify({ filterType, rules }),
+                      filterType,
+                    })
+                  }
+                }}
+                filterType={filterType}
+                setFilterType={(type) => {
+                  setFilterType(type)
+                  if (wsState.activeViewId) {
+                    saveViewConfig(wsState.activeViewId, {
+                      filters: JSON.stringify({ filterType: type, rules: filterRules }),
+                      filterType: type,
+                    })
                   }
                 }}
                 rowColorRules={Array.isArray(rowColorRules) ? rowColorRules : []}
