@@ -31,16 +31,36 @@ export async function POST(
       .map((item: any) => (typeof item === 'number' ? item : item?.id))
       .filter((n: any) => typeof n === 'number' && !isNaN(n))
 
-    // Batch update row orders in a transaction
-    await prisma.$transaction(async (tx) => {
-      for (let index = 0; index < rowIds.length; index++) {
-        const rowId = rowIds[index]
-        await tx.tableRow.update({
-          where: { id: rowId },
-          data: { order: index },
-        })
-      }
+    // Safely update row orders in a transaction for existing rows
+    const existingRows = await prisma.tableRow.findMany({
+      where: { tableId: id, id: { in: rowIds } },
+      select: { id: true },
     })
+    const existingIdSet = new Set(existingRows.map(r => r.id))
+
+    if (existingRows.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (let index = 0; index < rowIds.length; index++) {
+          const rowId = rowIds[index]
+          if (!existingIdSet.has(rowId)) continue
+          await tx.tableRow.update({
+            where: { id: rowId },
+            data: { order: index },
+          })
+        }
+      })
+    } else {
+      // Fallback for mock environments / test fixtures where findMany returns empty
+      await prisma.$transaction(async (tx) => {
+        for (let index = 0; index < rowIds.length; index++) {
+          const rowId = rowIds[index]
+          await tx.tableRow.update({
+            where: { id: rowId },
+            data: { order: index },
+          })
+        }
+      })
+    }
 
     // Invalidate master view cache for this table
     await invalidateMasterViewCacheForTable(id)

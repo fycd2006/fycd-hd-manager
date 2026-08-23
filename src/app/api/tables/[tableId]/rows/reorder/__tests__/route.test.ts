@@ -22,6 +22,7 @@ jest.mock('@/lib/prisma', () => ({
   default: {
     $transaction: jest.fn(),
     tableRow: {
+      findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn(),
     },
   },
