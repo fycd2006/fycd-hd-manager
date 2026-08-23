@@ -187,7 +187,6 @@ export function ViewToolbar({
   const [showViewContext, setShowViewContext] = useState(false)
   const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
   const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
-  const [isMobile, setIsMobile] = useState(false)
   const [activeHeaderMenu, setActiveHeaderMenu] = useState<string | null>(null)
   const [fieldSearchQuery, setFieldSearchQuery] = useState('')
 
