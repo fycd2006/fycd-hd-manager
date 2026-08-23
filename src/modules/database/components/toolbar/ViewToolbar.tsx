@@ -704,116 +704,12 @@ export function ViewToolbar({
 
             {/* Group Content */}
             {activeHeaderMenu === 'group' && (
-              <div className="groupings">
-                <div className="groupings__head" style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px' }}>分組欄位</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '180px', overflowY: 'auto' }}>
-                  <div
-                    onClick={() => {
-                      setGroupByField(null);
-                      if (activeViewId) saveViewConfig(activeViewId, { groupByField: null });
-                      setActiveHeaderMenu(null);
-                    }}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      backgroundColor: !groupByField ? '#F4F4F5' : 'transparent',
-                      color: !groupByField ? '#3F6212' : '#64748b',
-                      fontWeight: !groupByField ? 600 : 400,
-                      fontSize: '13px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                    onMouseEnter={(e) => { if (groupByField) e.currentTarget.style.backgroundColor = '#f8fafc' }}
-                    onMouseLeave={(e) => { if (groupByField) e.currentTarget.style.backgroundColor = 'transparent' }}
-                  >
-                    <span>(無分組)</span>
-                    {!groupByField && <Check size={14} />}
-                  </div>
-                  {fields.map(f => {
-                    const key = `field_${f.id}`;
-                    const isSelected = groupByField === key;
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => {
-                          setGroupByField(key);
-                          if (activeViewId) saveViewConfig(activeViewId, { groupByField: key });
-                          setActiveHeaderMenu(null);
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
-                          color: isSelected ? '#3F6212' : '#1e293b',
-                          fontWeight: isSelected ? 600 : 400,
-                          fontSize: '13px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between'
-                        }}
-                        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
-                        onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
-                      >
-                        <span>{f.name}</span>
-                        {isSelected && <Check size={14} />}
-                      </div>
-                    );
-                  })}
-                </div>
-                {groupByField && (
-                  <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '8px', paddingTop: '8px', display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onToggleCollapseAllGroups?.(true);
-                        setActiveHeaderMenu(null);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '6px 8px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        color: '#475569',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
-                    >
-                      全部折疊
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onToggleCollapseAllGroups?.(false);
-                        setActiveHeaderMenu(null);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '6px 8px',
-                        fontSize: '12px',
-                        fontWeight: 500,
-                        color: '#475569',
-                        backgroundColor: '#f8fafc',
-                        border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
-                    >
-                      全部展開
-                    </button>
-                  </div>
-                )}
-              </div>
+              <GroupMenu
+                fields={fields}
+                groupByRules={activeGroupByRules}
+                setGroupByRules={handleSetGroupByRules}
+                onCollapseAll={(collapse) => onToggleCollapseAllGroups?.(collapse)}
+              />
             )}
 
             {/* Hide Fields Content */}
