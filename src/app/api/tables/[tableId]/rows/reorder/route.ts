@@ -38,28 +38,15 @@ export async function POST(
     })
     const existingIdSet = new Set(existingRows.map(r => r.id))
 
-    if (existingRows.length > 0) {
-      await prisma.$transaction(async (tx) => {
-        for (let index = 0; index < rowIds.length; index++) {
-          const rowId = rowIds[index]
-          if (!existingIdSet.has(rowId)) continue
-          await tx.tableRow.update({
-            where: { id: rowId },
-            data: { order: index },
-          })
-        }
-      })
-    } else {
-      // Fallback for mock environments / test fixtures where findMany returns empty
-      await prisma.$transaction(async (tx) => {
-        for (let index = 0; index < rowIds.length; index++) {
-          const rowId = rowIds[index]
-          await tx.tableRow.update({
-            where: { id: rowId },
-            data: { order: index },
-          })
-        }
-      })
+    // Batch update using a single CASE/WHEN SQL statement (avoids transaction timeout)
+    const validIds = rowIds.filter(rid => existingIdSet.has(rid))
+    if (validIds.length > 0) {
+      // Build CASE WHEN id=1 THEN 0 WHEN id=2 THEN 1 ... END
+      const caseParts = validIds.map((rid, idx) => `WHEN ${rid} THEN ${idx}`).join(' ')
+      const idList = validIds.join(',')
+      await prisma.$executeRawUnsafe(
+        `UPDATE TableRow SET \`order\` = CASE id ${caseParts} END WHERE id IN (${idList})`
+      )
     }
 
     // Invalidate master view cache for this table

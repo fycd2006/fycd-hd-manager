@@ -20,10 +20,9 @@ jest.mock('@/modules/database/services/masterViewCache', () => ({
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
-    $transaction: jest.fn(),
+    $executeRawUnsafe: jest.fn().mockResolvedValue(0),
     tableRow: {
       findMany: jest.fn().mockResolvedValue([]),
-      update: jest.fn(),
     },
   },
 }))
@@ -83,9 +82,9 @@ describe('POST /api/tables/[tableId]/rows/reorder', () => {
 
   it('should update row orders and trigger events successfully', async () => {
     ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { role: 'admin' } })
-    ;(prisma.$transaction as jest.Mock).mockImplementation(async (cb: any) => {
-      return cb(prisma)
-    })
+    ;(prisma.tableRow.findMany as jest.Mock).mockResolvedValue([
+      { id: 101 }, { id: 102 }, { id: 103 }
+    ])
 
     const request = new Request('http://localhost/api/tables/123/rows/reorder', {
       method: 'POST',
@@ -99,19 +98,10 @@ describe('POST /api/tables/[tableId]/rows/reorder', () => {
 
     expect(response.status).toBe(200)
     expect(data.success).toBe(true)
-    expect(prisma.tableRow.update).toHaveBeenCalledTimes(3)
-    expect(prisma.tableRow.update).toHaveBeenNthCalledWith(1, {
-      where: { id: 101 },
-      data: { order: 0 },
-    })
-    expect(prisma.tableRow.update).toHaveBeenNthCalledWith(2, {
-      where: { id: 102 },
-      data: { order: 1 },
-    })
-    expect(prisma.tableRow.update).toHaveBeenNthCalledWith(3, {
-      where: { id: 103 },
-      data: { order: 2 },
-    })
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledTimes(1)
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE TableRow SET')
+    )
 
     expect(invalidateMasterViewCacheForTable).toHaveBeenCalledWith(123)
     expect(triggerTableEvent).toHaveBeenCalledWith(
