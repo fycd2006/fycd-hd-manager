@@ -85,6 +85,7 @@ export interface TableView {
   columnWidths?: string | null
   groupByField?: string | null
   rowColors: string | null
+  aggregations?: string | null
 }
 
 export type ViewConfigPatch = {
@@ -96,6 +97,7 @@ export type ViewConfigPatch = {
   columnWidths?: Record<string, number> | string | null
   groupByField?: string | null
   rowColors?: RowColorRule[] | string | null
+  aggregations?: Record<string | number, string> | string | null
 }
 
 // =============================================

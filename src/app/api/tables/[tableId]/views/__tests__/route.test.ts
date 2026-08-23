@@ -127,6 +127,37 @@ describe('Route Handler Integration: /api/tables/[tableId]/views', () => {
       })
       expect(data).toEqual(mockUpdated)
     })
+
+    it('updates view with aggregations mapping', async () => {
+      const mockUpdated = {
+        id: 1,
+        tableId: 10,
+        name: '更新視圖',
+        aggregations: '{"123":"sum","456":"avg"}',
+      }
+      ;(prisma.tableView.update as jest.Mock).mockResolvedValue(mockUpdated)
+
+      const request = new Request('http://localhost:3000/api/tables/10/views', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewId: 1,
+          aggregations: { 123: 'sum', 456: 'avg' },
+        }),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ tableId: '10' }) })
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(prisma.tableView.update).toHaveBeenCalledWith({
+        where: { id: 1, tableId: 10 },
+        data: expect.objectContaining({
+          aggregations: '{"123":"sum","456":"avg"}',
+        }),
+      })
+      expect(data).toEqual(mockUpdated)
+    })
   })
 
   describe('DELETE /api/tables/[tableId]/views', () => {

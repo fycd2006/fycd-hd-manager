@@ -40,7 +40,8 @@ interface DatabaseViewRouterProps {
   setColumnWidths: React.Dispatch<React.SetStateAction<Record<string, number>>>
   activeTableId: number | null
   activeViewId: number | null
-  updateViewConfig: (tableId: number, viewId: number, config: any) => void
+  views?: TableView[]
+  updateViewConfig: (viewId: number, config: any) => Promise<void> | void
   setContextMenu: (menu: any) => void
   setSelectedRow: (row: TableRow | null) => void
   setShowDetailModal: (show: boolean) => void
@@ -95,6 +96,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   setColumnWidths,
   activeTableId,
   activeViewId,
+  views,
   updateViewConfig,
   setContextMenu,
   setSelectedRow,
@@ -115,12 +117,20 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   stageMoveRows,
   cancelMoveRows,
 }) => {
+  const activeView = views?.find(v => v.id === activeViewId)
+
   return (
     <div key={currentView} className="w-full h-full animate-in fade-in duration-200 ease-out">
       {currentView === 'grid' && (
         <GridView
           tableId={activeTableId}
           viewId={activeViewId}
+          initialAggregations={activeView?.aggregations}
+          onUpdateAggregations={(newAggregations) => {
+            if (activeViewId) {
+              updateViewConfig(activeViewId, { aggregations: newAggregations })
+            }
+          }}
           visibleFields={fields.filter(f => !hiddenFieldKeys.includes(`field_${f.id}`))}
           displayRows={displayRows}
           gridLoading={gridLoading}
@@ -176,8 +186,8 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
             const fieldKey = `field_${fieldId}`
             const nextWidths = { ...columnWidths, [fieldKey]: newWidth }
             setColumnWidths(nextWidths)
-            if (activeViewId && activeTableId) {
-              updateViewConfig(activeTableId, activeViewId, { columnWidths: nextWidths })
+            if (activeViewId) {
+              updateViewConfig(activeViewId, { columnWidths: nextWidths })
             }
           }}
           onSetContextMenu={setContextMenu}

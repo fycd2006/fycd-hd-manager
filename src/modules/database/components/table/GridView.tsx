@@ -58,6 +58,8 @@ interface GridViewProps {
   isOffline?: boolean
   tableId?: number | null
   viewId?: number | null
+  initialAggregations?: Record<string | number, string> | string | null
+  onUpdateAggregations?: (agg: Record<string | number, string>) => void
 }
 
 export default function GridView({
@@ -71,6 +73,8 @@ export default function GridView({
   rowColorRules,
   tableId,
   viewId,
+  initialAggregations,
+  onUpdateAggregations,
   readOnly = false,
   isOffline = false,
   onAddRow,
@@ -176,6 +180,8 @@ export default function GridView({
         isOffline={isOffline}
         tableId={tableId}
         viewId={viewId}
+        initialAggregations={initialAggregations}
+        onUpdateAggregations={onUpdateAggregations}
       />
     </div>
   )

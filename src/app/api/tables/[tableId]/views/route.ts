@@ -83,7 +83,7 @@ export async function PATCH(
     if (errorResponse) return errorResponse
 
     const body = await request.json()
-    const { viewId, name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField } = body
+    const { viewId, name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField, aggregations } = body
     const vid = parseInt(viewId)
     if (isNaN(vid)) return NextResponse.json({ error: '無效的 View ID' }, { status: 400 })
 
@@ -103,6 +103,7 @@ export async function PATCH(
         ...(columnWidths !== undefined && { columnWidths: toJsonString(columnWidths) }),
         ...(rowColors !== undefined && { rowColors: toJsonString(rowColors) }),
         ...(groupByField !== undefined && { groupByField }),
+        ...(aggregations !== undefined && { aggregations: toJsonString(aggregations) }),
       }
     })
 

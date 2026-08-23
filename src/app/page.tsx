@@ -1344,6 +1344,9 @@ export default function Home() {
         ...(changes.rowColors !== undefined && {
           rowColors: typeof changes.rowColors === 'string' || changes.rowColors === null ? changes.rowColors : JSON.stringify(changes.rowColors)
         }),
+        ...(changes.aggregations !== undefined && {
+          aggregations: typeof changes.aggregations === 'string' || changes.aggregations === null ? changes.aggregations : JSON.stringify(changes.aggregations)
+        }),
       }
 
       // Optimistically update local views list
@@ -2106,7 +2109,8 @@ export default function Home() {
                     setColumnWidths={setColumnWidths}
                     activeTableId={wsState.activeTableId}
                     activeViewId={wsState.activeViewId}
-                    updateViewConfig={viewService.updateViewConfig}
+                    views={views}
+                    updateViewConfig={saveViewConfig}
                     setContextMenu={setContextMenu}
                     setSelectedRow={setSelectedRow}
                     setShowDetailModal={setShowDetailModal}

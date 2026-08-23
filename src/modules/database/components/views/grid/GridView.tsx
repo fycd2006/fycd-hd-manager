@@ -49,6 +49,8 @@ interface GridViewProps {
   isOffline?: boolean;
   tableId?: number | null;
   viewId?: number | null;
+  initialAggregations?: Record<string | number, string> | string | null;
+  onUpdateAggregations?: (agg: Record<string | number, string>) => void;
 }
 
 export const GridView: React.FC<GridViewProps> = ({
@@ -61,6 +63,8 @@ export const GridView: React.FC<GridViewProps> = ({
   rowDetailsWidth = 56,
   tableId,
   viewId,
+  initialAggregations,
+  onUpdateAggregations,
   onUpdateCell,
   onBatchUpdateCells,
   onAddRow,
@@ -827,8 +831,30 @@ export const GridView: React.FC<GridViewProps> = ({
     return null;
   }, [tableId, viewId]);
 
-  // Column aggregation mode selection state with localStorage persistence
+  const parseAggregations = useCallback((raw: any): Record<number, string> => {
+    if (!raw) return {};
+    try {
+      let parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        const result: Record<number, string> = {};
+        Object.entries(parsed).forEach(([k, v]) => {
+          const numKey = Number(k);
+          if (!isNaN(numKey) && typeof v === 'string') {
+            result[numKey] = v;
+          }
+        });
+        return result;
+      }
+    } catch {}
+    return {};
+  }, []);
+
+  // Column aggregation mode selection state with Database View + localStorage hybrid persistence
   const [aggregationModes, setAggregationModes] = useState<Record<number, string>>(() => {
+    const fromView = parseAggregations(initialAggregations);
+    if (Object.keys(fromView).length > 0) return fromView;
+
     if (typeof window !== 'undefined' && storageKey) {
       try {
         const saved = localStorage.getItem(storageKey);
@@ -840,8 +866,19 @@ export const GridView: React.FC<GridViewProps> = ({
     return {};
   });
 
-  // Re-sync when tableId or viewId changes
+  // Re-sync when tableId, viewId, or database initialAggregations change
   useEffect(() => {
+    const fromView = parseAggregations(initialAggregations);
+    if (Object.keys(fromView).length > 0) {
+      setAggregationModes(fromView);
+      if (typeof window !== 'undefined' && storageKey) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(fromView));
+        } catch {}
+      }
+      return;
+    }
+
     if (typeof window !== 'undefined' && storageKey) {
       try {
         const saved = localStorage.getItem(storageKey);
@@ -854,7 +891,7 @@ export const GridView: React.FC<GridViewProps> = ({
         console.error('Failed to load saved aggregation modes', e);
       }
     }
-  }, [storageKey]);
+  }, [storageKey, initialAggregations, parseAggregations]);
 
   const handleSelectAggregationMode = useCallback((fieldId: number, newMode: string) => {
     setAggregationModes(prev => {
@@ -866,9 +903,10 @@ export const GridView: React.FC<GridViewProps> = ({
           console.error('Failed to save aggregation modes', e);
         }
       }
+      onUpdateAggregations?.(next);
       return next;
     });
-  }, [storageKey]);
+  }, [storageKey, onUpdateAggregations]);
 
   const [aggMenuState, setAggMenuState] = useState<{ fieldId: number; x: number; y: number } | null>(null);
 
