@@ -70,9 +70,14 @@ export function CustomSelect({
     const handleScrollOrResize = (e: Event) => {
       if (
         e.type === 'scroll' &&
-        dropdownListRef.current &&
         e.target &&
-        dropdownListRef.current.contains(e.target as Node)
+        (
+          (dropdownListRef.current && dropdownListRef.current.contains(e.target as Node)) ||
+          (e.target as HTMLElement).closest?.('.custom-select-dropdown') ||
+          (e.target as HTMLElement).closest?.('.custom-select-portal-root') ||
+          (e.target as HTMLElement).closest?.('.toolbar-popover-card') ||
+          (e.target as HTMLElement).closest?.('[data-portal-root="true"]')
+        )
       ) {
         return
       }
@@ -152,6 +157,8 @@ export function CustomSelect({
       {/* Floating Options Menu via React Portal */}
       {isOpen && popoverCoords && createPortal(
         <div
+          className="custom-select-portal-root"
+          data-portal-root="true"
           style={{
             position: 'fixed',
             inset: 0,
@@ -166,6 +173,7 @@ export function CustomSelect({
         >
           <div
             ref={dropdownListRef}
+            className="custom-select-dropdown toolbar-popover-card"
             style={{
               position: 'fixed',
               top: popoverCoords.top !== undefined ? `${popoverCoords.top}px` : undefined,
@@ -184,6 +192,8 @@ export function CustomSelect({
               animation: 'fadeIn 0.15s ease-out',
             }}
             onClick={(e) => e.stopPropagation()}
+            onScroll={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
           >
             {options.map((opt) => {
               const isSelected = opt.value === value

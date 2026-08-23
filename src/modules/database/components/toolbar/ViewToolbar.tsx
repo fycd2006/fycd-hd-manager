@@ -222,7 +222,14 @@ export function ViewToolbar({
         const targetEl = e.target as HTMLElement
         if (
           (popoverMenuRef.current && popoverMenuRef.current.contains(targetNode)) ||
-          (targetEl.closest && (targetEl.closest('.toolbar-popover-card') || targetEl.closest('[data-portal-root="true"]')))
+          (targetEl.closest && (
+            targetEl.closest('.toolbar-popover-card') ||
+            targetEl.closest('.custom-select-dropdown') ||
+            targetEl.closest('.custom-select-portal-root') ||
+            targetEl.closest('[data-portal-root="true"]') ||
+            targetEl.closest('.groupings') ||
+            targetEl.closest('.header__filter-popover')
+          ))
         ) {
           return
         }
