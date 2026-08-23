@@ -100,15 +100,15 @@ describe('POST /api/tables/[tableId]/rows/reorder', () => {
     expect(data.success).toBe(true)
     expect(prisma.tableRow.update).toHaveBeenCalledTimes(3)
     expect(prisma.tableRow.update).toHaveBeenNthCalledWith(1, {
-      where: { id: 101, tableId: 123 },
+      where: { id: 101 },
       data: { order: 0 },
     })
     expect(prisma.tableRow.update).toHaveBeenNthCalledWith(2, {
-      where: { id: 102, tableId: 123 },
+      where: { id: 102 },
       data: { order: 1 },
     })
     expect(prisma.tableRow.update).toHaveBeenNthCalledWith(3, {
-      where: { id: 103, tableId: 123 },
+      where: { id: 103 },
       data: { order: 2 },
     })
 

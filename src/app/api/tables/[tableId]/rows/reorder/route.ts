@@ -36,7 +36,7 @@ export async function POST(
       for (let index = 0; index < rowIds.length; index++) {
         const rowId = rowIds[index]
         await tx.tableRow.update({
-          where: { id: rowId, tableId: id },
+          where: { id: rowId },
           data: { order: index },
         })
       }
