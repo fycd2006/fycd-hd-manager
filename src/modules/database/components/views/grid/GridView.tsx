@@ -1358,28 +1358,28 @@ export const GridView: React.FC<GridViewProps> = ({
                           transition: 'background-color 0.15s ease',
                         }}
                       >
-                        {/* Primary Group Info Column (Sticky Left: aligned with Column 0 + Column 1) */}
+                        {/* Primary Group Info Column (Sticky Left: 0, Auto-expanding so Field Name & Badges are NEVER clipped) */}
                         <div
                           onClick={() => handleToggleGroup(groupKey)}
                           style={{
-                            width: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
-                            minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
-                            maxWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
-                            height: '100%',
-                            display: 'flex',
+                            display: 'inline-flex',
                             alignItems: 'center',
-                            paddingLeft: '8px',
-                            paddingRight: '8px',
+                            height: '100%',
+                            minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                            maxWidth: '85%',
+                            paddingLeft: '10px',
+                            paddingRight: '14px',
                             position: 'sticky',
                             left: 0,
                             zIndex: 22,
                             backgroundColor: isCollapsed ? '#f1f5f9' : '#f8fafc',
                             borderLeft: '4px solid #3F6212',
-                            borderRight: '2px solid #cbd5e1',
-                            boxShadow: '2px 0 5px -2px rgba(0, 0, 0, 0.06)',
+                            borderRight: '1px solid #cbd5e1',
+                            boxShadow: '3px 0 6px -2px rgba(0, 0, 0, 0.08)',
                             boxSizing: 'border-box',
                             cursor: 'pointer',
-                            gap: '6px',
+                            gap: '8px',
+                            flexShrink: 0,
                             transition: 'background-color 0.15s ease',
                           }}
                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
@@ -1404,38 +1404,41 @@ export const GridView: React.FC<GridViewProps> = ({
                             <ChevronDown size={14} />
                           </div>
 
-                          {/* Group Field Name & Badges (Clean Horizontal Layout) */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
-                            {groupedField && (
-                              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
-                                {groupedField.name}:
-                              </span>
-                            )}
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', overflow: 'hidden', flexWrap: 'nowrap' }}>
-                              {groupData.badges.map((b, bIdx) => (
+                          {/* Group Field Name */}
+                          {groupedField && (
+                            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
+                              {groupedField.name}:
+                            </span>
+                          )}
+
+                          {/* Group Value Badges */}
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexWrap: 'nowrap' }}>
+                            {groupData.badges.length > 0 ? (
+                              groupData.badges.map((b, bIdx) => (
                                 <span
                                   key={bIdx}
                                   style={{
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    padding: '1px 6px',
-                                    borderRadius: '5px',
-                                    fontSize: '11px',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
                                     fontWeight: 600,
                                     backgroundColor: b.bg || '#f1f5f9',
                                     color: b.color || '#334155',
                                     border: `1px solid ${b.border || 'transparent'}`,
-                                    maxWidth: '120px',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap',
                                   }}
                                   title={b.label}
                                 >
                                   {b.label}
                                 </span>
-                              ))}
-                            </div>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                （空白未指定）
+                              </span>
+                            )}
                           </div>
 
                           {/* Row Count Badge */}
@@ -1445,11 +1448,11 @@ export const GridView: React.FC<GridViewProps> = ({
                               color: '#475569',
                               fontWeight: 600,
                               backgroundColor: '#e2e8f0',
-                              padding: '1px 7px',
+                              padding: '1px 8px',
                               borderRadius: '10px',
                               border: '1px solid #cbd5e1',
                               flexShrink: 0,
-                              marginLeft: 'auto',
+                              marginLeft: '4px',
                             }}
                           >
                             {groupData.rows.length} 筆
