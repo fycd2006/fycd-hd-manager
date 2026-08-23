@@ -1422,6 +1422,7 @@ export default function Home() {
           columnWidths: sourceView.columnWidths,
           rowColors: sourceView.rowColors,
           groupByField: sourceView.groupByField,
+          aggregations: sourceView.aggregations,
         }
         await saveViewConfig(result.view.id, viewConfig)
         const fullView: TableView = {
@@ -1431,6 +1432,7 @@ export default function Home() {
           hiddenFields: typeof viewConfig.hiddenFields === 'string' || viewConfig.hiddenFields === null ? viewConfig.hiddenFields : JSON.stringify(viewConfig.hiddenFields),
           columnWidths: typeof viewConfig.columnWidths === 'string' || viewConfig.columnWidths === null ? viewConfig.columnWidths : JSON.stringify(viewConfig.columnWidths),
           rowColors: typeof viewConfig.rowColors === 'string' || viewConfig.rowColors === null ? viewConfig.rowColors : JSON.stringify(viewConfig.rowColors),
+          aggregations: typeof viewConfig.aggregations === 'string' || viewConfig.aggregations === null ? viewConfig.aggregations : JSON.stringify(viewConfig.aggregations),
         } as TableView
         setViews(prev => [...prev.filter(v => v.id !== result.view!.id), fullView])
         wsActions.setActiveViewId(result.view.id)
