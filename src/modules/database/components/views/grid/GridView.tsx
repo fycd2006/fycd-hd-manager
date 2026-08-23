@@ -1187,21 +1187,22 @@ export const GridView: React.FC<GridViewProps> = ({
                   const groupSummaries = groupSummariesMap?.get(groupKey);
 
                   return (
-                    <div key={groupKey} className="grid-view__group-section" style={{ width: '100%', marginBottom: '8px' }}>
+                    <div key={groupKey} className="grid-view__group-section" style={{ width: '100%', marginBottom: '12px' }}>
                       {/* Group By Banner (Aligned with Table Columns) */}
                       <div
                         className="grid-view__group-by-banner"
                         style={{
                           display: 'flex',
                           alignItems: 'stretch',
-                          height: '36px',
-                          backgroundColor: '#ffffff',
+                          height: '38px',
+                          backgroundColor: isCollapsed ? '#f1f5f9' : '#f8fafc',
                           borderTop: '1px solid #e2e8f0',
-                          borderBottom: '1px solid #e2e8f0',
+                          borderBottom: '1px solid #cbd5e1',
                           width: `${totalTableWidth}px`,
                           minWidth: '100%',
                           boxSizing: 'border-box',
                           userSelect: 'none',
+                          transition: 'background-color 0.15s ease',
                         }}
                       >
                         {/* Primary Group Info Column (Sticky Left) */}
@@ -1219,25 +1220,44 @@ export const GridView: React.FC<GridViewProps> = ({
                             position: 'sticky',
                             left: 0,
                             zIndex: 22,
-                            backgroundColor: '#f8fafc',
+                            backgroundColor: isCollapsed ? '#f1f5f9' : '#f8fafc',
                             borderLeft: '4px solid #3F6212',
                             borderRight: '2px solid #cbd5e1',
-                            boxShadow: '2px 0 5px -2px rgba(0, 0, 0, 0.08)',
+                            boxShadow: '2px 0 5px -2px rgba(0, 0, 0, 0.06)',
                             boxSizing: 'border-box',
                             cursor: 'pointer',
                             gap: '8px',
                             transition: 'background-color 0.15s ease',
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isCollapsed ? '#f1f5f9' : '#f8fafc'}
                           title={isCollapsed ? '點擊展開分組' : '點擊折疊分組'}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', transition: 'transform 0.15s ease', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', color: '#64748b', flexShrink: 0 }}>
+                          {/* Chevron Toggle Button */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '4px',
+                              transition: 'transform 0.15s ease',
+                              transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+                              color: '#475569',
+                              flexShrink: 0,
+                            }}
+                          >
                             <ChevronDown size={15} />
                           </div>
 
-                          {/* Rich Group Badge */}
-                          <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                          {/* Group Field Name & Badge (Clean Horizontal Layout) */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                            {groupedField && (
+                              <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
+                                {groupedField.name}:
+                              </span>
+                            )}
                             {renderGroupBadge(groupKey, groupedField)}
                           </div>
 
@@ -1246,9 +1266,9 @@ export const GridView: React.FC<GridViewProps> = ({
                             style={{
                               fontSize: '11px',
                               color: '#475569',
-                              fontWeight: 500,
+                              fontWeight: 600,
                               backgroundColor: '#e2e8f0',
-                              padding: '1px 7px',
+                              padding: '1px 8px',
                               borderRadius: '10px',
                               border: '1px solid #cbd5e1',
                               flexShrink: 0,
@@ -1262,7 +1282,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         {/* Group Field Aggregation Cells (Columns 1..N) */}
                         {fields.slice(1).map((field) => {
                           const summary = groupSummaries?.[field.id];
-                          const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
+                          const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'none');
                           const displayText = formatGroupSummaryText(summary, mode);
 
                           return (
@@ -1277,25 +1297,36 @@ export const GridView: React.FC<GridViewProps> = ({
                                 alignItems: 'center',
                                 justifyContent: 'flex-end',
                                 padding: '0 10px',
-                                borderRight: '1px solid #e2e8f0',
+                                borderRight: '1px solid #f1f5f9',
                                 boxSizing: 'border-box',
-                                backgroundColor: '#FAFAF9',
-                                fontSize: '12px',
-                                fontWeight: 600,
-                                color: '#334155',
-                                fontFamily: 'monospace',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
+                                backgroundColor: 'inherit',
                               }}
                             >
-                              {displayText}
+                              {displayText ? (
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 600,
+                                    color: '#334155',
+                                    fontFamily: 'monospace',
+                                    backgroundColor: '#e2e8f0',
+                                    padding: '2px 7px',
+                                    borderRadius: '5px',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    border: '1px solid #cbd5e1',
+                                  }}
+                                >
+                                  {displayText}
+                                </span>
+                              ) : null}
                             </div>
                           );
                         })}
 
                         {/* Trailing Spacer */}
-                        <div style={{ flex: 1, backgroundColor: '#FAFAF9', minWidth: '90px' }} />
+                        <div style={{ flex: 1, backgroundColor: 'inherit', minWidth: '90px' }} />
                       </div>
 
                       {/* Grouped Rows */}
@@ -1379,22 +1410,50 @@ export const GridView: React.FC<GridViewProps> = ({
                               alignItems: 'center',
                               height: '32px',
                               width: `${fieldsWidth}px`,
-                              paddingLeft: `${rowDetailsWidth + 12}px`,
-                              borderRight: '1px solid #e2e8f0',
-                              borderBottom: '1px solid #f1f5f9',
-                              background: '#fafafa',
+                              borderBottom: '1px solid #e2e8f0',
+                              background: '#ffffff',
                               cursor: 'pointer',
-                              fontSize: '12px',
-                              color: '#64748b',
-                              gap: '6px',
                               boxSizing: 'border-box',
-                              transition: 'background 0.15s ease'
+                              transition: 'background 0.15s ease',
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                            onMouseLeave={e => e.currentTarget.style.background = '#fafafa'}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                            onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
                           >
-                            <Plus style={{ width: '13px', height: '13px', color: '#64748b' }} />
-                            <span>在「{groupKey}」新增資料列</span>
+                            <div
+                              style={{
+                                width: `${rowDetailsWidth}px`,
+                                minWidth: `${rowDetailsWidth}px`,
+                                maxWidth: `${rowDetailsWidth}px`,
+                                height: '100%',
+                                position: 'sticky',
+                                left: 0,
+                                zIndex: 15,
+                                background: 'inherit',
+                                borderRight: '1px solid #e2e8f0',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#64748b',
+                                boxSizing: 'border-box',
+                              }}
+                            >
+                              <Plus style={{ width: '13px', height: '13px' }} />
+                            </div>
+                            <div
+                              style={{
+                                paddingLeft: '12px',
+                                fontSize: '12px',
+                                color: '#64748b',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                userSelect: 'none',
+                              }}
+                            >
+                              <span>+ 在「</span>
+                              <span style={{ fontWeight: 600, color: '#334155' }}>{groupKey}</span>
+                              <span>」新增資料列</span>
+                            </div>
                           </div>
                         </div>
                       )}
