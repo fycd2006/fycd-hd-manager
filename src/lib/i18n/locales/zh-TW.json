@@ -33,6 +33,8 @@
     "none": "無",
     "empty": "空白",
     "all": "全部",
+    "more": "更多",
+    "done": "完成",
     "submitEnter": "按 Enter 送出",
     "saveEnter": "按 Enter 儲存",
     "createEnter": "按 Enter 建立",
@@ -117,6 +119,8 @@
     "redoTooltip": "重做 (Ctrl+Y)",
     "undo": "復原",
     "redo": "重做",
+    "exportCSV": "匯出 CSV",
+    "search": "搜尋",
     "addView": "新增視圖",
     "unnamedView": "未命名視圖"
   },

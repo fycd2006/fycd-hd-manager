@@ -33,6 +33,8 @@
     "none": "None",
     "empty": "Empty",
     "all": "All",
+    "more": "More",
+    "done": "Done",
     "submitEnter": "Press Enter to submit",
     "saveEnter": "Press Enter to save",
     "createEnter": "Press Enter to create",
@@ -117,6 +119,8 @@
     "redoTooltip": "Redo (Ctrl+Y)",
     "undo": "Undo",
     "redo": "Redo",
+    "exportCSV": "Export CSV",
+    "search": "Search",
     "addView": "Add View",
     "unnamedView": "Unnamed View"
   },

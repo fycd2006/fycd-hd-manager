@@ -275,6 +275,11 @@ export function ViewToolbar({
   }, [isMobile])
 
 
+  const getI18n = (key: string, fallback: string) => {
+    const val = t(key)
+    return val && val !== key ? val : fallback
+  }
+
   const getViewIcon = (type: string, props: any) => {
     switch (type) {
       case 'kanban': return <Kanban {...props} />
@@ -290,7 +295,7 @@ export function ViewToolbar({
   return (
     <>
       {isMobile ? (
-        /* Mobile Bottom Toolbar Dock (< 768px) */
+        /* Mobile Bottom Scrollable Toolbar Dock (< 768px) */
         <nav
           className="mobile-bottom-toolbar"
           style={{
@@ -298,7 +303,7 @@ export function ViewToolbar({
             bottom: 0,
             left: 0,
             right: 0,
-            height: 'calc(52px + env(safe-area-inset-bottom))',
+            height: 'calc(54px + env(safe-area-inset-bottom))',
             paddingBottom: 'env(safe-area-inset-bottom)',
             backgroundColor: 'rgba(255, 255, 255, 0.96)',
             backdropFilter: 'blur(20px) saturate(180%)',
@@ -307,7 +312,13 @@ export function ViewToolbar({
             boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.06)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-around',
+            justifyContent: 'flex-start',
+            gap: '4px',
+            padding: '0 8px env(safe-area-inset-bottom) 8px',
+            overflowX: 'auto',
+            overflowY: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
             zIndex: 1000,
             boxSizing: 'border-box',
           }}
@@ -321,19 +332,21 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'none',
+              background: showViewContext ? '#f0fdf4' : 'none',
               border: 'none',
-              padding: '4px 6px',
+              borderRadius: '8px',
+              padding: '4px 8px',
               cursor: 'pointer',
-              gap: '3px',
+              gap: '2px',
               color: showViewContext ? '#3F6212' : '#64748b',
-              flex: 1,
-              transition: 'color 0.15s ease'
+              flexShrink: 0,
+              minWidth: '54px',
+              transition: 'all 0.15s ease'
             }}
           >
             {getViewIcon(views.find(v => v.id === activeViewId)?.type || 'grid', { size: 18, color: showViewContext ? '#3F6212' : '#64748b' })}
             <span style={{ fontSize: '11px', fontWeight: showViewContext ? 700 : 500, color: showViewContext ? '#3F6212' : '#475569', maxWidth: '64px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {views.find(v => v.id === activeViewId)?.name || t('toolbar.views') || '視圖'}
+              {views.find(v => v.id === activeViewId)?.name || getI18n('toolbar.views', '視圖')}
             </span>
           </button>
 
@@ -346,15 +359,17 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'none',
+              background: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#f0fdf4' : 'none',
               border: 'none',
-              padding: '4px 6px',
+              borderRadius: '8px',
+              padding: '4px 8px',
               cursor: 'pointer',
-              gap: '3px',
+              gap: '2px',
               color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#64748b',
               position: 'relative',
-              flex: 1,
-              transition: 'color 0.15s ease'
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -365,8 +380,8 @@ export function ViewToolbar({
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 700 : 500, color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#475569' }}>
-              {t('toolbar.filter') || '篩選'}
+            <span style={{ fontSize: '11px', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 700 : 500, color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.filter', '篩選')}
             </span>
           </button>
 
@@ -379,15 +394,17 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'none',
+              background: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#f0fdf4' : 'none',
               border: 'none',
-              padding: '4px 6px',
+              borderRadius: '8px',
+              padding: '4px 8px',
               cursor: 'pointer',
-              gap: '3px',
+              gap: '2px',
               color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#64748b',
               position: 'relative',
-              flex: 1,
-              transition: 'color 0.15s ease'
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -398,12 +415,82 @@ export function ViewToolbar({
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 700 : 500, color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#475569' }}>
-              {t('toolbar.sort') || '排序'}
+            <span style={{ fontSize: '11px', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 700 : 500, color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.sort', '排序')}
             </span>
           </button>
 
-          {/* 4. 隱藏欄位 (Fields) */}
+          {/* 4. 色彩標記 (Color) */}
+          <button
+            type="button"
+            onClick={(e) => openMenuWithAnchor('color', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#f0fdf4' : 'none',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              gap: '2px',
+              color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#64748b',
+              position: 'relative',
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Palette size={18} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#64748b'} />
+              {safeRowColorRules.length > 0 && (
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                  {safeRowColorRules.length}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 700 : 500, color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.color', '色彩')}
+            </span>
+          </button>
+
+          {/* 5. 分組 (Group) */}
+          <button
+            type="button"
+            onClick={(e) => openMenuWithAnchor('group', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#f0fdf4' : 'none',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              gap: '2px',
+              color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#64748b',
+              position: 'relative',
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Layers size={18} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#64748b'} />
+              {activeGroupByRules.length > 0 && (
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                  {activeGroupByRules.length}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 700 : 500, color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.group', '分組')}
+            </span>
+          </button>
+
+          {/* 6. 隱藏欄位 (Fields) */}
           <button
             type="button"
             onClick={(e) => openMenuWithAnchor('hide', e)}
@@ -412,15 +499,17 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'none',
+              background: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#f0fdf4' : 'none',
               border: 'none',
-              padding: '4px 6px',
+              borderRadius: '8px',
+              padding: '4px 8px',
               cursor: 'pointer',
-              gap: '3px',
+              gap: '2px',
               color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#64748b',
               position: 'relative',
-              flex: 1,
-              transition: 'color 0.15s ease'
+              flexShrink: 0,
+              minWidth: '56px',
+              transition: 'all 0.15s ease'
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -431,15 +520,76 @@ export function ViewToolbar({
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 700 : 500, color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#475569' }}>
-              {t('toolbar.hideFields') || '欄位'}
+            <span style={{ fontSize: '11px', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 700 : 500, color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.hideFields', '隱藏欄位')}
             </span>
           </button>
 
-          {/* 5. 更多 (More options) */}
+          {/* 7. 列高 (Row Height) */}
           <button
             type="button"
-            onClick={(e) => openMenuWithAnchor('more', e)}
+            onClick={(e) => openMenuWithAnchor('rowHeight', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#f0fdf4' : 'none',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              gap: '2px',
+              color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b',
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <AlignJustify size={18} color={rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b'} />
+            <span style={{ fontSize: '11px', fontWeight: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? 700 : 500, color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.rowHeight', '列高')}
+            </span>
+          </button>
+
+          {/* 8. 搜尋 (Search) */}
+          <button
+            type="button"
+            onClick={(e) => openMenuWithAnchor('search', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: searchQuery || activeHeaderMenu === 'search' ? '#f0fdf4' : 'none',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              cursor: 'pointer',
+              gap: '2px',
+              color: searchQuery || activeHeaderMenu === 'search' ? '#3F6212' : '#64748b',
+              position: 'relative',
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Search size={18} color={searchQuery || activeHeaderMenu === 'search' ? '#3F6212' : '#64748b'} />
+              {searchQuery && (
+                <span style={{ position: 'absolute', top: '-2px', right: '-4px', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#3F6212' }} />
+              )}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: searchQuery || activeHeaderMenu === 'search' ? 700 : 500, color: searchQuery || activeHeaderMenu === 'search' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.search', '搜尋')}
+            </span>
+          </button>
+
+          {/* 9. 復原 (Undo) */}
+          <button
+            type="button"
+            onClick={onUndo}
+            disabled={!canUndo}
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -447,19 +597,80 @@ export function ViewToolbar({
               justifyContent: 'center',
               background: 'none',
               border: 'none',
-              padding: '4px 6px',
-              cursor: 'pointer',
-              gap: '3px',
-              color: ['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? '#3F6212' : '#64748b',
-              flex: 1,
-              transition: 'color 0.15s ease'
+              borderRadius: '8px',
+              padding: '4px 8px',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              gap: '2px',
+              color: canUndo ? '#475569' : '#cbd5e1',
+              opacity: canUndo ? 1 : 0.45,
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
             }}
           >
-            <MoreHorizontal size={18} color={['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? '#3F6212' : '#64748b'} />
-            <span style={{ fontSize: '11px', fontWeight: ['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? 700 : 500, color: ['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? '#3F6212' : '#475569' }}>
-              {t('common.more') || '更多'}
+            <Undo2 size={18} />
+            <span style={{ fontSize: '11px', fontWeight: 500, whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.undo', '復原')}
             </span>
           </button>
+
+          {/* 10. 重做 (Redo) */}
+          <button
+            type="button"
+            onClick={onRedo}
+            disabled={!canRedo}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '4px 8px',
+              cursor: canRedo ? 'pointer' : 'not-allowed',
+              gap: '2px',
+              color: canRedo ? '#475569' : '#cbd5e1',
+              opacity: canRedo ? 1 : 0.45,
+              flexShrink: 0,
+              minWidth: '52px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Redo2 size={18} />
+            <span style={{ fontSize: '11px', fontWeight: 500, whiteSpace: 'nowrap' }}>
+              {getI18n('toolbar.redo', '重做')}
+            </span>
+          </button>
+
+          {/* 11. 匯出 CSV */}
+          {handleExportCSV && (
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'none',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                gap: '2px',
+                color: '#475569',
+                flexShrink: 0,
+                minWidth: '56px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Download size={18} />
+              <span style={{ fontSize: '11px', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {getI18n('toolbar.exportCSV', '匯出 CSV')}
+              </span>
+            </button>
+          )}
         </nav>
       ) : (
         /* Desktop Top Header Toolbar (>= 768px) */
@@ -1027,13 +1238,13 @@ export function ViewToolbar({
                 <div style={{ width: '36px', height: '4px', borderRadius: '9999px', backgroundColor: '#cbd5e1', marginBottom: '10px' }} />
                 <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
                   <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
-                    {activeHeaderMenu === 'filter' && (t('toolbar.filter') || '篩選條件')}
-                    {activeHeaderMenu === 'sort' && (t('toolbar.sort') || '排序條件')}
-                    {activeHeaderMenu === 'group' && (t('toolbar.group') || '分組條件')}
-                    {activeHeaderMenu === 'color' && (t('toolbar.color') || '色彩標記')}
-                    {activeHeaderMenu === 'hide' && (t('toolbar.hideFields') || '隱藏欄位')}
-                    {activeHeaderMenu === 'rowHeight' && (t('toolbar.rowHeight') || '列高設定')}
-                    {activeHeaderMenu === 'more' && (t('common.more') || '更多功能')}
+                    {activeHeaderMenu === 'filter' && getI18n('toolbar.filter', '篩選條件')}
+                    {activeHeaderMenu === 'sort' && getI18n('toolbar.sort', '排序條件')}
+                    {activeHeaderMenu === 'group' && getI18n('toolbar.group', '分組條件')}
+                    {activeHeaderMenu === 'color' && getI18n('toolbar.color', '色彩標記')}
+                    {activeHeaderMenu === 'hide' && getI18n('toolbar.hideFields', '隱藏欄位')}
+                    {activeHeaderMenu === 'rowHeight' && getI18n('toolbar.rowHeight', '列高設定')}
+                    {activeHeaderMenu === 'search' && getI18n('toolbar.search', '搜尋表格')}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
@@ -1051,7 +1262,7 @@ export function ViewToolbar({
                         transition: 'opacity 0.15s ease',
                       }}
                     >
-                      {t('common.done') || '完成'}
+                      {getI18n('common.done', '完成')}
                     </button>
                     <button
                       type="button"
@@ -1125,7 +1336,7 @@ export function ViewToolbar({
                     <Search size={14} className="hidings__search-icon" style={{ position: 'absolute', left: '10px', color: '#94a3b8' }} />
                     <input
                       type="text"
-                      placeholder={t('hideFields.searchFields') || "搜尋欄位名稱..."}
+                      placeholder={getI18n('hideFields.searchFields', '搜尋欄位名稱...')}
                       value={fieldSearchQuery}
                       onChange={(e) => setFieldSearchQuery(e.target.value)}
                       className="hidings__search-input"
@@ -1154,7 +1365,7 @@ export function ViewToolbar({
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
-                      {t('hideFields.showAll') || '全部顯示'}
+                      {getI18n('hideFields.showAll', '全部顯示')}
                     </button>
                     <button
                       type="button"
@@ -1177,7 +1388,7 @@ export function ViewToolbar({
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#ef4444'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
                     >
-                      {t('hideFields.hideAll') || '全部隱藏'}
+                      {getI18n('hideFields.hideAll', '全部隱藏')}
                     </button>
                   </div>
                 </div>
@@ -1311,24 +1522,24 @@ export function ViewToolbar({
               </ul>
             )}
 
-            {/* More Features Menu Content */}
-            {activeHeaderMenu === 'more' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: isMobile ? '100%' : '320px', padding: '2px 0' }}>
-                {/* Real-time Search Input */}
+            {/* Search Content */}
+            {activeHeaderMenu === 'search' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: isMobile ? '100%' : '320px', padding: '4px 0' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <Search size={15} style={{ position: 'absolute', left: '12px', color: '#64748b', pointerEvents: 'none' }} />
+                  <Search size={16} style={{ position: 'absolute', left: '12px', color: '#64748b', pointerEvents: 'none' }} />
                   <input
                     type="text"
-                    placeholder={t('toolbar.searchPlaceholder') || "搜尋資料列內容..."}
+                    autoFocus
+                    placeholder={getI18n('toolbar.searchPlaceholder', '搜尋此表格內容...')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     style={{
                       width: '100%',
-                      height: '38px',
-                      padding: '0 32px 0 36px',
-                      borderRadius: '10px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13px',
+                      height: '42px',
+                      padding: '0 36px 0 38px',
+                      borderRadius: '12px',
+                      border: '1.5px solid #3F6212',
+                      fontSize: '14px',
                       outline: 'none',
                       boxSizing: 'border-box',
                       backgroundColor: '#ffffff'
@@ -1338,196 +1549,21 @@ export function ViewToolbar({
                     <button
                       type="button"
                       onClick={() => setSearchQuery('')}
-                      style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
+                      style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
                     >
-                      <X size={14} />
+                      <X size={16} />
                     </button>
                   )}
                 </div>
-
-                {/* Sub Features (Color, Group, Row Height) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveHeaderMenu('color')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '11px 14px',
-                      borderRadius: '10px',
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #f1f5f9',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: '#1e293b',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Palette size={16} color="#3F6212" />
-                      <span>{t('toolbar.color') || '色彩標記'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {safeRowColorRules.length > 0 && (
-                        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '9999px', backgroundColor: '#3F6212', color: '#ffffff', fontWeight: 700 }}>
-                          {safeRowColorRules.length}
-                        </span>
-                      )}
-                      <ChevronDown size={14} color="#94a3b8" style={{ transform: 'rotate(-90deg)' }} />
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveHeaderMenu('group')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '11px 14px',
-                      borderRadius: '10px',
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #f1f5f9',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: '#1e293b',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Layers size={16} color="#3F6212" />
-                      <span>{t('toolbar.group') || '分組條件'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {activeGroupByRules.length > 0 && (
-                        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '9999px', backgroundColor: '#3F6212', color: '#ffffff', fontWeight: 700 }}>
-                          {activeGroupByRules.length}
-                        </span>
-                      )}
-                      <ChevronDown size={14} color="#94a3b8" style={{ transform: 'rotate(-90deg)' }} />
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveHeaderMenu('rowHeight')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '11px 14px',
-                      borderRadius: '10px',
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #f1f5f9',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: '#1e293b',
-                      cursor: 'pointer',
-                      transition: 'background-color 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <AlignJustify size={16} color="#3F6212" />
-                      <span>{t('toolbar.rowHeight') || '列高設定'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '12px', color: '#64748b', textTransform: 'capitalize' }}>
-                        {rowHeightSize}
-                      </span>
-                      <ChevronDown size={14} color="#94a3b8" style={{ transform: 'rotate(-90deg)' }} />
-                    </div>
-                  </button>
-                </div>
-
-                {/* Undo / Redo & CSV */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={onUndo}
-                    disabled={!canUndo}
-                    style={{
-                      flex: 1,
-                      height: '38px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      borderRadius: '8px',
-                      backgroundColor: '#f1f5f9',
-                      border: 'none',
-                      color: '#475569',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: canUndo ? 'pointer' : 'not-allowed',
-                      opacity: canUndo ? 1 : 0.5
-                    }}
-                  >
-                    <Undo2 size={15} />
-                    <span>{t('toolbar.undo') || '還原'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={onRedo}
-                    disabled={!canRedo}
-                    style={{
-                      flex: 1,
-                      height: '38px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      borderRadius: '8px',
-                      backgroundColor: '#f1f5f9',
-                      border: 'none',
-                      color: '#475569',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: canRedo ? 'pointer' : 'not-allowed',
-                      opacity: canRedo ? 1 : 0.5
-                    }}
-                  >
-                    <Redo2 size={15} />
-                    <span>{t('toolbar.redo') || '重做'}</span>
-                  </button>
-
-                  {handleExportCSV && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveHeaderMenu(null)
-                        handleExportCSV()
-                      }}
-                      style={{
-                        flex: 1,
-                        height: '38px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        borderRadius: '8px',
-                        backgroundColor: '#f1f5f9',
-                        border: 'none',
-                        color: '#475569',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <Download size={15} />
-                      <span>{t('toolbar.exportCSV') || '匯出 CSV'}</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* Language Picker in More */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>{t('common.language') || '語言'}</span>
-                  <LangPicker align="right" variant="toolbar" />
-                </div>
+                {searchQuery ? (
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
+                    已篩選含有「<strong style={{ color: '#3F6212' }}>{searchQuery}</strong>」的資料列
+                  </p>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>
+                    輸入文字即可即時過濾表格所有欄位
+                  </p>
+                )}
               </div>
             )}
           </div>
