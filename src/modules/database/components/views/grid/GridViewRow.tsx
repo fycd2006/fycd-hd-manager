@@ -24,6 +24,7 @@ interface GridViewRowProps {
   isCellEditing?: boolean;
   selectionBounds?: { minRow: number; maxRow: number; minCol: number; maxCol: number; isMulti: boolean } | null;
   isRowSelectedDirectly?: boolean;
+  canDrag?: boolean;
   onSelectCell: (colIndex: number, e?: React.MouseEvent) => void;
   onSelectRowHeader?: (rowIndex: number, e: React.MouseEvent) => void;
   onToggleRowCheckbox?: (rowId: number, e: React.MouseEvent) => void;
@@ -49,6 +50,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   isCellEditing,
   selectionBounds,
   isRowSelectedDirectly = false,
+  canDrag = true,
   onSelectCell,
   onSelectRowHeader,
   onToggleRowCheckbox,
@@ -106,12 +108,14 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
     <div 
       className={`grid-view__row ${isHovered ? 'hover' : ''}`} 
       onDragOver={(e) => {
+        if (!canDrag) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         if (!isDragTarget) setIsDragTarget(true);
       }}
       onDragLeave={() => setIsDragTarget(false)}
       onDrop={(e) => {
+        if (!canDrag) return;
         e.preventDefault();
         setIsDragTarget(false);
         const sourceIdxStr = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
@@ -142,6 +146,15 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
       {/* 1. Row Index / Actions Column (Sticky Left: 0) */}
       <div
         className="grid-view__column grid-view__column--no-border-right"
+        draggable={canDrag}
+        onDragStart={(e) => {
+          if (!canDrag) {
+            e.preventDefault();
+            return;
+          }
+          e.dataTransfer.setData('text/plain', String(rowIndex));
+          e.dataTransfer.effectAllowed = 'move';
+        }}
         style={{
           width: `${rowDetailsWidth}px`,
           minWidth: `${rowDetailsWidth}px`,
@@ -164,7 +177,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          cursor: 'pointer',
+          cursor: canDrag ? 'grab' : 'pointer',
           userSelect: 'none',
         }}
         onMouseDown={(e) => {
@@ -177,9 +190,17 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           onMouseEnterRowHeader?.(rowIndex);
         }}
         onMouseLeave={() => setIsHovered(false)}
+        title={!canDrag ? (t('toolbar.sortActiveDragDisabled') || '已套用排序條件，無法手動拖曳調整順序') : undefined}
       >
         {isHovered || isRowSelected ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', width: '100%', color: '#64748b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%', color: '#64748b' }}>
+            {canDrag && (
+              <GripVertical
+                size={12}
+                style={{ color: '#94a3b8', cursor: 'grab', flexShrink: 0 }}
+                title="拖曳以手動排序"
+              />
+            )}
             <input
               type="checkbox"
               checked={isRowSelected}
@@ -195,6 +216,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
                 cursor: 'pointer',
                 accentColor: '#3F6212',
                 borderRadius: '3px',
+                flexShrink: 0,
               }}
               title="選取列"
             />
@@ -207,12 +229,13 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '18px',
-                height: '18px',
+                width: '16px',
+                height: '16px',
                 borderRadius: '3px',
                 cursor: 'pointer',
                 color: '#64748b',
                 transition: 'all 0.12s ease',
+                flexShrink: 0,
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = '#e2e8f0';
@@ -224,7 +247,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
               }}
               title="展開詳細資料 (Space)"
             >
-              <Maximize2 style={{ width: '12px', height: '12px' }} />
+              <Maximize2 style={{ width: '11px', height: '11px' }} />
             </div>
           </div>
         ) : (

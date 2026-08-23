@@ -19,6 +19,7 @@ interface DatabaseViewRouterProps {
   columnWidths: Record<string, number>
   sortField: string | null
   sortOrder: 'asc' | 'desc'
+  sortRules?: SortRule[]
   groupByField: string | null
   groupByRules?: GroupByRule[]
   groupCollapseState?: GroupCollapseState
@@ -78,6 +79,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   columnWidths,
   sortField,
   sortOrder,
+  sortRules,
   groupByField,
   groupByRules,
   groupCollapseState,
@@ -149,6 +151,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           columnWidths={columnWidths}
           sortField={sortField}
           sortOrder={sortOrder}
+          sortRules={sortRules}
           groupByField={groupByField}
           groupByRules={groupByRules}
           groupCollapseState={groupCollapseState}

@@ -13,6 +13,7 @@ interface GridViewProps {
   columnWidths: Record<string, number>
   sortField?: string | null
   sortOrder?: 'asc' | 'desc'
+  sortRules?: any[]
   groupByField?: string | null
   groupByRules?: GroupByRule[]
   groupCollapseState?: GroupCollapseState
@@ -72,6 +73,7 @@ export default function GridView({
   columnWidths,
   sortField,
   sortOrder,
+  sortRules,
   groupByField,
   groupByRules,
   groupCollapseState,
@@ -161,6 +163,7 @@ export default function GridView({
         rows={mappedRows}
         sortField={sortField}
         sortOrder={sortOrder}
+        sortRules={sortRules}
         groupByField={groupByField}
         groupByRules={groupByRules}
         rowColorRules={rowColorRules}

@@ -322,6 +322,7 @@ interface GridViewProps {
   rows: RowData[];
   sortField?: string | null;
   sortOrder?: 'asc' | 'desc';
+  sortRules?: SortRule[];
   groupByField?: string | null;
   groupByRules?: GroupByRule[];
   groupCollapseState?: GroupCollapseState;
@@ -360,6 +361,7 @@ export const GridView: React.FC<GridViewProps> = ({
   rows,
   sortField,
   sortOrder,
+  sortRules,
   groupByField,
   groupByRules,
   groupCollapseState,
@@ -1412,6 +1414,10 @@ export const GridView: React.FC<GridViewProps> = ({
     return fieldsWidth + 100 + 100;
   }, [fieldsWidth]);
 
+  const canDragRows = useMemo(() => {
+    return (!sortField || sortField === '') && (!sortRules || sortRules.length === 0);
+  }, [sortField, sortRules]);
+
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
@@ -1680,6 +1686,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                       isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                                       selectionBounds={selectionBounds}
                                       isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                                      canDrag={canDragRows}
                                       onToggleRowCheckbox={handleToggleRowCheckbox}
                                       onSelectRowHeader={handleSelectRowHeader}
                                       onMouseEnterRowHeader={handleMouseEnterRowHeader}
@@ -1834,6 +1841,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                         selectionBounds={selectionBounds}
                         isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                        canDrag={canDragRows}
                         onToggleRowCheckbox={handleToggleRowCheckbox}
                         onSelectRowHeader={handleSelectRowHeader}
                         onMouseEnterRowHeader={handleMouseEnterRowHeader}

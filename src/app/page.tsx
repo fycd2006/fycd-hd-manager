@@ -1030,7 +1030,7 @@ export default function Home() {
     return true
   }, [operations, wsState.activeTableId, dispatch, fetchTableData, uiActions])
 
-  // Reorder rows (Drag & Drop with DB persistence)
+  // Reorder rows (Drag & Drop with DB persistence & Cross-Group field sync)
   const handleReorderRows = async (srcIdx: number, targetIdx: number) => {
     if (!wsState.activeTableId || srcIdx === targetIdx) return
     const sourceRow = displayRows[srcIdx]
@@ -1041,8 +1041,34 @@ export default function Home() {
     const realTargetIdx = rows.findIndex(r => r.id === targetRow.id)
     if (realSrcIdx === -1 || realTargetIdx === -1) return
 
+    // Check if dragging across groups
+    const effectiveGroups = groupByRules && groupByRules.length > 0
+      ? groupByRules
+      : (groupByField ? [{ fieldKey: groupByField, order: 'asc' as const }] : []);
+
+    let fieldUpdates: Record<string, any> | null = null;
+    if (effectiveGroups.length > 0) {
+      effectiveGroups.forEach(grp => {
+        const targetVal = targetRow.data?.[grp.fieldKey] ?? targetRow.data?.[grp.fieldKey.replace('field_', '')];
+        const srcVal = sourceRow.data?.[grp.fieldKey] ?? sourceRow.data?.[grp.fieldKey.replace('field_', '')];
+        if (targetVal !== undefined && targetVal !== srcVal) {
+          if (!fieldUpdates) fieldUpdates = {};
+          fieldUpdates[grp.fieldKey] = targetVal;
+        }
+      });
+    }
+
     const reordered = [...rows]
-    const [moved] = reordered.splice(realSrcIdx, 1)
+    let [moved] = reordered.splice(realSrcIdx, 1)
+    if (fieldUpdates) {
+      moved = {
+        ...moved,
+        data: {
+          ...moved.data,
+          ...fieldUpdates
+        }
+      }
+    }
     reordered.splice(realTargetIdx, 0, moved)
 
     const updatedRows = reordered.map((r, idx) => ({ ...r, order: idx }))
@@ -1050,6 +1076,9 @@ export default function Home() {
 
     const rowIds = updatedRows.map(r => r.id)
     try {
+      if (fieldUpdates) {
+        await rowService.updateRow(wsState.activeTableId, sourceRow.id, fieldUpdates);
+      }
       const res = await rowService.reorderRows(wsState.activeTableId, rowIds)
       if (res.ok) {
         uiActions.addToast('已儲存資料列順序', 'success')
@@ -2222,6 +2251,7 @@ export default function Home() {
                     columnWidths={columnWidths}
                     sortField={sortField}
                     sortOrder={sortOrder}
+                    sortRules={sortRules}
                     groupByField={groupByField}
                     groupByRules={groupByRules}
                     groupCollapseState={groupCollapseState}
