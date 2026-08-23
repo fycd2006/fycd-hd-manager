@@ -74,7 +74,8 @@ import type {
   Toast,
   ContextMenu,
   FilterRule,
-  RowColorRule
+  RowColorRule,
+  GroupCollapseState
 } from '@/modules/database/types'
 
 export default function Home() {
@@ -217,7 +218,10 @@ export default function Home() {
   const [modalDbIdForTable, setModalDbIdForTable] = useState<number | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showAirtableModal, setShowAirtableModal] = useState(false)
-  const [collapseAllTrigger, setCollapseAllTrigger] = useState<{ collapse: boolean; timestamp: number } | null>(null)
+  const [groupCollapseState, setGroupCollapseState] = useState<GroupCollapseState>({
+    mode: 'expand',
+    exceptions: {},
+  })
 
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -2050,12 +2054,16 @@ export default function Home() {
                 groupByField={groupByField}
                 setGroupByField={(field) => {
                   setGroupByField(field)
+                  setGroupCollapseState({ mode: 'expand', exceptions: {} })
                   if (wsState.activeViewId) {
                     saveViewConfig(wsState.activeViewId, { groupByField: field })
                   }
                 }}
                 onToggleCollapseAllGroups={(collapse) => {
-                  setCollapseAllTrigger({ collapse, timestamp: Date.now() })
+                  setGroupCollapseState({
+                    mode: collapse ? 'collapse' : 'expand',
+                    exceptions: {},
+                  })
                 }}
                 fields={fields}
                 hiddenFieldKeys={hiddenFieldKeys}
@@ -2100,7 +2108,8 @@ export default function Home() {
                     sortField={sortField}
                     sortOrder={sortOrder}
                     groupByField={groupByField}
-                    collapseAllTrigger={collapseAllTrigger}
+                    groupCollapseState={groupCollapseState}
+                    onUpdateGroupCollapseState={setGroupCollapseState}
                     rowColorRules={rowColorRules}
                     editingFieldId={editingFieldId}
                     editingFieldName={editingFieldName}

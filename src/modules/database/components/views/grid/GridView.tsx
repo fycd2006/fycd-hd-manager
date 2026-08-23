@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
-import { TableField, RowColorRule } from '@/modules/database/types';
+import { TableField, RowColorRule, GroupCollapseState } from '@/modules/database/types';
 import { getOptionColor } from '@/modules/database/components/views/grid/cells/utils';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
@@ -17,6 +17,11 @@ export interface RowData {
   id: number;
   order?: number;
   values: Record<number, any>;
+}
+
+export function isGroupCollapsed(groupKey: string, collapseState: GroupCollapseState): boolean {
+  const isException = Boolean(collapseState.exceptions[groupKey]);
+  return collapseState.mode === 'collapse' ? !isException : isException;
 }
 
 export function computeFieldSummaries(rowsList: RowData[], fieldList: TableField[]) {
@@ -86,7 +91,8 @@ interface GridViewProps {
   sortField?: string | null;
   sortOrder?: 'asc' | 'desc';
   groupByField?: string | null;
-  collapseAllTrigger?: { collapse: boolean; timestamp: number } | null;
+  groupCollapseState?: GroupCollapseState;
+  onUpdateGroupCollapseState?: (state: GroupCollapseState | ((prev: GroupCollapseState) => GroupCollapseState)) => void;
   rowColorRules?: RowColorRule[];
   rowDetailsWidth?: number;
   onUpdateCell?: (rowId: number, fieldId: any, value?: any) => void;
@@ -122,7 +128,8 @@ export const GridView: React.FC<GridViewProps> = ({
   sortField,
   sortOrder,
   groupByField,
-  collapseAllTrigger,
+  groupCollapseState,
+  onUpdateGroupCollapseState,
   rowColorRules,
   rowDetailsWidth = 56,
   tableId,
@@ -480,6 +487,33 @@ export const GridView: React.FC<GridViewProps> = ({
     return fields.find(f => `field_${f.id}` === groupByField);
   }, [fields, groupByField]);
 
+  const [internalCollapseState, setInternalCollapseState] = useState<GroupCollapseState>({
+    mode: 'expand',
+    exceptions: {},
+  });
+
+  const activeCollapseState = groupCollapseState ?? internalCollapseState;
+  const updateCollapseState = onUpdateGroupCollapseState ?? setInternalCollapseState;
+
+  const handleToggleGroup = useCallback((groupKey: string) => {
+    updateCollapseState((prev) => {
+      const currentlyCollapsed = isGroupCollapsed(groupKey, prev);
+      const willBeCollapsed = !currentlyCollapsed;
+      const newExceptions = { ...prev.exceptions };
+
+      if ((prev.mode === 'collapse' && willBeCollapsed) || (prev.mode === 'expand' && !willBeCollapsed)) {
+        delete newExceptions[groupKey];
+      } else {
+        newExceptions[groupKey] = true;
+      }
+
+      return {
+        ...prev,
+        exceptions: newExceptions,
+      };
+    });
+  }, [updateCollapseState]);
+
   const frozenGroupedSectionsRef = useRef<[string, { rows: RowData[]; originalIndices: number[] }][] | null>(null);
 
   const groupedSections = useMemo(() => {
@@ -525,14 +559,14 @@ export const GridView: React.FC<GridViewProps> = ({
     if (!groupByField || !groupedSections) return null;
     const result: { row: RowData; originalIndex: number }[] = [];
     groupedSections.forEach(([groupKey, groupData]) => {
-      if (!collapsedGroups[groupKey]) {
+      if (!isGroupCollapsed(groupKey, activeCollapseState)) {
         groupData.rows.forEach((r, idx) => {
           result.push({ row: r, originalIndex: groupData.originalIndices[idx] });
         });
       }
     });
     return result;
-  }, [groupByField, groupedSections, collapsedGroups]);
+  }, [groupByField, groupedSections, activeCollapseState]);
 
   const handleNavigateCell = useCallback((rIndex: number, cIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => {
     // If at the bottom-most row and pressing down/enter, or at the bottom-right cell and pressing Tab: auto add row!
@@ -1000,21 +1034,6 @@ export const GridView: React.FC<GridViewProps> = ({
     return map;
   }, [groupedSections, fields]);
 
-  const handleToggleCollapseAll = useCallback((collapse: boolean) => {
-    if (!groupedSections) return;
-    const next: Record<string, boolean> = {};
-    groupedSections.forEach(([key]) => {
-      next[key] = collapse;
-    });
-    setCollapsedGroups(next);
-  }, [groupedSections]);
-
-  useEffect(() => {
-    if (collapseAllTrigger && groupedSections) {
-      handleToggleCollapseAll(collapseAllTrigger.collapse);
-    }
-  }, [collapseAllTrigger, groupedSections, handleToggleCollapseAll]);
-
   const renderGroupBadge = useCallback((groupKey: string, field: TableField | null | undefined) => {
     if (!groupKey || groupKey === '（空白）' || groupKey === '（空白未指定）') {
       return (
@@ -1164,7 +1183,7 @@ export const GridView: React.FC<GridViewProps> = ({
             {groupedSections ? (
               <div className="grid-view__grouped-body" style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
                 {groupedSections.map(([groupKey, groupData]) => {
-                  const isCollapsed = collapsedGroups[groupKey];
+                  const isCollapsed = isGroupCollapsed(groupKey, activeCollapseState);
                   const groupSummaries = groupSummariesMap?.get(groupKey);
 
                   return (
@@ -1187,7 +1206,7 @@ export const GridView: React.FC<GridViewProps> = ({
                       >
                         {/* Primary Group Info Column (Sticky Left) */}
                         <div
-                          onClick={() => setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }))}
+                          onClick={() => handleToggleGroup(groupKey)}
                           style={{
                             width: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
                             minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,

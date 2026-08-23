@@ -5,8 +5,8 @@
 import React from 'react'
 import '@testing-library/jest-dom'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { GridView, computeFieldSummaries } from '../grid/GridView'
-import type { TableField } from '@/modules/database/types'
+import { GridView, computeFieldSummaries, isGroupCollapsed } from '../grid/GridView'
+import type { TableField, GroupCollapseState } from '@/modules/database/types'
 
 // Mock react-virtualizer
 jest.mock('@tanstack/react-virtual', () => ({
@@ -42,6 +42,30 @@ describe('GridView Group By & Group Aggregations', () => {
     { id: 102, order: 2, values: { 1: 'Alice', 2: '研發部', 3: 90000 }, data: { field_1: 'Alice', field_2: '研發部', field_3: 90000 } },
     { id: 103, order: 3, values: { 1: 'Bob', 2: '業務部', 3: 50000 }, data: { field_1: 'Bob', field_2: '業務部', field_3: 50000 } },
   ]
+
+  test('isGroupCollapsed computes collapse status declaratively', () => {
+    // 1. Default expand mode: nothing collapsed unless in exceptions
+    const defaultState: GroupCollapseState = { mode: 'expand', exceptions: {} }
+    expect(isGroupCollapsed('dev', defaultState)).toBe(false)
+    expect(isGroupCollapsed('sales', defaultState)).toBe(false)
+
+    // With exception in expand mode: only exception is collapsed
+    const expandWithException: GroupCollapseState = { mode: 'expand', exceptions: { dev: true } }
+    expect(isGroupCollapsed('dev', expandWithException)).toBe(true)
+    expect(isGroupCollapsed('sales', expandWithException)).toBe(false)
+
+    // 2. Collapse all mode: everything collapsed unless in exceptions
+    const collapseAllState: GroupCollapseState = { mode: 'collapse', exceptions: {} }
+    expect(isGroupCollapsed('dev', collapseAllState)).toBe(true)
+    expect(isGroupCollapsed('sales', collapseAllState)).toBe(true)
+    // Dynamic new group also collapsed
+    expect(isGroupCollapsed('new_marketing_dept', collapseAllState)).toBe(true)
+
+    // With exception in collapse mode: exception is expanded (not collapsed)
+    const collapseWithException: GroupCollapseState = { mode: 'collapse', exceptions: { dev: true } }
+    expect(isGroupCollapsed('dev', collapseWithException)).toBe(false)
+    expect(isGroupCollapsed('sales', collapseWithException)).toBe(true)
+  })
 
   test('computeFieldSummaries computes group metrics correctly', () => {
     const devRows = mockRows.slice(0, 2)

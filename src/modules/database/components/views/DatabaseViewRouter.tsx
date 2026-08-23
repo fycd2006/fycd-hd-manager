@@ -5,7 +5,7 @@ import KanbanView from './kanban/KanbanView'
 import CalendarView from './calendar/CalendarView'
 import TimelineView from './timeline/TimelineView'
 import FormView from './form/FormView'
-import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule } from '../../types'
+import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule, GroupCollapseState } from '../../types'
 import { formatDateValue } from '../../utils'
 
 interface DatabaseViewRouterProps {
@@ -20,7 +20,8 @@ interface DatabaseViewRouterProps {
   sortField: string | null
   sortOrder: 'asc' | 'desc'
   groupByField: string | null
-  collapseAllTrigger?: { collapse: boolean; timestamp: number } | null
+  groupCollapseState?: GroupCollapseState
+  onUpdateGroupCollapseState?: (state: GroupCollapseState | ((prev: GroupCollapseState) => GroupCollapseState)) => void
   rowColorRules?: RowColorRule[]
   editingFieldId: number | null
   editingFieldName: string
@@ -77,7 +78,8 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   sortField,
   sortOrder,
   groupByField,
-  collapseAllTrigger,
+  groupCollapseState,
+  onUpdateGroupCollapseState,
   rowColorRules,
   editingFieldId,
   editingFieldName,
@@ -146,7 +148,8 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           sortField={sortField}
           sortOrder={sortOrder}
           groupByField={groupByField}
-          collapseAllTrigger={collapseAllTrigger}
+          groupCollapseState={groupCollapseState}
+          onUpdateGroupCollapseState={onUpdateGroupCollapseState}
           rowColorRules={rowColorRules}
           editingFieldId={editingFieldId}
           editingFieldName={editingFieldName}

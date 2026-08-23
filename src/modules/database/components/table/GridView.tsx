@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { TableField, TableRow, FilterRule, RowColorRule } from '@/modules/database/types'
+import type { TableField, TableRow, FilterRule, RowColorRule, GroupCollapseState } from '@/modules/database/types'
 import { GridView as GridViewContent, RowData } from '../views/grid/GridView'
 import { WorkspaceGridSkeleton } from './WorkspaceGridSkeleton'
 
@@ -14,6 +14,8 @@ interface GridViewProps {
   sortField?: string | null
   sortOrder?: 'asc' | 'desc'
   groupByField?: string | null
+  groupCollapseState?: GroupCollapseState
+  onUpdateGroupCollapseState?: (state: GroupCollapseState | ((prev: GroupCollapseState) => GroupCollapseState)) => void
   rowColorRules?: RowColorRule[]
   editingFieldId?: number | null
   editingFieldName?: string
@@ -60,7 +62,6 @@ interface GridViewProps {
   viewId?: number | null
   initialAggregations?: Record<string | number, string> | string | null
   onUpdateAggregations?: (agg: Record<string | number, string>) => void
-  collapseAllTrigger?: { collapse: boolean; timestamp: number } | null
 }
 
 export default function GridView({
@@ -71,12 +72,13 @@ export default function GridView({
   sortField,
   sortOrder,
   groupByField,
+  groupCollapseState,
+  onUpdateGroupCollapseState,
   rowColorRules,
   tableId,
   viewId,
   initialAggregations,
   onUpdateAggregations,
-  collapseAllTrigger,
   readOnly = false,
   isOffline = false,
   onAddRow,
@@ -184,7 +186,8 @@ export default function GridView({
         viewId={viewId}
         initialAggregations={initialAggregations}
         onUpdateAggregations={onUpdateAggregations}
-        collapseAllTrigger={collapseAllTrigger}
+        groupCollapseState={groupCollapseState}
+        onUpdateGroupCollapseState={onUpdateGroupCollapseState}
       />
     </div>
   )

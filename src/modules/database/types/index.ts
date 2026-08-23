@@ -100,6 +100,11 @@ export type ViewConfigPatch = {
   aggregations?: Record<string | number, string> | string | null
 }
 
+export interface GroupCollapseState {
+  mode: 'expand' | 'collapse'
+  exceptions: Record<string, boolean>
+}
+
 // =============================================
 // Filters & Sorting
 // =============================================
