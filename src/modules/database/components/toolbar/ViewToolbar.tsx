@@ -412,6 +412,7 @@ export function ViewToolbar({
           )}
         </li>
 
+        {/* Filter Button */}
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
             className={`header__filter-link ${filterRules.length > 0 ? 'active' : activeHeaderMenu === 'filter' ? 'active' : ''}`}
@@ -421,20 +422,29 @@ export function ViewToolbar({
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px',
-              backgroundColor: filterRules.length > 0 ? '#F4F4F5' : 'transparent',
+              height: '32px',
+              backgroundColor: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#F4F4F5' : 'transparent',
               border: 'none',
               borderRadius: '6px',
-              padding: '5px 12px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
               transition: 'background-color 0.15s ease',
             }}
+            onMouseEnter={(e) => {
+              if (filterRules.length === 0 && activeHeaderMenu !== 'filter') e.currentTarget.style.backgroundColor = '#F4F4F5';
+            }}
+            onMouseLeave={(e) => {
+              if (filterRules.length === 0 && activeHeaderMenu !== 'filter') e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <Filter size={16} color={filterRules.length > 0 ? '#3F6212' : activeHeaderMenu === 'filter' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: filterRules.length > 0 ? '#3F6212' : '#44403C', fontWeight: filterRules.length > 0 ? 600 : 500 }}>
+            <Filter size={16} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#44403C', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 600 : 500 }}>
               {filterRules.length > 0 ? `${filterRules.length} ${t('toolbar.filter')}` : t('toolbar.filter')}
             </span>
           </a>
         </li>
 
+        {/* Sort Button */}
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
             className={`header__filter-link ${sortField ? 'active' : activeHeaderMenu === 'sort' ? 'active' : ''}`}
@@ -444,71 +454,155 @@ export function ViewToolbar({
               display: 'flex', 
               alignItems: 'center', 
               gap: '6px',
-              backgroundColor: sortField ? '#F4F4F5' : 'transparent',
+              height: '32px',
+              backgroundColor: sortField || activeHeaderMenu === 'sort' ? '#F4F4F5' : 'transparent',
               border: 'none',
               borderRadius: '6px',
-              padding: '5px 12px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
               transition: 'background-color 0.15s ease',
             }}
+            onMouseEnter={(e) => {
+              if (!sortField && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = '#F4F4F5';
+            }}
+            onMouseLeave={(e) => {
+              if (!sortField && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <ArrowDownAZ size={16} color={sortField ? '#3F6212' : activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: sortField ? '#3F6212' : '#44403C', fontWeight: sortField ? 600 : 500 }}>
+            <ArrowDownAZ size={16} color={sortField || activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: sortField || activeHeaderMenu === 'sort' ? '#3F6212' : '#44403C', fontWeight: sortField || activeHeaderMenu === 'sort' ? 600 : 500 }}>
               {sortField ? `1 ${t('toolbar.sort')}` : t('toolbar.sort')}
             </span>
           </a>
         </li>
 
+        {/* Color Button */}
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
             className={`header__filter-link ${safeRowColorRules.length > 0 ? 'active' : activeHeaderMenu === 'color' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('color', e)}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              height: '32px',
+              backgroundColor: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#F4F4F5' : 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (safeRowColorRules.length === 0 && activeHeaderMenu !== 'color') e.currentTarget.style.backgroundColor = '#F4F4F5';
+            }}
+            onMouseLeave={(e) => {
+              if (safeRowColorRules.length === 0 && activeHeaderMenu !== 'color') e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <Palette size={16} color={safeRowColorRules.length > 0 ? '#3F6212' : activeHeaderMenu === 'color' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 ? '#3F6212' : '#44403C' }}>{safeRowColorRules.length > 0 ? `${safeRowColorRules.length} ${t('toolbar.color')}` : t('toolbar.color')}</span>
+            <Palette size={16} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#44403C', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 600 : 500 }}>
+              {safeRowColorRules.length > 0 ? `${safeRowColorRules.length} ${t('toolbar.color')}` : t('toolbar.color')}
+            </span>
           </a>
         </li>
 
+        {/* Group Button */}
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
             className={`header__filter-link ${activeGroupByRules.length > 0 ? 'active' : activeHeaderMenu === 'group' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('group', e)}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              height: '32px',
+              backgroundColor: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#F4F4F5' : 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (activeGroupByRules.length === 0 && activeHeaderMenu !== 'group') e.currentTarget.style.backgroundColor = '#F4F4F5';
+            }}
+            onMouseLeave={(e) => {
+              if (activeGroupByRules.length === 0 && activeHeaderMenu !== 'group') e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             <Layers size={16} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 ? '#3F6212' : '#44403C' }}>
-              {activeGroupByRules.length === 0
-                ? t('toolbar.group')
-                : activeGroupByRules.length === 1
-                ? `1 ${t('toolbar.group')}`
-                : `Group by ${activeGroupByRules.length} fields`}
+            <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#44403C', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 600 : 500 }}>
+              {activeGroupByRules.length > 0 ? `${activeGroupByRules.length} ${t('toolbar.group')}` : t('toolbar.group')}
             </span>
           </a>
         </li>
       </ul>
       
       <ul className="header__filter header__filter--full-width">
+        {/* Hide Fields Button */}
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
             className={`header__filter-link ${actualHiddenCount > 0 ? 'active' : activeHeaderMenu === 'hide' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('hide', e)}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              height: '32px',
+              backgroundColor: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#F4F4F5' : 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (actualHiddenCount === 0 && activeHeaderMenu !== 'hide') e.currentTarget.style.backgroundColor = '#F4F4F5';
+            }}
+            onMouseLeave={(e) => {
+              if (actualHiddenCount === 0 && activeHeaderMenu !== 'hide') e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <EyeOff size={16} color={actualHiddenCount > 0 ? '#3F6212' : activeHeaderMenu === 'hide' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: actualHiddenCount > 0 ? '#3F6212' : '#44403C' }}>
+            <EyeOff size={16} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#44403C', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 600 : 500 }}>
               {actualHiddenCount > 0 ? `${actualHiddenCount} ${t('toolbar.hideFields')}` : t('toolbar.hideFields')}
             </span>
           </a>
         </li>
         
+        {/* Row Height Button */}
         <li className="header__filter-item" style={{ position: 'relative' }}>
           <a 
             className={`header__filter-link ${rowHeightSize !== 'small' ? 'active' : activeHeaderMenu === 'rowHeight' ? 'active' : ''}`}
             onClick={(e) => openMenuWithAnchor('rowHeight', e)}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              height: '32px',
+              backgroundColor: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#F4F4F5' : 'transparent',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '0 12px',
+              boxSizing: 'border-box',
+              transition: 'background-color 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = '#F4F4F5';
+            }}
+            onMouseLeave={(e) => {
+              if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
-            <AlignJustify size={16} color={rowHeightSize !== 'small' ? '#3F6212' : activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b'} className="header__filter-icon" />
-            <span className="header__filter-name">{t('toolbar.rowHeight')}</span>
+            <AlignJustify size={16} color={rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+            <span className="header__filter-name" style={{ color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#44403C', fontWeight: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? 600 : 500 }}>
+              {t('toolbar.rowHeight')}
+            </span>
           </a>
         </li>
 
