@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { TableField, RowColorRule, GroupCollapseState } from '@/modules/database/types';
-import { getOptionColor } from '@/modules/database/components/views/grid/cells/utils';
+import { getOptionColor, parseSelectItems } from '@/modules/database/components/views/grid/cells/utils';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -17,6 +17,188 @@ export interface RowData {
   id: number;
   order?: number;
   values: Record<number, any>;
+}
+
+export interface GroupBadge {
+  label: string;
+  bg?: string;
+  color?: string;
+  border?: string;
+}
+
+export function parseGroupValue(
+  rawVal: any,
+  field: TableField | null | undefined,
+  relationMap?: Map<string | number, string>
+): {
+  key: string;
+  displayTitle: string;
+  badges: GroupBadge[];
+  isBlank: boolean;
+} {
+  if (rawVal === undefined || rawVal === null || rawVal === '' || rawVal === '[]' || rawVal === '{}') {
+    return {
+      key: '（空白）',
+      displayTitle: '（空白未指定）',
+      badges: [{ label: '（空白未指定）', bg: '#f1f5f9', color: '#94a3b8' }],
+      isBlank: true,
+    };
+  }
+
+  // Attempt JSON parse if string is stringified array or object
+  let val = rawVal;
+  if (typeof rawVal === 'string') {
+    const trimmed = rawVal.trim();
+    if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+      try {
+        val = JSON.parse(trimmed);
+      } catch {}
+    }
+  }
+
+  // 1. Select fields (single_select / multiple_select)
+  if (field && (field.type === 'single_select' || field.type === 'multiple_select')) {
+    const items = parseSelectItems(rawVal, field.options);
+    if (items.length === 0) {
+      return {
+        key: '（空白）',
+        displayTitle: '（空白未指定）',
+        badges: [{ label: '（空白未指定）', bg: '#f1f5f9', color: '#94a3b8' }],
+        isBlank: true,
+      };
+    }
+    const badges: GroupBadge[] = items.map(item => {
+      const color = getOptionColor(item, field.options as any);
+      return {
+        label: item,
+        bg: color.bg || color.backgroundColor,
+        color: color.text || color.color,
+        border: color.border || 'transparent',
+      };
+    });
+    return {
+      key: items.join(', '),
+      displayTitle: items.join(', '),
+      badges,
+      isBlank: false,
+    };
+  }
+
+  // 2. Link Row fields
+  if (field && field.type === 'link_row') {
+    const items = Array.isArray(val) ? val : [val];
+    const badges: GroupBadge[] = [];
+    const keyParts: string[] = [];
+
+    items.forEach((item: any) => {
+      if (typeof item === 'object' && item !== null) {
+        const itemVal = item.value || item.name || item.title || item.label;
+        const itemId = item.id != null ? String(item.id) : '';
+        const resolvedName = (itemId && relationMap?.get(itemId)) || (item.id != null && relationMap?.get(item.id));
+        const label = String(resolvedName || itemVal || (itemId ? `列 ID: ${itemId}` : ''));
+        if (label) {
+          const color = getOptionColor(label);
+          badges.push({
+            label,
+            bg: color.bg || '#fee2e2',
+            color: color.text || '#991b1b',
+            border: color.border || '#fca5a5',
+          });
+          keyParts.push(itemId || label);
+        }
+      } else {
+        const itemStr = String(item).trim();
+        if (itemStr) {
+          const resolvedName = relationMap?.get(itemStr);
+          const label = resolvedName || itemStr;
+          const color = getOptionColor(label);
+          badges.push({
+            label,
+            bg: color.bg || '#fee2e2',
+            color: color.text || '#991b1b',
+            border: color.border || '#fca5a5',
+          });
+          keyParts.push(itemStr);
+        }
+      }
+    });
+
+    if (badges.length === 0) {
+      return {
+        key: '（空白）',
+        displayTitle: '（空白未指定）',
+        badges: [{ label: '（空白未指定）', bg: '#f1f5f9', color: '#94a3b8' }],
+        isBlank: true,
+      };
+    }
+
+    return {
+      key: keyParts.join(', '),
+      displayTitle: badges.map(b => b.label).join(', '),
+      badges,
+      isBlank: false,
+    };
+  }
+
+  // 3. Boolean
+  if ((field && field.type === 'boolean') || typeof val === 'boolean') {
+    const isTrue = val === true || val === 'true' || val === 1 || val === '1';
+    return {
+      key: isTrue ? '是 (Yes)' : '否 (No)',
+      displayTitle: isTrue ? '是 (Yes)' : '否 (No)',
+      badges: [{
+        label: isTrue ? '是 (Yes)' : '否 (No)',
+        bg: isTrue ? '#dcfce7' : '#f1f5f9',
+        color: isTrue ? '#166534' : '#475569',
+        border: isTrue ? '#86efac' : '#cbd5e1',
+      }],
+      isBlank: false,
+    };
+  }
+
+  // 4. Arrays
+  if (Array.isArray(val)) {
+    if (val.length === 0) {
+      return {
+        key: '（空白）',
+        displayTitle: '（空白未指定）',
+        badges: [{ label: '（空白未指定）', bg: '#f1f5f9', color: '#94a3b8' }],
+        isBlank: true,
+      };
+    }
+    const badges = val.map((v: any) => ({
+      label: typeof v === 'object' ? v.value || v.name || String(v) : String(v),
+      bg: '#f1f5f9',
+      color: '#334155',
+      border: '#e2e8f0',
+    }));
+    return {
+      key: badges.map(b => b.label).join(', '),
+      displayTitle: badges.map(b => b.label).join(', '),
+      badges,
+      isBlank: false,
+    };
+  }
+
+  // 5. Object
+  if (typeof val === 'object' && val !== null) {
+    const label = val.value || val.name || val.title || val.label || String(val);
+    return {
+      key: String(label),
+      displayTitle: String(label),
+      badges: [{ label: String(label), bg: '#f1f5f9', color: '#334155', border: '#e2e8f0' }],
+      isBlank: false,
+    };
+  }
+
+  // 6. Generic Primitive
+  const str = String(val).trim();
+  return {
+    key: str || '（空白）',
+    displayTitle: str || '（空白未指定）',
+    badges: [{ label: str || '（空白未指定）', bg: '#f1f5f9', color: str ? '#1e293b' : '#94a3b8' }],
+    isBlank: !str,
+  };
 }
 
 export function isGroupCollapsed(groupKey: string, collapseState: GroupCollapseState): boolean {
@@ -482,10 +664,6 @@ export const GridView: React.FC<GridViewProps> = ({
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell]);
 
-  const groupedField = useMemo(() => {
-    if (!groupByField) return null;
-    return fields.find(f => `field_${f.id}` === groupByField);
-  }, [fields, groupByField]);
 
   const [internalCollapseState, setInternalCollapseState] = useState<GroupCollapseState>({
     mode: 'expand',
@@ -514,7 +692,39 @@ export const GridView: React.FC<GridViewProps> = ({
     });
   }, [updateCollapseState]);
 
-  const frozenGroupedSectionsRef = useRef<[string, { rows: RowData[]; originalIndices: number[] }][] | null>(null);
+  const groupedField = useMemo(() => {
+    if (!groupByField) return null;
+    return fields.find(f => `field_${f.id}` === groupByField || String(f.id) === groupByField) || null;
+  }, [fields, groupByField]);
+
+  const [relationRowsMap, setRelationRowsMap] = useState<Map<string | number, string>>(new Map());
+
+  useEffect(() => {
+    if (!groupedField || groupedField.type !== 'link_row') return;
+    let opts: any = groupedField.options;
+    if (typeof opts === 'string') {
+      try { opts = JSON.parse(opts); } catch {}
+    }
+    const targetTableId = Number(opts?.targetTableId ?? opts?.link_row_table_id ?? opts?.target_table_id);
+    if (!targetTableId) return;
+
+    fetch(`/api/tables/${targetTableId}/rows`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        const rowsList = Array.isArray(data) ? data : (data.rows || []);
+        const newMap = new Map<string | number, string>();
+        rowsList.forEach((r: any) => {
+          const primaryVal = r.data ? Object.values(r.data).find(v => v != null && v !== '' && typeof v !== 'object') : null;
+          const name = primaryVal ? String(primaryVal) : `列 ID: ${r.id}`;
+          newMap.set(r.id, name);
+          newMap.set(String(r.id), name);
+        });
+        setRelationRowsMap(newMap);
+      })
+      .catch(() => {});
+  }, [groupedField]);
+
+  const frozenGroupedSectionsRef = useRef<[string, { rows: RowData[]; originalIndices: number[]; displayTitle: string; badges: GroupBadge[]; isBlank: boolean }][] | null>(null);
 
   const groupedSections = useMemo(() => {
     if (!groupByField) {
@@ -531,20 +741,23 @@ export const GridView: React.FC<GridViewProps> = ({
           ...data,
           rows: data.rows.map(r => rowMap.get(r.id) || r)
         }
-      ] as [string, { rows: RowData[]; originalIndices: number[] }]);
+      ] as [string, { rows: RowData[]; originalIndices: number[]; displayTitle: string; badges: GroupBadge[]; isBlank: boolean }]);
     }
 
-    const map = new Map<string, { rows: RowData[]; originalIndices: number[] }>();
+    const map = new Map<string, { rows: RowData[]; originalIndices: number[]; displayTitle: string; badges: GroupBadge[]; isBlank: boolean }>();
     rows.forEach((row, idx) => {
       const rawVal = (row as any).data ? (row as any).data[groupByField] : (row.values ? row.values[parseInt(groupByField.replace('field_', ''))] : undefined);
-      let key = '（空白）';
-      if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
-        if (typeof rawVal === 'boolean') key = rawVal ? '是 (Yes)' : '否 (No)';
-        else if (Array.isArray(rawVal)) key = rawVal.map((item: any) => typeof item === 'object' ? item.value || item.name || String(item) : String(item)).join(', ') || '（空白）';
-        else if (typeof rawVal === 'object') key = (rawVal as any).value || (rawVal as any).name || String(rawVal) || '（空白）';
-        else key = String(rawVal);
+      const { key, displayTitle, badges, isBlank } = parseGroupValue(rawVal, groupedField, relationRowsMap);
+
+      if (!map.has(key)) {
+        map.set(key, {
+          rows: [],
+          originalIndices: [],
+          displayTitle,
+          badges,
+          isBlank,
+        });
       }
-      if (!map.has(key)) map.set(key, { rows: [], originalIndices: [] });
       const grp = map.get(key)!;
       grp.rows.push(row);
       grp.originalIndices.push(idx);
@@ -552,7 +765,7 @@ export const GridView: React.FC<GridViewProps> = ({
     const result = Array.from(map.entries());
     frozenGroupedSectionsRef.current = result;
     return result;
-  }, [rows, groupByField, isEditing]);
+  }, [rows, groupByField, groupedField, relationRowsMap, isEditing]);
 
   // Flat list of rows according to visible/expanded group sections
   const visualGroupedRows = useMemo(() => {
@@ -1034,67 +1247,6 @@ export const GridView: React.FC<GridViewProps> = ({
     return map;
   }, [groupedSections, fields]);
 
-  const renderGroupBadge = useCallback((groupKey: string, field: TableField | null | undefined) => {
-    if (!groupKey || groupKey === '（空白）' || groupKey === '（空白未指定）') {
-      return (
-        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>
-          （空白未指定）
-        </span>
-      );
-    }
-
-    if (field && (field.type === 'single_select' || field.type === 'multiple_select')) {
-      let optionsList: any[] = [];
-      if (field.options) {
-        if (Array.isArray(field.options)) {
-          optionsList = field.options;
-        } else if (typeof field.options === 'string') {
-          try {
-            const parsed = JSON.parse(field.options);
-            optionsList = Array.isArray(parsed) ? parsed : (parsed?.options || []);
-          } catch {}
-        }
-      }
-      const colorStyle = getOptionColor(groupKey, optionsList);
-      return (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '2px 8px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 600,
-            backgroundColor: colorStyle.bg || colorStyle.backgroundColor,
-            color: colorStyle.text || colorStyle.color,
-            border: `1px solid ${colorStyle.border || 'transparent'}`,
-            maxWidth: '220px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {groupKey}
-        </span>
-      );
-    }
-
-    return (
-      <span
-        style={{
-          fontWeight: 600,
-          color: '#1e293b',
-          fontSize: '13px',
-          maxWidth: '220px',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {groupKey}
-      </span>
-    );
-  }, []);
 
   const formatGroupSummaryText = useCallback((summary: any, mode: string) => {
     if (!summary || mode === 'none') return '';
@@ -1209,9 +1361,9 @@ export const GridView: React.FC<GridViewProps> = ({
                         <div
                           onClick={() => handleToggleGroup(groupKey)}
                           style={{
-                            width: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
-                            minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
-                            maxWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                            width: `${Math.max(340, rowDetailsWidth + (fields[0]?.width || 180))}px`,
+                            minWidth: `${Math.max(340, rowDetailsWidth + (fields[0]?.width || 180))}px`,
+                            maxWidth: `${Math.max(340, rowDetailsWidth + (fields[0]?.width || 180))}px`,
                             height: '100%',
                             display: 'flex',
                             alignItems: 'center',
@@ -1251,14 +1403,37 @@ export const GridView: React.FC<GridViewProps> = ({
                             <ChevronDown size={15} />
                           </div>
 
-                          {/* Group Field Name & Badge (Clean Horizontal Layout) */}
+                          {/* Group Field Name & Badges (Clean Horizontal Layout) */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
                             {groupedField && (
                               <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
                                 {groupedField.name}:
                               </span>
                             )}
-                            {renderGroupBadge(groupKey, groupedField)}
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', overflow: 'hidden', flexWrap: 'nowrap' }}>
+                              {groupData.badges.map((b, bIdx) => (
+                                <span
+                                  key={bIdx}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    backgroundColor: b.bg || '#f1f5f9',
+                                    color: b.color || '#334155',
+                                    border: `1px solid ${b.border || 'transparent'}`,
+                                    maxWidth: '180px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {b.label}
+                                </span>
+                              ))}
+                            </div>
                           </div>
 
                           {/* Row Count Badge */}
@@ -1400,7 +1575,7 @@ export const GridView: React.FC<GridViewProps> = ({
                               const grpField = groupedField ? `field_${groupedField.id}` : groupByField;
                               const rawVal = groupData.rows[0] ? ((groupData.rows[0] as any).data?.[grpField!] ?? groupData.rows[0].values?.[parseInt(grpField!.replace('field_', ''))]) : undefined;
                               if (grpField) {
-                                onBatchAddRows ? onBatchAddRows([{ [grpField]: rawVal ?? (groupKey === '（空白）' ? '' : groupKey) }]) : onAddRow?.();
+                                onBatchAddRows ? onBatchAddRows([{ [grpField]: rawVal ?? (groupData.isBlank ? '' : groupData.displayTitle) }]) : onAddRow?.();
                               } else {
                                 onAddRow?.();
                               }
@@ -1451,7 +1626,9 @@ export const GridView: React.FC<GridViewProps> = ({
                               }}
                             >
                               <span>+ 在「</span>
-                              <span style={{ fontWeight: 600, color: '#334155' }}>{groupKey}</span>
+                              <span style={{ fontWeight: 600, color: '#334155' }}>
+                                {groupData.isBlank ? '未指定' : groupData.displayTitle}
+                              </span>
                               <span>」新增資料列</span>
                             </div>
                           </div>
