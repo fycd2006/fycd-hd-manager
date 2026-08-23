@@ -216,6 +216,13 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
           color: #18181b !important;
           transform: rotate(90deg);
         }
+        @media (max-width: 767px) {
+          [data-testid="card-drawer-panel"] {
+            max-width: 100vw !important;
+            width: 100vw !important;
+            border-left: none !important;
+          }
+        }
       `}</style>
       <div
         data-testid="card-drawer-panel"

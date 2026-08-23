@@ -195,7 +195,7 @@ export function ViewToolbar({
   const [fieldSearchQuery, setFieldSearchQuery] = useState('')
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 640)
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -781,15 +781,26 @@ export function ViewToolbar({
             inset: 0,
             zIndex: 99999998,
             backgroundColor: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
-            backdropFilter: isMobile ? 'blur(3px)' : 'none',
+            backdropFilter: isMobile ? 'blur(4px)' : 'none',
             display: isMobile ? 'flex' : 'block',
-            alignItems: isMobile ? 'center' : undefined,
+            alignItems: isMobile ? 'flex-end' : undefined,
             justifyContent: isMobile ? 'center' : undefined,
-            padding: isMobile ? '16px' : 0,
-            pointerEvents: 'auto'
+            padding: 0,
+            pointerEvents: 'auto',
+            animation: isMobile ? 'backdropFadeIn 0.2s ease' : 'none',
           }}
           onClick={() => setActiveHeaderMenu(null)}
         >
+          <style>{`
+            @keyframes bottomSheetSlideUp {
+              from { transform: translateY(100%); }
+              to { transform: translateY(0); }
+            }
+            @keyframes backdropFadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          `}</style>
           <div
             ref={popoverMenuRef}
             className="toolbar-popover-card"
@@ -798,19 +809,58 @@ export function ViewToolbar({
               position: isMobile ? 'relative' : 'fixed',
               top: isMobile ? undefined : `${(menuAnchorRect?.top || 0) + (menuAnchorRect?.height || 0) + 6}px`,
               left: isMobile ? undefined : `${Math.max(8, Math.min(menuAnchorRect?.left || 8, (typeof window !== 'undefined' ? window.innerWidth : 800) - (activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? 540 : activeHeaderMenu === 'sort' || activeHeaderMenu === 'group' ? 490 : 290)))}px`,
+              bottom: isMobile ? 0 : undefined,
+              width: isMobile ? '100vw' : undefined,
+              maxWidth: isMobile ? '100vw' : '92vw',
+              maxHeight: isMobile ? '82vh' : 'calc(100vh - 100px)',
               zIndex: 99999999,
               backgroundColor: '#ffffff',
-              borderRadius: isMobile ? '16px' : '10px',
-              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
-              border: '1px solid #e2e8f0',
-              padding: activeHeaderMenu === 'hide' || activeHeaderMenu === 'rowHeight' ? '6px' : '12px',
-              maxWidth: isMobile ? '100%' : '92vw',
-              maxHeight: 'calc(100vh - 100px)',
+              borderRadius: isMobile ? '20px 20px 0 0' : '10px',
+              boxShadow: isMobile ? '0 -10px 40px rgba(0, 0, 0, 0.18)' : '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
+              border: isMobile ? 'none' : '1px solid #e2e8f0',
+              borderTop: isMobile ? '1px solid rgba(226, 232, 240, 0.8)' : undefined,
+              padding: isMobile ? '14px 16px max(24px, env(safe-area-inset-bottom)) 16px' : (activeHeaderMenu === 'hide' || activeHeaderMenu === 'rowHeight' ? '6px' : '12px'),
               overflowY: 'auto',
               overflowX: 'hidden',
+              animation: isMobile ? 'bottomSheetSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Mobile Bottom Sheet Grab Handle & Header */}
+            {isMobile && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ width: '36px', height: '4px', borderRadius: '9999px', backgroundColor: '#cbd5e1', marginBottom: '10px' }} />
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
+                    {activeHeaderMenu === 'filter' && (t('toolbar.filter') || '篩選條件')}
+                    {activeHeaderMenu === 'sort' && (t('toolbar.sort') || '排序條件')}
+                    {activeHeaderMenu === 'group' && (t('toolbar.group') || '分組條件')}
+                    {activeHeaderMenu === 'color' && (t('toolbar.color') || '色彩標記')}
+                    {activeHeaderMenu === 'hide' && (t('toolbar.hideFields') || '隱藏欄位')}
+                    {activeHeaderMenu === 'rowHeight' && (t('toolbar.rowHeight') || '列高設定')}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveHeaderMenu(null)}
+                    style={{
+                      background: '#f1f5f9',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      width: '28px',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Filter Content */}
             {activeHeaderMenu === 'filter' && (
               <FilterMenu

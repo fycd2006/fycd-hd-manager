@@ -3150,14 +3150,16 @@ select option {
     padding: 16px 18px 24px !important;
   }
 
-  /* Un-cramp mobile form input padding & touch targets */
-  input[type="text"],
-  input[type="number"],
-  input[type="date"],
-  select,
-  textarea {
+  /* Un-cramp mobile form input padding & touch targets for modals and drawers */
+  .modal input[type="text"],
+  .modal input[type="number"],
+  .modal input[type="date"],
+  .modal select,
+  .modal textarea,
+  .card-drawer input,
+  .row-edit-modal-card input {
     font-size: 16px !important; /* Prevents iOS Safari auto-zoom */
-    padding: 12px 14px !important;
+    padding: 10px 12px !important;
   }
 }
 

@@ -928,38 +928,51 @@ export default function MobileBottomNav({
             inset: 0,
             zIndex: 1050,
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'center',
             backgroundColor: 'rgba(15, 23, 42, 0.45)',
             backdropFilter: 'blur(4px)',
             pointerEvents: 'auto',
-            touchAction: 'manipulation'
+            touchAction: 'manipulation',
+            animation: 'backdropFadeIn 0.2s ease',
           }}
           onClick={() => setShowDbModal(false)}
         >
+          <style>{`
+            @keyframes mobileDbSheetSlideUp {
+              from { transform: translateY(100%); }
+              to { transform: translateY(0); }
+            }
+          `}</style>
           <div
             style={{
-              width: '500px',
-              maxWidth: '92vw',
-              maxHeight: '80vh',
+              width: '100vw',
+              maxWidth: '100vw',
+              maxHeight: '85vh',
               backgroundColor: isDark ? '#0f172a' : '#ffffff',
-              borderRadius: '24px',
-              boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.35)',
+              borderRadius: '24px 24px 0 0',
+              boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.25)',
               border: isDark ? '1px solid rgba(255,255,255,0.1)' : 'none',
+              borderBottom: 'none',
               display: 'flex',
               flexDirection: 'column',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              animation: 'mobileDbSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+              paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
             }}
             onClick={e => e.stopPropagation()}
             role="dialog"
             aria-label={t('mobileNav.databasesAndTables')}
           >
+            {/* Top Handle Pill */}
+            <div style={{ width: '36px', height: '4px', borderRadius: '9999px', backgroundColor: isDark ? '#334155' : '#cbd5e1', margin: '10px auto 2px auto', flexShrink: 0 }} />
+
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '20px 24px 12px 24px',
+                padding: '14px 20px 12px 20px',
                 backgroundColor: isDark ? '#0f172a' : '#ffffff'
               }}
             >
