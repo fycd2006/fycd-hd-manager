@@ -49,6 +49,7 @@ interface ViewToolbarProps {
   // Group
   groupByField: string | null
   setGroupByField: (v: string | null) => void
+  onToggleCollapseAllGroups?: (collapse: boolean) => void
 
   // Fields (hide/show)
   fields: TableField[]
@@ -95,6 +96,7 @@ export function ViewToolbar({
   setRowColorRules,
   groupByField,
   setGroupByField,
+  onToggleCollapseAllGroups,
   fields,
   hiddenFieldKeys,
   setHiddenFieldKeys,
@@ -724,6 +726,56 @@ export function ViewToolbar({
                     );
                   })}
                 </div>
+                {groupByField && (
+                  <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '8px', paddingTop: '8px', display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onToggleCollapseAllGroups?.(true);
+                        setActiveHeaderMenu(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: '#475569',
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                    >
+                      全部折疊
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onToggleCollapseAllGroups?.(false);
+                        setActiveHeaderMenu(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 8px',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        color: '#475569',
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                    >
+                      全部展開
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1334,6 +1386,50 @@ export function ViewToolbar({
                     </div>
                   );
                 })}
+                {groupByField && (
+                  <div style={{ borderTop: '1px solid #e2e8f0', marginTop: '10px', paddingTop: '10px', display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onToggleCollapseAllGroups?.(true);
+                        setActiveHeaderMenu(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#475569',
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      全部折疊
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onToggleCollapseAllGroups?.(false);
+                        setActiveHeaderMenu(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#475569',
+                        backgroundColor: '#f8fafc',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      全部展開
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

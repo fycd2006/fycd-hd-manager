@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
 import { TableField, RowColorRule } from '@/modules/database/types';
+import { getOptionColor } from '@/modules/database/components/views/grid/cells/utils';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -18,12 +19,74 @@ export interface RowData {
   values: Record<number, any>;
 }
 
+export function computeFieldSummaries(rowsList: RowData[], fieldList: TableField[]) {
+  const result: Record<number, {
+    count: number;
+    emptyCount: number;
+    percentFilled: number;
+    sum: number | null;
+    avg: number | null;
+    min: any;
+    max: any;
+    uniqueCount: number;
+  }> = {};
+
+  fieldList.forEach((field) => {
+    let count = 0;
+    let emptyCount = 0;
+    let sum = 0;
+    let numericCount = 0;
+    let minVal: any = null;
+    let maxVal: any = null;
+    const uniqueVals = new Set<string>();
+
+    rowsList.forEach((row) => {
+      const val = row.values[field.id];
+      if (val !== undefined && val !== null && val !== '') {
+        count++;
+        const strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
+        uniqueVals.add(strVal);
+
+        const num = Number(val);
+        if (!isNaN(num) && typeof val !== 'boolean') {
+          sum += num;
+          numericCount++;
+          if (minVal === null || num < minVal) minVal = num;
+          if (maxVal === null || num > maxVal) maxVal = num;
+        } else {
+          if (minVal === null || strVal < String(minVal)) minVal = strVal;
+          if (maxVal === null || strVal > String(maxVal)) maxVal = strVal;
+        }
+      } else {
+        emptyCount++;
+      }
+    });
+
+    const total = rowsList.length;
+    const percentFilled = total > 0 ? Math.round((count / total) * 100) : 0;
+
+    result[field.id] = {
+      count,
+      emptyCount,
+      percentFilled,
+      sum: numericCount > 0 ? Number(sum.toFixed(2)) : null,
+      avg: numericCount > 0 ? Number((sum / numericCount).toFixed(2)) : null,
+      min: minVal,
+      max: maxVal,
+      uniqueCount: uniqueVals.size,
+    };
+  });
+
+  return result;
+}
+
 interface GridViewProps {
   fields: TableField[];
   rows: RowData[];
   sortField?: string | null;
   sortOrder?: 'asc' | 'desc';
   groupByField?: string | null;
+  collapseAllTrigger?: { collapse: boolean; timestamp: number } | null;
   rowColorRules?: RowColorRule[];
   rowDetailsWidth?: number;
   onUpdateCell?: (rowId: number, fieldId: any, value?: any) => void;
@@ -59,6 +122,7 @@ export const GridView: React.FC<GridViewProps> = ({
   sortField,
   sortOrder,
   groupByField,
+  collapseAllTrigger,
   rowColorRules,
   rowDetailsWidth = 56,
   tableId,
@@ -921,67 +985,110 @@ export const GridView: React.FC<GridViewProps> = ({
     };
   }, [aggMenuState]);
 
-  // Advanced Aggregation summaries for field columns
+  // Advanced Aggregation summaries for whole table
   const fieldSummaries = useMemo(() => {
-    const result: Record<number, {
-      count: number;
-      emptyCount: number;
-      percentFilled: number;
-      sum: number | null;
-      avg: number | null;
-      min: any;
-      max: any;
-      uniqueCount: number;
-    }> = {};
-
-    fields.forEach((field) => {
-      let count = 0;
-      let emptyCount = 0;
-      let sum = 0;
-      let numericCount = 0;
-      let minVal: any = null;
-      let maxVal: any = null;
-      const uniqueVals = new Set<string>();
-
-      rows.forEach((row) => {
-        const val = row.values[field.id];
-        if (val !== undefined && val !== null && val !== '') {
-          count++;
-          const strVal = String(val);
-          uniqueVals.add(strVal);
-
-          const num = Number(val);
-          if (!isNaN(num) && typeof val !== 'boolean') {
-            sum += num;
-            numericCount++;
-            if (minVal === null || num < minVal) minVal = num;
-            if (maxVal === null || num > maxVal) maxVal = num;
-          } else {
-            if (minVal === null || strVal < String(minVal)) minVal = strVal;
-            if (maxVal === null || strVal > String(maxVal)) maxVal = strVal;
-          }
-        } else {
-          emptyCount++;
-        }
-      });
-
-      const total = rows.length;
-      const percentFilled = total > 0 ? Math.round((count / total) * 100) : 0;
-
-      result[field.id] = {
-        count,
-        emptyCount,
-        percentFilled,
-        sum: numericCount > 0 ? Number(sum.toFixed(2)) : null,
-        avg: numericCount > 0 ? Number((sum / numericCount).toFixed(2)) : null,
-        min: minVal,
-        max: maxVal,
-        uniqueCount: uniqueVals.size,
-      };
-    });
-
-    return result;
+    return computeFieldSummaries(rows, fields);
   }, [fields, rows]);
+
+  // Group-level field summaries
+  const groupSummariesMap = useMemo(() => {
+    if (!groupedSections) return null;
+    const map = new Map<string, Record<number, any>>();
+    groupedSections.forEach(([groupKey, groupData]) => {
+      map.set(groupKey, computeFieldSummaries(groupData.rows, fields));
+    });
+    return map;
+  }, [groupedSections, fields]);
+
+  const handleToggleCollapseAll = useCallback((collapse: boolean) => {
+    if (!groupedSections) return;
+    const next: Record<string, boolean> = {};
+    groupedSections.forEach(([key]) => {
+      next[key] = collapse;
+    });
+    setCollapsedGroups(next);
+  }, [groupedSections]);
+
+  useEffect(() => {
+    if (collapseAllTrigger && groupedSections) {
+      handleToggleCollapseAll(collapseAllTrigger.collapse);
+    }
+  }, [collapseAllTrigger, groupedSections, handleToggleCollapseAll]);
+
+  const renderGroupBadge = useCallback((groupKey: string, field: TableField | null | undefined) => {
+    if (!groupKey || groupKey === '（空白）' || groupKey === '（空白未指定）') {
+      return (
+        <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '12px' }}>
+          （空白未指定）
+        </span>
+      );
+    }
+
+    if (field && (field.type === 'single_select' || field.type === 'multiple_select')) {
+      let optionsList: any[] = [];
+      if (field.options) {
+        if (Array.isArray(field.options)) {
+          optionsList = field.options;
+        } else if (typeof field.options === 'string') {
+          try {
+            const parsed = JSON.parse(field.options);
+            optionsList = Array.isArray(parsed) ? parsed : (parsed?.options || []);
+          } catch {}
+        }
+      }
+      const colorStyle = getOptionColor(groupKey, optionsList);
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '2px 8px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 600,
+            backgroundColor: colorStyle.bg || colorStyle.backgroundColor,
+            color: colorStyle.text || colorStyle.color,
+            border: `1px solid ${colorStyle.border || 'transparent'}`,
+            maxWidth: '220px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {groupKey}
+        </span>
+      );
+    }
+
+    return (
+      <span
+        style={{
+          fontWeight: 600,
+          color: '#1e293b',
+          fontSize: '13px',
+          maxWidth: '220px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {groupKey}
+      </span>
+    );
+  }, []);
+
+  const formatGroupSummaryText = useCallback((summary: any, mode: string) => {
+    if (!summary || mode === 'none') return '';
+    if (mode === 'count') return `${summary.count || 0}`;
+    if (mode === 'empty_count') return `${summary.emptyCount || 0}`;
+    if (mode === 'percent') return `${summary.percentFilled || 0}%`;
+    if (mode === 'sum') return summary.sum !== null ? `Σ ${summary.sum}` : `${summary.count || 0}`;
+    if (mode === 'avg') return summary.avg !== null ? `x̄ ${summary.avg}` : `${summary.count || 0}`;
+    if (mode === 'min') return summary.min !== null ? `Min ${summary.min}` : '-';
+    if (mode === 'max') return summary.max !== null ? `Max ${summary.max}` : '-';
+    if (mode === 'unique') return `${summary.uniqueCount || 0}`;
+    return '';
+  }, []);
 
   const fieldsWidth = useMemo(() => {
     return fields.reduce((sum, f) => sum + (f.width || 180), rowDetailsWidth);
@@ -1058,51 +1165,118 @@ export const GridView: React.FC<GridViewProps> = ({
               <div className="grid-view__grouped-body" style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
                 {groupedSections.map(([groupKey, groupData]) => {
                   const isCollapsed = collapsedGroups[groupKey];
+                  const groupSummaries = groupSummariesMap?.get(groupKey);
+
                   return (
-                    <div key={groupKey} className="grid-view__group-section" style={{ width: '100%', marginBottom: '10px' }}>
-                      {/* Group By Banner */}
+                    <div key={groupKey} className="grid-view__group-section" style={{ width: '100%', marginBottom: '8px' }}>
+                      {/* Group By Banner (Aligned with Table Columns) */}
                       <div
                         className="grid-view__group-by-banner"
-                        onClick={() => setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }))}
                         style={{
                           display: 'flex',
-                          alignItems: 'center',
+                          alignItems: 'stretch',
                           height: '36px',
                           backgroundColor: '#ffffff',
                           borderTop: '1px solid #e2e8f0',
                           borderBottom: '1px solid #e2e8f0',
-                          borderLeft: '4px solid #3F6212',
-                          paddingLeft: '12px',
-                          paddingRight: '16px',
-                          fontWeight: 600,
-                          fontSize: '13px',
-                          color: '#1e293b',
-                          cursor: 'pointer',
+                          width: `${totalTableWidth}px`,
+                          minWidth: '100%',
+                          boxSizing: 'border-box',
                           userSelect: 'none',
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-                          transition: 'background-color 0.15s ease',
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', transition: 'transform 0.15s ease', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', marginRight: '6px', color: '#64748b' }}>
-                          <ChevronDown size={15} />
-                        </div>
-                        <span style={{ fontWeight: 600 }}>{groupKey || '（空白未指定）'}</span>
-                        <span
+                        {/* Primary Group Info Column (Sticky Left) */}
+                        <div
+                          onClick={() => setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }))}
                           style={{
-                            marginLeft: '10px',
-                            fontSize: '11px',
-                            color: '#475569',
-                            fontWeight: 500,
-                            backgroundColor: '#f1f5f9',
-                            padding: '1px 7px',
-                            borderRadius: '10px',
-                            border: '1px solid #e2e8f0',
+                            width: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                            minWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                            maxWidth: `${rowDetailsWidth + (fields[0]?.width || 180)}px`,
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            paddingLeft: '10px',
+                            paddingRight: '12px',
+                            position: 'sticky',
+                            left: 0,
+                            zIndex: 22,
+                            backgroundColor: '#f8fafc',
+                            borderLeft: '4px solid #3F6212',
+                            borderRight: '2px solid #cbd5e1',
+                            boxShadow: '2px 0 5px -2px rgba(0, 0, 0, 0.08)',
+                            boxSizing: 'border-box',
+                            cursor: 'pointer',
+                            gap: '8px',
+                            transition: 'background-color 0.15s ease',
                           }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                          title={isCollapsed ? '點擊展開分組' : '點擊折疊分組'}
                         >
-                          {groupData.rows.length} 筆
-                        </span>
+                          <div style={{ display: 'flex', alignItems: 'center', transition: 'transform 0.15s ease', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', color: '#64748b', flexShrink: 0 }}>
+                            <ChevronDown size={15} />
+                          </div>
+
+                          {/* Rich Group Badge */}
+                          <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>
+                            {renderGroupBadge(groupKey, groupedField)}
+                          </div>
+
+                          {/* Row Count Badge */}
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              color: '#475569',
+                              fontWeight: 500,
+                              backgroundColor: '#e2e8f0',
+                              padding: '1px 7px',
+                              borderRadius: '10px',
+                              border: '1px solid #cbd5e1',
+                              flexShrink: 0,
+                              marginLeft: 'auto',
+                            }}
+                          >
+                            {groupData.rows.length} 筆
+                          </span>
+                        </div>
+
+                        {/* Group Field Aggregation Cells (Columns 1..N) */}
+                        {fields.slice(1).map((field) => {
+                          const summary = groupSummaries?.[field.id];
+                          const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
+                          const displayText = formatGroupSummaryText(summary, mode);
+
+                          return (
+                            <div
+                              key={field.id}
+                              style={{
+                                width: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+                                minWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+                                maxWidth: `var(--field-width-${field.id}, ${field.width || 180}px)`,
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'flex-end',
+                                padding: '0 10px',
+                                borderRight: '1px solid #e2e8f0',
+                                boxSizing: 'border-box',
+                                backgroundColor: '#FAFAF9',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: '#334155',
+                                fontFamily: 'monospace',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {displayText}
+                            </div>
+                          );
+                        })}
+
+                        {/* Trailing Spacer */}
+                        <div style={{ flex: 1, backgroundColor: '#FAFAF9', minWidth: '90px' }} />
                       </div>
 
                       {/* Grouped Rows */}

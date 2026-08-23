@@ -20,6 +20,7 @@ interface DatabaseViewRouterProps {
   sortField: string | null
   sortOrder: 'asc' | 'desc'
   groupByField: string | null
+  collapseAllTrigger?: { collapse: boolean; timestamp: number } | null
   rowColorRules?: RowColorRule[]
   editingFieldId: number | null
   editingFieldName: string
@@ -76,6 +77,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   sortField,
   sortOrder,
   groupByField,
+  collapseAllTrigger,
   rowColorRules,
   editingFieldId,
   editingFieldName,
@@ -144,6 +146,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           sortField={sortField}
           sortOrder={sortOrder}
           groupByField={groupByField}
+          collapseAllTrigger={collapseAllTrigger}
           rowColorRules={rowColorRules}
           editingFieldId={editingFieldId}
           editingFieldName={editingFieldName}

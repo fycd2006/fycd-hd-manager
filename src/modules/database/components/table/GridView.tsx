@@ -60,6 +60,7 @@ interface GridViewProps {
   viewId?: number | null
   initialAggregations?: Record<string | number, string> | string | null
   onUpdateAggregations?: (agg: Record<string | number, string>) => void
+  collapseAllTrigger?: { collapse: boolean; timestamp: number } | null
 }
 
 export default function GridView({
@@ -75,6 +76,7 @@ export default function GridView({
   viewId,
   initialAggregations,
   onUpdateAggregations,
+  collapseAllTrigger,
   readOnly = false,
   isOffline = false,
   onAddRow,
@@ -182,6 +184,7 @@ export default function GridView({
         viewId={viewId}
         initialAggregations={initialAggregations}
         onUpdateAggregations={onUpdateAggregations}
+        collapseAllTrigger={collapseAllTrigger}
       />
     </div>
   )

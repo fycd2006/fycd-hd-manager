@@ -217,6 +217,7 @@ export default function Home() {
   const [modalDbIdForTable, setModalDbIdForTable] = useState<number | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [showAirtableModal, setShowAirtableModal] = useState(false)
+  const [collapseAllTrigger, setCollapseAllTrigger] = useState<{ collapse: boolean; timestamp: number } | null>(null)
 
   const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -2053,6 +2054,9 @@ export default function Home() {
                     saveViewConfig(wsState.activeViewId, { groupByField: field })
                   }
                 }}
+                onToggleCollapseAllGroups={(collapse) => {
+                  setCollapseAllTrigger({ collapse, timestamp: Date.now() })
+                }}
                 fields={fields}
                 hiddenFieldKeys={hiddenFieldKeys}
                 setHiddenFieldKeys={setHiddenFieldKeys}
@@ -2096,6 +2100,7 @@ export default function Home() {
                     sortField={sortField}
                     sortOrder={sortOrder}
                     groupByField={groupByField}
+                    collapseAllTrigger={collapseAllTrigger}
                     rowColorRules={rowColorRules}
                     editingFieldId={editingFieldId}
                     editingFieldName={editingFieldName}
