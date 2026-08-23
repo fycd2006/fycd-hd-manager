@@ -1037,10 +1037,6 @@ export default function Home() {
     const targetRow = displayRows[targetIdx]
     if (!sourceRow || !targetRow) return
 
-    const realSrcIdx = rows.findIndex(r => r.id === sourceRow.id)
-    const realTargetIdx = rows.findIndex(r => r.id === targetRow.id)
-    if (realSrcIdx === -1 || realTargetIdx === -1) return
-
     // Check if dragging across groups
     const effectiveGroups = groupByRules && groupByRules.length > 0
       ? groupByRules
@@ -1058,28 +1054,39 @@ export default function Home() {
       });
     }
 
-    const reordered = [...rows]
-    let [moved] = reordered.splice(realSrcIdx, 1)
+    // Reorder within displayRows (which respects current sort/group rendering)
+    const newDisplayOrder = [...displayRows]
+    let [moved] = newDisplayOrder.splice(srcIdx, 1)
     if (fieldUpdates) {
-      moved = {
-        ...moved,
-        data: {
-          ...moved.data,
-          ...fieldUpdates
-        }
-      }
+      moved = { ...moved, data: { ...moved.data, ...fieldUpdates } }
     }
-    reordered.splice(realTargetIdx, 0, moved)
+    newDisplayOrder.splice(targetIdx, 0, moved)
 
-    const updatedRows = reordered.map((r, idx) => ({ ...r, order: idx }))
+    // Build new full rows array: rows NOT in displayRows stay in their relative positions,
+    // rows IN displayRows get new order values based on their new display position.
+    const displayRowIds = new Set(displayRows.map(r => r.id))
+    const nonDisplayRows = rows.filter(r => !displayRowIds.has(r.id))
+    // Assign order 0..N-1 to display rows in their new order, then append non-display rows after
+    const reorderedDisplayRows = newDisplayOrder.map((r, idx) => ({ ...r, order: idx }))
+    const nonDisplayWithOrder = nonDisplayRows.map((r, idx) => ({ ...r, order: reorderedDisplayRows.length + idx }))
+    const updatedRows = [...reorderedDisplayRows, ...nonDisplayWithOrder]
+
     setRows(updatedRows)
 
-    const rowIds = updatedRows.map(r => r.id)
+    const rowIds = newDisplayOrder.map(r => r.id)
+    console.log('[Reorder] rowIds to send:', rowIds)
+    console.log('[Reorder] tableId:', wsState.activeTableId)
+    console.log('[Reorder] activeViewId:', wsState.activeViewId)
+
+    // Clear sort so server order is respected after reload
     if (sortField || (sortRules && sortRules.length > 0)) {
       setSortField(null)
       setSortRules([])
+      setSortOrder('asc')
       if (wsState.activeViewId) {
-        saveViewConfig(wsState.activeViewId, { sortField: null, sortRules: [] })
+        // Note: sortRules is not a DB column — only clear sortField in the view
+        await saveViewConfig(wsState.activeViewId, { sortField: null, sortOrder: 'asc' })
+        console.log('[Reorder] cleared sort from view', wsState.activeViewId)
       }
     }
 
@@ -1088,13 +1095,18 @@ export default function Home() {
         await rowService.updateRow(wsState.activeTableId, sourceRow.id, fieldUpdates);
       }
       const res = await rowService.reorderRows(wsState.activeTableId, rowIds)
+      console.log('[Reorder] API result:', res)
       if (res.ok) {
         uiActions.addToast('已儲存資料列順序', 'success')
       } else {
+        console.error('[Reorder] FAILED:', res.error)
         uiActions.addToast(res.error || '儲存資料列順序失敗', 'error')
+        setRows(rows)
       }
-    } catch {
+    } catch (e) {
+      console.error('[Reorder] exception:', e)
       uiActions.addToast('儲存資料列順序失敗', 'error')
+      setRows(rows)
     }
   }
 
