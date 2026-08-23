@@ -252,48 +252,27 @@ export function ViewToolbar({
         setShowViewOptionsMenu(false)
       }
     }
-    const handleScrollOrResize = (e: Event) => {
-      // Do not close popup menu if scrolling inside popover menu itself (desktop or mobile)
-      if (e.type === 'scroll' && e.target) {
-        const targetNode = e.target as Node
-        const targetEl = e.target as HTMLElement
-        if (
-          (popoverMenuRef.current && popoverMenuRef.current.contains(targetNode)) ||
-          (targetEl.closest && (
-            targetEl.closest('.toolbar-popover-card') ||
-            targetEl.closest('.custom-select-dropdown') ||
-            targetEl.closest('.custom-select-portal-root') ||
-            targetEl.closest('[data-portal-root="true"]') ||
-            targetEl.closest('.groupings') ||
-            targetEl.closest('.header__filter-popover')
-          ))
-        ) {
-          return
-        }
-      }
 
-      // Ignore resize events when user is typing in an input/textarea (e.g. mobile soft keyboard popup)
-      if (e.type === 'resize') {
-        const activeEl = document.activeElement
-        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
-          return
-        }
+    const handleWindowResize = () => {
+      const activeEl = document.activeElement
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+        return
       }
-
-      setActiveHeaderMenu(null)
-      setShowViewContext(false)
-      setShowViewOptionsMenu(false)
+      // On desktop window resize, close popovers to recalculate coordinates
+      if (!isMobile) {
+        setActiveHeaderMenu(null)
+        setShowViewContext(false)
+        setShowViewOptionsMenu(false)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('scroll', handleScrollOrResize, true)
-    window.addEventListener('resize', handleScrollOrResize)
+    window.addEventListener('resize', handleWindowResize)
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('scroll', handleScrollOrResize, true)
-      window.removeEventListener('resize', handleScrollOrResize)
+      window.removeEventListener('resize', handleWindowResize)
     }
-  }, [])
+  }, [isMobile])
 
 
   const getViewIcon = (type: string, props: any) => {
@@ -839,24 +818,43 @@ export function ViewToolbar({
                     {activeHeaderMenu === 'hide' && (t('toolbar.hideFields') || '隱藏欄位')}
                     {activeHeaderMenu === 'rowHeight' && (t('toolbar.rowHeight') || '列高設定')}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setActiveHeaderMenu(null)}
-                    style={{
-                      background: '#f1f5f9',
-                      border: 'none',
-                      borderRadius: '9999px',
-                      width: '28px',
-                      height: '28px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#64748b',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <X size={15} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveHeaderMenu(null)}
+                      style={{
+                        background: '#3F6212',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '4px 12px',
+                        color: '#ffffff',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'opacity 0.15s ease',
+                      }}
+                    >
+                      {t('common.done') || '完成'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveHeaderMenu(null)}
+                      style={{
+                        background: '#f1f5f9',
+                        border: 'none',
+                        borderRadius: '9999px',
+                        width: '28px',
+                        height: '28px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#64748b',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
