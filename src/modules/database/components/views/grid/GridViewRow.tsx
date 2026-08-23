@@ -191,11 +191,12 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
         {isHovered || isRowSelected ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', width: '100%', color: '#64748b' }}>
             {canDrag && (
-              <GripVertical
-                size={12}
-                style={{ color: '#94a3b8', cursor: 'grab', flexShrink: 0 }}
-                title="拖曳以手動排序"
-              />
+              <span title="拖曳以手動排序" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <GripVertical
+                  size={12}
+                  style={{ color: '#94a3b8', cursor: 'grab', flexShrink: 0 }}
+                />
+              </span>
             )}
             <input
               type="checkbox"

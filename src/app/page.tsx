@@ -1058,7 +1058,9 @@ export default function Home() {
     const newDisplayOrder = [...displayRows]
     let [moved] = newDisplayOrder.splice(srcIdx, 1)
     if (fieldUpdates) {
-      moved = { ...moved, data: { ...moved.data, ...fieldUpdates } }
+      const updates: Record<string, any> = fieldUpdates
+      const currentData: Record<string, any> = typeof moved.data === 'object' && moved.data !== null ? moved.data : {}
+      moved = { ...moved, data: Object.assign({}, currentData, updates) }
     }
     newDisplayOrder.splice(targetIdx, 0, moved)
 

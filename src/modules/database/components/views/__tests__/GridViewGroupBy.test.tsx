@@ -21,7 +21,7 @@ jest.mock('@tanstack/react-virtual', () => ({
 
 describe('GridView Group By & Group Aggregations', () => {
   const mockFields: TableField[] = [
-    { id: 1, tableId: 10, name: '員工姓名', type: 'text', order: 1, width: 180 },
+    { id: 1, tableId: 10, name: '員工姓名', type: 'text', order: 1, width: 180, options: null },
     {
       id: 2,
       tableId: 10,
@@ -34,7 +34,7 @@ describe('GridView Group By & Group Aggregations', () => {
         { id: 'sales', name: '業務部', color: 'green' },
       ]),
     },
-    { id: 3, tableId: 10, name: '薪資', type: 'number', order: 3, width: 140 },
+    { id: 3, tableId: 10, name: '薪資', type: 'number', order: 3, width: 140, options: null },
   ]
 
   const mockRows = [
@@ -127,9 +127,9 @@ describe('GridView Group By & Group Aggregations', () => {
 
   test('renders multi-level hierarchical grouping with nested banners and sub-groups', () => {
     const multiLevelFields: TableField[] = [
-      { id: 1, tableId: 10, name: '姓名', type: 'text', order: 1, width: 180 },
-      { id: 2, tableId: 10, name: '成全階段', type: 'single_select', order: 2, width: 160 },
-      { id: 3, tableId: 10, name: '班級', type: 'single_select', order: 3, width: 160 },
+      { id: 1, tableId: 10, name: '姓名', type: 'text', order: 1, width: 180, options: null },
+      { id: 2, tableId: 10, name: '成全階段', type: 'single_select', order: 2, width: 160, options: null },
+      { id: 3, tableId: 10, name: '班級', type: 'single_select', order: 3, width: 160, options: null },
     ]
 
     const multiLevelRows = [

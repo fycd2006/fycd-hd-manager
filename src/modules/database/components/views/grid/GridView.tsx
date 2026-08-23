@@ -4,7 +4,7 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
-import { TableField, RowColorRule, GroupCollapseState, GroupByRule } from '@/modules/database/types';
+import { TableField, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '@/modules/database/types';
 import { getOptionColor, parseSelectItems } from '@/modules/database/components/views/grid/cells/utils';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
@@ -68,7 +68,7 @@ export function parseGroupValue(
       };
     }
     const badges: GroupBadge[] = items.map(item => {
-      const color = getOptionColor(item, field.options as any);
+      const color: any = getOptionColor(item, field.options as any);
       return {
         label: item,
         bg: color.bg || color.backgroundColor,
@@ -97,7 +97,7 @@ export function parseGroupValue(
         const resolvedName = (itemId && relationMap?.get(itemId)) || (item.id != null && relationMap?.get(item.id));
         const label = String(resolvedName || itemVal || (itemId ? `列 ID: ${itemId}` : ''));
         if (label) {
-          const color = getOptionColor(label);
+          const color: any = getOptionColor(label);
           badges.push({
             label,
             bg: color.bg || '#fee2e2',
@@ -111,7 +111,7 @@ export function parseGroupValue(
         if (itemStr) {
           const resolvedName = relationMap?.get(itemStr);
           const label = resolvedName || itemStr;
-          const color = getOptionColor(label);
+          const color: any = getOptionColor(label);
           badges.push({
             label,
             bg: color.bg || '#fee2e2',
