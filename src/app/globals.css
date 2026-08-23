@@ -3056,6 +3056,14 @@ select option {
   }
 }
 
+@media (max-width: 767px) {
+  /* On mobile, navigation toolbar is moved to bottom dock. Table content starts at top and clears bottom dock */
+  .layout__col-2-2 {
+    top: 0 !important;
+    bottom: calc(52px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
 /* ==========================================================================
    Unified Header & Navigation Bar Tool Classes (Merged from legacy header.css)
    ========================================================================== */

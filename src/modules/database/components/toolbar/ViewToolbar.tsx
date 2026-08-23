@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2 } from 'lucide-react'
+import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload } from 'lucide-react'
 import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -288,469 +288,685 @@ export function ViewToolbar({
   }
 
   return (
-    <header className="layout__col-2-1 header" ref={headerToolbarRef} style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', zIndex: 1000, overflowX: 'auto', overflowY: 'visible' }}>
-      <ul className="header__filter" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-          <a 
-            className="header__filter-link active" 
-            data-highlight="views"
+    <>
+      {isMobile ? (
+        /* Mobile Bottom Toolbar Dock (< 768px) */
+        <nav
+          className="mobile-bottom-toolbar"
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 'calc(52px + env(safe-area-inset-bottom))',
+            paddingBottom: 'env(safe-area-inset-bottom)',
+            backgroundColor: 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            borderTop: '1px solid #e2e8f0',
+            boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-around',
+            zIndex: 1000,
+            boxSizing: 'border-box',
+          }}
+        >
+          {/* 1. 視圖 (Views) */}
+          <button
+            type="button"
             onClick={openViewContextWithAnchor}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              padding: '4px 6px',
+              cursor: 'pointer',
+              gap: '3px',
+              color: showViewContext ? '#3F6212' : '#64748b',
+              flex: 1,
+              transition: 'color 0.15s ease'
+            }}
           >
-            {getViewIcon(views.find(v => v.id === activeViewId)?.type || 'grid', { size: 16, color: '#64748b', className: 'header__filter-icon' })}
-            <span className="header__filter-name header__filter-name--forced">
-              {views.find(v => v.id === activeViewId)?.name || t('toolbar.unnamedView')}
+            {getViewIcon(views.find(v => v.id === activeViewId)?.type || 'grid', { size: 18, color: showViewContext ? '#3F6212' : '#64748b' })}
+            <span style={{ fontSize: '11px', fontWeight: showViewContext ? 700 : 500, color: showViewContext ? '#3F6212' : '#475569', maxWidth: '64px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {views.find(v => v.id === activeViewId)?.name || t('toolbar.views') || '視圖'}
             </span>
-            <ChevronDown size={14} color="#64748b" className="header__sub-icon" style={{ marginLeft: '4px' }} />
-          </a>
+          </button>
 
-          {showViewContext && menuAnchorRect && createPortal(
-            <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 99999998,
-                backgroundColor: 'transparent',
-                pointerEvents: 'auto'
-              }}
-              onClick={() => setShowViewContext(false)}
-            >
-              <div 
-                style={{ 
-                  position: 'fixed', 
-                  top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`, 
-                  left: `${Math.max(8, Math.min(menuAnchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 800) - 250))}px`, 
-                  minWidth: '240px', 
-                  zIndex: 99999999, 
-                  background: '#fff', 
-                  boxShadow: '0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(0,0,0,0.04)', 
-                  borderRadius: '12px', 
-                  border: '1px solid #e2e8f0', 
-                  padding: '0', 
-                  overflow: 'hidden' 
-                }}
-                onClick={(e) => e.stopPropagation()}
+          {/* 2. 篩選 (Filter) */}
+          <button
+            type="button"
+            onClick={(e) => openMenuWithAnchor('filter', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              padding: '4px 6px',
+              cursor: 'pointer',
+              gap: '3px',
+              color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#64748b',
+              position: 'relative',
+              flex: 1,
+              transition: 'color 0.15s ease'
+            }}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Filter size={18} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#64748b'} />
+              {filterRules.length > 0 && (
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                  {filterRules.length}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 700 : 500, color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#475569' }}>
+              {t('toolbar.filter') || '篩選'}
+            </span>
+          </button>
+
+          {/* 3. 排序 (Sort) */}
+          <button
+            type="button"
+            onClick={(e) => openMenuWithAnchor('sort', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              padding: '4px 6px',
+              cursor: 'pointer',
+              gap: '3px',
+              color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#64748b',
+              position: 'relative',
+              flex: 1,
+              transition: 'color 0.15s ease'
+            }}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <ArrowDownAZ size={18} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#64748b'} />
+              {activeSortRules.length > 0 && (
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                  {activeSortRules.length}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 700 : 500, color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#475569' }}>
+              {t('toolbar.sort') || '排序'}
+            </span>
+          </button>
+
+          {/* 4. 隱藏欄位 (Fields) */}
+          <button
+            type="button"
+            onClick={(e) => openMenuWithAnchor('hide', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              padding: '4px 6px',
+              cursor: 'pointer',
+              gap: '3px',
+              color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#64748b',
+              position: 'relative',
+              flex: 1,
+              transition: 'color 0.15s ease'
+            }}
+          >
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <EyeOff size={18} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#64748b'} />
+              {actualHiddenCount > 0 && (
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                  {actualHiddenCount}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 700 : 500, color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#475569' }}>
+              {t('toolbar.hideFields') || '欄位'}
+            </span>
+          </button>
+
+          {/* 5. 更多 (More options) */}
+          <button
+            type="button"
+            onClick={(e) => openMenuWithAnchor('more', e)}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'none',
+              border: 'none',
+              padding: '4px 6px',
+              cursor: 'pointer',
+              gap: '3px',
+              color: ['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? '#3F6212' : '#64748b',
+              flex: 1,
+              transition: 'color 0.15s ease'
+            }}
+          >
+            <MoreHorizontal size={18} color={['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? '#3F6212' : '#64748b'} />
+            <span style={{ fontSize: '11px', fontWeight: ['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? 700 : 500, color: ['color', 'group', 'rowHeight', 'more'].includes(activeHeaderMenu || '') ? '#3F6212' : '#475569' }}>
+              {t('common.more') || '更多'}
+            </span>
+          </button>
+        </nav>
+      ) : (
+        /* Desktop Top Header Toolbar (>= 768px) */
+        <header className="layout__col-2-1 header" ref={headerToolbarRef} style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', zIndex: 1000, overflowX: 'auto', overflowY: 'visible' }}>
+          <ul className="header__filter" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+              <a 
+                className="header__filter-link active" 
+                data-highlight="views"
+                onClick={openViewContextWithAnchor}
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <div className="select__items" style={{ padding: '6px 0', maxHeight: '300px', overflowY: 'auto' }}>
-                  <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                    {views.map(view => (
-                      <li key={view.id} style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
-                        <a
-                          className={`select__item ${activeViewId === view.id ? 'active' : ''}`}
-                          onClick={() => {
-                            setActiveViewId(view.id)
-                            applyViewConfig(view)
-                            setShowViewContext(false)
-                          }}
-                          style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', textDecoration: 'none', color: '#1e293b', fontSize: '13px', flex: 1, transition: 'background-color 0.15s ease' }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                        >
-                          {getViewIcon(view.type || 'grid', { size: 14, color: activeViewId === view.id ? '#3F6212' : '#64748b', style: { marginRight: '8px', flexShrink: 0 } })}
-                          <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? '#3F6212' : 'inherit', fontWeight: activeViewId === view.id ? 600 : 400 }}>{view.name}</span>
-                          {activeViewId === view.id && (
-                            <Check size={16} color="#3F6212" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
-                          )}
-                        </a>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const rect = e.currentTarget.getBoundingClientRect()
-                            setMenuAnchorRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
-                            setShowViewContext(false)
-                            setSelectedViewForMenu(view)
-                            setShowViewOptionsMenu(true)
-                          }}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: '#94a3b8',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#e2e8f0'
-                            e.currentTarget.style.color = '#334155'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent'
-                            e.currentTarget.style.color = '#94a3b8'
-                          }}
-                          title={t('toolbar.viewOptions')}
-                        >
-                          <MoreVertical size={14} />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {canManageStructure && (
-                  <div className="select__footer" style={{ borderTop: '1px solid #e2e8f0', padding: '4px 0' }}>
-                    <a 
-                      className="select__footer-button" 
-                      onClick={() => {
-                        setShowViewContext(false)
-                        setShowNewViewModal(true)
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', color: '#64748b', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#3F6212' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b' }}
-                    >
-                      <Plus size={14} style={{ marginRight: '8px' }} />
-                      {t('toolbar.addView')}
-                    </a>
-                  </div>
+                {getViewIcon(views.find(v => v.id === activeViewId)?.type || 'grid', { size: 16, color: '#64748b', className: 'header__filter-icon' })}
+                <span className="header__filter-name header__filter-name--forced">
+                  {views.find(v => v.id === activeViewId)?.name || t('toolbar.unnamedView')}
+                </span>
+                <ChevronDown size={14} color="#64748b" className="header__sub-icon" style={{ marginLeft: '4px' }} />
+              </a>
+            </li>
+
+            {/* Filter Button */}
+            <li className="header__filter-item" style={{ position: 'relative' }}>
+              <a 
+                className={`header__filter-link ${filterRules.length > 0 ? 'active' : activeHeaderMenu === 'filter' ? 'active' : ''}`}
+                onClick={(e) => openMenuWithAnchor('filter', e)}
+                style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  height: '32px',
+                  backgroundColor: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#F4F4F5' : 'transparent',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  boxSizing: 'border-box',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (filterRules.length === 0 && activeHeaderMenu !== 'filter') e.currentTarget.style.backgroundColor = '#F4F4F5';
+                }}
+                onMouseLeave={(e) => {
+                  if (filterRules.length === 0 && activeHeaderMenu !== 'filter') e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Filter size={16} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#44403C', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 600 : 500 }}>
+                  {filterRules.length > 0 ? `${filterRules.length} ${t('toolbar.filter')}` : t('toolbar.filter')}
+                </span>
+              </a>
+            </li>
+
+            {/* Sort Button */}
+            <li className="header__filter-item" style={{ position: 'relative' }}>
+              <a 
+                className={`header__filter-link ${activeSortRules.length > 0 ? 'active' : activeHeaderMenu === 'sort' ? 'active' : ''}`}
+                onClick={(e) => openMenuWithAnchor('sort', e)}
+                style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  height: '32px',
+                  backgroundColor: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#F4F4F5' : 'transparent',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  boxSizing: 'border-box',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (activeSortRules.length === 0 && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = '#F4F4F5';
+                }}
+                onMouseLeave={(e) => {
+                  if (activeSortRules.length === 0 && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <ArrowDownAZ size={16} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#44403C', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 600 : 500 }}>
+                  {activeSortRules.length > 0 ? `${activeSortRules.length} ${t('toolbar.sort')}` : t('toolbar.sort')}
+                </span>
+              </a>
+            </li>
+
+            {/* Color Button */}
+            <li className="header__filter-item" style={{ position: 'relative' }}>
+              <a 
+                className={`header__filter-link ${safeRowColorRules.length > 0 ? 'active' : activeHeaderMenu === 'color' ? 'active' : ''}`}
+                onClick={(e) => openMenuWithAnchor('color', e)}
+                style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  height: '32px',
+                  backgroundColor: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#F4F4F5' : 'transparent',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  boxSizing: 'border-box',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (safeRowColorRules.length === 0 && activeHeaderMenu !== 'color') e.currentTarget.style.backgroundColor = '#F4F4F5';
+                }}
+                onMouseLeave={(e) => {
+                  if (safeRowColorRules.length === 0 && activeHeaderMenu !== 'color') e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Palette size={16} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#44403C', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 600 : 500 }}>
+                  {safeRowColorRules.length > 0 ? `${safeRowColorRules.length} ${t('toolbar.color')}` : t('toolbar.color')}
+                </span>
+              </a>
+            </li>
+
+            {/* Group Button */}
+            <li className="header__filter-item" style={{ position: 'relative' }}>
+              <a 
+                className={`header__filter-link ${activeGroupByRules.length > 0 ? 'active' : activeHeaderMenu === 'group' ? 'active' : ''}`}
+                onClick={(e) => openMenuWithAnchor('group', e)}
+                style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  height: '32px',
+                  backgroundColor: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#F4F4F5' : 'transparent',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  boxSizing: 'border-box',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (activeGroupByRules.length === 0 && activeHeaderMenu !== 'group') e.currentTarget.style.backgroundColor = '#F4F4F5';
+                }}
+                onMouseLeave={(e) => {
+                  if (activeGroupByRules.length === 0 && activeHeaderMenu !== 'group') e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Layers size={16} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#44403C', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 600 : 500 }}>
+                  {activeGroupByRules.length > 0 ? `${activeGroupByRules.length} ${t('toolbar.group')}` : t('toolbar.group')}
+                </span>
+              </a>
+            </li>
+          </ul>
+          
+          <ul className="header__filter header__filter--full-width">
+            {/* Hide Fields Button */}
+            <li className="header__filter-item" style={{ position: 'relative' }}>
+              <a 
+                className={`header__filter-link ${actualHiddenCount > 0 ? 'active' : activeHeaderMenu === 'hide' ? 'active' : ''}`}
+                onClick={(e) => openMenuWithAnchor('hide', e)}
+                style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  height: '32px',
+                  backgroundColor: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#F4F4F5' : 'transparent',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  boxSizing: 'border-box',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (actualHiddenCount === 0 && activeHeaderMenu !== 'hide') e.currentTarget.style.backgroundColor = '#F4F4F5';
+                }}
+                onMouseLeave={(e) => {
+                  if (actualHiddenCount === 0 && activeHeaderMenu !== 'hide') e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <EyeOff size={16} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#44403C', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 600 : 500 }}>
+                  {actualHiddenCount > 0 ? `${actualHiddenCount} ${t('toolbar.hideFields')}` : t('toolbar.hideFields')}
+                </span>
+              </a>
+            </li>
+            
+            {/* Row Height Button */}
+            <li className="header__filter-item" style={{ position: 'relative' }}>
+              <a 
+                className={`header__filter-link ${rowHeightSize !== 'small' ? 'active' : activeHeaderMenu === 'rowHeight' ? 'active' : ''}`}
+                onClick={(e) => openMenuWithAnchor('rowHeight', e)}
+                style={{ 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  height: '32px',
+                  backgroundColor: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#F4F4F5' : 'transparent',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0 12px',
+                  boxSizing: 'border-box',
+                  transition: 'background-color 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = '#F4F4F5';
+                }}
+                onMouseLeave={(e) => {
+                  if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <AlignJustify size={16} color={rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#44403C', fontWeight: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? 600 : 500 }}>
+                  {t('toolbar.rowHeight')}
+                </span>
+              </a>
+            </li>
+
+            {/* Undo & Redo History Quick Action Buttons */}
+            <li className="header__filter-item" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px' }}>
+              <button
+                type="button"
+                onClick={onUndo}
+                disabled={!canUndo}
+                title={t('toolbar.undoTooltip')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '5px 8px',
+                  borderRadius: '6px',
+                  cursor: canUndo ? 'pointer' : 'not-allowed',
+                  opacity: canUndo ? 1 : 0.4,
+                  color: '#475569',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '12px',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => { if (canUndo) e.currentTarget.style.backgroundColor = '#f1f5f9' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <Undo2 size={15} />
+                <span>{t('toolbar.undo')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onRedo}
+                disabled={!canRedo}
+                title={t('toolbar.redoTooltip')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '5px 8px',
+                  borderRadius: '6px',
+                  cursor: canRedo ? 'pointer' : 'not-allowed',
+                  opacity: canRedo ? 1 : 0.4,
+                  color: '#475569',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '12px',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => { if (canRedo) e.currentTarget.style.backgroundColor = '#f1f5f9' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+              >
+                <Redo2 size={15} />
+                <span>{t('toolbar.redo')}</span>
+              </button>
+            </li>
+
+            <li className="header__filter-item header__filter-item--right">
+              <div className="header__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Search size={14} style={{ position: 'absolute', left: '12px', color: '#64748b', pointerEvents: 'none' }} />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  className="soft-input"
+                  placeholder={t('toolbar.searchPlaceholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ 
+                    width: searchQuery ? '240px' : '200px', 
+                    padding: '7px 28px 7px 32px', 
+                    borderRadius: '10px', 
+                    border: '1px solid #cbd5e1', 
+                    fontSize: '13px', 
+                    backgroundColor: '#ffffff',
+                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    outline: 'none',
+                    boxShadow: '0 1px 3px rgba(15,23,42,0.05)'
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#3F6212';
+                    e.currentTarget.style.boxShadow = '0 0 0 3.5px rgba(63, 98, 18,0.14)';
+                    e.currentTarget.style.width = '240px';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15,23,42,0.05)';
+                    if (!searchQuery) e.currentTarget.style.width = '200px';
+                  }}
+                />
+                {searchQuery ? (
+                  <span 
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      cursor: 'pointer',
+                      color: '#94a3b8',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '2px',
+                      borderRadius: '50%',
+                      transition: 'color 0.15s, background-color 0.15s'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fef2f2'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}
+                    title={t('toolbar.clearSearch')}
+                  >
+                    <X size={13} />
+                  </span>
+                ) : (
+                  <span style={{ position: 'absolute', right: '8px', fontSize: '10px', color: '#94a3b8', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '1px 4px', pointerEvents: 'none', fontWeight: 600 }}>
+                    ⌘K
+                  </span>
                 )}
               </div>
-            </div>,
-            document.body
-          )}
+            </li>
 
-          {/* View Options Context Menu */}
-          {showViewOptionsMenu && selectedViewForMenu && (
-            <ViewContextMenu
-              view={selectedViewForMenu}
-              x={menuAnchorRect ? Math.min(menuAnchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 800) - 220) : 16}
-              y={menuAnchorRect ? menuAnchorRect.top + menuAnchorRect.height + 4 : 60}
-              onClose={() => {
-                setShowViewOptionsMenu(false)
-                setSelectedViewForMenu(null)
-              }}
-              onExportView={handleExportCSV}
-              onImportFile={() => csvInputRef.current?.click()}
-              onDuplicateView={onDuplicateView ? () => onDuplicateView(selectedViewForMenu.id) : undefined}
-              onRenameView={onRenameView ? () => onRenameView(selectedViewForMenu.id) : undefined}
-              onDeleteView={onDeleteView ? () => onDeleteView(selectedViewForMenu.id) : undefined}
-            />
-          )}
-        </li>
+            <li className="header__filter-item" style={{ position: 'relative', marginLeft: '4px', display: 'flex', alignItems: 'center' }}>
+              <LangPicker align="right" variant="toolbar" />
+            </li>
 
-        {/* Filter Button */}
-        <li className="header__filter-item" style={{ position: 'relative' }}>
-          <a 
-            className={`header__filter-link ${filterRules.length > 0 ? 'active' : activeHeaderMenu === 'filter' ? 'active' : ''}`}
-            onClick={(e) => openMenuWithAnchor('filter', e)}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              height: '32px',
-              backgroundColor: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#F4F4F5' : 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (filterRules.length === 0 && activeHeaderMenu !== 'filter') e.currentTarget.style.backgroundColor = '#F4F4F5';
-            }}
-            onMouseLeave={(e) => {
-              if (filterRules.length === 0 && activeHeaderMenu !== 'filter') e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <Filter size={16} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#44403C', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 600 : 500 }}>
-              {filterRules.length > 0 ? `${filterRules.length} ${t('toolbar.filter')}` : t('toolbar.filter')}
-            </span>
-          </a>
-        </li>
-
-        {/* Sort Button */}
-        <li className="header__filter-item" style={{ position: 'relative' }}>
-          <a 
-            className={`header__filter-link ${activeSortRules.length > 0 ? 'active' : activeHeaderMenu === 'sort' ? 'active' : ''}`}
-            onClick={(e) => openMenuWithAnchor('sort', e)}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              height: '32px',
-              backgroundColor: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#F4F4F5' : 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (activeSortRules.length === 0 && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = '#F4F4F5';
-            }}
-            onMouseLeave={(e) => {
-              if (activeSortRules.length === 0 && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <ArrowDownAZ size={16} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#44403C', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 600 : 500 }}>
-              {activeSortRules.length > 0 ? `${activeSortRules.length} ${t('toolbar.sort')}` : t('toolbar.sort')}
-            </span>
-          </a>
-        </li>
-
-        {/* Color Button */}
-        <li className="header__filter-item" style={{ position: 'relative' }}>
-          <a 
-            className={`header__filter-link ${safeRowColorRules.length > 0 ? 'active' : activeHeaderMenu === 'color' ? 'active' : ''}`}
-            onClick={(e) => openMenuWithAnchor('color', e)}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              height: '32px',
-              backgroundColor: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#F4F4F5' : 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (safeRowColorRules.length === 0 && activeHeaderMenu !== 'color') e.currentTarget.style.backgroundColor = '#F4F4F5';
-            }}
-            onMouseLeave={(e) => {
-              if (safeRowColorRules.length === 0 && activeHeaderMenu !== 'color') e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <Palette size={16} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#44403C', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 600 : 500 }}>
-              {safeRowColorRules.length > 0 ? `${safeRowColorRules.length} ${t('toolbar.color')}` : t('toolbar.color')}
-            </span>
-          </a>
-        </li>
-
-        {/* Group Button */}
-        <li className="header__filter-item" style={{ position: 'relative' }}>
-          <a 
-            className={`header__filter-link ${activeGroupByRules.length > 0 ? 'active' : activeHeaderMenu === 'group' ? 'active' : ''}`}
-            onClick={(e) => openMenuWithAnchor('group', e)}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              height: '32px',
-              backgroundColor: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#F4F4F5' : 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (activeGroupByRules.length === 0 && activeHeaderMenu !== 'group') e.currentTarget.style.backgroundColor = '#F4F4F5';
-            }}
-            onMouseLeave={(e) => {
-              if (activeGroupByRules.length === 0 && activeHeaderMenu !== 'group') e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <Layers size={16} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#44403C', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 600 : 500 }}>
-              {activeGroupByRules.length > 0 ? `${activeGroupByRules.length} ${t('toolbar.group')}` : t('toolbar.group')}
-            </span>
-          </a>
-        </li>
-      </ul>
-      
-      <ul className="header__filter header__filter--full-width">
-        {/* Hide Fields Button */}
-        <li className="header__filter-item" style={{ position: 'relative' }}>
-          <a 
-            className={`header__filter-link ${actualHiddenCount > 0 ? 'active' : activeHeaderMenu === 'hide' ? 'active' : ''}`}
-            onClick={(e) => openMenuWithAnchor('hide', e)}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              height: '32px',
-              backgroundColor: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#F4F4F5' : 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (actualHiddenCount === 0 && activeHeaderMenu !== 'hide') e.currentTarget.style.backgroundColor = '#F4F4F5';
-            }}
-            onMouseLeave={(e) => {
-              if (actualHiddenCount === 0 && activeHeaderMenu !== 'hide') e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <EyeOff size={16} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#44403C', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 600 : 500 }}>
-              {actualHiddenCount > 0 ? `${actualHiddenCount} ${t('toolbar.hideFields')}` : t('toolbar.hideFields')}
-            </span>
-          </a>
-        </li>
-        
-        {/* Row Height Button */}
-        <li className="header__filter-item" style={{ position: 'relative' }}>
-          <a 
-            className={`header__filter-link ${rowHeightSize !== 'small' ? 'active' : activeHeaderMenu === 'rowHeight' ? 'active' : ''}`}
-            onClick={(e) => openMenuWithAnchor('rowHeight', e)}
-            style={{ 
-              cursor: 'pointer', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              height: '32px',
-              backgroundColor: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#F4F4F5' : 'transparent',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '0 12px',
-              boxSizing: 'border-box',
-              transition: 'background-color 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = '#F4F4F5';
-            }}
-            onMouseLeave={(e) => {
-              if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <AlignJustify size={16} color={rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-            <span className="header__filter-name" style={{ color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#44403C', fontWeight: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? 600 : 500 }}>
-              {t('toolbar.rowHeight')}
-            </span>
-          </a>
-        </li>
-
-        {/* Undo & Redo History Quick Action Buttons */}
-        <li className="header__filter-item" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px' }}>
-          <button
-            type="button"
-            onClick={onUndo}
-            disabled={!canUndo}
-            title={t('toolbar.undoTooltip')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '5px 8px',
-              borderRadius: '6px',
-              cursor: canUndo ? 'pointer' : 'not-allowed',
-              opacity: canUndo ? 1 : 0.4,
-              color: '#475569',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '12px',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={(e) => { if (canUndo) e.currentTarget.style.backgroundColor = '#f1f5f9' }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-          >
-            <Undo2 size={15} />
-            <span>{t('toolbar.undo')}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onRedo}
-            disabled={!canRedo}
-            title={t('toolbar.redoTooltip')}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '5px 8px',
-              borderRadius: '6px',
-              cursor: canRedo ? 'pointer' : 'not-allowed',
-              opacity: canRedo ? 1 : 0.4,
-              color: '#475569',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '12px',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={(e) => { if (canRedo) e.currentTarget.style.backgroundColor = '#f1f5f9' }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-          >
-            <Redo2 size={15} />
-            <span>{t('toolbar.redo')}</span>
-          </button>
-        </li>
-
-        <li className="header__filter-item header__filter-item--right">
-          <div className="header__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <Search size={14} style={{ position: 'absolute', left: '12px', color: '#64748b', pointerEvents: 'none' }} />
             <input
-              ref={searchInputRef}
-              type="text"
-              className="soft-input"
-              placeholder={t('toolbar.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ 
-                width: searchQuery ? '240px' : '200px', 
-                padding: '7px 28px 7px 32px', 
-                borderRadius: '10px', 
-                border: '1px solid #cbd5e1', 
-                fontSize: '13px', 
-                backgroundColor: '#ffffff',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                outline: 'none',
-                boxShadow: '0 1px 3px rgba(15,23,42,0.05)'
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#3F6212';
-                e.currentTarget.style.boxShadow = '0 0 0 3.5px rgba(63, 98, 18,0.14)';
-                e.currentTarget.style.width = '240px';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = '#cbd5e1';
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(15,23,42,0.05)';
-
-                if (!searchQuery) e.currentTarget.style.width = '200px';
-              }}
+              ref={csvInputRef}
+              type="file"
+              accept=".csv"
+              style={{ display: 'none' }}
+              onChange={handleCSVImport}
             />
-            {searchQuery ? (
-              <span 
-                onClick={() => setSearchQuery('')}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  cursor: 'pointer',
-                  color: '#94a3b8',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '2px',
-                  borderRadius: '50%',
-                  transition: 'color 0.15s, background-color 0.15s'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fef2f2'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                title={t('toolbar.clearSearch')}
-              >
-                <X size={13} />
-              </span>
-            ) : (
-              <span style={{ position: 'absolute', right: '8px', fontSize: '10px', color: '#94a3b8', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '1px 4px', pointerEvents: 'none', fontWeight: 600 }}>
-                ⌘K
-              </span>
+          </ul>
+        </header>
+      )}
+
+      {/* View Switcher Bottom Sheet / Popover Portal */}
+      {showViewContext && (isMobile || menuAnchorRect) && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999998,
+            backgroundColor: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
+            backdropFilter: isMobile ? 'blur(4px)' : 'none',
+            display: isMobile ? 'flex' : 'block',
+            alignItems: isMobile ? 'flex-end' : undefined,
+            justifyContent: isMobile ? 'center' : undefined,
+            pointerEvents: 'auto',
+            animation: isMobile ? 'backdropFadeIn 0.2s ease' : 'none',
+          }}
+          onClick={() => setShowViewContext(false)}
+        >
+          <div 
+            style={{ 
+              position: isMobile ? 'relative' : 'fixed', 
+              top: isMobile ? undefined : `${(menuAnchorRect?.top || 0) + (menuAnchorRect?.height || 0) + 6}px`, 
+              left: isMobile ? undefined : `${Math.max(8, Math.min(menuAnchorRect?.left || 8, (typeof window !== 'undefined' ? window.innerWidth : 800) - 250))}px`, 
+              width: isMobile ? '100vw' : undefined,
+              minWidth: isMobile ? '100vw' : '240px', 
+              maxWidth: isMobile ? '100vw' : '90vw',
+              maxHeight: isMobile ? '75vh' : 'calc(100vh - 100px)',
+              zIndex: 99999999, 
+              background: '#fff', 
+              boxShadow: isMobile ? '0 -10px 40px rgba(0, 0, 0, 0.18)' : '0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(0,0,0,0.04)', 
+              borderRadius: isMobile ? '20px 20px 0 0' : '12px', 
+              border: isMobile ? 'none' : '1px solid #e2e8f0', 
+              borderTop: isMobile ? '1px solid rgba(226, 232, 240, 0.8)' : undefined,
+              padding: isMobile ? '14px 16px max(24px, env(safe-area-inset-bottom)) 16px' : '0', 
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              animation: isMobile ? 'bottomSheetSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {isMobile && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ width: '36px', height: '4px', borderRadius: '9999px', backgroundColor: '#cbd5e1', marginBottom: '10px' }} />
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a' }}>
+                    {t('toolbar.views') || '切換視圖'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowViewContext(false)}
+                    style={{
+                      background: '#f1f5f9',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      width: '28px',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#64748b',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="select__items" style={{ padding: '6px 0', maxHeight: isMobile ? '50vh' : '300px', overflowY: 'auto' }}>
+              <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {views.map(view => (
+                  <li key={view.id} style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
+                    <a
+                      className={`select__item ${activeViewId === view.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setActiveViewId(view.id)
+                        applyViewConfig(view)
+                        setShowViewContext(false)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: isMobile ? '10px 12px' : '8px 12px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        color: '#1e293b',
+                        fontSize: '13px',
+                        flex: 1,
+                        backgroundColor: activeViewId === view.id ? '#f0fdf4' : 'transparent',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                    >
+                      {getViewIcon(view.type || 'grid', { size: 16, color: activeViewId === view.id ? '#3F6212' : '#64748b', style: { marginRight: '10px', flexShrink: 0 } })}
+                      <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? '#3F6212' : 'inherit', fontWeight: activeViewId === view.id ? 700 : 500 }}>{view.name}</span>
+                      {activeViewId === view.id && (
+                        <Check size={16} color="#3F6212" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
+                      )}
+                    </a>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setMenuAnchorRect({ top: rect.top, left: rect.left, width: rect.width, height: rect.height })
+                        setShowViewContext(false)
+                        setSelectedViewForMenu(view)
+                        setShowViewOptionsMenu(true)
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: '6px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: '#94a3b8',
+                      }}
+                    >
+                      <MoreVertical size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {canManageStructure && (
+              <div className="select__footer" style={{ borderTop: '1px solid #e2e8f0', padding: '6px 0 0 0', marginTop: '4px' }}>
+                <a 
+                  className="select__footer-button" 
+                  onClick={() => {
+                    setShowViewContext(false)
+                    setShowNewViewModal(true)
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '10px 12px' : '8px 12px', borderRadius: '8px', cursor: 'pointer', color: '#3F6212', backgroundColor: isMobile ? '#f0fdf4' : 'transparent', fontSize: '13px', fontWeight: 600, transition: 'all 0.15s ease' }}
+                >
+                  <Plus size={15} style={{ marginRight: '8px' }} />
+                  {t('toolbar.addView') || '新增視圖'}
+                </a>
+              </div>
             )}
           </div>
-        </li>
+        </div>,
+        document.body
+      )}
 
-        <li className="header__filter-item" style={{ position: 'relative', marginLeft: '4px', display: 'flex', alignItems: 'center' }}>
-          <LangPicker align="right" variant="toolbar" />
-        </li>
-
-        <input
-          ref={csvInputRef}
-          type="file"
-          accept=".csv"
-          style={{ display: 'none' }}
-          onChange={handleCSVImport}
+      {/* View Options Context Menu */}
+      {showViewOptionsMenu && selectedViewForMenu && (
+        <ViewContextMenu
+          view={selectedViewForMenu}
+          x={menuAnchorRect ? Math.min(menuAnchorRect.left, (typeof window !== 'undefined' ? window.innerWidth : 800) - 220) : 16}
+          y={menuAnchorRect ? menuAnchorRect.top + menuAnchorRect.height + 4 : 60}
+          onClose={() => {
+            setShowViewOptionsMenu(false)
+            setSelectedViewForMenu(null)
+          }}
+          onExportView={handleExportCSV}
+          onImportFile={() => csvInputRef.current?.click()}
+          onDuplicateView={onDuplicateView ? () => onDuplicateView(selectedViewForMenu.id) : undefined}
+          onRenameView={onRenameView ? () => onRenameView(selectedViewForMenu.id) : undefined}
+          onDeleteView={onDeleteView ? () => onDeleteView(selectedViewForMenu.id) : undefined}
         />
-      </ul>
+      )}
 
       {/* Top-Layer Floating Portal for Toolbar Menus (Prevents any overflow clipping across all viewports) */}
       {activeHeaderMenu && (isMobile || menuAnchorRect) && createPortal(
@@ -817,6 +1033,7 @@ export function ViewToolbar({
                     {activeHeaderMenu === 'color' && (t('toolbar.color') || '色彩標記')}
                     {activeHeaderMenu === 'hide' && (t('toolbar.hideFields') || '隱藏欄位')}
                     {activeHeaderMenu === 'rowHeight' && (t('toolbar.rowHeight') || '列高設定')}
+                    {activeHeaderMenu === 'more' && (t('common.more') || '更多功能')}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
@@ -889,7 +1106,6 @@ export function ViewToolbar({
                 saveViewConfig={saveViewConfig}
               />
             )}
-
 
             {/* Group Content */}
             {activeHeaderMenu === 'group' && (
@@ -1050,7 +1266,7 @@ export function ViewToolbar({
 
             {/* Row Height Content */}
             {activeHeaderMenu === 'rowHeight' && (
-              <ul style={{ listStyle: 'none', margin: 0, padding: '2px', width: '180px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <ul style={{ listStyle: 'none', margin: 0, padding: '2px', width: isMobile ? '100%' : '180px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {[
                   { id: 'small', label: 'Small', icon: <AlignJustify size={14} /> },
                   { id: 'medium', label: 'Medium', icon: <AlignJustify size={16} /> },
@@ -1069,8 +1285,8 @@ export function ViewToolbar({
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '7px 10px',
-                          borderRadius: '6px',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
                           cursor: 'pointer',
                           backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
                           color: isSelected ? '#3F6212' : '#1e293b',
@@ -1079,11 +1295,11 @@ export function ViewToolbar({
                         onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
                         onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <span style={{ color: isSelected ? '#3F6212' : '#64748b', display: 'flex', alignItems: 'center' }}>
                             {option.icon}
                           </span>
-                          <span style={{ fontSize: '13px', fontWeight: isSelected ? 600 : 400 }}>
+                          <span style={{ fontSize: '13px', fontWeight: isSelected ? 700 : 500 }}>
                             {option.label}
                           </span>
                         </div>
@@ -1094,234 +1310,230 @@ export function ViewToolbar({
                 })}
               </ul>
             )}
-          </div>
-        </div>,
-        document.body
-      )}
 
-      {/* Desktop Top-Layer View Context Menu */}
-      {!isMobile && showViewContext && menuAnchorRect && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 99999998,
-            backgroundColor: 'transparent',
-            pointerEvents: 'auto'
-          }}
-          onClick={() => setShowViewContext(false)}
-        >
-          <div
-            className="toolbar-popover-card"
-            data-portal-root="true"
-            style={{
-              position: 'fixed',
-              top: `${menuAnchorRect.top + menuAnchorRect.height + 6}px`,
-              left: `${Math.max(12, Math.min(menuAnchorRect.left, window.innerWidth - 280))}px`,
-              zIndex: 99999999,
-              backgroundColor: '#ffffff',
-              borderRadius: '10px',
-              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
-              border: '1px solid #e2e8f0',
-              padding: '0',
-              minWidth: '240px',
-              maxWidth: '300px',
-              overflow: 'hidden'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="select__items" style={{ padding: '4px 0', maxHeight: '300px', overflowY: 'auto' }}>
-              <ul className="select__items-list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                {views.map(view => (
-                  <li key={view.id} style={{ display: 'flex', alignItems: 'center', paddingRight: '6px' }}>
-                    <a
-                      className={`select__item ${activeViewId === view.id ? 'active' : ''}`}
-                      onClick={() => {
-                        setActiveViewId(view.id)
-                        applyViewConfig(view)
-                        setShowViewContext(false)
-                      }}
-                      style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', textDecoration: 'none', color: '#1e293b', fontSize: '13px', flex: 1, transition: 'background-color 0.15s ease' }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      {getViewIcon(view.type || 'grid', { size: 14, color: activeViewId === view.id ? '#3F6212' : '#64748b', style: { marginRight: '8px', flexShrink: 0 } })}
-                      <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? '#3F6212' : 'inherit', fontWeight: activeViewId === view.id ? 600 : 400 }}>{view.name}</span>
-                      {activeViewId === view.id && (
-                        <Check size={16} color="#3F6212" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
-                      )}
-                    </a>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setShowViewContext(false)
-                        setSelectedViewForMenu(view)
-                        setShowViewOptionsMenu(true)
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#94a3b8'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f1f5f9'
-                        e.currentTarget.style.color = '#1e293b'
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent'
-                        e.currentTarget.style.color = '#94a3b8'
-                      }}
-                      title="視圖選項 (View options)"
-                    >
-                      <MoreVertical size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {canManageStructure && (
-              <div className="select__footer" style={{ borderTop: '1px solid #e2e8f0', padding: '4px 0' }}>
-                <a 
-                  className="select__footer-button" 
-                  onClick={() => {
-                    setShowViewContext(false)
-                    setShowNewViewModal(true)
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', cursor: 'pointer', color: '#64748b', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#3F6212' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b' }}
-                >
-                  <Plus size={14} style={{ marginRight: '8px' }} />
-                  新增視圖
-                </a>
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Mobile Top-Layer View Context Menu */}
-      {isMobile && showViewContext && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999999,
-            backgroundColor: 'rgba(15, 23, 42, 0.45)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            pointerEvents: 'auto',
-            touchAction: 'manipulation'
-          }}
-          onClick={() => setShowViewContext(false)}
-        >
-          <div
-            className="toolbar-popover-card"
-            data-portal-root="true"
-            style={{
-              width: '100%',
-              maxWidth: '380px',
-              maxHeight: '80vh',
-              backgroundColor: '#ffffff',
-              borderRadius: '24px',
-              boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.22)',
-              padding: '20px',
-              overflowY: 'auto'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid #f1f5f9' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{t('toolbar.switchView')}</h3>
-              <button
-                type="button"
-                onClick={() => setShowViewContext(false)}
-                style={{ width: '30px', height: '30px', borderRadius: '9999px', backgroundColor: '#f1f5f9', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }}
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {views.map(view => {
-                const isSelected = activeViewId === view.id
-                return (
-                  <button
-                    key={view.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveViewId(view.id)
-                      applyViewConfig(view)
-                      setShowViewContext(false)
-                    }}
+            {/* More Features Menu Content */}
+            {activeHeaderMenu === 'more' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: isMobile ? '100%' : '320px', padding: '2px 0' }}>
+                {/* Real-time Search Input */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '12px', color: '#64748b', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    placeholder={t('toolbar.searchPlaceholder') || "搜尋資料列內容..."}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     style={{
                       width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: '12px',
-                      backgroundColor: isSelected ? '#3F6212' : '#f8fafc',
-                      color: isSelected ? '#ffffff' : '#0f172a',
-                      fontWeight: isSelected ? 700 : 500,
+                      height: '38px',
+                      padding: '0 32px 0 36px',
+                      borderRadius: '10px',
+                      border: '1px solid #cbd5e1',
                       fontSize: '13px',
-                      border: 'none',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#ffffff'
+                    }}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Sub Features (Color, Group, Row Height) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveHeaderMenu('color')}
+                    style={{
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      transition: 'all 0.15s ease'
+                      padding: '11px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #f1f5f9',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#1e293b',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s ease'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                      {getViewIcon(view.type || 'grid', { size: 16, color: isSelected ? '#ffffff' : '#64748b', style: { flexShrink: 0 } })}
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{view.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Palette size={16} color="#3F6212" />
+                      <span>{t('toolbar.color') || '色彩標記'}</span>
                     </div>
-                    {isSelected && <Check size={16} color="#ffffff" style={{ flexShrink: 0 }} />}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {safeRowColorRules.length > 0 && (
+                        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '9999px', backgroundColor: '#3F6212', color: '#ffffff', fontWeight: 700 }}>
+                          {safeRowColorRules.length}
+                        </span>
+                      )}
+                      <ChevronDown size={14} color="#94a3b8" style={{ transform: 'rotate(-90deg)' }} />
+                    </div>
                   </button>
-                )
-              })}
-            </div>
 
-            {canManageStructure && (
-              <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #f1f5f9' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowViewContext(false)
-                    setShowNewViewModal(true)
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: '12px',
-                    backgroundColor: '#F4F4F5',
-                    color: '#18181B',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    border: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <Plus size={16} color="#3F6212" />
-                  <span>{t('toolbar.addView')}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveHeaderMenu('group')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '11px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #f1f5f9',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#1e293b',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Layers size={16} color="#3F6212" />
+                      <span>{t('toolbar.group') || '分組條件'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {activeGroupByRules.length > 0 && (
+                        <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '9999px', backgroundColor: '#3F6212', color: '#ffffff', fontWeight: 700 }}>
+                          {activeGroupByRules.length}
+                        </span>
+                      )}
+                      <ChevronDown size={14} color="#94a3b8" style={{ transform: 'rotate(-90deg)' }} />
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveHeaderMenu('rowHeight')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '11px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #f1f5f9',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: '#1e293b',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <AlignJustify size={16} color="#3F6212" />
+                      <span>{t('toolbar.rowHeight') || '列高設定'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b', textTransform: 'capitalize' }}>
+                        {rowHeightSize}
+                      </span>
+                      <ChevronDown size={14} color="#94a3b8" style={{ transform: 'rotate(-90deg)' }} />
+                    </div>
+                  </button>
+                </div>
+
+                {/* Undo / Redo & CSV */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={onUndo}
+                    disabled={!canUndo}
+                    style={{
+                      flex: 1,
+                      height: '38px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      borderRadius: '8px',
+                      backgroundColor: '#f1f5f9',
+                      border: 'none',
+                      color: '#475569',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: canUndo ? 'pointer' : 'not-allowed',
+                      opacity: canUndo ? 1 : 0.5
+                    }}
+                  >
+                    <Undo2 size={15} />
+                    <span>{t('toolbar.undo') || '還原'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onRedo}
+                    disabled={!canRedo}
+                    style={{
+                      flex: 1,
+                      height: '38px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      borderRadius: '8px',
+                      backgroundColor: '#f1f5f9',
+                      border: 'none',
+                      color: '#475569',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: canRedo ? 'pointer' : 'not-allowed',
+                      opacity: canRedo ? 1 : 0.5
+                    }}
+                  >
+                    <Redo2 size={15} />
+                    <span>{t('toolbar.redo') || '重做'}</span>
+                  </button>
+
+                  {handleExportCSV && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveHeaderMenu(null)
+                        handleExportCSV()
+                      }}
+                      style={{
+                        flex: 1,
+                        height: '38px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        borderRadius: '8px',
+                        backgroundColor: '#f1f5f9',
+                        border: 'none',
+                        color: '#475569',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Download size={15} />
+                      <span>{t('toolbar.exportCSV') || '匯出 CSV'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Language Picker in More */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 600 }}>{t('common.language') || '語言'}</span>
+                  <LangPicker align="right" variant="toolbar" />
+                </div>
               </div>
             )}
           </div>
         </div>,
         document.body
       )}
-    </header>
+    </>
   )
 }
