@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, Star } from 'lucide-react'
 import type { TableField, FilterRule } from '@/modules/database/types'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -28,6 +28,31 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
     value: `field_${f.id}`,
     label: f.name,
   })), [safeFields])
+
+  const getFieldSelectOptions = (field: TableField | undefined) => {
+    if (!field || !field.options) return []
+    try {
+      const parsed = typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+      const list = parsed.select_options || parsed.options || (Array.isArray(parsed) ? parsed : [])
+      return list.map((opt: any) => ({
+        value: opt.value || opt.name || String(opt.id || ''),
+        label: opt.value || opt.name || String(opt.id || ''),
+        icon: opt.color ? (
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: opt.color,
+              display: 'inline-block',
+            }}
+          />
+        ) : undefined,
+      }))
+    } catch {
+      return []
+    }
+  }
 
   const handleAddRule = () => {
     const newRule: FilterRule = {
@@ -79,118 +104,173 @@ export function FilterMenu({ fields, filterRules, setFilterRules }: FilterMenuPr
     <div style={{ width: '480px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Filter Rows */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', paddingRight: '2px' }}>
-        {safeFilterRules.map((rule, idx) => (
-          <div
-            key={idx}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '6px 8px',
-              borderRadius: '8px',
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {/* Remove Button */}
-            <button
-              type="button"
-              onClick={() => {
-                const newRules = safeFilterRules.filter((_, i) => i !== idx)
-                setFilterRules(newRules)
-              }}
+        {safeFilterRules.map((rule, idx) => {
+          const selectedField = safeFields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey)
+          const selectOptions = getFieldSelectOptions(selectedField)
+          const isSelectType = selectedField && (selectedField.type === 'single_select' || selectedField.type === 'multiple_select') && selectOptions.length > 0
+          const isBooleanType = selectedField && selectedField.type === 'boolean'
+          const isRatingType = selectedField && selectedField.type === 'rating'
+
+          return (
+            <div
+              key={idx}
               style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '2px',
                 display: 'flex',
                 alignItems: 'center',
-                color: '#64748b',
-                borderRadius: '4px',
-                transition: 'color 0.15s ease, background-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ef4444'
-                e.currentTarget.style.backgroundColor = '#fee2e2'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#64748b'
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
-              title={t('common.delete')}
-            >
-              <X size={15} />
-            </button>
-
-            {/* Level Label */}
-            <span
-              style={{
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#475569',
-                width: '54px',
-                flexShrink: 0,
+                gap: '8px',
+                padding: '6px 8px',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                transition: 'all 0.15s ease',
               }}
             >
-              {idx === 0 ? t('filter.where') : t('filter.and')}
-            </span>
-
-            {/* Field Select */}
-            <div style={{ flex: 1, minWidth: '110px' }}>
-              <CustomSelect
-                value={rule.fieldKey}
-                options={fieldOptions}
-                onChange={(val) => {
-                  const newRules = [...safeFilterRules]
-                  newRules[idx].fieldKey = val
+              {/* Remove Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const newRules = safeFilterRules.filter((_, i) => i !== idx)
                   setFilterRules(newRules)
                 }}
-                placeholder={t('filter.selectField')}
-              />
-            </div>
-
-            {/* Operator Select */}
-            <div style={{ width: '125px', flexShrink: 0 }}>
-              <CustomSelect
-                value={rule.operator}
-                options={operatorOptions}
-                onChange={(val) => {
-                  const newRules = [...safeFilterRules]
-                  newRules[idx].operator = val as FilterRule['operator']
-                  setFilterRules(newRules)
-                }}
-                placeholder={t('common.select')}
-              />
-            </div>
-
-            {/* Value Input */}
-            {rule.operator !== 'empty' && rule.operator !== 'not_empty' && (
-              <input 
-                type="text" 
-                className="soft-input"
-                value={rule.value} 
-                onChange={(e) => {
-                  const newRules = [...safeFilterRules]
-                  newRules[idx].value = e.target.value
-                  setFilterRules(newRules)
-                }}
-                placeholder={t('filter.enterValue')}
                 style={{
-                  padding: '6px 10px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  flex: 1,
-                  minWidth: '80px',
-                  outline: 'none',
-                  backgroundColor: '#ffffff',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: '#64748b',
+                  borderRadius: '4px',
+                  transition: 'color 0.15s ease, background-color 0.15s ease',
                 }}
-              />
-            )}
-          </div>
-        ))}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = '#ef4444'
+                  e.currentTarget.style.backgroundColor = '#fee2e2'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = '#64748b'
+                  e.currentTarget.style.backgroundColor = 'transparent'
+                }}
+                title={t('common.delete')}
+              >
+                <X size={15} />
+              </button>
+
+              {/* Level Label */}
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#475569',
+                  width: '54px',
+                  flexShrink: 0,
+                }}
+              >
+                {idx === 0 ? t('filter.where') : t('filter.and')}
+              </span>
+
+              {/* Field Select */}
+              <div style={{ flex: 1, minWidth: '110px' }}>
+                <CustomSelect
+                  value={rule.fieldKey}
+                  options={fieldOptions}
+                  onChange={(val) => {
+                    const newRules = [...safeFilterRules]
+                    newRules[idx].fieldKey = val
+                    newRules[idx].value = ''
+                    setFilterRules(newRules)
+                  }}
+                  placeholder={t('filter.selectField')}
+                />
+              </div>
+
+              {/* Operator Select */}
+              <div style={{ width: '125px', flexShrink: 0 }}>
+                <CustomSelect
+                  value={rule.operator}
+                  options={operatorOptions}
+                  onChange={(val) => {
+                    const newRules = [...safeFilterRules]
+                    newRules[idx].operator = val as FilterRule['operator']
+                    setFilterRules(newRules)
+                  }}
+                  placeholder={t('common.select')}
+                />
+              </div>
+
+              {/* Value Input (Type Aware) */}
+              {rule.operator !== 'empty' && rule.operator !== 'not_empty' && (
+                <div style={{ flex: 1, minWidth: '100px' }}>
+                  {isSelectType ? (
+                    <CustomSelect
+                      value={rule.value}
+                      options={selectOptions}
+                      onChange={(val) => {
+                        const newRules = [...safeFilterRules]
+                        newRules[idx].value = val
+                        setFilterRules(newRules)
+                      }}
+                      placeholder="選擇選項"
+                    />
+                  ) : isBooleanType ? (
+                    <CustomSelect
+                      value={rule.value}
+                      options={[
+                        { value: 'true', label: '是 (Checked)' },
+                        { value: 'false', label: '否 (Unchecked)' },
+                      ]}
+                      onChange={(val) => {
+                        const newRules = [...safeFilterRules]
+                        newRules[idx].value = val
+                        setFilterRules(newRules)
+                      }}
+                      placeholder="選擇狀態"
+                    />
+                  ) : isRatingType ? (
+                    <CustomSelect
+                      value={rule.value}
+                      options={[
+                        { value: '1', label: '1 星', icon: <Star size={12} fill="#eab308" color="#eab308" /> },
+                        { value: '2', label: '2 星', icon: <Star size={12} fill="#eab308" color="#eab308" /> },
+                        { value: '3', label: '3 星', icon: <Star size={12} fill="#eab308" color="#eab308" /> },
+                        { value: '4', label: '4 星', icon: <Star size={12} fill="#eab308" color="#eab308" /> },
+                        { value: '5', label: '5 星', icon: <Star size={12} fill="#eab308" color="#eab308" /> },
+                      ]}
+                      onChange={(val) => {
+                        const newRules = [...safeFilterRules]
+                        newRules[idx].value = val
+                        setFilterRules(newRules)
+                      }}
+                      placeholder="評分"
+                    />
+                  ) : (
+                    <input 
+                      type={selectedField?.type === 'number' ? 'number' : selectedField?.type === 'date' ? 'date' : 'text'} 
+                      className="soft-input"
+                      value={rule.value} 
+                      onChange={(e) => {
+                        const newRules = [...safeFilterRules]
+                        newRules[idx].value = e.target.value
+                        setFilterRules(newRules)
+                      }}
+                      placeholder={t('filter.enterValue')}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        fontSize: '13px',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                        backgroundColor: '#ffffff',
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {/* Footer Bottom Actions */}

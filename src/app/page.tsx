@@ -76,7 +76,8 @@ import type {
   FilterRule,
   RowColorRule,
   GroupCollapseState,
-  GroupByRule
+  GroupByRule,
+  SortRule
 } from '@/modules/database/types'
 
 export default function Home() {
@@ -121,6 +122,7 @@ export default function Home() {
   // Sort & Filter
   const [sortField, setSortField] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [sortRules, setSortRules] = useState<SortRule[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [filterRules, setFilterRules] = useState<FilterRule[]>([])
@@ -327,8 +329,6 @@ export default function Home() {
 
   const applyViewConfig = useCallback((view: TableView) => {
     setCurrentView(view.type)
-    setSortField(view.sortField)
-    setSortOrder(view.sortOrder || 'asc')
 
     const safeParse = (val: any, fallback: any) => {
       if (!val) return fallback
@@ -339,6 +339,36 @@ export default function Home() {
       } catch {
         return fallback
       }
+    }
+
+    const parsedSortRules = safeParse(view.sortRules || view.sortField, null)
+    if (Array.isArray(parsedSortRules) && parsedSortRules.length > 0) {
+      setSortRules(parsedSortRules)
+      setSortField(parsedSortRules[0].fieldKey)
+      setSortOrder(parsedSortRules[0].order || 'asc')
+    } else if (typeof view.sortField === 'string' && view.sortField) {
+      if (view.sortField.startsWith('[')) {
+        try {
+          const arr = JSON.parse(view.sortField)
+          if (Array.isArray(arr) && arr.length > 0) {
+            setSortRules(arr)
+            setSortField(arr[0].fieldKey)
+            setSortOrder(arr[0].order || 'asc')
+          }
+        } catch {
+          setSortRules([{ fieldKey: view.sortField, order: view.sortOrder || 'asc' }])
+          setSortField(view.sortField)
+          setSortOrder(view.sortOrder || 'asc')
+        }
+      } else {
+        setSortRules([{ fieldKey: view.sortField, order: view.sortOrder || 'asc' }])
+        setSortField(view.sortField)
+        setSortOrder(view.sortOrder || 'asc')
+      }
+    } else {
+      setSortRules([])
+      setSortField(null)
+      setSortOrder('asc')
     }
 
     const parsedFilters = safeParse(view.filters, [])
@@ -1129,29 +1159,40 @@ export default function Home() {
       return updatedFrozenList
     }
 
-    // Sort when not editing
-    if (sortField) {
-      const activeSortFieldObj = fields.find(f => `field_${f.id}` === sortField || String(f.id) === sortField || f.name === sortField)
+    // Multi-level Sort when not editing
+    const effectiveSorts = sortRules && sortRules.length > 0
+      ? sortRules
+      : (sortField ? [{ fieldKey: sortField, order: sortOrder || 'asc' }] : [])
+
+    if (effectiveSorts.length > 0) {
       result.sort((a, b) => {
-        const rawA = getCellValue(a, sortField)
-        const rawB = getCellValue(b, sortField)
+        for (const rule of effectiveSorts) {
+          const ruleField = rule.fieldKey
+          const ruleOrder = rule.order
+          const fieldObj = fields.find(f => `field_${f.id}` === ruleField || String(f.id) === ruleField || f.name === ruleField)
+          const rawA = getCellValue(a, ruleField)
+          const rawB = getCellValue(b, ruleField)
 
-        if (activeSortFieldObj?.type === 'single_select' || activeSortFieldObj?.type === 'multiple_select') {
-          const namesA = parseSelectItems(rawA, activeSortFieldObj.options).join(', ')
-          const namesB = parseSelectItems(rawB, activeSortFieldObj.options).join(', ')
-          return sortOrder === 'asc'
-            ? namesA.localeCompare(namesB)
-            : namesB.localeCompare(namesA)
-        }
+          let diff = 0
+          if (fieldObj?.type === 'single_select' || fieldObj?.type === 'multiple_select') {
+            const namesA = parseSelectItems(rawA, fieldObj.options).join(', ')
+            const namesB = parseSelectItems(rawB, fieldObj.options).join(', ')
+            diff = namesA.localeCompare(namesB, 'zh-TW', { numeric: true })
+          } else {
+            const numA = Number(rawA)
+            const numB = Number(rawB)
+            if (!isNaN(numA) && !isNaN(numB) && rawA !== '' && rawB !== '') {
+              diff = numA - numB
+            } else {
+              diff = String(rawA || '').localeCompare(String(rawB || ''), 'zh-TW', { numeric: true })
+            }
+          }
 
-        const numA = Number(rawA)
-        const numB = Number(rawB)
-        if (!isNaN(numA) && !isNaN(numB) && rawA !== '' && rawB !== '') {
-          return sortOrder === 'asc' ? numA - numB : numB - numA
+          if (diff !== 0) {
+            return ruleOrder === 'asc' ? diff : -diff
+          }
         }
-        return sortOrder === 'asc'
-          ? String(rawA).localeCompare(String(rawB))
-          : String(rawB).localeCompare(String(rawA))
+        return 0
       })
     }
 
@@ -2062,6 +2103,21 @@ export default function Home() {
                 setSortField={setSortField}
                 sortOrder={sortOrder}
                 setSortOrder={setSortOrder}
+                sortRules={sortRules}
+                setSortRules={(rules) => {
+                  setSortRules(rules)
+                  const primaryKey = rules.length > 0 ? rules[0].fieldKey : null
+                  const primaryOrder = rules.length > 0 ? rules[0].order : 'asc'
+                  setSortField(primaryKey)
+                  setSortOrder(primaryOrder)
+                  if (wsState.activeViewId) {
+                    saveViewConfig(wsState.activeViewId, {
+                      sortField: primaryKey,
+                      sortOrder: primaryOrder,
+                      sortRules: rules,
+                    })
+                  }
+                }}
                 filterRules={filterRules}
                 setFilterRules={(rules) => {
                   setFilterRules(rules)

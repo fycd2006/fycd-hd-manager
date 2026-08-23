@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2 } from 'lucide-react'
-import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule } from '@/modules/database/types'
+import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import { ViewContextMenu } from '@/modules/database/components/menu/ViewContextMenu'
@@ -38,6 +38,8 @@ interface ViewToolbarProps {
   setSortField: (v: string | null) => void
   sortOrder: 'asc' | 'desc'
   setSortOrder: (v: 'asc' | 'desc') => void
+  sortRules?: SortRule[]
+  setSortRules?: (v: SortRule[]) => void
 
   // Filter
   filterRules: FilterRule[]
@@ -93,6 +95,8 @@ export function ViewToolbar({
   setSortField,
   sortOrder,
   setSortOrder,
+  sortRules,
+  setSortRules,
   filterRules,
   setFilterRules,
   rowColorRules,
@@ -118,6 +122,35 @@ export function ViewToolbar({
   canRedo = false
 }: ViewToolbarProps) {
   const { t } = useI18n()
+
+  const activeSortRules: SortRule[] = React.useMemo(() => {
+    if (sortRules && sortRules.length > 0) return sortRules;
+    if (sortField) {
+      if (typeof sortField === 'string' && sortField.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(sortField);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+      return [{ fieldKey: sortField, order: sortOrder || 'asc' }];
+    }
+    return [];
+  }, [sortRules, sortField, sortOrder]);
+
+  const handleSetSortRules = React.useCallback((rules: SortRule[]) => {
+    setSortRules?.(rules);
+    const primaryKey = rules.length > 0 ? rules[0].fieldKey : null;
+    const primaryOrder = rules.length > 0 ? rules[0].order : 'asc';
+    setSortField(primaryKey);
+    setSortOrder(primaryOrder);
+    if (activeViewId) {
+      saveViewConfig(activeViewId, {
+        sortField: primaryKey,
+        sortOrder: primaryOrder,
+        sortRules: rules,
+      });
+    }
+  }, [setSortRules, setSortField, setSortOrder, activeViewId, saveViewConfig]);
 
   const activeGroupByRules: GroupByRule[] = React.useMemo(() => {
     if (groupByRules && groupByRules.length > 0) return groupByRules;
@@ -782,12 +815,8 @@ export function ViewToolbar({
             {activeHeaderMenu === 'sort' && (
               <SortMenu
                 fields={fields}
-                sortField={sortField}
-                setSortField={setSortField}
-                sortOrder={sortOrder}
-                setSortOrder={setSortOrder}
-                activeViewId={activeViewId}
-                saveViewConfig={saveViewConfig}
+                sortRules={activeSortRules}
+                setSortRules={handleSetSortRules}
               />
             )}
 

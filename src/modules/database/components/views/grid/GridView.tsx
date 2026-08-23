@@ -156,7 +156,57 @@ export function parseGroupValue(
     };
   }
 
-  // 4. Arrays
+  // 4. Rating
+  if (field && field.type === 'rating') {
+    const starCount = Math.min(5, Math.max(0, parseInt(String(val), 10) || 0));
+    if (starCount === 0) {
+      return {
+        key: '（空白）',
+        displayTitle: '（空白未指定）',
+        badges: [{ label: '（空白未指定）', bg: '#f1f5f9', color: '#94a3b8' }],
+        isBlank: true,
+      };
+    }
+    const stars = '★'.repeat(starCount) + '☆'.repeat(5 - starCount);
+    return {
+      key: `${starCount} 星`,
+      displayTitle: `${stars} (${starCount} 星)`,
+      badges: [{
+        label: `${stars} (${starCount} 星)`,
+        bg: '#fef9c3',
+        color: '#854d0e',
+        border: '#fde047',
+      }],
+      isBlank: false,
+    };
+  }
+
+  // 5. Date
+  if (field && (field.type === 'date' || field.type === 'created_at' || field.type === 'updated_at')) {
+    const dateStr = String(val).trim();
+    if (!dateStr) {
+      return {
+        key: '（空白）',
+        displayTitle: '（空白未指定）',
+        badges: [{ label: '（空白未指定）', bg: '#f1f5f9', color: '#94a3b8' }],
+        isBlank: true,
+      };
+    }
+    const formatted = dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr;
+    return {
+      key: formatted,
+      displayTitle: formatted,
+      badges: [{
+        label: formatted,
+        bg: '#f8fafc',
+        color: '#334155',
+        border: '#e2e8f0',
+      }],
+      isBlank: false,
+    };
+  }
+
+  // 6. Arrays
   if (Array.isArray(val)) {
     if (val.length === 0) {
       return {

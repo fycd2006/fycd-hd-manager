@@ -78,6 +78,11 @@ export interface GroupByRule {
   order: 'asc' | 'desc'
 }
 
+export interface SortRule {
+  fieldKey: string
+  order: 'asc' | 'desc'
+}
+
 export interface TableView {
   id: number
   tableId: number
@@ -86,6 +91,7 @@ export interface TableView {
   filters: string | null
   sortField: string | null
   sortOrder: SortOrder | null
+  sortRules?: SortRule[] | string | null
   hiddenFields: string | null
   columnWidths?: string | null
   groupByField?: string | null
@@ -99,6 +105,7 @@ export type ViewConfigPatch = {
   filters?: FilterRule[] | string | null
   sortField?: string | null
   sortOrder?: SortOrder | null
+  sortRules?: SortRule[] | string | null
   hiddenFields?: string[] | string | null
   columnWidths?: Record<string, number> | string | null
   groupByField?: string | null
