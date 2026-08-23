@@ -815,8 +815,8 @@ export function ViewToolbar({
 
             {/* Hide Fields Content */}
             {activeHeaderMenu === 'hide' && (
-              <div className="hidings" style={{ width: '100%', overflow: 'hidden' }}>
-                <div className="hidings__head" style={{ padding: '6px 0 6px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <div className="hidings" style={{ width: '280px', maxWidth: '90vw', overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="hidings__head" style={{ padding: '2px 0 6px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div className="hidings__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <Search size={14} className="hidings__search-icon" style={{ position: 'absolute', left: '8px', color: '#94a3b8' }} />
                     <input
@@ -828,9 +828,57 @@ export function ViewToolbar({
                       style={{ width: '100%', padding: '6px 8px 6px 30px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
                     />
                   </div>
+                  {/* Show All / Hide All Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setHiddenFieldKeys([])
+                        if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify([]) })
+                      }}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: '#3F6212',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      {t('toolbar.showAll') || 'Show all'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allKeys = fields.map(f => `field_${f.id}`)
+                        setHiddenFieldKeys(allKeys)
+                        if (activeViewId) saveViewConfig(activeViewId, { hiddenFields: JSON.stringify(allKeys) })
+                      }}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: '#64748b',
+                        fontSize: '12px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#ef4444'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
+                    >
+                      {t('toolbar.hideAll') || 'Hide all'}
+                    </button>
+                  </div>
                 </div>
-                <div className="hidings__body" style={{ maxHeight: '220px', overflowY: 'auto', padding: '4px 0' }}>
-                  <ul className="hidings__list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                <div className="hidings__body" style={{ maxHeight: '240px', overflowY: 'auto', padding: '2px 0' }}>
+                  <ul className="hidings__list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     {filteredFieldsForHide.map(field => {
                       const key = `field_${field.id}`
                       const isHidden = hiddenFieldKeys.includes(key) || hiddenFieldKeys.includes(String(field.id))
@@ -848,23 +896,52 @@ export function ViewToolbar({
                           style={{
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'space-between',
                             padding: '6px 8px',
-                            borderRadius: '4px',
+                            borderRadius: '6px',
                             cursor: 'pointer',
                             fontSize: '13px',
+                            backgroundColor: isHidden ? 'transparent' : '#ffffff',
                             transition: 'background-color 0.15s ease'
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                         >
-                          {getFieldIcon(field.type)}
-                          <span style={{ marginLeft: '8px', flex: 1 }}>{field.name}</span>
-                          <input
-                            type="checkbox"
-                            checked={!isHidden}
-                            onChange={() => {}}
-                            style={{ cursor: 'pointer' }}
-                          />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ color: isHidden ? '#94a3b8' : '#3F6212', display: 'flex', alignItems: 'center' }}>
+                              {getFieldIcon(field.type)}
+                            </span>
+                            <span style={{ color: isHidden ? '#94a3b8' : '#1e293b', fontWeight: isHidden ? 400 : 500 }}>
+                              {field.name}
+                            </span>
+                          </div>
+                          {/* Modern toggle badge */}
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '18px',
+                              borderRadius: '9px',
+                              backgroundColor: !isHidden ? '#3F6212' : '#cbd5e1',
+                              position: 'relative',
+                              transition: 'background-color 0.2s ease',
+                              flexShrink: 0,
+                              marginLeft: '8px',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '14px',
+                                height: '14px',
+                                borderRadius: '50%',
+                                backgroundColor: '#ffffff',
+                                position: 'absolute',
+                                top: '2px',
+                                left: !isHidden ? '16px' : '2px',
+                                transition: 'left 0.2s ease',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                              }}
+                            />
+                          </div>
                         </li>
                       )
                     })}
@@ -875,7 +952,7 @@ export function ViewToolbar({
 
             {/* Row Height Content */}
             {activeHeaderMenu === 'rowHeight' && (
-              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              <ul style={{ listStyle: 'none', margin: 0, padding: '2px', width: '180px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 {[
                   { id: 'small', label: 'Small', icon: <AlignJustify size={14} /> },
                   { id: 'medium', label: 'Medium', icon: <AlignJustify size={16} /> },
@@ -894,7 +971,7 @@ export function ViewToolbar({
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '8px 10px',
+                          padding: '7px 10px',
                           borderRadius: '6px',
                           cursor: 'pointer',
                           backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
@@ -904,7 +981,7 @@ export function ViewToolbar({
                         onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
                         onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ color: isSelected ? '#3F6212' : '#64748b', display: 'flex', alignItems: 'center' }}>
                             {option.icon}
                           </span>
@@ -912,7 +989,7 @@ export function ViewToolbar({
                             {option.label}
                           </span>
                         </div>
-                        {isSelected && <Check size={16} color="#3F6212" style={{ flexShrink: 0 }} />}
+                        {isSelected && <Check size={15} color="#3F6212" style={{ flexShrink: 0 }} />}
                       </div>
                     </li>
                   )
