@@ -496,7 +496,8 @@ export default function MobileBottomNav({
             right: '24px',
             transform: `translate(${bubblePos.x}px, ${bubblePos.y}px)`,
             zIndex: 99999999,
-            pointerEvents: 'auto',
+            pointerEvents: (showDbModal || showSearchModal) ? 'none' : 'auto',
+            display: (showDbModal || showSearchModal) ? 'none' : 'flex',
             touchAction: 'none',
             userSelect: 'none',
           }}
@@ -970,70 +971,25 @@ export default function MobileBottomNav({
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '14px 20px 12px 20px',
-                backgroundColor: isDark ? '#0f172a' : '#ffffff'
+                flexDirection: 'column',
+                gap: '12px',
+                padding: '16px 20px 12px 20px',
+                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                borderBottom: isDark ? '1px solid #1e293b' : '1px solid #f1f5f9',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <DatabaseIcon size={18} color="#3F6212" />
+              {/* Row 1: Title & Close Button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <DatabaseIcon size={18} color="#3F6212" />
+                  </div>
+                  <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
+                    {t('mobileNav.databasesAndTables')}
+                  </h3>
                 </div>
-                <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
-                  {t('mobileNav.databasesAndTables')}
-                </h3>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsCreatingDb(prev => !prev);
-                    setNewDbName('');
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '10px',
-                    backgroundColor: '#F4F4F5',
-                    color: '#18181B',
-                    border: 'none',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Plus size={14} />
-                  {t('mobileNav.createDatabase')}
-                </button>
-
-                {onImportAirtable && (
-                  <button
-                    onClick={() => {
-                      setShowDbModal(false)
-                      onImportAirtable()
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '6px 12px',
-                      borderRadius: '10px',
-                      backgroundColor: '#FFF7ED',
-                      color: '#EA580C',
-                      border: '1px solid #FFEDD5',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <UploadCloud size={14} />
-                    {t('mobileNav.importAirtable')}
-                  </button>
-                )}
-                <button
                   onClick={() => setShowDbModal(false)}
                   style={{
                     width: '32px',
@@ -1046,36 +1002,101 @@ export default function MobileBottomNav({
                     color: isDark ? '#94a3b8' : '#64748b',
                     cursor: 'pointer',
                     borderRadius: '9999px',
-                    transition: 'transform 0.15s ease'
+                    transition: 'transform 0.15s ease',
+                    flexShrink: 0,
                   }}
                 >
                   <X size={16} />
                 </button>
               </div>
+
+              {/* Row 2: Action Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingDb(prev => !prev);
+                    setNewDbName('');
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    height: '36px',
+                    padding: '0 12px',
+                    borderRadius: '10px',
+                    backgroundColor: isDark ? '#1e293b' : '#F4F4F5',
+                    color: isDark ? '#ffffff' : '#18181B',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Plus size={14} />
+                  {t('mobileNav.createDatabase')}
+                </button>
+
+                {onImportAirtable && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDbModal(false)
+                      onImportAirtable()
+                    }}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      height: '36px',
+                      padding: '0 12px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FFF7ED',
+                      color: '#EA580C',
+                      border: '1px solid #FFEDD5',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <UploadCloud size={14} />
+                    {t('mobileNav.importAirtable')}
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px 24px 24px' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px 24px 18px' }}>
               {safeWorkspaces.length > 1 && (
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
                     {t('mobileNav.workspaces')}
                   </label>
-                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px', scrollbarWidth: 'none' }}>
                     {safeWorkspaces.map(ws => (
                       <button
                         key={ws.id}
                         type="button"
                         onClick={() => onSetActiveWorkspaceId(ws.id)}
                         style={{
-                          padding: '7px 16px',
-                          borderRadius: '10px',
+                          padding: '6px 14px',
+                          borderRadius: '8px',
                           fontSize: '12px',
                           fontWeight: 600,
                           whiteSpace: 'nowrap',
                           cursor: 'pointer',
                           backgroundColor: activeWorkspaceId === ws.id ? '#3F6212' : isDark ? '#1e293b' : '#f1f5f9',
                           color: activeWorkspaceId === ws.id ? '#ffffff' : isDark ? '#cbd5e1' : '#475569',
-                          border: 'none'
+                          border: activeWorkspaceId === ws.id ? '1px solid #3F6212' : '1px solid transparent',
+                          boxShadow: activeWorkspaceId === ws.id ? '0 2px 6px rgba(63, 98, 18, 0.25)' : 'none',
+                          flexShrink: 0,
+                          transition: 'all 0.15s ease'
                         }}
                       >
                         {ws.name}

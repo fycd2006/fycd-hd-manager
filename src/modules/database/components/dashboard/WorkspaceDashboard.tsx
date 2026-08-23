@@ -124,14 +124,30 @@ export default function WorkspaceDashboard({
       color: '#09090b',
       boxSizing: 'border-box'
     }}>
-      <div style={{
-        maxWidth: '1240px',
-        margin: '0 auto',
-        padding: '40px 32px 60px 32px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '36px'
-      }}>
+      <style>{`
+        .workspace-dashboard-inner {
+          max-width: 1240px;
+          margin: 0 auto;
+          padding: 40px 32px 80px 32px;
+          display: flex;
+          flex-direction: column;
+          gap: 36px;
+        }
+        @media (max-width: 768px) {
+          .workspace-dashboard-inner {
+            padding: 20px 16px max(100px, calc(env(safe-area-inset-bottom) + 80px)) 16px !important;
+            gap: 20px !important;
+          }
+          .workspace-dashboard-header-actions {
+            width: 100% !important;
+            flex-wrap: wrap !important;
+          }
+          .workspace-dashboard-header-actions > * {
+            flex: 1 1 calc(50% - 6px) !important;
+          }
+        }
+      `}</style>
+      <div className="workspace-dashboard-inner">
         
         {/* Top Header / Workspace Identity Strip */}
         <div style={{
@@ -139,12 +155,12 @@ export default function WorkspaceDashboard({
           alignItems: 'flex-start',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '20px',
+          gap: '16px',
           borderBottom: '1px solid #e4e4e7',
-          paddingBottom: '28px'
+          paddingBottom: '24px'
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
               <img 
                 src="/logo.png" 
                 alt="FYCD HD Manager Logo" 
@@ -155,7 +171,7 @@ export default function WorkspaceDashboard({
                   FYCD HD Manager
                 </span>
                 <h1 style={{
-                  fontSize: '26px',
+                  fontSize: '24px',
                   fontWeight: 800,
                   letterSpacing: '-0.03em',
                   margin: 0,
@@ -191,33 +207,34 @@ export default function WorkspaceDashboard({
             </div>
             
             <p style={{
-              fontSize: '14px',
+              fontSize: '13px',
               color: '#71717a',
               margin: 0,
-              fontWeight: 400
+              maxWidth: '520px',
+              lineHeight: 1.5
             }}>
-              {t('dashboard.subtitle')}
+              {t('dashboard.description')}
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+          <div className="workspace-dashboard-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <LangPicker align="right" variant="dashboard" />
             {onShowMembersModal && (
               <button
                 onClick={onShowMembersModal}
                 style={{
-                  height: '40px',
-                  padding: '0 16px',
+                  height: '38px',
+                  padding: '0 14px',
                   borderRadius: '8px',
                   backgroundColor: '#ffffff',
                   color: '#27272a',
                   border: '1px solid #e4e4e7',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '6px',
                   transition: 'all 0.15s ease',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                   whiteSpace: 'nowrap',
@@ -240,18 +257,18 @@ export default function WorkspaceDashboard({
               <button
                 onClick={() => setShowMasterView(true)}
                 style={{
-                  height: '40px',
-                  padding: '0 16px',
+                  height: '38px',
+                  padding: '0 14px',
                   borderRadius: '8px',
                   backgroundColor: '#ffffff',
                   color: '#365314',
                   border: '1px solid #bef264',
-                  fontSize: '13px',
+                  fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '6px',
                   transition: 'all 0.15s ease',
                   boxShadow: '0 1px 2px rgba(63, 98, 18, 0.06)',
                   whiteSpace: 'nowrap',
@@ -266,7 +283,7 @@ export default function WorkspaceDashboard({
                   e.currentTarget.style.borderColor = '#bef264'
                 }}
               >
-                <Layers size={16} color="#3F6212" />
+                <Layers size={15} color="#3F6212" />
                 <span>跨表總表</span>
               </button>
             )}
@@ -274,9 +291,9 @@ export default function WorkspaceDashboard({
             {activeWorkspace && onShowDatabaseModal && (
               <button
                 onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-                className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-indigo-500/25 flex items-center gap-2 cursor-pointer border-none whitespace-nowrap flex-shrink-0"
+                className="h-9 px-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-indigo-500/25 flex items-center gap-1.5 cursor-pointer border-none whitespace-nowrap flex-shrink-0"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
                 <span>{t('dashboard.addDatabase')}</span>
               </button>
             )}

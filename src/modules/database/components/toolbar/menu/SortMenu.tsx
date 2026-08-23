@@ -136,9 +136,9 @@ export function SortMenu({
   }
 
   return (
-    <div style={{ width: '480px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ width: '480px', maxWidth: '100%', padding: '2px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Sort Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '55vh', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeRules.map((rule, idx) => {
           const sortLabels = getSortLabels(rule.fieldKey)
           const isDragging = draggedIdx === idx
@@ -154,15 +154,17 @@ export function SortMenu({
               onDragEnd={() => { setDraggedIdx(null); setDragOverIdx(null); }}
               style={{
                 display: 'flex',
+                flexWrap: 'wrap',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 8px',
-                borderRadius: '8px',
+                padding: '8px 10px',
+                borderRadius: '10px',
                 backgroundColor: isOver ? '#f0fdf4' : isDragging ? '#f8fafc' : '#ffffff',
                 border: `1px solid ${isOver ? '#86efac' : '#e2e8f0'}`,
                 opacity: isDragging ? 0.6 : 1,
                 transition: 'all 0.15s ease',
                 boxSizing: 'border-box',
+                width: '100%',
               }}
             >
               {/* Drag Handle */}

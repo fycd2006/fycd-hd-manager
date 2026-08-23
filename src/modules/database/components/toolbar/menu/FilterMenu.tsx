@@ -109,9 +109,9 @@ export function FilterMenu({
   }
 
   return (
-    <div style={{ width: '520px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ width: '520px', maxWidth: '100%', padding: '2px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Filter Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '55vh', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeFilterRules.map((rule, idx) => {
           const selectedField = safeFields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey)
           const selectOptions = getFieldSelectOptions(selectedField)
@@ -124,115 +124,121 @@ export function FilterMenu({
               key={idx}
               style={{
                 display: 'flex',
+                flexWrap: 'wrap',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 8px',
-                borderRadius: '8px',
+                padding: '8px 10px',
+                borderRadius: '10px',
                 backgroundColor: '#ffffff',
                 border: '1px solid #e2e8f0',
                 boxSizing: 'border-box',
+                width: '100%',
                 transition: 'all 0.15s ease',
               }}
             >
-              {/* Remove Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  const newRules = safeFilterRules.filter((_, i) => i !== idx)
-                  setFilterRules(newRules)
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  color: '#64748b',
-                  borderRadius: '4px',
-                  transition: 'color 0.15s ease, background-color 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = '#ef4444'
-                  e.currentTarget.style.backgroundColor = '#fee2e2'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = '#64748b'
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                }}
-                title={t('common.delete')}
-              >
-                <X size={15} />
-              </button>
+              {/* Top Controls: [Remove] [Where/And/Or] [Field Select] [Operator Select] */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 240px', minWidth: '0', width: '100%' }}>
+                {/* Remove Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newRules = safeFilterRules.filter((_, i) => i !== idx)
+                    setFilterRules(newRules)
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: '#64748b',
+                    borderRadius: '4px',
+                    flexShrink: 0,
+                    transition: 'color 0.15s ease, background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#ef4444'
+                    e.currentTarget.style.backgroundColor = '#fee2e2'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#64748b'
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
+                  title={t('common.delete')}
+                >
+                  <X size={15} />
+                </button>
 
-              {/* Where / And / Or Operator Selector (Baserow Standard) */}
-              <div style={{ width: '64px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-                {idx === 0 ? (
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: '#475569',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {t('filter.where') || '當'}
-                  </span>
-                ) : idx === 1 ? (
+                {/* Where / And / Or Operator Selector */}
+                <div style={{ width: '48px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                  {idx === 0 ? (
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#475569',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {t('filter.where') || '當'}
+                    </span>
+                  ) : idx === 1 ? (
+                    <CustomSelect
+                      value={filterType || 'AND'}
+                      options={[
+                        { value: 'AND', label: t('filter.and') || '且' },
+                        { value: 'OR', label: t('filter.or') || '或' },
+                      ]}
+                      onChange={(val) => setFilterType?.(val as 'AND' | 'OR')}
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#475569',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {(filterType || 'AND') === 'OR' ? (t('filter.or') || '或') : (t('filter.and') || '且')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Field Select */}
+                <div style={{ flex: '1 1 110px', minWidth: '95px' }}>
                   <CustomSelect
-                    value={filterType || 'AND'}
-                    options={[
-                      { value: 'AND', label: t('filter.and') || '且' },
-                      { value: 'OR', label: t('filter.or') || '或' },
-                    ]}
-                    onChange={(val) => setFilterType?.(val as 'AND' | 'OR')}
-                  />
-                ) : (
-                  <span
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      color: '#475569',
-                      whiteSpace: 'nowrap',
+                    value={rule.fieldKey}
+                    options={fieldOptions}
+                    onChange={(val) => {
+                      const newRules = [...safeFilterRules]
+                      newRules[idx].fieldKey = val
+                      newRules[idx].value = ''
+                      setFilterRules(newRules)
                     }}
-                  >
-                    {(filterType || 'AND') === 'OR' ? (t('filter.or') || '或') : (t('filter.and') || '且')}
-                  </span>
-                )}
+                    placeholder={t('filter.selectField')}
+                  />
+                </div>
+
+                {/* Operator Select */}
+                <div style={{ width: '100px', flexShrink: 0 }}>
+                  <CustomSelect
+                    value={rule.operator}
+                    options={operatorOptions}
+                    onChange={(val) => {
+                      const newRules = [...safeFilterRules]
+                      newRules[idx].operator = val as FilterRule['operator']
+                      setFilterRules(newRules)
+                    }}
+                    placeholder={t('common.select')}
+                  />
+                </div>
               </div>
 
-              {/* Field Select */}
-              <div style={{ flex: 1, minWidth: '110px' }}>
-                <CustomSelect
-                  value={rule.fieldKey}
-                  options={fieldOptions}
-                  onChange={(val) => {
-                    const newRules = [...safeFilterRules]
-                    newRules[idx].fieldKey = val
-                    newRules[idx].value = ''
-                    setFilterRules(newRules)
-                  }}
-                  placeholder={t('filter.selectField')}
-                />
-              </div>
-
-              {/* Operator Select */}
-              <div style={{ width: '115px', flexShrink: 0 }}>
-                <CustomSelect
-                  value={rule.operator}
-                  options={operatorOptions}
-                  onChange={(val) => {
-                    const newRules = [...safeFilterRules]
-                    newRules[idx].operator = val as FilterRule['operator']
-                    setFilterRules(newRules)
-                  }}
-                  placeholder={t('common.select')}
-                />
-              </div>
-
-              {/* Value Input (Type Aware) */}
+              {/* Value Input (Wraps cleanly on narrow viewports) */}
               {rule.operator !== 'empty' && rule.operator !== 'not_empty' && (
-                <div style={{ flex: 1, minWidth: '100px' }}>
+                <div style={{ flex: '1 1 160px', minWidth: '120px', width: '100%' }}>
                   {isSelectType ? (
                     <CustomSelect
                       value={rule.value}

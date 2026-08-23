@@ -125,21 +125,23 @@ export function ColorMenu({
   }
 
   return (
-    <div style={{ width: '530px', maxWidth: '90vw', padding: '4px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div style={{ width: '530px', maxWidth: '100%', padding: '2px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* Color Rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '320px', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '55vh', overflowY: 'auto', overflowX: 'hidden', paddingRight: '2px' }}>
         {safeRowColorRules.map((rule, idx) => (
           <div
             key={idx}
             style={{
               display: 'flex',
+              flexWrap: 'wrap',
               alignItems: 'center',
               gap: '8px',
-              padding: '6px 8px',
-              borderRadius: '8px',
+              padding: '8px 10px',
+              borderRadius: '10px',
               backgroundColor: '#ffffff',
               border: '1px solid #e2e8f0',
               boxSizing: 'border-box',
+              width: '100%',
               transition: 'all 0.15s ease',
             }}
           >

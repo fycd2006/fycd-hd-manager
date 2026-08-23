@@ -905,21 +905,21 @@ export function ViewToolbar({
 
             {/* Hide Fields Content */}
             {activeHeaderMenu === 'hide' && (
-              <div className="hidings" style={{ width: '300px', maxWidth: '90vw', overflowX: 'hidden', overflowY: 'hidden', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div className="hidings__head" style={{ padding: '2px 0 6px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="hidings" style={{ width: isMobile ? '100%' : '320px', maxWidth: '100%', overflowX: 'hidden', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div className="hidings__head" style={{ padding: '2px 0 8px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div className="hidings__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Search size={14} className="hidings__search-icon" style={{ position: 'absolute', left: '8px', color: '#94a3b8' }} />
+                    <Search size={14} className="hidings__search-icon" style={{ position: 'absolute', left: '10px', color: '#94a3b8' }} />
                     <input
                       type="text"
-                      placeholder={t('hideFields.searchFields') || "Search fields"}
+                      placeholder={t('hideFields.searchFields') || "搜尋欄位名稱..."}
                       value={fieldSearchQuery}
                       onChange={(e) => setFieldSearchQuery(e.target.value)}
                       className="hidings__search-input"
-                      style={{ width: '100%', padding: '6px 8px 6px 30px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
+                      style={{ width: '100%', height: '36px', padding: '0 10px 0 32px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', boxSizing: 'border-box', outline: 'none' }}
                     />
                   </div>
                   {/* Show All / Hide All Actions */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
                     <button
                       type="button"
                       onClick={() => {
@@ -933,8 +933,8 @@ export function ViewToolbar({
                         fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
                         transition: 'background-color 0.15s ease'
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f0fdf4'}
@@ -956,8 +956,8 @@ export function ViewToolbar({
                         fontSize: '12px',
                         fontWeight: 500,
                         cursor: 'pointer',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
                         transition: 'all 0.15s ease'
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#ef4444'; }}
@@ -967,8 +967,8 @@ export function ViewToolbar({
                     </button>
                   </div>
                 </div>
-                <div className="hidings__body" style={{ maxHeight: '240px', overflowY: 'auto', overflowX: 'hidden', padding: '2px 0' }}>
-                  <ul className="hidings__list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div className="hidings__body" style={{ maxHeight: isMobile ? '55vh' : '280px', overflowY: 'auto', overflowX: 'hidden', padding: '2px 0' }}>
+                  <ul className="hidings__list" style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {filteredFieldsForHide.map((field) => {
                       const isPrimary = fields.length > 0 && fields[0].id === field.id
                       const key = `field_${field.id}`
@@ -989,25 +989,27 @@ export function ViewToolbar({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            padding: '6px 8px',
-                            borderRadius: '6px',
+                            padding: '8px 10px',
+                            minHeight: '38px',
+                            borderRadius: '8px',
                             cursor: isPrimary ? 'not-allowed' : 'pointer',
                             fontSize: '13px',
-                            backgroundColor: isHidden ? 'transparent' : '#ffffff',
-                            transition: 'background-color 0.15s ease'
+                            backgroundColor: isHidden ? 'transparent' : '#f8fafc',
+                            border: isHidden ? '1px solid transparent' : '1px solid #f1f5f9',
+                            transition: 'all 0.15s ease'
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isHidden ? 'transparent' : '#f8fafc')}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <span style={{ color: isHidden ? '#94a3b8' : '#3F6212', display: 'flex', alignItems: 'center' }}>
+                            <span style={{ color: isHidden ? '#94a3b8' : '#3F6212', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                               {getFieldIcon(field.type)}
                             </span>
-                            <span style={{ color: isHidden ? '#94a3b8' : '#1e293b', fontWeight: isHidden ? 400 : 500 }}>
+                            <span style={{ color: isHidden ? '#94a3b8' : '#1e293b', fontWeight: isHidden ? 400 : 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {field.name}
                             </span>
                             {isPrimary && (
-                              <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: 600 }}>
+                              <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
                                 Primary
                               </span>
                             )}
@@ -1015,9 +1017,9 @@ export function ViewToolbar({
                           {/* Modern toggle badge */}
                           <div
                             style={{
-                              width: '32px',
-                              height: '18px',
-                              borderRadius: '9px',
+                              width: '34px',
+                              height: '20px',
+                              borderRadius: '10px',
                               backgroundColor: !isHidden ? '#3F6212' : '#cbd5e1',
                               position: 'relative',
                               transition: 'background-color 0.2s ease',
@@ -1028,15 +1030,15 @@ export function ViewToolbar({
                           >
                             <div
                               style={{
-                                width: '14px',
-                                height: '14px',
-                                borderRadius: '50%',
+                                width: '16px',
+                                height: '16px',
+                                borderRadius: '8px',
                                 backgroundColor: '#ffffff',
                                 position: 'absolute',
                                 top: '2px',
                                 left: !isHidden ? '16px' : '2px',
-                                transition: 'left 0.2s ease',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                                transition: 'left 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                               }}
                             />
                           </div>
