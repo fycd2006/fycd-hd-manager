@@ -1,18 +1,30 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { authorizeAction } from '@/lib/authorize'
+import { withApiHandler } from '@/lib/api-handler'
+import { z } from 'zod'
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string }> }
-) {
-  try {
-    const { tableId } = await params
-    const tid = parseInt(tableId)
+const createViewSchema = z.object({
+  name: z.string().min(1, '視圖名稱與類型為必填'),
+  type: z.string().min(1, '視圖名稱與類型為必填'),
+})
+
+const updateViewSchema = z.object({
+  viewId: z.union([z.number(), z.string()]),
+  name: z.string().optional(),
+  filters: z.any().optional(),
+  sortField: z.string().nullable().optional(),
+  sortOrder: z.string().nullable().optional(),
+  hiddenFields: z.any().optional(),
+  columnWidths: z.any().optional(),
+  rowColors: z.any().optional(),
+  groupByField: z.string().nullable().optional(),
+  aggregations: z.any().optional(),
+})
+
+export const GET = withApiHandler<{ tableId: string }>(
+  async ({ params }) => {
+    const tid = parseInt(params.tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
-
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canViewData' })
-    if (errorResponse) return errorResponse
 
     let views = await prisma.tableView.findMany({
       where: { tableId: tid },
@@ -31,66 +43,48 @@ export async function GET(
       views = [defaultView]
     }
 
-    return NextResponse.json(views)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '查詢視圖失敗' }, { status: 500 })
+    return views
+  },
+  {
+    auth: { action: 'canViewData' },
   }
-}
+)
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string }> }
-) {
-  try {
-    const { tableId } = await params
-    const tid = parseInt(tableId)
+export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createViewSchema>>(
+  async ({ params, body }) => {
+    const tid = parseInt(params.tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
-
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageViews' })
-    if (errorResponse) return errorResponse
-
-    const body = await request.json()
-    const { name, type } = body
-
-    if (!name || !type) {
-      return NextResponse.json({ error: '視圖名稱與類型為必填' }, { status: 400 })
-    }
 
     const newView = await prisma.tableView.create({
       data: {
         tableId: tid,
-        name,
-        type
+        name: body!.name,
+        type: body!.type
       }
     })
 
     return NextResponse.json(newView, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '建立視圖失敗' }, { status: 500 })
+  },
+  {
+    auth: { action: 'canManageViews' },
+    bodySchema: createViewSchema,
   }
-}
+)
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string }> }
-) {
-  try {
-    const { tableId } = await params
-    const tid = parseInt(tableId)
+export const PATCH = withApiHandler<{ tableId: string }, z.infer<typeof updateViewSchema>>(
+  async ({ params, body }) => {
+    const tid = parseInt(params.tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageViews' })
-    if (errorResponse) return errorResponse
-
-    const body = await request.json()
-    const { viewId, name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField, aggregations } = body
-    const vid = parseInt(viewId)
+    const vid = typeof body!.viewId === 'string' ? parseInt(body!.viewId) : body!.viewId
     if (isNaN(vid)) return NextResponse.json({ error: '無效的 View ID' }, { status: 400 })
 
     const toJsonString = (val: any) => {
       if (val === undefined || val === null) return null
       return typeof val === 'string' ? val : JSON.stringify(val)
     }
+
+    const { name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField, aggregations } = body!
 
     const updated = await prisma.tableView.update({
       where: { id: vid, tableId: tid },
@@ -107,23 +101,18 @@ export async function PATCH(
       }
     })
 
-    return NextResponse.json(updated)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '更新視圖失敗' }, { status: 500 })
+    return updated
+  },
+  {
+    auth: { action: 'canManageViews' },
+    bodySchema: updateViewSchema,
   }
-}
+)
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string }> }
-) {
-  try {
-    const { tableId } = await params
-    const tid = parseInt(tableId)
+export const DELETE = withApiHandler<{ tableId: string }>(
+  async ({ request, params }) => {
+    const tid = parseInt(params.tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
-
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageViews' })
-    if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
     const viewIdStr = searchParams.get('viewId')
@@ -142,8 +131,9 @@ export async function DELETE(
       where: { id: vid, tableId: tid }
     })
 
-    return NextResponse.json({ message: '視圖已刪除' })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '刪除視圖失敗' }, { status: 500 })
+    return { message: '視圖已刪除' }
+  },
+  {
+    auth: { action: 'canManageViews' },
   }
-}
+)

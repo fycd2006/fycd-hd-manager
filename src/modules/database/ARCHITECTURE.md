@@ -1,309 +1,111 @@
-# Database Module - 架構重構指南
+# Database 模組架構說明 (ARCHITECTURE)
 
-## 📋 概述
-
-原始的 `src/app/page.tsx` 檔案包含 **3,687 行代碼**，所有邏輯都混合在一個巨大的 React 元件中。
-此重構將代碼拆分為模塊化架構，遵循 Baserow（企業級資料庫管理系統）的設計模式。
-
-## 📁 新的目錄結構
-
-```
-src/modules/database/
-├── index.ts                    # 主入口點
-├── types/                      # TypeScript 類型定義
-│   └── index.ts               # 所有公共類型
-├── constants/                  # 常數和配置
-│   ├── icons.ts               # SVG 圖標
-│   ├── fieldTypes.ts          # 欄位類型配置
-│   └── index.ts               # 常數索引
-├── services/                   # API 服務層
-│   ├── auth.ts                # 認證 API
-│   ├── workspace.ts           # 工作區、資料庫、表格 API
-│   ├── field.ts               # 欄位管理 API
-│   ├── row.ts                 # 列管理 API
-│   ├── view.ts                # 檢視管理 API
-│   ├── user.ts                # 用戶管理 API
-│   ├── trash.ts               # 回收站 API
-│   └── index.ts               # 服務索引
-├── store/                      # 狀態管理 (自定義 Hooks)
-│   ├── useAuthStore.ts        # 認證狀態
-│   ├── useThemeStore.ts       # 主題狀態
-│   ├── useWorkspaceStore.ts   # 工作區狀態
-│   ├── useUIStore.ts          # UI 狀態
-│   └── index.ts               # 存儲索引
-├── components/                 # React 元件 (按功能分類)
-│   ├── auth/                  # 認證相關元件
-│   ├── theme/                 # 主題相關元件
-│   ├── sidebar/               # 側邊欄元件
-│   ├── table/                 # 表格元件
-│   ├── view/                  # 檢視元件
-│   ├── field/                 # 欄位元件
-│   ├── row/                   # 列元件
-│   └── modals/                # 模態框元件
-└── utils/                      # 工具函數
-    └── index.ts               # 工具函數索引
-```
-
-## 🔧 核心文件說明
-
-### Types (`types/index.ts`)
-包含所有 TypeScript 類型定義：
-- `User`, `Workspace`, `Database`, `DynamicTable`
-- `TableField`, `TableRow`, `CellValue`
-- `ViewType`, `TableView`, `FilterRule`, `RowColorRule`
-- `Toast`, `ContextMenu`, `TrashItems`
-- 主題、模態框和狀態相關類型
-
-### Constants
-#### `constants/icons.ts`
-- 所有 SVG 圖標定義
-- 可在任何地方導入使用
-
-#### `constants/fieldTypes.ts`
-- `FIELD_TYPE_ICONS`: 欄位類型到圖標的映射
-- `FIELD_TYPE_LABELS`: 欄位類型標籤（中文）
-- `AVAILABLE_FIELD_TYPES`: 可用欄位類型列表
-- `ROLLUP_FUNCTIONS`: 聚合函數
-- `FILTER_OPERATORS`: 篩選操作符
-- `ROW_COLOR_OPTIONS`: 列顏色選項
-
-### Services (API層)
-
-#### `services/auth.ts`
-```typescript
-checkAuth()          // 檢查認證狀態
-login(username, password)
-register(username, email, password)
-logout()
-```
-
-#### `services/workspace.ts`
-```typescript
-fetchWorkspaces()
-createWorkspace(name)
-createDatabase(workspaceId, name)
-createTable(databaseId, name)
-deleteWorkspaceOrDatabase(action, id)
-rename(type, id, name)
-```
-
-#### `services/field.ts`
-```typescript
-fetchFields(tableId)
-createField(tableId, field)
-deleteField(tableId, fieldId)
-renameField(tableId, fieldId, name)
-reorderFields(tableId, fieldOrder)
-```
-
-#### `services/row.ts`
-```typescript
-fetchRows(tableId)
-createRow(tableId, data)
-updateCell(tableId, rowId, fieldKey, value)
-deleteRow(tableId, rowId)
-duplicateRow(tableId, rowData)
-```
-
-#### `services/view.ts`
-```typescript
-fetchViews(tableId)
-createView(tableId, name, type)
-updateViewConfig(tableId, viewId, changes)
-deleteView(tableId, viewId)
-```
-
-#### `services/user.ts` & `services/trash.ts`
-用戶管理和回收站相關 API
-
-### Store (狀態管理 Hooks)
-
-每個 Store 返回 `[State, Actions]` 元組：
-
-#### `useAuthStore()`
-```typescript
-const [authState, authActions] = useAuthStore()
-
-// 狀態
-authState.currentUser
-authState.authMode
-authState.authLoading
-
-// 操作
-authActions.login(username, password)
-authActions.register(username, email, password)
-authActions.logout()
-authActions.checkAuth()
-```
-
-#### `useThemeStore()`
-```typescript
-const [themeState, themeActions] = useThemeStore()
-
-// 狀態
-themeState.theme                    // 'dark' | 'light'
-themeState.darkReaderSettings
-
-// 操作
-themeActions.toggleTheme()
-themeActions.updateDarkReaderSettings({ brightness: 110 })
-```
-
-#### `useWorkspaceStore()`
-```typescript
-const [wsState, wsActions] = useWorkspaceStore()
-
-// 狀態
-wsState.workspaces
-wsState.activeTableId
-wsState.collapsedWorkspaces
-
-// 操作
-wsActions.fetchWorkspaces()
-wsActions.createWorkspace(name)
-wsActions.createDatabase(wsId, name)
-wsActions.createTable(dbId, name)
-```
-
-#### `useUIStore()`
-```typescript
-const [uiState, uiActions] = useUIStore()
-
-// 狀態
-uiState.toasts
-uiState.showRenameModal
-uiState.sidebarCollapsed
-
-// 操作
-uiActions.addToast(message, type)
-uiActions.toggleSidebarCollapsed()
-```
-
-## 💡 使用示例
-
-### 新的 page.tsx 結構
-
-```typescript
-'use client'
-
-import React, { useEffect } from 'react'
-import {
-  useAuthStore,
-  useThemeStore,
-  useWorkspaceStore,
-  useUIStore,
-} from '@/modules/database'
-
-export default function Home() {
-  // 使用模塊化存儲
-  const [authState, authActions] = useAuthStore()
-  const [themeState, themeActions] = useThemeStore()
-  const [wsState, wsActions] = useWorkspaceStore()
-  const [uiState, uiActions] = useUIStore()
-
-  // 初始化認證
-  useEffect(() => {
-    authActions.checkAuth()
-  }, [])
-
-  // 加載工作區
-  useEffect(() => {
-    if (authState.currentUser) {
-      wsActions.fetchWorkspaces()
-    }
-  }, [authState.currentUser])
-
-  // 未認證時顯示登入界面
-  if (!authState.currentUser) {
-    return <AuthPage authState={authState} authActions={authActions} />
-  }
-
-  // 認證後顯示主界面
-  return (
-    <div className={`app-container theme-${themeState.theme}`}>
-      <Sidebar wsState={wsState} wsActions={wsActions} />
-      <MainContent
-        wsState={wsState}
-        uiState={uiState}
-        uiActions={uiActions}
-        themeState={themeState}
-      />
-    </div>
-  )
-}
-```
-
-## 🎯 下一步
-
-### 立即需要拆分的元件：
-1. **AuthPage** (`components/auth/AuthPage.tsx`)
-   - 登入表單
-   - 註冊表單
-
-2. **Sidebar** (`components/sidebar/Sidebar.tsx`)
-   - 工作區導航
-   - 資料庫和表格列表
-   - 折疊/展開邏輯
-
-3. **MainContent** (`components/MainContent.tsx`)
-   - 表格視圖選擇器
-   - 工具欄
-
-4. **GridView** / **KanbanView** 等 (`components/view/`)
-   - 各種檢視實現
-
-5. **Modals** (`components/modals/`)
-   - 新建工作區/資料庫/表格模態框
-   - 重新命名模態框
-   - 回收站模態框
-
-## 📊 架構優勢
-
-| 方面 | 原始架構 | 新架構 |
-|------|--------|--------|
-| **檔案大小** | 3,687 行單一檔案 | 多個專注的小檔案 |
-| **可維護性** | 困難 - 所有東西混合 | 容易 - 關注點分離 |
-| **可重用性** | 低 - 無法提取邏輯 | 高 - Services 和 Hooks 可重用 |
-| **測試** | 困難 - 複雜的元件 | 容易 - 獨立的單元 |
-| **擴展性** | 差 - 新功能難以整合 | 好 - 輕鬆添加新功能 |
-| **協作** | 難 - 多人易產生衝突 | 容易 - 各自負責不同模塊 |
-
-## 🔍 遷移清單
-
-- [x] 創建目錄結構
-- [x] 提取所有 TypeScript 類型 → `types/index.ts`
-- [x] 提取常數 → `constants/`
-- [x] 建立 API Services → `services/`
-- [x] 建立 Store Hooks → `store/`
-- [ ] 拆分 React 元件 → `components/`
-- [ ] 建立新的 `page.tsx`
-- [ ] 遷移和測試所有功能
-- [ ] 刪除舊的單一檔案 `src/app/page.tsx`
-
-## 🚀 快速開始
-
-### 導入和使用
-
-```typescript
-// 導入單個項目
-import { useAuthStore, useThemeStore } from '@/modules/database/store'
-import { fetchWorkspaces, login } from '@/modules/database/services'
-import { FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
-import type { User, Workspace } from '@/modules/database/types'
-
-// 或者導入所有
-import { useAuthStore, fetchWorkspaces, FIELD_TYPE_LABELS, User } from '@/modules/database'
-```
-
-## 📝 註釋和文檔
-
-每個檔案都包含清晰的 JSDoc 註釋，說明：
-- 模塊的目的
-- 函數的用途和參數
-- 返回類型和可能的錯誤
+## 📌 架構總覽
+本模組參考 Baserow 設計，採用 **Clean Architecture** 與單向資料流。透過 `TableContext` 集中管理狀態，解構業務邏輯至專屬 Hooks，後端以 `withApiHandler` 統一控管權限、限流與驗證。
 
 ---
 
-**創建日期**: 2026-07-18  
-**遵循架構**: Baserow (企業級資料庫管理系統)  
-**重構狀態**: 進行中 (基礎設施完成)
+## 📁 核心目錄結構
+
+```
+src/
+├── app/api/                   # Next.js 15+ App Router REST API 端點
+├── lib/                       # 全域工具庫
+│   ├── api-handler.ts         # 後端 API 統一中介層 (withApiHandler)
+│   ├── authorize.ts           # RBAC 權限校驗
+│   ├── formula.ts             # 公式計算引擎
+│   └── rate-limiter.ts        # Redis 滑動視窗限流
+├── styles/                    # 模組化樣式 (tokens, layout, toolbar, grid, components)
+└── modules/database/          # 資料庫核心模組
+    ├── components/
+    │   ├── modals/GlobalModalsContainer.tsx # 全域彈窗容器
+    │   ├── sidebar/Sidebar.tsx             # 工作區/資料庫樹狀側邊欄
+    │   ├── toolbar/ViewToolbar.tsx         # 視圖工具列與篩選器
+    │   └── views/
+    │       ├── DatabaseViewRouter.tsx      # 多視圖切換派送器 (Grid/Kanban/Gallery 等)
+    │       └── TableWorkspaceView.tsx      # 主工作區容器
+    ├── context/TableContext.tsx            # TableProvider 與 useTableContext()
+    ├── hooks/                              # 業務邏輯 Hooks
+    │   ├── useCellEdit.ts                  # 儲存格編輯與防抖
+    │   ├── useFieldOperations.ts           # 欄位 CRUD 與型別轉換
+    │   ├── useMoveOperations.ts            # 跨表剪貼搬移
+    │   ├── useRealtimeSync.ts              # WebSocket 即時同步
+    │   ├── useRowOperations.ts             # 資料列 CRUD 與拖曳排序
+    │   ├── useTableCSV.ts                  # CSV 匯入匯出
+    │   └── useViewConfig.ts                # 視圖設定與篩選/排序/分組
+    ├── services/                           # API 通訊服務層
+    ├── store/                              # 全域輕量 Store (Auth/Theme/UI/Workspace)
+    ├── types/                              # TypeScript 型別定義
+    └── utils/                              # 工具函式 (normalizeRowData 等)
+```
+
+---
+
+## 🏛️ 元件與資料流 (Component Tree)
+
+```mermaid
+graph TD
+    Page["src/app/page.tsx"] --> TP["<TableProvider>"]
+    TP --> SB["Sidebar"]
+    TP --> TWV["TableWorkspaceView"]
+    TP --> GMC["GlobalModalsContainer"]
+    
+    TWV --> VT["ViewToolbar"]
+    TWV --> DVR["DatabaseViewRouter"]
+    TWV --> MBN["MobileBottomNav"]
+    
+    DVR --> Views["GridView / Kanban / Gallery / Calendar / Timeline / Form"]
+    Views -.->|讀取與操作| TC["useTableContext()"]
+    GMC -.->|讀取與操作| TC
+```
+
+---
+
+## 🪝 業務 Hooks 職責切分
+
+| Hook | 職責與涵蓋功能 |
+|---|---|
+| `useRowOperations` | 資料列 CRUD、批次新增與拖曳排序 (`handleReorderRows`) |
+| `useCellEdit` | 儲存格雙擊編輯、更新防抖、並行取消與公式級聯計算 |
+| `useViewConfig` | 視圖 CRUD、篩選 (`filterRules`)、多欄排序 (`sortRules`)、分組與欄寬持久化 |
+| `useFieldOperations` | 自訂欄位建立、重命名、刪除與雙向 Link Row 聯動 |
+| `useMoveOperations` | 跨表資料列剪下、暫存與批次貼上 |
+| `useRealtimeSync` | Pusher WebSocket 即時協同監聽與同步 |
+| `useTableCSV` | 表格 CSV 檔案匯出與批次解析匯入 |
+
+---
+
+## 🎨 模組化樣式分層 (`src/styles/`)
+
+原 3,218 行單一 `globals.css` 拆分為 5 大領域模組，兼具效能與維護性：
+
+| 樣式檔案 | 職責範圍 |
+|---|---|
+| `tokens.css` | 設計變數（顏色、間距、圓角）、深淺主題、雙層導角 Utility（`.bezel-container`）與全域 Resets |
+| `layout.css` | 雙欄版面（`.layout`）、側邊欄導覽（`.sidebar`）、工作區樹狀清單（`.tree`）與響應式 RWD |
+| `toolbar.css` | 頂部導覽列（`.toolbar`）、視圖切換 Pills（`.view-pill`）、搜尋框與篩選面板 |
+| `grid.css` | 試算表格本體（`.grid-table`）、儲存格渲染、欄寬調整 Handle、高亮列染色 |
+| `components.css` | 彈窗容器（`.modal`）、按鈕系統（`.button`）、右鍵選單（`.context-menu`）、Toasts 提示與動畫 |
+
+---
+
+## 🛡️ 後端 API 中介層 (`withApiHandler`)
+
+所有 API 路由皆透過 `withApiHandler` 提供統一的型別解析、RBAC 與限流保護：
+
+```typescript
+import { withApiHandler } from '@/lib/api-handler'
+import { z } from 'zod'
+
+export const POST = withApiHandler(
+  async ({ params, body, auth }) => {
+    // 業務邏輯：已保證通過登入、RBAC 權限與 Zod 型別校驗
+    return { ok: true }
+  },
+  {
+    auth: { action: 'canEditData' },
+    rateLimit: { limit: 60, windowSeconds: 60 },
+    bodySchema: z.object({ name: z.string().min(1) }),
+  }
+)
+```

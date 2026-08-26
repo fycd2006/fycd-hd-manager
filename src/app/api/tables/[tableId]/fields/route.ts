@@ -1,46 +1,41 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { authorizeAction } from '@/lib/authorize'
+import { withApiHandler } from '@/lib/api-handler'
 import { getSessionUser } from '@/lib/auth'
 import { createGeneratedColumn } from '@/modules/database/services/schemaService'
+import { z } from 'zod'
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string }> }
-) {
-  try {
-    const { tableId } = await params
-    const id = parseInt(tableId)
+const createFieldSchema = z.object({
+  name: z.string().min(1, '欄位名稱為必填'),
+  type: z.string().optional().default('text'),
+  options: z.any().optional(),
+  targetFieldId: z.union([z.number(), z.string()]).optional(),
+  position: z.enum(['left', 'right']).optional(),
+  isIndexed: z.boolean().optional(),
+})
+
+export const GET = withApiHandler<{ tableId: string }>(
+  async ({ params }) => {
+    const id = parseInt(params.tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
-
-    // 欄位結構屬於資料表內容，需要登入且為工作區成員（含 viewer 角色）
-    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canViewData' })
-    if (errorResponse) return errorResponse
 
     const fields = await prisma.tableField.findMany({
       where: { tableId: id, deletedAt: null },
       orderBy: { order: 'asc' },
     })
-    return NextResponse.json(fields)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '查詢欄位失敗' }, { status: 500 })
+    return fields
+  },
+  {
+    auth: { action: 'canViewData' },
   }
-}
+)
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string }> }
-) {
-  try {
-    const { tableId } = await params
-    const id = parseInt(tableId)
+export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createFieldSchema>>(
+  async ({ params, body }) => {
+    const id = parseInt(params.tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canManageStructure' })
-    if (errorResponse) return errorResponse
-    const body = await request.json()
-    const { name, type, options, targetFieldId, position } = body
-    if (!name) return NextResponse.json({ error: '欄位名稱為必填' }, { status: 400 })
+    const { name, type = 'text', options, targetFieldId, position, isIndexed } = body!
 
     const existingFields = await prisma.tableField.findMany({
       where: { tableId: id, deletedAt: null },
@@ -64,7 +59,7 @@ export async function POST(
         name,
         type: type || 'text',
         order: insertOrder,
-        isIndexed: Boolean(body.isIndexed),
+        isIndexed: Boolean(isIndexed),
         options: parsedOptions ? (parsedOptions as any) : null,
       },
     })
@@ -165,8 +160,9 @@ export async function POST(
     })
 
     return NextResponse.json({ ...field, order: insertOrder }, { status: 201 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '新增欄位失敗' }, { status: 500 })
+  },
+  {
+    auth: { action: 'canManageStructure' },
+    bodySchema: createFieldSchema,
   }
-}
-
+)

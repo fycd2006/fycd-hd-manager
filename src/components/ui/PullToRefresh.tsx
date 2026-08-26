@@ -160,14 +160,14 @@ export default function PullToRefresh({
           zIndex: 40,
           pointerEvents: 'none',
           overflow: 'hidden',
-          transition: isDraggingRef.current ? 'none' : 'height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: pullDistance > 0 ? 'none' : 'height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div
           style={{
             opacity: isRefreshing ? 1 : opacity,
             transform: `scale(${Math.min(1, pullDistance / pullThreshold)})`,
-            transition: isDraggingRef.current ? 'opacity 0.1s ease' : 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            transition: pullDistance > 0 ? 'opacity 0.1s ease' : 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
             backgroundColor: isThresholdReached || isRefreshing ? '#3F6212' : '#ffffff',
             color: isThresholdReached || isRefreshing ? '#ffffff' : '#3F6212',
             border: isThresholdReached || isRefreshing ? 'none' : '1px solid #cbd5e1',
@@ -203,7 +203,7 @@ export default function PullToRefresh({
           width: '100%',
           height: '100%',
           transform: `translateY(${pullDistance}px)`,
-          transition: isDraggingRef.current ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: pullDistance > 0 ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           display: 'flex',
           flexDirection: 'column',
           minHeight: 0,

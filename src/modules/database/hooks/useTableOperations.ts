@@ -15,14 +15,14 @@ export interface PendingOperation {
   rowIds?: number[] // For delete, move
   clientId?: string // For create
   sourceRowIds?: number[] // For move
-  rowsData?: any[] // For create
+  rowsData?: Array<{ sourceRowId?: number; data?: Record<string, CellValue> }> // For create/move
   fieldKey?: string // For update
   value?: CellValue // For update
   sourceTableId?: number // For move
   targetTableId?: number // For move
 
   // Undo/Redo payload
-  undoPayload?: any 
+  undoPayload?: unknown 
 }
 
 export interface TableOperationsState {
@@ -31,7 +31,7 @@ export interface TableOperationsState {
   lastUndoableOperations: PendingOperation[]
 }
 
-type Action = 
+export type TableAction = 
   | { type: 'SET_BASE_ROWS'; payload: TableRow[] | ((prev: TableRow[]) => TableRow[]) }
   | { type: 'ADD_OPERATION'; payload: PendingOperation }
   | { type: 'UPDATE_OPERATION_STATUS'; payload: { id: string, status: OperationStatus } }
@@ -44,7 +44,7 @@ type Action =
   | { type: 'SET_UNDOABLE'; payload: PendingOperation }
   | { type: 'POP_UNDOABLE' }
 
-function tableReducer(state: TableOperationsState, action: Action): TableOperationsState {
+function tableReducer(state: TableOperationsState, action: TableAction): TableOperationsState {
   switch (action.type) {
     case 'SET_BASE_ROWS':
       const newBaseRows = typeof action.payload === 'function' ? action.payload(state.baseRows) : action.payload
@@ -88,6 +88,7 @@ function tableReducer(state: TableOperationsState, action: Action): TableOperati
           }
           try {
             const fieldOrder = fields.map(f => f.id)
+            /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
             const res = evaluateFormula(expr, updatedData as any, fieldOrder)
             updatedData[destKey] = res != null ? String(res) : ''
           } catch {
@@ -101,16 +102,10 @@ function tableReducer(state: TableOperationsState, action: Action): TableOperati
     }
 
     case 'REVERT_UPDATE_OPTIMISTIC': {
-      const { rowId, fieldKey, previousValue, fields } = action.payload
-      // Similar logic as above but reverting
-      const formulaFields = fields.filter(f => f.type === 'formula')
+      const { rowId, fieldKey, previousValue } = action.payload
       const newBaseRows = state.baseRows.map(r => {
         if (r.id !== rowId) return r
         const updatedData = { ...r.data, [fieldKey]: previousValue }
-        formulaFields.forEach(ff => {
-          const destKey = `field_${ff.id}`
-          // simplified...
-        })
         return { ...r, data: updatedData }
       })
       return { ...state, baseRows: newBaseRows }
@@ -173,11 +168,11 @@ export function useTableOperations(activeTableId: number | null) {
       }
       return r
     })
-  }, [state.baseRows, state.operations])
+  }, [state.baseRows, state.operations, activeTableId])
 
   // Merge server rows safely without overwriting pending or staged operations
   const mergeServerRows = useCallback((serverRows: TableRow[]) => {
-    const pendingUpdates = new Map<number, Record<string, any>>()
+    const pendingUpdates = new Map<number, Record<string, CellValue>>()
     const stagedMoveRowIds = new Set<number>()
 
     state.operations.forEach(op => {
@@ -185,9 +180,11 @@ export function useTableOperations(activeTableId: number | null) {
         op.rowIds.forEach(id => stagedMoveRowIds.add(id))
       }
       if (op.status === 'pending' && op.type === 'update' && op.rowIds && op.fieldKey && op.value !== undefined) {
+        const fKey = op.fieldKey
+        const val = op.value
         op.rowIds.forEach(id => {
           const cur = pendingUpdates.get(id) || {}
-          cur[op.fieldKey!] = op.value
+          cur[fKey] = val
           pendingUpdates.set(id, cur)
         })
       }

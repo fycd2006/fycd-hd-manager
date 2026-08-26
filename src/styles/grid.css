@@ -1,0 +1,561 @@
+/* ==========================================================================
+   Spreadsheet Grid Table, Cell Types, Resizers, Grouping & Row Highlights
+   ========================================================================== */
+
+.new-grid-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+  min-height: 400px;
+  position: relative;
+}
+
+/* ===== Spreadsheet Grid ===== */
+.grid-container {
+  flex: 1;
+  overflow: auto;
+  background: var(--bg-tertiary);
+  padding: 18px 20px 20px;
+}
+
+.grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: max-content;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.grid-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+}
+
+.grid-table th {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+  border: 1px solid var(--border-color);
+  border-top: none;
+  padding: 0;
+  height: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-align: left;
+  position: relative;
+  user-select: none;
+  min-width: 160px;
+}
+
+.grid-table th:hover {
+  background: rgba(63, 98, 18, 0.08);
+}
+
+.grid-table th:first-child,
+.grid-table td:first-child {
+  border-left: none;
+}
+
+.grid-table th:last-child,
+.grid-table td:last-child {
+  border-right: none;
+}
+
+.grid-table th .th-content {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  height: 100%;
+  gap: 10px;
+  cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.grid-table th .th-content:hover {
+  color: var(--text-primary);
+}
+
+.grid-table th .th-content span {
+  display: inline-block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-table th .field-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  opacity: 0.65;
+  flex-shrink: 0;
+}
+
+.grid-table th .sort-indicator {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.65;
+}
+
+.grid-table th.row-number-col,
+.grid-table th.add-field-col {
+  border-left: none;
+}
+
+.grid-table th.row-number-col,
+.grid-table td.row-number-cell {
+  width: 60px;
+  min-width: 60px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.grid-table th.add-field-col {
+  width: 44px;
+  min-width: 44px;
+}
+
+.grid-table th.add-field-col button {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.grid-table th.add-field-col button:hover {
+  color: var(--accent-secondary);
+  background: rgba(63, 98, 18, 0.1);
+}
+
+.grid-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+}
+
+.header-cell {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  position: relative;
+}
+
+.header-cell-row-number {
+  width: 40px;
+  justify-content: center;
+  background: var(--bg-tertiary);
+}
+
+.header-cell-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+}
+
+.grid-body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  min-height: 0;
+}
+
+.grid-body:empty::before {
+  content: '沒有資料';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.grid-row {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.grid-row:hover,
+.grid-row.hovered {
+  background: var(--bg-cell-hover);
+}
+
+.grid-table td {
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  padding: 0;
+  height: var(--row-height, 36px);
+  font-size: 13px;
+  position: relative;
+  overflow: hidden;
+  min-width: 160px;
+}
+
+.grid-cell,
+.row-cell {
+  height: var(--row-height, 40px);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-cell);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-cell-row-number,
+.row-cell-number {
+  width: 40px;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.grid-table td.row-number-cell {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  background: var(--bg-header);
+  cursor: default;
+}
+
+.grid-table tr:hover td.row-number-cell .row-expand-icon {
+  display: flex !important;
+}
+
+.grid-table td .cell-wrapper {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  cursor: text;
+  transition: background 0.1s;
+  min-height: 36px;
+}
+
+.grid-table td .cell-wrapper:hover {
+  background: var(--bg-cell-hover);
+}
+
+.grid-table td.editing,
+.row-cell.editing {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+  z-index: 5;
+  background: var(--bg-input);
+}
+
+.cell-input,
+.grid-table td .cell-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--bg-cell-active);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 0 12px;
+  outline: none;
+}
+
+.cell-input:focus,
+.grid-table td .cell-input:focus {
+  outline: none;
+}
+
+.cell-content {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.grid-table td .cell-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.grid-table td .cell-select {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--bg-cell-active);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 0 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+.grid-table td .cell-url a {
+  color: var(--accent-secondary);
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.grid-table td .cell-url a:hover {
+  text-decoration: underline;
+}
+
+.header-cell.frozen,
+.row-cell.frozen {
+  position: sticky;
+  z-index: 10;
+}
+
+.header-cell.frozen {
+  z-index: 20;
+}
+
+/* Row Action Hover Buttons */
+.grid-table td .row-delete-btn {
+  position: absolute;
+  right: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.grid-table td .row-copy-btn {
+  position: absolute;
+  right: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: rgba(63, 98, 18, 0.1);
+  border: 1px solid rgba(63, 98, 18, 0.2);
+  color: var(--accent-secondary);
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.grid-table tr:hover td .row-delete-btn {
+  opacity: 1;
+  right: 4px;
+}
+
+.grid-table tr:hover td .row-copy-btn {
+  opacity: 1;
+  right: 28px;
+}
+
+.add-row-area {
+  border: 1px solid var(--border-color);
+  border-top: none;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+
+.add-row-area:hover {
+  background: rgba(63, 98, 18, 0.05);
+  color: var(--accent-secondary);
+}
+
+/* Row Conditional Coloring */
+.grid-table tr.row-color-red td:not(.row-number-cell) {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+.grid-table tr.row-color-red:hover td:not(.row-number-cell) {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+
+.grid-table tr.row-color-green td:not(.row-number-cell) {
+  background-color: rgba(34, 197, 94, 0.08) !important;
+}
+.grid-table tr.row-color-green:hover td:not(.row-number-cell) {
+  background-color: rgba(34, 197, 94, 0.12) !important;
+}
+
+.grid-table tr.row-color-blue td:not(.row-number-cell) {
+  background-color: rgba(63, 98, 18, 0.08) !important;
+}
+.grid-table tr.row-color-blue:hover td:not(.row-number-cell) {
+  background-color: rgba(63, 98, 18, 0.12) !important;
+}
+
+.grid-table tr.row-color-yellow td:not(.row-number-cell) {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+}
+.grid-table tr.row-color-yellow:hover td:not(.row-number-cell) {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+
+.grid-table tr[class*="row-color-"] td:nth-child(2) {
+  position: relative;
+}
+
+.grid-table tr[class*="row-color-"] td:nth-child(2)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 4px;
+  border-radius: 2px;
+  z-index: 2;
+}
+
+.grid-table tr.row-color-red td:nth-child(2)::before {
+  background-color: var(--danger);
+}
+.grid-table tr.row-color-green td:nth-child(2)::before {
+  background-color: var(--success);
+}
+.grid-table tr.row-color-blue td:nth-child(2)::before {
+  background-color: var(--accent-secondary);
+}
+.grid-table tr.row-color-yellow td:nth-child(2)::before {
+  background-color: var(--warning);
+}
+
+/* Grouping Headers */
+.grid-group {
+  margin-bottom: 16px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.group-name {
+  flex: 1;
+}
+
+.group-count {
+  padding: 2px 8px;
+  background: var(--accent-primary);
+  color: white;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Column Resizers & Add Field Effects */
+.grid-view__column-resize-handle {
+  position: absolute;
+  right: -5px;
+  top: 4px;
+  bottom: 4px;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 25;
+  touch-action: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-view__column-resize-handle .resize-handle-pill {
+  width: 3px;
+  height: 24px;
+  border-radius: 3px;
+  background-color: transparent;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  pointer-events: none;
+}
+
+.grid-view__column-resize-handle:hover .resize-handle-pill,
+.grid-view__column-resize-handle.active .resize-handle-pill {
+  background-color: #3F6212 !important;
+  box-shadow: 0 0 6px rgba(63, 98, 18, 0.4) !important;
+}
+
+.grid-view__add-field:hover .add-field-icon-box {
+  background-color: #e2e8f0;
+}
+.grid-view__add-field:hover svg {
+  color: #1e293b !important;
+}
+
+.table-name-input {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 2px 8px;
+  width: 120px;
+  font-family: inherit;
+}
+
+.table-name-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.field-name-input {
+  background: transparent;
+  border: 1px solid var(--accent-primary);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 6px;
+  width: 100%;
+  font-family: inherit;
+}
+
+.field-name-input:focus {
+  outline: none;
+}

@@ -1,43 +1,49 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { authorizeAction } from '@/lib/authorize'
+import { withApiHandler } from '@/lib/api-handler'
 import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 import { createGeneratedColumn, dropGeneratedColumn } from '@/modules/database/services/schemaService'
 import { migrateSelectFieldsForTable } from '@/modules/database/services/selectFieldMigration'
+import { authorizeAction } from '@/lib/authorize'
+import { z } from 'zod'
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string; fieldId: string }> }
-) {
-  try {
-    const { tableId, fieldId } = await params
-    const tid = parseInt(tableId)
-    const fid = parseInt(fieldId)
+const updateFieldSchema = z.object({
+  name: z.string().optional(),
+  type: z.string().optional(),
+  order: z.number().optional(),
+  isIndexed: z.boolean().optional(),
+  options: z.any().optional(),
+})
+
+export const PATCH = withApiHandler<{ tableId: string; fieldId: string }, z.infer<typeof updateFieldSchema>>(
+  async ({ params, body }) => {
+    const tid = parseInt(params.tableId)
+    const fid = parseInt(params.fieldId)
     if (isNaN(fid) || isNaN(tid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    const body = await request.json()
-    const isOnlyOptionsUpdate = body.options !== undefined && !body.name && !body.type && body.order === undefined && body.isIndexed === undefined
+    const isOnlyOptionsUpdate = body!.options !== undefined && !body!.name && !body!.type && body!.order === undefined && body!.isIndexed === undefined
     const requiredAction = isOnlyOptionsUpdate ? 'canEditData' : 'canManageStructure'
 
     const { errorResponse } = await authorizeAction({ tableId: tid, action: requiredAction })
     if (errorResponse) return errorResponse
+
     const oldField = await prisma.tableField.findUnique({ where: { id: fid } })
 
     const updated = await prisma.tableField.update({
       where: { id: fid },
       data: {
-        ...(body.name && { name: body.name }),
-        ...(body.type && { type: body.type }),
-        ...(body.order !== undefined && { order: body.order }),
-        ...(body.isIndexed !== undefined && { isIndexed: body.isIndexed }),
-        ...(body.options !== undefined && {
-          options: body.options ? (body.options as any) : null
+        ...(body!.name && { name: body!.name }),
+        ...(body!.type && { type: body!.type }),
+        ...(body!.order !== undefined && { order: body!.order }),
+        ...(body!.isIndexed !== undefined && { isIndexed: body!.isIndexed }),
+        ...(body!.options !== undefined && {
+          options: body!.options ? (body!.options as any) : null
         }),
       },
     })
 
     const currentType = updated.type || oldField?.type
-    if ((body.options !== undefined || body.type !== undefined) && (currentType === 'single_select' || currentType === 'multiple_select')) {
+    if ((body!.options !== undefined || body!.type !== undefined) && (currentType === 'single_select' || currentType === 'multiple_select')) {
       try {
         await migrateSelectFieldsForTable(tid, fid)
       } catch (migErr) {
@@ -46,7 +52,7 @@ export async function PATCH(
     }
 
     if (oldField) {
-      const isIndexed = body.isIndexed !== undefined ? body.isIndexed : oldField.isIndexed
+      const isIndexed = body!.isIndexed !== undefined ? body!.isIndexed : oldField.isIndexed
       
       if (oldField.isIndexed !== isIndexed) {
         if (isIndexed) {
@@ -54,29 +60,23 @@ export async function PATCH(
         } else {
           await dropGeneratedColumn(fid).catch(err => console.error('[Schema DDL Error]', err))
         }
-      } else if (body.type && oldField.type !== body.type && isIndexed) {
+      } else if (body!.type && oldField.type !== body!.type && isIndexed) {
         await dropGeneratedColumn(fid).catch(err => console.error('[Schema DDL Error]', err))
         await createGeneratedColumn(fid).catch(err => console.error('[Schema DDL Error]', err))
       }
     }
-    return NextResponse.json(updated)
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '更新欄位失敗' }, { status: 500 })
+    return updated
+  },
+  {
+    bodySchema: updateFieldSchema,
   }
-}
+)
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ tableId: string; fieldId: string }> }
-) {
-  try {
-    const { tableId, fieldId } = await params
-    const tid = parseInt(tableId)
-    const fid = parseInt(fieldId)
+export const DELETE = withApiHandler<{ tableId: string; fieldId: string }>(
+  async ({ params }) => {
+    const tid = parseInt(params.tableId)
+    const fid = parseInt(params.fieldId)
     if (isNaN(fid) || isNaN(tid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
-
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canManageStructure' })
-    if (errorResponse) return errorResponse
 
     // Primary Field Lock Protection: Prevent deleting the first field (order min)
     const firstField = await prisma.tableField.findFirst({
@@ -99,8 +99,9 @@ export async function DELETE(
     }
     
     await cleanupFieldDependencies(fid)
-    return NextResponse.json({ message: '欄位已刪除' })
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || '刪除欄位失敗' }, { status: 500 })
+    return { message: '欄位已刪除' }
+  },
+  {
+    auth: { action: 'canManageStructure' },
   }
-}
+)

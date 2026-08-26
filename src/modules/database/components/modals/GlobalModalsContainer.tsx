@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, TableModal } from './Modals'
 import { CreateFieldPopover } from '../field/CreateFieldPopover'
@@ -8,110 +9,120 @@ import { FieldContextMenu } from '../menu/FieldContextMenu'
 import type { TableField, TableRow, FilterRule } from '../../types'
 import type { WorkspaceState, WorkspaceActions } from '../../store/useWorkspaceStore'
 import * as fieldService from '../../services/field'
+import { useOptionalTableContext } from '../../context/TableContext'
 
 interface GlobalModalsContainerProps {
   wsState: WorkspaceState
   wsActions: WorkspaceActions
   uiActions: any
-  showTableModal: boolean
-  setShowTableModal: (show: boolean) => void
-  modalDbIdForTable: number | null
-  showRenameModal: boolean
-  setShowRenameModal: (show: boolean) => void
-  handleRenameSubmit: (name: string) => Promise<void>
-  renameNameValue: string
-  renameType: string | null
-  showNewViewModal: boolean
-  setShowNewViewModal: (show: boolean) => void
-  createView: (name: string, type: any) => Promise<void>
-  showNewFieldModal: boolean
-  setShowNewFieldModal: (show: boolean) => void
+  showTableModal?: boolean
+  setShowTableModal?: (show: boolean) => void
+  modalDbIdForTable?: number | null
+  showRenameModal?: boolean
+  setShowRenameModal?: (show: boolean) => void
+  handleRenameSubmit?: (name: string) => Promise<void>
+  renameNameValue?: string
+  renameType?: string | null
+  showNewViewModal?: boolean
+  setShowNewViewModal?: (show: boolean) => void
+  createView?: (name: string, type: any) => Promise<void>
+  showNewFieldModal?: boolean
+  setShowNewFieldModal?: (show: boolean) => void
   newFieldPopoverPos?: { top: number; left: number } | null
   setNewFieldPopoverPos?: (pos: { top: number; left: number } | null) => void
-  editingFieldForModal: TableField | null
-  setEditingFieldForModal: (field: TableField | null) => void
-  handleUpdateField: (fieldId: number, updates: Partial<TableField>) => Promise<void>
-  setFields: React.Dispatch<React.SetStateAction<TableField[]>>
-  fields: TableField[]
-  showDetailModal: boolean
-  setShowDetailModal: (show: boolean) => void
-  selectedRow: TableRow | null
-  setSelectedRow: (row: TableRow | null) => void
-  displayRows: TableRow[]
-  currentUserRolePermissions: any
+  editingFieldForModal?: TableField | null
+  setEditingFieldForModal?: (field: TableField | null) => void
+  handleUpdateField?: (fieldId: number, updates: Partial<TableField>) => Promise<void>
+  setFields?: React.Dispatch<React.SetStateAction<TableField[]>>
+  fields?: TableField[]
+  showDetailModal?: boolean
+  setShowDetailModal?: (show: boolean) => void
+  selectedRow?: TableRow | null
+  setSelectedRow?: (row: TableRow | null) => void
+  displayRows?: TableRow[]
+  currentUserRolePermissions?: any
   currentUser?: { username?: string; role?: string } | null
-  updateCell: (rowId: number, fieldKey: string, value: any) => Promise<void>
-  showMembersModal: boolean
-  setShowMembersModal: (show: boolean) => void
-  activeTable: any
-  setWorkspaceMemberCount: (count: number) => void
-  showNotificationsModal: boolean
-  setShowNotificationsModal: (show: boolean) => void
-  fieldContextMenu: { field: TableField; x: number; y: number } | null
-  setFieldContextMenu: (menu: { field: TableField; x: number; y: number } | null) => void
-  filterRules: FilterRule[]
-  setFilterRules: (rules: FilterRule[]) => void
-  hiddenFieldKeys: string[]
-  setHiddenFieldKeys: (keys: string[]) => void
-  saveViewConfig: (viewId: number, updates: any) => Promise<void>
-  toggleSort: (fieldKey: string) => void
-  setGroupByField: (fieldKey: string | null) => void
-  deleteField: (fieldId: number) => Promise<void>
+  updateCell?: (rowId: number, fieldKey: string, value: any) => Promise<void>
+  showMembersModal?: boolean
+  setShowMembersModal?: (show: boolean) => void
+  activeTable?: any
+  setWorkspaceMemberCount?: (count: number) => void
+  showNotificationsModal?: boolean
+  setShowNotificationsModal?: (show: boolean) => void
+  fieldContextMenu?: { field: TableField; x: number; y: number } | null
+  setFieldContextMenu?: (menu: { field: TableField; x: number; y: number } | null) => void
+  filterRules?: FilterRule[]
+  setFilterRules?: (rules: FilterRule[]) => void
+  hiddenFieldKeys?: string[]
+  setHiddenFieldKeys?: (keys: string[]) => void
+  saveViewConfig?: (viewId: number, updates: any) => Promise<void>
+  toggleSort?: (fieldKey: string) => void
+  setGroupByField?: (fieldKey: string | null) => void
+  deleteField?: (fieldId: number) => Promise<void>
   onRefreshRows?: () => Promise<void>
   onOpenAirtableImport?: () => void
 }
 
-export default function GlobalModalsContainer({
-  wsState,
-  wsActions,
-  uiActions,
-  showTableModal,
-  setShowTableModal,
-  modalDbIdForTable,
-  showRenameModal,
-  setShowRenameModal,
-  handleRenameSubmit,
-  renameNameValue,
-  renameType,
-  showNewViewModal,
-  setShowNewViewModal,
-  createView,
-  showNewFieldModal,
-  setShowNewFieldModal,
-  newFieldPopoverPos,
-  setNewFieldPopoverPos,
-  editingFieldForModal,
-  setEditingFieldForModal,
-  handleUpdateField,
-  setFields,
-  fields,
-  showDetailModal,
-  setShowDetailModal,
-  selectedRow,
-  setSelectedRow,
-  displayRows,
-  currentUserRolePermissions,
-  currentUser,
-  updateCell,
-  showMembersModal,
-  setShowMembersModal,
-  activeTable,
-  setWorkspaceMemberCount,
-  showNotificationsModal,
-  setShowNotificationsModal,
-  fieldContextMenu,
-  setFieldContextMenu,
-  filterRules,
-  setFilterRules,
-  hiddenFieldKeys,
-  setHiddenFieldKeys,
-  saveViewConfig,
-  toggleSort,
-  setGroupByField,
-  deleteField,
-  onRefreshRows,
-  onOpenAirtableImport
-}: GlobalModalsContainerProps) {
+export default function GlobalModalsContainer(props: GlobalModalsContainerProps) {
+  const tableCtx = useOptionalTableContext()
+
+  const {
+    wsState,
+    wsActions,
+    uiActions,
+    showTableModal = false,
+    setShowTableModal = () => {},
+    modalDbIdForTable = null,
+    showRenameModal = false,
+    setShowRenameModal = () => {},
+    handleRenameSubmit = async () => {},
+    renameNameValue = '',
+    renameType = null,
+    showNewViewModal = false,
+    setShowNewViewModal = () => {},
+    newFieldPopoverPos = null,
+    setNewFieldPopoverPos = () => {},
+    editingFieldForModal = null,
+    setEditingFieldForModal = () => {},
+    currentUserRolePermissions,
+    currentUser,
+    showMembersModal = false,
+    setShowMembersModal = () => {},
+    setWorkspaceMemberCount = () => {},
+    showNotificationsModal = false,
+    setShowNotificationsModal = () => {},
+    onRefreshRows,
+    onOpenAirtableImport
+  } = props
+
+  const fields = props.fields ?? tableCtx?.fields ?? []
+  const setFields = props.setFields ?? tableCtx?.setFields ?? (() => {})
+  const displayRows = props.displayRows ?? tableCtx?.displayRows ?? []
+  const selectedRow = props.selectedRow !== undefined ? props.selectedRow : (tableCtx?.selectedRow ?? null)
+  const setSelectedRow = props.setSelectedRow ?? tableCtx?.setSelectedRow ?? (() => {})
+  const showDetailModal = props.showDetailModal ?? tableCtx?.showDetailModal ?? false
+  const setShowDetailModal = props.setShowDetailModal ?? tableCtx?.setShowDetailModal ?? (() => {})
+  const showNewFieldModal = props.showNewFieldModal ?? tableCtx?.showNewFieldModal ?? false
+  const setShowNewFieldModal = props.setShowNewFieldModal ?? tableCtx?.setShowNewFieldModal ?? (() => {})
+  const createView = props.createView ?? tableCtx?.createView ?? (async () => {})
+  const updateCell = props.updateCell ?? tableCtx?.updateCell ?? (async () => {}) as any
+  const activeTable = props.activeTable ?? tableCtx?.activeTable ?? null
+  const fieldContextMenu = props.fieldContextMenu !== undefined ? props.fieldContextMenu : (tableCtx?.fieldContextMenu ?? null)
+  const setFieldContextMenu = props.setFieldContextMenu ?? tableCtx?.setFieldContextMenu ?? (() => {})
+  const filterRules = props.filterRules ?? tableCtx?.filterRules ?? []
+  const setFilterRules = props.setFilterRules ?? tableCtx?.setFilterRules ?? (() => {})
+  const hiddenFieldKeys = props.hiddenFieldKeys ?? tableCtx?.hiddenFieldKeys ?? []
+  const setHiddenFieldKeys = props.setHiddenFieldKeys ?? tableCtx?.setHiddenFieldKeys ?? (() => {})
+  const saveViewConfig = props.saveViewConfig ?? tableCtx?.saveViewConfig ?? (async () => {})
+  const toggleSort = props.toggleSort ?? tableCtx?.toggleSort ?? (() => {})
+  const setGroupByField = props.setGroupByField ?? ((fk: string | null) => {
+    if (wsState.activeViewId && tableCtx) {
+      tableCtx.saveViewConfig(wsState.activeViewId, { groupByField: fk } as any)
+    }
+  })
+  const deleteField = props.deleteField ?? tableCtx?.deleteField ?? (async () => {})
+  const handleUpdateField = props.handleUpdateField ?? tableCtx?.handleUpdateField ?? (async () => {})
+
   const [insertFieldContext, setInsertFieldContext] = useState<{ targetFieldId: number; position: 'left' | 'right' } | null>(null)
 
   const reloadFields = async () => {
