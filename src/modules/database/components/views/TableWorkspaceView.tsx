@@ -3,7 +3,6 @@
 import React from 'react'
 import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
 import DatabaseViewRouter from '@/modules/database/components/views/DatabaseViewRouter'
-import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { useTableContext } from '@/modules/database/context/TableContext'
 import type {
@@ -390,30 +389,6 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
           />
         </div>
       </PullToRefresh>
-
-      {/* Mobile Bottom Navigation Bar */}
-      <MobileBottomNav
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        activeTableId={activeTableId}
-        currentUser={currentUser}
-        notificationCount={unreadNotificationsCount}
-        fields={fields}
-        rows={rows}
-        onSelectDashboard={onSelectDashboard}
-        onSetActiveWorkspaceId={onSetActiveWorkspaceId}
-        onSetActiveTableId={onSetActiveTableId}
-        onShowNotificationsModal={() => setShowNotificationsModal(true)}
-        onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
-        onToggleTheme={toggleTheme}
-        onToggleDarkReaderPanel={toggleDarkReaderPanel}
-        onLogout={logout}
-        onSelectRow={(row) => {
-          setSelectedRow(row)
-          setShowDetailModal(true)
-        }}
-        onImportAirtable={() => setShowAirtableModal(true)}
-      />
     </>
   )
 }

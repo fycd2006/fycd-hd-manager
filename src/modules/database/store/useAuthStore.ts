@@ -34,6 +34,28 @@ export interface AuthActions {
   resetPassword: (token: string, newPassword: string) => Promise<{ ok: boolean; message?: string; error?: string }>
 }
 
+const CACHED_USER_KEY = 'fycd_cached_user'
+
+function loadCachedUser(): User | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(CACHED_USER_KEY)
+    if (raw) return JSON.parse(raw) as User
+  } catch { /* ignore */ }
+  return null
+}
+
+function saveCachedUser(user: User | null) {
+  if (typeof window === 'undefined') return
+  try {
+    if (user) {
+      localStorage.setItem(CACHED_USER_KEY, JSON.stringify(user))
+    } else {
+      localStorage.removeItem(CACHED_USER_KEY)
+    }
+  } catch { /* ignore */ }
+}
+
 export const useAuthStore = (): [AuthState, AuthActions] => {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login')
@@ -43,10 +65,20 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
   const [resetToken, setResetToken] = useState('')
   const [authLoading, setAuthLoading] = useState(true)
 
+  // Hydrate cached user in client useEffect to avoid SSR hydration mismatch
+  useEffect(() => {
+    const cached = loadCachedUser()
+    if (cached) {
+      setCurrentUser(cached)
+      setAuthLoading(false)
+    }
+  }, [])
+
   const login = useCallback(async (username: string, password: string) => {
     const result = await authService.login(username, password)
     if (result.ok && result.user) {
       setCurrentUser(result.user)
+      saveCachedUser(result.user)
     }
     return { ok: result.ok, error: result.error }
   }, [])
@@ -55,6 +87,7 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
     const result = await authService.register(username, email, password)
     if (result.ok && result.user) {
       setCurrentUser(result.user)
+      saveCachedUser(result.user)
     }
     return { ok: result.ok, error: result.error }
   }, [])
@@ -62,12 +95,17 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
   const logout = useCallback(async () => {
     await authService.logout()
     setCurrentUser(null)
+    saveCachedUser(null)
   }, [])
 
   const checkAuth = useCallback(async () => {
     const result = await authService.checkAuth()
     if (result.authenticated && result.user) {
       setCurrentUser(result.user)
+      saveCachedUser(result.user)
+    } else {
+      setCurrentUser(null)
+      saveCachedUser(null)
     }
     setAuthLoading(false)
     return result.authenticated

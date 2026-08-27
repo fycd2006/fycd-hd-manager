@@ -1907,7 +1907,7 @@ export const GridView: React.FC<GridViewProps> = ({
             {/* Baserow Add Row Bar (Full width table row entry matching row length) */}
             <div
               className="grid-view__add-row-bar"
-              onClick={onAddRow}
+              onClick={() => onAddRow?.()}
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

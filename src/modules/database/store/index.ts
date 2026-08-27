@@ -7,7 +7,7 @@ export { useAuthStore } from './useAuthStore'
 export type { AuthState, AuthActions } from './useAuthStore'
 
 export { useThemeStore } from './useThemeStore'
-export type { ThemeState, ThemeActions } from './useThemeStore'
+export type { ThemeState, ThemeActions, ThemePreference } from './useThemeStore'
 
 export { useWorkspaceStore } from './useWorkspaceStore'
 export type { WorkspaceState, WorkspaceActions } from './useWorkspaceStore'

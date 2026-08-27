@@ -164,6 +164,8 @@ export interface Toast {
   id: number | string
   message: string
   type: 'success' | 'error' | 'info'
+  action?: { label: string; onClick: () => void }
+  duration?: number
 }
 
 export interface ContextMenu {

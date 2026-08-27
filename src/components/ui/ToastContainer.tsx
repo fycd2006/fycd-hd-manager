@@ -40,11 +40,39 @@ export function ToastContainer({ toasts }: ToastContainerProps) {
                   : '#3F6212',
             boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
             border: '1px solid rgba(255,255,255,0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
           }}
         >
-          {toast.message}
+          <span style={{ flex: 1 }}>{toast.message}</span>
+          {toast.action && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                toast.action!.onClick()
+              }}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '6px',
+                border: '1px solid rgba(255,255,255,0.4)',
+                background: 'rgba(255,255,255,0.15)',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'background 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.3)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
+            >
+              {toast.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>
   )
 }
+

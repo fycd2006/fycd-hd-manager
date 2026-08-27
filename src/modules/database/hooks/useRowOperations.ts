@@ -17,7 +17,7 @@ export interface UseRowOperationsOptions {
   setSortRules: (rules: SortRule[]) => void
   setSortOrder: (order: SortOrder) => void
   saveViewConfig?: (viewId: number, config: Partial<TableView>) => Promise<void>
-  addToast: (message: string, type: 'success' | 'error' | 'info') => void
+  addToast: (message: string, type: 'success' | 'error' | 'info', options?: { action?: { label: string; onClick: () => void }; duration?: number }) => void
   setEditingCell?: (cell: { rowId: number; fieldKey: string } | null) => void
   setEditingCellValue?: (value: string) => void
 }
@@ -69,7 +69,8 @@ export function useRowOperations({
         })
       }
 
-      if (overrides) {
+      // Ensure overrides is a plain data object, not a React SyntheticEvent from onClick
+      if (overrides && typeof overrides === 'object' && !('nativeEvent' in overrides) && !('_reactName' in overrides) && !('target' in overrides)) {
         Object.assign(baseData, overrides)
       }
 
@@ -218,19 +219,52 @@ export function useRowOperations({
     addToast
   ])
 
-  // Delete row
+  // Delete row — with undo support
   const deleteRow = useCallback(async (rowId: number) => {
     if (!activeTableId) return
+    // Snapshot the row data before deletion for undo
+    const deletedRow = rows.find(r => r.id === rowId)
+    const snapshotData = deletedRow ? { ...deletedRow.data } : null
+
     try {
       const result = await rowService.deleteRow(activeTableId, rowId)
       if (result.ok) {
         setRows(prev => prev.filter(r => r.id !== rowId))
-        addToast('資料列已刪除', 'success')
+
+        // Show undo toast (10s) with action button
+        const tableId = activeTableId
+        addToast('資料列已刪除', 'info', {
+          duration: 10000,
+          action: snapshotData ? {
+            label: '復原',
+            onClick: async () => {
+              try {
+                // Strip computed fields before re-creating
+                const restoreData = { ...snapshotData }
+                fields.forEach(f => {
+                  const key = `field_${f.id}`
+                  if (['created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'lookup', 'rollup', 'formula'].includes(f.type)) {
+                    delete restoreData[key]
+                  }
+                })
+                const res = await rowService.createRow(tableId, restoreData)
+                if (res.ok && res.row) {
+                  setRows(prev => [...prev, res.row!])
+                  addToast('已成功復原刪除的資料列', 'success')
+                } else {
+                  addToast('復原失敗', 'error')
+                }
+              } catch {
+                addToast('復原失敗', 'error')
+              }
+            }
+          } : undefined
+        })
       }
     } catch {
       addToast('刪除列失敗', 'error')
     }
-  }, [activeTableId, setRows, addToast])
+  }, [activeTableId, rows, fields, setRows, addToast])
 
   // Duplicate row
   const duplicateRow = useCallback(async (rowToCopy: TableRow) => {

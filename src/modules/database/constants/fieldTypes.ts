@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { 
-  Type, AlignLeft, ArrowLeftRight, Hash, Star, CheckSquare, Calendar, History, UserCheck, 
+  Type, AlignLeft, ArrowLeftRight, Hash, Star, CheckSquare, CheckCircle, Calendar, History, UserCheck, 
   CalendarPlus, UserPlus, Clock, Link2, Mail, ListFilter, Phone, Calculator, 
   Sigma, Layers, Search, Users, Fingerprint, ListOrdered, Lock, ExternalLink, Sparkles, MessageSquare 
 } from 'lucide-react'
@@ -28,7 +28,7 @@ export const FIELD_TYPE_ICONS: Record<string, () => React.ReactNode> = {
   duration: () => React.createElement(Clock, { size: 14 }),
   url: () => React.createElement(Link2, { size: 14 }),
   email: () => React.createElement(Mail, { size: 14 }),
-  single_select: () => React.createElement(CheckSquare, { size: 14 }),
+  single_select: () => React.createElement(CheckCircle, { size: 14 }),
   multiple_select: () => React.createElement(ListFilter, { size: 14 }),
   phone: () => React.createElement(Phone, { size: 14 }),
   phone_number: () => React.createElement(Phone, { size: 14 }),

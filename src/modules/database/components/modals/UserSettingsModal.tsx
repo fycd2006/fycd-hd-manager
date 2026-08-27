@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { X, User, Mail, Key, Check, Sun, Moon, Sliders, LogOut, Palette } from 'lucide-react'
+import { X, User, Mail, Key, Check, Sun, Moon, Monitor, Sliders, LogOut, Palette } from 'lucide-react'
 import type { User as UserType } from '@/modules/database/types'
 import { useThemeStore } from '@/modules/database/store/useThemeStore'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
@@ -170,34 +170,47 @@ export default function UserSettingsModal({
               <span>{t('userSettings.systemOptions')}</span>
             </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              {/* Theme Toggle Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  if (onToggleTheme) onToggleTheme()
-                  else themeActions.toggleTheme()
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '12px 14px',
-                  borderRadius: '14px',
-                  backgroundColor: isDark ? '#1e293b' : '#f8fafc',
-                  border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0',
-                  color: isDark ? '#ffffff' : '#0f172a',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textAlign: 'left'
-                }}
-              >
-                {isDark ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} color="#3F6212" />}
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700 }}>{isDark ? t('nav.toggleLightMode') : t('nav.toggleDarkMode')}</span>
-                </div>
-              </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Theme Preference — 3-state picker */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                {([
+                  { pref: 'light' as const, icon: <Sun size={18} color="#f59e0b" />, label: '淺色模式' },
+                  { pref: 'dark' as const, icon: <Moon size={18} color="#6366f1" />, label: '深色模式' },
+                  { pref: 'system' as const, icon: <Monitor size={18} color="#3F6212" />, label: '跟隨系統' },
+                ]).map(({ pref, icon, label }) => {
+                  const isActive = themeState.themePreference === pref
+                  return (
+                    <button
+                      key={pref}
+                      type="button"
+                      onClick={() => themeActions.setThemePreference(pref)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '14px 8px',
+                        borderRadius: '14px',
+                        backgroundColor: isActive
+                          ? (isDark ? '#1e3a2f' : '#f0fdf4')
+                          : (isDark ? '#1e293b' : '#f8fafc'),
+                        border: isActive
+                          ? '2px solid #3F6212'
+                          : (isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0'),
+                        color: isDark ? '#ffffff' : '#0f172a',
+                        fontSize: '12px',
+                        fontWeight: isActive ? 700 : 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {icon}
+                      <span>{label}</span>
+                      {isActive && <Check size={14} color="#3F6212" />}
+                    </button>
+                  )
+                })}
+              </div>
 
               {/* Filters / DarkReader Button */}
               <button

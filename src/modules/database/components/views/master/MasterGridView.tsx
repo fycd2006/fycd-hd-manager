@@ -268,8 +268,9 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
       case 'number':
         return <Hash size={12} color="#0284c7" />
       case 'single_select':
-      case 'multiple_select':
         return <CheckCircle2 size={12} color="#16a34a" />
+      case 'multiple_select':
+        return <ListFilter size={12} color="#16a34a" />
       case 'boolean':
         return <ToggleLeft size={12} color="#7c3aed" />
       case 'date':

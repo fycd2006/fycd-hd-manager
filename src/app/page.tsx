@@ -839,7 +839,7 @@ export default function Home() {
   if (authState.authLoading) {
     const isDark = themeState.theme === 'dark'
     return (
-      <div className={`app-container theme-${themeState.theme}`} style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#fafafa' }}>
+      <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#fafafa' }}>
         {/* Top Brand Accent Line */}
         <div style={{
           position: 'absolute',
@@ -1013,7 +1013,7 @@ export default function Home() {
 
   return (
     <TableProvider value={tableContextValue}>
-      <div className={`app-container theme-${themeState.theme}`}>
+      <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning>
         <FYCDBrandLoading
           show={showBrandLoading}
           workspaceReady={workspaceReady}
@@ -1200,6 +1200,30 @@ export default function Home() {
             />
           )}
         </div>
+
+        {/* Mobile Global Bottom Navigation Floating Bubble (LIVBubbleMenu) */}
+        <MobileBottomNav
+          workspaces={wsState.workspaces}
+          activeWorkspaceId={wsState.activeWorkspaceId}
+          activeTableId={wsState.activeTableId}
+          currentUser={authState.currentUser}
+          notificationCount={unreadNotificationsCount}
+          fields={fields}
+          rows={rows}
+          onSelectDashboard={() => wsActions.setActiveTableId(0)}
+          onSetActiveWorkspaceId={wsActions.setActiveWorkspaceId}
+          onSetActiveTableId={wsActions.setActiveTableId}
+          onShowNotificationsModal={() => setShowNotificationsModal(true)}
+          onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
+          onToggleTheme={themeActions.toggleTheme}
+          onToggleDarkReaderPanel={() => themeActions.setShowDarkReaderPanel(!themeState.showDarkReaderPanel)}
+          onLogout={authActions.logout}
+          onSelectRow={(row) => {
+            setSelectedRow(row)
+            setShowDetailModal(true)
+          }}
+          onImportAirtable={() => setShowAirtableModal(true)}
+        />
       </div>
 
       {/* Global Modals Container - Always Mounted */}

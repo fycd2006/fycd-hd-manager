@@ -23,7 +23,7 @@ export interface UIState {
 }
 
 export interface UIActions {
-  addToast: (message: string, type: Toast['type']) => void
+  addToast: (message: string, type: Toast['type'], options?: { action?: Toast['action']; duration?: number }) => void
   setShowRenameModal: (show: boolean) => void
   setRenameType: (type: 'workspace' | 'database' | 'table' | null) => void
   setRenameId: (id: number | null) => void
@@ -57,10 +57,11 @@ export const useUIStore = (): [UIState, UIActions] => {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
 
-  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+  const addToast = useCallback((message: string, type: Toast['type'] = 'info', options?: { action?: Toast['action']; duration?: number }) => {
     const id = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
-    setToasts(prev => [...prev, { id, message, type }])
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000)
+    const duration = options?.duration ?? (options?.action ? 10000 : 3000)
+    setToasts(prev => [...prev, { id, message, type, action: options?.action, duration }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration)
   }, [])
 
   const toggleSidebarCollapsed = useCallback(() => {

@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import "./globals.css";
 import "./theme.css";
 import "@/styles/baserow/default.scss";
@@ -36,7 +35,7 @@ export const metadata: Metadata = {
 };
 
 import { I18nProvider } from "@/lib/i18n/i18nContext";
-import { FYCDBrandIntro } from "@/modules/database/components/intro/FYCDBrandIntro";
+import "@/lib/pointer-capture-fix";
 
 export default function RootLayout({
   children,
@@ -44,29 +43,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-Hant">
-      <body>
-        <Script
-          id="pointer-capture-fix"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (typeof Element !== 'undefined' && Element.prototype.releasePointerCapture) {
-                const origRelease = Element.prototype.releasePointerCapture;
-                Element.prototype.releasePointerCapture = function(id) {
-                  try {
-                    if (this.hasPointerCapture && this.hasPointerCapture(id)) {
-                      origRelease.call(this, id);
-                    }
-                  } catch(e) {}
-                };
-              }
-            `,
-          }}
-        />
-        <FYCDBrandIntro />
+    <html lang="zh-Hant" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );
 }
+

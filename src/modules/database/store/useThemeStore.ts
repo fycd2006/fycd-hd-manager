@@ -6,8 +6,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Theme, DarkReaderSettings } from '../types'
 
+export type ThemePreference = 'light' | 'dark' | 'system'
+
 export interface ThemeState {
   theme: Theme
+  themePreference: ThemePreference
   showDarkReaderPanel: boolean
   darkReaderSettings: DarkReaderSettings
   lightReaderSettings: DarkReaderSettings
@@ -16,6 +19,7 @@ export interface ThemeState {
 export interface ThemeActions {
   toggleTheme: () => void
   setTheme: (theme: Theme) => void
+  setThemePreference: (pref: ThemePreference) => void
   setShowDarkReaderPanel: (show: boolean) => void
   updateDarkReaderSettings: (settings: Partial<DarkReaderSettings>) => void
 }
@@ -47,11 +51,48 @@ function saveSettings(prefix: string, settings: DarkReaderSettings) {
   }
 }
 
+function getSystemTheme(): Theme {
+  if (typeof window === 'undefined') return 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function loadThemePreference(): ThemePreference {
+  if (typeof window === 'undefined') return 'light'
+  const saved = localStorage.getItem('theme_preference') as ThemePreference | null
+  if (saved === 'light' || saved === 'dark' || saved === 'system') return saved
+  // Migrate old 'theme' key
+  const legacy = localStorage.getItem('theme') as Theme | null
+  if (legacy === 'light' || legacy === 'dark') return legacy
+  return 'light'
+}
+
+function resolveTheme(pref: ThemePreference): Theme {
+  if (pref === 'system') return getSystemTheme()
+  return pref
+}
+
 export const useThemeStore = (): [ThemeState, ThemeActions] => {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'light'
-    return (localStorage.getItem('theme') as Theme) || 'light'
-  })
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('light')
+  const [theme, setThemeState] = useState<Theme>('light')
+
+  // Sync saved theme preference after mount to prevent SSR hydration mismatch
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const pref = loadThemePreference()
+    setThemePreferenceState(pref)
+    setThemeState(resolveTheme(pref))
+  }, [])
+
+  // Listen for OS theme changes when preference is 'system'
+  useEffect(() => {
+    if (typeof window === 'undefined' || themePreference !== 'system') return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = (e: MediaQueryListEvent) => {
+      setThemeState(e.matches ? 'dark' : 'light')
+    }
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [themePreference])
 
   const [showDarkReaderPanel, setShowDarkReaderPanel] = useState(false)
   const [lightReaderSettings, setLightReaderSettingsState] = useState<DarkReaderSettings>(() => loadSettings('lightreader'))
@@ -70,7 +111,6 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     if (typeof window === 'undefined') return
 
     document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
 
     const applyTheme = (DarkReader: any) => {
       if (typeof window !== 'undefined' && window.fetch) {
@@ -105,11 +145,22 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
   }, [theme, activeSettings])
 
   const toggleTheme = useCallback(() => {
-    setThemeState(prev => (prev === 'dark' ? 'light' : 'dark'))
-  }, [])
+    const newPref: ThemePreference = theme === 'dark' ? 'light' : 'dark'
+    setThemePreferenceState(newPref)
+    setThemeState(newPref)
+    localStorage.setItem('theme_preference', newPref)
+  }, [theme])
 
   const setTheme = useCallback((newTheme: Theme) => {
+    setThemePreferenceState(newTheme)
     setThemeState(newTheme)
+    localStorage.setItem('theme_preference', newTheme)
+  }, [])
+
+  const setThemePreference = useCallback((pref: ThemePreference) => {
+    setThemePreferenceState(pref)
+    setThemeState(resolveTheme(pref))
+    localStorage.setItem('theme_preference', pref)
   }, [])
 
   const updateDarkReaderSettings = useCallback((newSettings: Partial<DarkReaderSettings>) => {
@@ -126,17 +177,19 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
 
   const state: ThemeState = useMemo(() => ({
     theme,
+    themePreference,
     showDarkReaderPanel,
     darkReaderSettings: activeSettings,
     lightReaderSettings,
-  }), [theme, showDarkReaderPanel, activeSettings, lightReaderSettings])
+  }), [theme, themePreference, showDarkReaderPanel, activeSettings, lightReaderSettings])
 
   const actions: ThemeActions = useMemo(() => ({
     toggleTheme,
     setTheme,
+    setThemePreference,
     setShowDarkReaderPanel,
     updateDarkReaderSettings,
-  }), [toggleTheme, setTheme, setShowDarkReaderPanel, updateDarkReaderSettings])
+  }), [toggleTheme, setTheme, setThemePreference, setShowDarkReaderPanel, updateDarkReaderSettings])
 
   return [state, actions]
 }
