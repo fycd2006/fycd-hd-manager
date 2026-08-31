@@ -352,6 +352,7 @@ interface GridViewProps {
   isOffline?: boolean;
   tableId?: number | null;
   viewId?: number | null;
+  newFieldScrollTrigger?: number;
   initialAggregations?: Record<string | number, string> | string | null;
   onUpdateAggregations?: (agg: Record<string | number, string>) => void;
 }
@@ -370,6 +371,7 @@ export const GridView: React.FC<GridViewProps> = ({
   rowDetailsWidth = 56,
   tableId,
   viewId,
+  newFieldScrollTrigger,
   initialAggregations,
   onUpdateAggregations,
   onUpdateCell,
@@ -414,27 +416,22 @@ export const GridView: React.FC<GridViewProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
-  // Auto-scroll when new fields are created on the current active table
-  const prevFieldsCountRef = useRef(fields.length);
-  const prevTableIdRef = useRef(tableId);
-
+  // 1. Table switch or initial load: reset horizontal and vertical scroll positions
   useEffect(() => {
-    // 1. Table switch or initial load: reset horizontal scroll position to first column
-    if (prevTableIdRef.current !== tableId) {
-      prevTableIdRef.current = tableId;
-      prevFieldsCountRef.current = fields.length;
-      if (bodyRef.current) {
-        bodyRef.current.scrollLeft = 0;
-      }
-      return;
+    if (bodyRef.current) {
+      bodyRef.current.scrollLeft = 0;
+      bodyRef.current.scrollTop = 0;
     }
+  }, [tableId]);
 
-    // 2. Only smooth scroll to the newly created field when working within the same table
-    if (prevFieldsCountRef.current > 0 && fields.length > prevFieldsCountRef.current && bodyRef.current) {
-      bodyRef.current.scrollTo({ left: bodyRef.current.scrollWidth, behavior: 'smooth' });
+  // 2. Explicit auto-scroll to newly created field on active table
+  const prevTriggerRef = useRef(newFieldScrollTrigger || 0);
+  useEffect(() => {
+    if (newFieldScrollTrigger && newFieldScrollTrigger > 0 && newFieldScrollTrigger !== prevTriggerRef.current) {
+      prevTriggerRef.current = newFieldScrollTrigger;
+      bodyRef.current?.scrollTo({ left: bodyRef.current.scrollWidth, behavior: 'smooth' });
     }
-    prevFieldsCountRef.current = fields.length;
-  }, [fields.length, tableId]);
+  }, [newFieldScrollTrigger]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);

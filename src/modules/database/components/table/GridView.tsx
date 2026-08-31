@@ -62,6 +62,7 @@ interface GridViewProps {
   isOffline?: boolean
   tableId?: number | null
   viewId?: number | null
+  newFieldScrollTrigger?: number
   initialAggregations?: Record<string | number, string> | string | null
   onUpdateAggregations?: (agg: Record<string | number, string>) => void
 }
@@ -81,6 +82,7 @@ export default function GridView({
   rowColorRules,
   tableId,
   viewId,
+  newFieldScrollTrigger,
   initialAggregations,
   onUpdateAggregations,
   readOnly = false,
@@ -118,29 +120,25 @@ export default function GridView({
 
   // Convert rows to inner format
   const mappedRows: (RowData & { data: Record<string, any> })[] = displayRows.map(row => {
-    const values: Record<string, any> = {}
-    visibleFields.forEach(field => {
-      const dataObj = row.data || {}
-      const fk = `field_${field.id}`
-      const val = fk in dataObj ? dataObj[fk] : (dataObj[field.id] ?? dataObj[String(field.id)] ?? null)
-      values[field.id] = val
-    })
     return {
-      id: row.id,
-      values,
-      data: row.data || {}
+      ...row,
+      values: row.data || {},
+      data: row.data || {},
     }
   })
 
-  const handleUpdateCell = (rowId: number, fieldId: number, value: any) => {
+  const handleUpdateCell = (rowId: number, fieldId: any, value: any) => {
     if (readOnly) return
+    const fieldKey = typeof fieldId === 'string' && fieldId.startsWith('field_') ? fieldId : `field_${fieldId}`
     if (onUpdateCell) {
-      onUpdateCell(rowId, `field_${fieldId}`, value)
+      onUpdateCell(rowId, fieldKey, value)
     }
   }
 
   const handleResizeColumn = (fieldId: number, newWidth: number) => {
-    onHandleResizeStart(newWidth, fieldId)
+    if (onHandleResizeStart) {
+      onHandleResizeStart(newWidth, fieldId)
+    }
   }
 
   const handleResizeColumnEnd = (fieldId: number, newWidth: number) => {
@@ -190,6 +188,7 @@ export default function GridView({
         isOffline={isOffline}
         tableId={tableId}
         viewId={viewId}
+        newFieldScrollTrigger={newFieldScrollTrigger}
         initialAggregations={initialAggregations}
         onUpdateAggregations={onUpdateAggregations}
         groupCollapseState={groupCollapseState}

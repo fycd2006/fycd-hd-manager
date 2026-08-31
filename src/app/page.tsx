@@ -371,6 +371,12 @@ export default function Home() {
     }
   }, [uiActions, mergeServerRows, t, wsActions, applyViewConfig, resetViewState, setViews])
 
+  // New Field scroll trigger
+  const [newFieldScrollTrigger, setNewFieldScrollTrigger] = useState(0)
+  const handleFieldCreated = useCallback(() => {
+    setNewFieldScrollTrigger(c => c + 1)
+  }, [])
+
   // Field CRUD and modals hook
   const {
     showNewFieldModal, setShowNewFieldModal,
@@ -394,6 +400,7 @@ export default function Home() {
     fetchTableData,
     fetchWorkspaces: wsActions.fetchWorkspaces,
     addToast: uiActions.addToast,
+    onFieldCreated: handleFieldCreated,
   })
 
   // Cross-table cut and paste operations hook
@@ -1220,6 +1227,7 @@ export default function Home() {
               onSetActiveTableId={wsActions.setActiveTableId}
               addToast={uiActions.addToast}
               isOffline={isOffline}
+              newFieldScrollTrigger={newFieldScrollTrigger}
             />
           )}
         </div>
@@ -1264,6 +1272,7 @@ export default function Home() {
         renameType={renameType}
         showNewViewModal={showNewViewModal}
         setShowNewViewModal={setShowNewViewModal}
+        onFieldCreated={handleFieldCreated}
         newFieldPopoverPos={newFieldPopoverPos}
         setNewFieldPopoverPos={setNewFieldPopoverPos}
         editingFieldForModal={editingFieldForModal}

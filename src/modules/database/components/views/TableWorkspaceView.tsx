@@ -86,6 +86,7 @@ export interface TableWorkspaceViewProps {
   onSetActiveTableId: (id: number) => void
   addToast: (message: string, type: 'success' | 'error' | 'info') => void
   isOffline?: boolean
+  newFieldScrollTrigger?: number
 }
 
 export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
@@ -147,6 +148,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
   onSetActiveTableId,
   addToast,
   isOffline,
+  newFieldScrollTrigger,
 }) => {
   const tableCtx = useTableContext()
   const {
@@ -363,6 +365,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
             setColumnWidths={setColumnWidths}
             activeTableId={activeTableId}
             activeViewId={activeViewId}
+            newFieldScrollTrigger={newFieldScrollTrigger}
             views={views}
             updateViewConfig={saveViewConfig}
             setContextMenu={setContextMenu}

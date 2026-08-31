@@ -28,6 +28,7 @@ interface GlobalModalsContainerProps {
   createView?: (name: string, type: any) => Promise<void>
   showNewFieldModal?: boolean
   setShowNewFieldModal?: (show: boolean) => void
+  onFieldCreated?: () => void
   newFieldPopoverPos?: { top: number; left: number } | null
   setNewFieldPopoverPos?: (pos: { top: number; left: number } | null) => void
   editingFieldForModal?: TableField | null
@@ -264,6 +265,7 @@ export default function GlobalModalsContainer(props: GlobalModalsContainerProps)
               const res = await fieldService.createField(wsState.activeTableId, payload)
               if (res.ok && res.field) {
                 await reloadFields()
+                props.onFieldCreated?.()
                 uiActions.addToast('新增欄位成功', 'success')
               } else {
                 uiActions.addToast('新增欄位失敗', 'error')

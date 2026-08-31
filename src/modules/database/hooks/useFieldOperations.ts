@@ -10,6 +10,7 @@ interface UseFieldOperationsParams {
   fetchTableData: (tableId: number) => Promise<void>
   fetchWorkspaces: () => Promise<unknown>
   addToast: (message: string, type: 'success' | 'error' | 'info') => void
+  onFieldCreated?: () => void
 }
 
 export function useFieldOperations({
@@ -18,6 +19,7 @@ export function useFieldOperations({
   fetchTableData,
   fetchWorkspaces,
   addToast,
+  onFieldCreated,
 }: UseFieldOperationsParams) {
   // Field modal state
   const [showNewFieldModal, setShowNewFieldModal] = useState(false)
@@ -65,11 +67,12 @@ export function useFieldOperations({
       setNewFieldOptions('')
       await fetchTableData(activeTableId)
       await fetchWorkspaces()
+      onFieldCreated?.()
       addToast(`欄位「${newFieldName}」已新增`, 'success')
     } catch {
       addToast('新增欄位失敗', 'error')
     }
-  }, [newFieldName, newFieldType, newFieldOptions, newFieldTargetTableId, newFieldRelationFieldId, newFieldTargetFieldId, newFieldRollupFunction, activeTableId, fetchTableData, fetchWorkspaces, addToast])
+  }, [newFieldName, newFieldType, newFieldOptions, newFieldTargetTableId, newFieldRelationFieldId, newFieldTargetFieldId, newFieldRollupFunction, activeTableId, fetchTableData, fetchWorkspaces, addToast, onFieldCreated])
 
   const deleteField = useCallback(async (fieldId: number) => {
     if (!activeTableId) return

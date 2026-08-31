@@ -65,6 +65,7 @@ interface DatabaseViewRouterProps {
   stageMoveRows?: (rowIds: number[]) => void
   cancelMoveRows?: () => void
   isOffline?: boolean
+  newFieldScrollTrigger?: number
 }
 
 export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
@@ -75,6 +76,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   gridLoading,
   readOnly,
   isOffline,
+  newFieldScrollTrigger,
   frozenColumnsCount,
   columnWidths,
   sortField,
@@ -133,6 +135,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
         <GridView
           tableId={activeTableId}
           viewId={activeViewId}
+          newFieldScrollTrigger={newFieldScrollTrigger}
           initialAggregations={activeView?.aggregations}
           onUpdateAggregations={(newAggregations) => {
             if (activeViewId) {
