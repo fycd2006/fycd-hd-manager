@@ -7,17 +7,19 @@ import GlobalModalsContainer from '@/modules/database/components/modals/GlobalMo
 import useTableCSV from '@/modules/database/hooks/useTableCSV'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { PanelLeft, PanelLeftClose, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, AlignJustify, Search } from 'lucide-react'
+import dynamic from 'next/dynamic'
 import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
 import { useUndoRedo } from '@/hooks/useUndoRedo'
 import { AuthScreen } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
-import { AirtableImportModal } from '@/modules/database/components/import/AirtableImportModal'
-import MembersModal from '@/modules/database/components/modals/MembersModal'
-import NotificationsModal from '@/modules/database/components/modals/NotificationsModal'
-import UserSettingsModal from '@/modules/database/components/modals/UserSettingsModal'
-import SubscriptionModal from '@/modules/database/components/modals/SubscriptionModal'
-import DarkReaderModal from '@/modules/database/components/modals/DarkReaderModal'
+
+const AirtableImportModal = dynamic(() => import('@/modules/database/components/import/AirtableImportModal').then(m => m.AirtableImportModal), { ssr: false })
+const MembersModal = dynamic(() => import('@/modules/database/components/modals/MembersModal'), { ssr: false })
+const NotificationsModal = dynamic(() => import('@/modules/database/components/modals/NotificationsModal'), { ssr: false })
+const UserSettingsModal = dynamic(() => import('@/modules/database/components/modals/UserSettingsModal'), { ssr: false })
+const SubscriptionModal = dynamic(() => import('@/modules/database/components/modals/SubscriptionModal'), { ssr: false })
+const DarkReaderModal = dynamic(() => import('@/modules/database/components/modals/DarkReaderModal'), { ssr: false })
 import { getRolePermissions } from '@/lib/permissions'
 import { getSessionUser } from '@/lib/auth'
 import { useTableOperations } from '@/modules/database/hooks/useTableOperations'
@@ -425,12 +427,20 @@ export default function Home() {
     addToast: uiActions.addToast,
   })
 
-  // Load table data when activeTableId changes
+  // Load table data and reset transient UI state when activeTableId changes
   useEffect(() => {
+    // Reset all transient UI states on table switch (Issue 2)
+    setEditingCell(null)
+    setSelectedRow(null)
+    setShowDetailModal(false)
+    setContextMenu(null)
+    setFieldContextMenu(null)
+    setSearchQuery('')
+
     if (wsState.activeTableId) {
       fetchTableData(wsState.activeTableId)
     }
-  }, [wsState.activeTableId, fetchTableData])
+  }, [wsState.activeTableId, fetchTableData, setSearchQuery])
 
   // Cell and batch editing hook
   const { updateCell, batchUpdateCells } = useCellEdit({
@@ -903,6 +913,19 @@ export default function Home() {
             100% { background-position: 0% 50%; }
           }
         `}</style>
+      </div>
+    )
+  }
+
+  // Show clean brand loading during initial authLoading to prevent FOAC
+  if (authState.authLoading) {
+    return (
+      <div className={`app-container theme-${themeState.theme}`} style={{ width: '100vw', height: '100vh', background: themeState.theme === 'dark' ? '#18191b' : '#f4f5f7' }}>
+        <FYCDBrandLoading
+          show={showBrandLoading}
+          workspaceReady={workspaceReady}
+          onExitComplete={handleExitComplete}
+        />
       </div>
     )
   }
