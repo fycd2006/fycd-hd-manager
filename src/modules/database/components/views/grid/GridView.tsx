@@ -414,14 +414,27 @@ export const GridView: React.FC<GridViewProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
-  // Auto-scroll when new fields are created
+  // Auto-scroll when new fields are created on the current active table
   const prevFieldsCountRef = useRef(fields.length);
+  const prevTableIdRef = useRef(tableId);
+
   useEffect(() => {
-    if (fields.length > prevFieldsCountRef.current && bodyRef.current) {
+    // 1. Table switch or initial load: reset horizontal scroll position to first column
+    if (prevTableIdRef.current !== tableId) {
+      prevTableIdRef.current = tableId;
+      prevFieldsCountRef.current = fields.length;
+      if (bodyRef.current) {
+        bodyRef.current.scrollLeft = 0;
+      }
+      return;
+    }
+
+    // 2. Only smooth scroll to the newly created field when working within the same table
+    if (prevFieldsCountRef.current > 0 && fields.length > prevFieldsCountRef.current && bodyRef.current) {
       bodyRef.current.scrollTo({ left: bodyRef.current.scrollWidth, behavior: 'smooth' });
     }
     prevFieldsCountRef.current = fields.length;
-  }, [fields.length]);
+  }, [fields.length, tableId]);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -1073,12 +1086,12 @@ export const GridView: React.FC<GridViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isEditing, selectionBounds, selectionStart, selectionEnd, rows, fields, handleCopySelection, handleCutSelection, handlePasteSelection, handleClearSelectionValues, visualGroupedRows]);
 
-  // Ensure Row 1 (index 0) is visible at top on initial mount
+  // Ensure Row 1 (index 0) is visible at top on initial mount or table switch
   useEffect(() => {
     if (bodyRef.current) {
       bodyRef.current.scrollTop = 0;
     }
-  }, []);
+  }, [tableId]);
 
   const isAllRowsSelected = useMemo(() => {
     if (rows.length === 0) return false;
