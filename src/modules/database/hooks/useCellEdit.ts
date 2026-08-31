@@ -50,7 +50,7 @@ export function useCellEdit({
     addToastRef.current = addToast
   })
 
-  // Clean up all pending debounce timers and abort controllers on unmount
+  // Clean up all pending debounce timers and abort controllers when activeTableId changes or on unmount
   useEffect(() => {
     const debounceMap = cellDebounceMap.current
     const abortMap = cellAbortMap.current
@@ -60,7 +60,7 @@ export function useCellEdit({
       abortMap.forEach(controller => controller.abort())
       abortMap.clear()
     }
-  }, [])
+  }, [activeTableId])
 
   /**
    * Internal single cell updater
@@ -146,6 +146,9 @@ export function useCellEdit({
 
       // 300ms Debounce + AbortController + 12s Timeout Dual-Layer Protection
       const timer = setTimeout(async () => {
+        // Guard: Drop if user switched tables before debounce timer fired
+        if (targetTableId !== activeTableIdRef.current) return
+
         if (cellAbortMap.current.has(cellKey)) {
           cellAbortMap.current.get(cellKey)?.abort()
         }
@@ -163,6 +166,9 @@ export function useCellEdit({
         try {
           const result = await rowService.updateCell(targetTableId, rowId, fieldKey, payloadValue, { signal: controller.signal })
           clearTimeout(timeoutId)
+
+          // Guard: Drop if user switched tables during the in-flight network request
+          if (targetTableId !== activeTableIdRef.current) return
 
           if (cellSeqMap.current.get(cellKey) !== seqId) {
             // Obsolete response from older request -> drop
