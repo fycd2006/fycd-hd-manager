@@ -57,15 +57,15 @@ function saveCachedUser(user: User | null) {
 }
 
 export const useAuthStore = (): [AuthState, AuthActions] => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [currentUser, setCurrentUser] = useState<User | null>(() => loadCachedUser())
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login')
   const [authUsername, setAuthUsername] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [resetToken, setResetToken] = useState('')
-  const [authLoading, setAuthLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState<boolean>(() => loadCachedUser() === null)
 
-  // Hydrate cached user in client useEffect to avoid SSR hydration mismatch
+  // Re-verify session in background on mount
   useEffect(() => {
     const cached = loadCachedUser()
     if (cached) {
@@ -96,6 +96,13 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
     await authService.logout()
     setCurrentUser(null)
     saveCachedUser(null)
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('activeWorkspaceId')
+        localStorage.removeItem('activeTableId')
+        localStorage.removeItem('activeViewId')
+      } catch { /* ignore */ }
+    }
   }, [])
 
   const checkAuth = useCallback(async () => {

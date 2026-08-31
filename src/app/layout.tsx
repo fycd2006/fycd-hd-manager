@@ -44,6 +44,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-Hant" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var p=localStorage.getItem('theme_preference')||localStorage.getItem('theme')||'light';var t=p==='system'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',t);}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <I18nProvider>{children}</I18nProvider>
       </body>
