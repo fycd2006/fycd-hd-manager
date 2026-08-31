@@ -112,19 +112,13 @@ export async function POST(request: Request) {
 
 
     // 4. Set Session Cookie (Cookie expires in 7 days)
-
     const cookieStore = await cookies()
-
     cookieStore.set('session', sessionString, {
-
       httpOnly: true,
-
       secure: process.env.NODE_ENV === 'production',
-
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
-
       path: '/'
-
     })
 
 

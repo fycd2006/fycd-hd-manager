@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { authorizeAction } from '@/lib/authorize'
 
 export async function POST(
@@ -53,27 +54,32 @@ export async function POST(
       }
     })
 
-    // 2. Duplicate cell content across all rows in table
-    const rows = await prisma.tableRow.findMany({
-      where: { tableId: tid, deletedAt: null }
+    // 2. Duplicate cell content across all rows in table using chunked atomic SQL queries
+    const targetRows = await prisma.tableRow.findMany({
+      where: { tableId: tid, deletedAt: null },
+      select: { id: true }
     })
 
-    const srcKey = `field_${fid}`
-    const newKey = `field_${newField.id}`
+    const srcPath = `$.field_${fid}`
+    const newPath = `$.field_${newField.id}`
+    const CHUNK_SIZE = 500
 
-    if (rows.length > 0) {
-      await prisma.$transaction(async (tx) => {
-        for (const r of rows) {
-          let dataObj: Record<string, any> = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data as any || {})
+    for (let start = 0; start < targetRows.length; start += CHUNK_SIZE) {
+      const chunk = targetRows.slice(start, start + CHUNK_SIZE)
+      const chunkIds = chunk.map(r => r.id)
 
-          dataObj[newKey] = dataObj[srcKey] !== undefined ? dataObj[srcKey] : null
-
-          await tx.tableRow.update({
-            where: { id: r.id },
-            data: { data: dataObj as any }
-          })
-        }
-      })
+      await prisma.$executeRaw(
+        Prisma.sql`UPDATE TableRow 
+          SET data = JSON_SET(
+            COALESCE(data, '{}'), 
+            ${newPath}, 
+            JSON_EXTRACT(data, ${srcPath})
+          ) 
+          WHERE id IN (${Prisma.join(chunkIds)}) 
+            AND tableId = ${tid} 
+            AND deletedAt IS NULL 
+            AND JSON_CONTAINS_PATH(data, 'one', ${srcPath}) = 1`
+      )
     }
 
     return NextResponse.json(newField, { status: 201 })

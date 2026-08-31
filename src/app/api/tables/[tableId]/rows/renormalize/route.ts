@@ -24,14 +24,26 @@ export async function POST(
       select: { id: true }
     })
 
-    await prisma.$transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i++) {
-        await tx.tableRow.update({
-          where: { id: rows[i].id },
-          data: { order: (i + 1) * 1000 }
-        })
-      }
-    })
+    if (rows.length > 0) {
+      const CHUNK_SIZE = 500
+      await prisma.$transaction(async (tx) => {
+        for (let start = 0; start < rows.length; start += CHUNK_SIZE) {
+          const chunk = rows.slice(start, start + CHUNK_SIZE)
+          let sql = 'UPDATE TableRow SET `order` = CASE id '
+          const params: any[] = []
+          chunk.forEach((r, idx) => {
+            sql += 'WHEN ? THEN ? '
+            params.push(r.id, (start + idx + 1) * 1000)
+          })
+          sql += `ELSE \`order\` END WHERE id IN (${chunk.map(() => '?').join(', ')}) AND tableId = ?`
+          params.push(...chunk.map(r => r.id), id)
+          await tx.$executeRawUnsafe(sql, ...params)
+        }
+      }, {
+        maxWait: 5000,
+        timeout: 20000
+      })
+    }
 
     return NextResponse.json({ success: true, count: rows.length })
   } catch (error: any) {
