@@ -57,21 +57,21 @@ function saveCachedUser(user: User | null) {
 }
 
 export const useAuthStore = (): [AuthState, AuthActions] => {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => loadCachedUser())
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login')
   const [authUsername, setAuthUsername] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [resetToken, setResetToken] = useState('')
-  const [authLoading, setAuthLoading] = useState<boolean>(() => loadCachedUser() === null)
+  const [authLoading, setAuthLoading] = useState(true)
 
-  // Re-verify session in background on mount
+  // Re-verify session in background on mount (hydrates in client useEffect to avoid SSR hydration mismatch)
   useEffect(() => {
     const cached = loadCachedUser()
     if (cached) {
       setCurrentUser(cached)
-      setAuthLoading(false)
     }
+    setAuthLoading(false)
   }, [])
 
   const login = useCallback(async (username: string, password: string) => {

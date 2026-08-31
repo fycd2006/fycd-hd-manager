@@ -95,8 +95,14 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
   }, [themePreference])
 
   const [showDarkReaderPanel, setShowDarkReaderPanel] = useState(false)
-  const [lightReaderSettings, setLightReaderSettingsState] = useState<DarkReaderSettings>(() => loadSettings('lightreader'))
-  const [darkReaderSettings, setDarkReaderSettingsState] = useState<DarkReaderSettings>(() => loadSettings('darkreader'))
+  const [lightReaderSettings, setLightReaderSettingsState] = useState<DarkReaderSettings>(DEFAULT_SETTINGS)
+  const [darkReaderSettings, setDarkReaderSettingsState] = useState<DarkReaderSettings>(DEFAULT_SETTINGS)
+
+  // Hydrate settings after mount on client
+  useEffect(() => {
+    setLightReaderSettingsState(loadSettings('lightreader'))
+    setDarkReaderSettingsState(loadSettings('darkreader'))
+  }, [])
 
   // Cached DarkReader Module Singleton Reference
   const darkReaderRef = useRef<any>(null)
