@@ -1,53 +1,43 @@
-const http = require('http');
-
-function httpGet(url) {
-  return new Promise((resolve, reject) => {
-    http.get(url, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(body || '[]') }));
-    }).on('error', reject);
-  });
+async function httpGet(url) {
+  try {
+    const res = await fetch(url);
+    const data = await res.json().catch(() => []);
+    return { status: res.status, data };
+  } catch (err) {
+    return { status: 500, data: [], error: err.message };
+  }
 }
 
-function httpPost(url, payload) {
-  return new Promise((resolve) => {
-    const data = JSON.stringify(payload);
-    const req = http.request(url, {
+async function httpPost(url, payload) {
+  try {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(data)
-      }
-    }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(body || '{}') }));
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
     });
-    req.on('error', (err) => resolve({ error: err.message }));
-    req.write(data);
-    req.end();
-  });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, data };
+  } catch (err) {
+    return { status: 500, error: err.message };
+  }
 }
 
-function httpPatch(url, payload) {
-  return new Promise((resolve) => {
-    const data = JSON.stringify(payload);
-    const req = http.request(url, {
+async function httpPatch(url, payload) {
+  try {
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(data)
-      }
-    }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve({ status: res.statusCode, data: body }));
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
     });
-    req.on('error', (err) => resolve({ error: err.message }));
-    req.write(data);
-    req.end();
-  });
+    const data = await res.text();
+    return { status: res.status, data };
+  } catch (err) {
+    return { status: 500, error: err.message };
+  }
 }
 
 async function runNetworkTests() {

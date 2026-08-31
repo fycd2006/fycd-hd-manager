@@ -1,27 +1,19 @@
-const http = require('http');
-
-function httpPatchWithTiming(url, payload) {
-  return new Promise((resolve) => {
-    const data = JSON.stringify(payload);
-    const startTime = Date.now();
-    const req = http.request(url, {
+async function httpPatchWithTiming(url, payload) {
+  const startTime = Date.now();
+  try {
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(data)
-      }
-    }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        const duration = Date.now() - startTime;
-        resolve({ status: res.statusCode, duration, body: body.substring(0, 100) });
-      });
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
     });
-    req.on('error', (err) => resolve({ error: err.message, duration: Date.now() - startTime }));
-    req.write(data);
-    req.end();
-  });
+    const body = await res.text();
+    const duration = Date.now() - startTime;
+    return { status: res.status, duration, body: body.substring(0, 100) };
+  } catch (err) {
+    return { error: err.message, duration: Date.now() - startTime };
+  }
 }
 
 async function runBenchmark() {

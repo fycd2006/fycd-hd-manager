@@ -1,24 +1,22 @@
-const http = require('http');
-const https = require('https');
-
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
-function fetchUrl(url, options = {}) {
-  return new Promise((resolve, reject) => {
-    const client = url.startsWith('https') ? https : http;
-    const req = client.request(url, options, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        let parsed = null;
-        try { parsed = JSON.parse(body); } catch { }
-        resolve({ status: res.statusCode, body, parsed });
-      });
-    });
-    req.on('error', (err) => resolve({ error: err.message }));
-    if (options.body) req.write(options.body);
-    req.end();
-  });
+async function fetchUrl(url, options = {}) {
+  try {
+    const fetchOptions = {
+      method: options.method || 'GET',
+      headers: options.headers,
+    };
+    if (options.body) {
+      fetchOptions.body = options.body;
+    }
+    const res = await fetch(url, fetchOptions);
+    const body = await res.text();
+    let parsed = null;
+    try { parsed = JSON.parse(body); } catch { }
+    return { status: res.status, body, parsed };
+  } catch (err) {
+    return { error: err.message };
+  }
 }
 
 async function runBatchBenchmark() {
