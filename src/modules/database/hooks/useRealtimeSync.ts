@@ -127,6 +127,9 @@ export function useRealtimeSync({ activeTableId, setRows, fetchTableData, addToa
     return () => {
       channel.unbind_all()
       pusher.unsubscribe(channelName)
+      if (pusher.connection) {
+        pusher.connection.unbind('state_change', handleStateChange)
+      }
     }
   }, [activeTableId])
 }
