@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useMemo } from 'react'
+import { useReducer, useCallback, useMemo, useRef, useEffect } from 'react'
 import { TableRow, TableField, CellValue } from '@/modules/database/types'
 import { evaluateFormula } from '@/lib/formula'
 
@@ -33,6 +33,7 @@ export interface TableOperationsState {
 
 export type TableAction = 
   | { type: 'SET_BASE_ROWS'; payload: TableRow[] | ((prev: TableRow[]) => TableRow[]) }
+  | { type: 'CLEAR_TABLE_OPERATIONS' }
   | { type: 'ADD_OPERATION'; payload: PendingOperation }
   | { type: 'UPDATE_OPERATION_STATUS'; payload: { id: string, status: OperationStatus } }
   | { type: 'REMOVE_OPERATION'; payload: string }
@@ -46,6 +47,13 @@ export type TableAction =
 
 function tableReducer(state: TableOperationsState, action: TableAction): TableOperationsState {
   switch (action.type) {
+    case 'CLEAR_TABLE_OPERATIONS':
+      return {
+        baseRows: [],
+        operations: [],
+        lastUndoableOperations: []
+      }
+
     case 'SET_BASE_ROWS':
       const newBaseRows = typeof action.payload === 'function' ? action.payload(state.baseRows) : action.payload
       return { ...state, baseRows: newBaseRows }
@@ -147,6 +155,14 @@ export function useTableOperations(activeTableId: number | null) {
     lastUndoableOperations: []
   })
 
+  const prevTableIdRef = useRef(activeTableId)
+  useEffect(() => {
+    if (prevTableIdRef.current !== activeTableId) {
+      prevTableIdRef.current = activeTableId
+      dispatch({ type: 'CLEAR_TABLE_OPERATIONS' })
+    }
+  }, [activeTableId])
+
   const derivedRows = useMemo(() => {
     // We already do optimistic updates in baseRows, but for 'move' status='staged',
     // we want to mark them so UI can render them with opacity.
@@ -176,6 +192,9 @@ export function useTableOperations(activeTableId: number | null) {
     const stagedMoveRowIds = new Set<number>()
 
     state.operations.forEach(op => {
+      // Isolate operations: skip any operation that does not belong to activeTableId
+      if (op.tableId && op.tableId !== activeTableId) return
+
       if (op.status === 'staged' && op.type === 'move' && op.rowIds) {
         op.rowIds.forEach(id => stagedMoveRowIds.add(id))
       }
@@ -204,7 +223,7 @@ export function useTableOperations(activeTableId: number | null) {
     })
 
     dispatch({ type: 'SET_BASE_ROWS', payload: merged })
-  }, [state.operations])
+  }, [state.operations, activeTableId])
 
   return {
     rows: derivedRows,
