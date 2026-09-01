@@ -173,7 +173,7 @@ export function CustomSelect({
         >
           <div
             ref={dropdownListRef}
-            className="custom-select-dropdown toolbar-popover-card"
+            className="custom-select-dropdown toolbar-popover-card animate-popover"
             style={{
               position: 'fixed',
               top: popoverCoords.top !== undefined ? `${popoverCoords.top}px` : undefined,
@@ -189,7 +189,6 @@ export function CustomSelect({
               padding: '4px',
               maxHeight: '220px',
               overflowY: 'auto',
-              animation: 'fadeIn 0.15s ease-out',
             }}
             onClick={(e) => e.stopPropagation()}
             onScroll={(e) => e.stopPropagation()}

@@ -1,7 +1,4 @@
-/* ==========================================================================
-   FYCD HD Manager - Global Modular Stylesheet Entrypoint
-   ========================================================================== */
-
+@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 /* 1. Design tokens, colors, dark theme variables, global resets & utility classes */

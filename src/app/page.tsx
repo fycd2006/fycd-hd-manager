@@ -436,7 +436,7 @@ export default function Home() {
 
   // Load table data and reset transient UI state when activeTableId changes
   useEffect(() => {
-    // Reset all transient UI states on table switch (Issue 2)
+    // Reset all transient UI states on table switch
     setEditingCell(null)
     setSelectedRow(null)
     setShowDetailModal(false)
@@ -445,9 +445,16 @@ export default function Home() {
     setSearchQuery('')
 
     if (wsState.activeTableId) {
+      setGridLoading(true)
+      setFields([])
+      setRows([])
       fetchTableData(wsState.activeTableId)
+    } else {
+      setFields([])
+      setRows([])
+      setGridLoading(false)
     }
-  }, [wsState.activeTableId, fetchTableData, setSearchQuery])
+  }, [wsState.activeTableId, fetchTableData, setSearchQuery, setRows, setFields])
 
   // Cell and batch editing hook
   const { updateCell, batchUpdateCells } = useCellEdit({
@@ -1123,50 +1130,52 @@ export default function Home() {
 
         <div className="layout__col-2" style={{ left: isSidebarCollapsed ? '56px' : '250px', transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
           {!wsState.activeTableId || wsState.activeTableId === 0 ? (
-            <WorkspaceDashboard
-              currentUser={authState.currentUser}
-              activeWorkspace={activeWorkspaceObj || null}
-              workspaces={wsState.workspaces}
-              onSelectTable={(tableId) => wsActions.setActiveTableId(tableId)}
-              onShowMembersModal={() => setShowMembersModal(true)}
-              onShowDatabaseModal={(wsId) => {
-                wsActions.setModalWsId(wsId)
-                wsActions.setShowDatabaseModal(true)
-              }}
-              onShowCreateTableModal={(dbId) => {
-                setModalDbIdForTable(dbId)
-                setShowTableModal(true)
-              }}
-              onSetRenameType={setRenameType}
-              onSetRenameId={setRenameId}
-              onSetRenameNameValue={setRenameNameValue}
-              onShowRenameModal={() => setShowRenameModal(true)}
-              onDeleteWorkspaceOrDb={(action, id, label) => {
-                if (confirm(`確定要刪除「${label}」？`)) {
-                  wsActions.deleteWorkspaceOrDb(action, id)
-                }
-              }}
-              onDeleteTable={async (tableId, tableName) => {
-                if (confirm(`確定要刪除資料表「${tableName}」？`)) {
-                  try {
-                    const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
-                    if (res.ok) {
-                      uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
-                      if (wsState.activeTableId === tableId) {
-                        wsActions.setActiveTableId(0)
+            <div key="workspace_dashboard" className="animate-view-transition" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <WorkspaceDashboard
+                currentUser={authState.currentUser}
+                activeWorkspace={activeWorkspaceObj || null}
+                workspaces={wsState.workspaces}
+                onSelectTable={(tableId) => wsActions.setActiveTableId(tableId)}
+                onShowMembersModal={() => setShowMembersModal(true)}
+                onShowDatabaseModal={(wsId) => {
+                  wsActions.setModalWsId(wsId)
+                  wsActions.setShowDatabaseModal(true)
+                }}
+                onShowCreateTableModal={(dbId) => {
+                  setModalDbIdForTable(dbId)
+                  setShowTableModal(true)
+                }}
+                onSetRenameType={setRenameType}
+                onSetRenameId={setRenameId}
+                onSetRenameNameValue={setRenameNameValue}
+                onShowRenameModal={() => setShowRenameModal(true)}
+                onDeleteWorkspaceOrDb={(action, id, label) => {
+                  if (confirm(`確定要刪除「${label}」？`)) {
+                    wsActions.deleteWorkspaceOrDb(action, id)
+                  }
+                }}
+                onDeleteTable={async (tableId, tableName) => {
+                  if (confirm(`確定要刪除資料表「${tableName}」？`)) {
+                    try {
+                      const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
+                      if (res.ok) {
+                        uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
+                        if (wsState.activeTableId === tableId) {
+                          wsActions.setActiveTableId(0)
+                        }
+                        await wsActions.fetchWorkspaces()
+                      } else {
+                        uiActions.addToast('刪除資料表失敗', 'error')
                       }
-                      await wsActions.fetchWorkspaces()
-                    } else {
+                    } catch (err) {
+                      console.error('Failed to delete table', err)
                       uiActions.addToast('刪除資料表失敗', 'error')
                     }
-                  } catch (err) {
-                    console.error('Failed to delete table', err)
-                    uiActions.addToast('刪除資料表失敗', 'error')
                   }
-                }
-              }}
-              onCreateFromTemplate={handleCreateDatabaseFromTemplate}
-            />
+                }}
+                onCreateFromTemplate={handleCreateDatabaseFromTemplate}
+              />
+            </div>
           ) : (
             <TableWorkspaceView
               isSidebarCollapsed={isSidebarCollapsed}

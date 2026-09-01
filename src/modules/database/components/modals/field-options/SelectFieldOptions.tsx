@@ -133,13 +133,14 @@ export function SelectFieldOptions({
                   borderRadius: '50%',
                   backgroundColor: colorStyles.text,
                   border: '2px solid #ffffff',
-                  boxShadow: '0 0 0 1px rgba(0,0,0,0.15)',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
                   cursor: 'pointer',
                   padding: 0,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
+                  outline: 'none',
                 }}
               />
 

@@ -68,7 +68,8 @@ export default function Modal({
           overflow: overflowVisible ? 'visible' : 'hidden',
           borderRadius: '16px',
           backgroundColor: '#ffffff',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(228, 228, 231, 0.9)'
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(228, 228, 231, 0.9)',
+          animation: 'scaleUpModal 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div

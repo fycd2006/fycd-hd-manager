@@ -36,7 +36,7 @@ export default function CalendarView({ fields, rows, onExpandRow, loading = fals
   // Expanded day modal state
   const [expandedDate, setExpandedDate] = useState<{ dateStr: string; rows: TableRow[] } | null>(null)
 
-  if (loading) {
+  if (loading || fields.length === 0) {
     return <CalendarViewSkeleton />
   }
 

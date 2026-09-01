@@ -8,6 +8,7 @@ import { useThemeStore } from '@/modules/database/store/useThemeStore'
 import { useWorkspaceStore } from '@/modules/database/store/useWorkspaceStore'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import MobileSearchModal from './MobileSearchModal'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 interface MobileBottomNavProps {
   workspaces: Workspace[]
@@ -839,8 +840,8 @@ export default function MobileBottomNav({
                 {t('mobileNav.alerts')}
               </span>
               {notificationCount > 0 && (
-                <span className="absolute top-0.5 right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8.5px] font-extrabold flex items-center justify-center shadow-xs">
-                  {notificationCount}
+                <span className="absolute top-0.5 right-1.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[8.5px] font-extrabold flex items-center justify-center shadow-xs">
+                  <SlidingNumber number={notificationCount} />
                 </span>
               )}
             </button>

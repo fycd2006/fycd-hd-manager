@@ -12,7 +12,8 @@ export const GalleryViewSkeleton: React.FC<GalleryViewSkeletonProps> = ({ loadin
       style={{
         width: '100%',
         height: '100%',
-        minHeight: '360px',
+        flex: 1,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#f8fafc',

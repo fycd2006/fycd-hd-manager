@@ -47,6 +47,7 @@ export default function PopoverPortal({
       />
       {/* Positioned container */}
       <div
+        className="animate-popover"
         onMouseDown={e => e.stopPropagation()}
         onTouchStart={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}

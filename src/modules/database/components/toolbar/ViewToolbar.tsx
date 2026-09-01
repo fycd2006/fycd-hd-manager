@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { PanelLeft, PanelLeftClose, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload } from 'lucide-react'
+import { PanelLeft, PanelLeftClose, PanelLeftOpen, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload } from 'lucide-react'
 import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -11,6 +11,7 @@ import { ColorMenu } from './menu/ColorMenu'
 import { GroupMenu } from './menu/GroupMenu'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 
 interface ViewToolbarProps {
@@ -376,7 +377,7 @@ export function ViewToolbar({
               <Filter size={18} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#64748b'} />
               {filterRules.length > 0 && (
                 <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
-                  {filterRules.length}
+                  <SlidingNumber number={filterRules.length} />
                 </span>
               )}
             </div>
@@ -411,7 +412,7 @@ export function ViewToolbar({
               <ArrowDownAZ size={18} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#64748b'} />
               {activeSortRules.length > 0 && (
                 <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
-                  {activeSortRules.length}
+                  <SlidingNumber number={activeSortRules.length} />
                 </span>
               )}
             </div>
@@ -446,7 +447,7 @@ export function ViewToolbar({
               <Palette size={18} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#64748b'} />
               {safeRowColorRules.length > 0 && (
                 <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
-                  {safeRowColorRules.length}
+                  <SlidingNumber number={safeRowColorRules.length} />
                 </span>
               )}
             </div>
@@ -481,7 +482,7 @@ export function ViewToolbar({
               <Layers size={18} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#64748b'} />
               {activeGroupByRules.length > 0 && (
                 <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
-                  {activeGroupByRules.length}
+                  <SlidingNumber number={activeGroupByRules.length} />
                 </span>
               )}
             </div>
@@ -516,7 +517,7 @@ export function ViewToolbar({
               <EyeOff size={18} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#64748b'} />
               {actualHiddenCount > 0 && (
                 <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
-                  {actualHiddenCount}
+                  <SlidingNumber number={actualHiddenCount} />
                 </span>
               )}
             </div>
@@ -675,6 +676,33 @@ export function ViewToolbar({
       ) : (
         /* Desktop Top Header Toolbar (>= 768px) */
         <header className="layout__col-2-1 header" ref={headerToolbarRef} style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', zIndex: 1000, overflowX: 'auto', overflowY: 'visible' }}>
+          {/* Sidebar Toggle Button (Shown only when sidebar is collapsed) */}
+          {isSidebarCollapsed && (
+            <button
+              type="button"
+              title={t('nav.expandSidebar') || '展開側邊欄'}
+              onClick={() => setIsSidebarCollapsed(false)}
+              style={{
+                border: 'none',
+                background: '#f0fdf4',
+                color: '#059669',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '32px',
+                height: '32px',
+                borderRadius: '6px',
+                marginRight: '8px',
+                flexShrink: 0,
+                transition: 'all 0.15s ease',
+              }}
+              className="hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
+            >
+              <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
+            </button>
+          )}
+
           <ul className="header__filter" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
             <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
               <a 

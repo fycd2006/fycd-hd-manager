@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { parseSelectItems } from '../grid/cells/utils'
 import { KanbanViewSkeleton } from './KanbanViewSkeleton'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 interface TableField {
   id: number
@@ -59,7 +60,7 @@ export default function KanbanView({
     }
   }, [singleSelectFields, selectedFieldId])
 
-  if (loading || !isMounted) {
+  if (loading || !isMounted || fields.length === 0) {
     return <KanbanViewSkeleton />
   }
 
@@ -205,10 +206,12 @@ export default function KanbanView({
                       background: 'rgba(255,255,255,0.05)',
                       padding: '2px 6px',
                       borderRadius: '10px',
-                      color: 'var(--text-muted)'
+                      color: 'var(--text-muted)',
+                      display: 'inline-flex',
+                      alignItems: 'center'
                     }}
                   >
-                    {colRows.length}
+                    <SlidingNumber number={colRows.length} />
                   </span>
                 </div>
 

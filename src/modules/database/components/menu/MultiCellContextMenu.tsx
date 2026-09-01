@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Copy, Scissors, Clipboard, Eraser, Trash2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/i18nContext';
 
@@ -31,6 +32,7 @@ export const MultiCellContextMenu: React.FC<MultiCellContextMenuProps> = ({
 }) => {
   const { t } = useI18n();
   const menuRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: y, left: x });
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -50,16 +52,37 @@ export const MultiCellContextMenu: React.FC<MultiCellContextMenuProps> = ({
     };
   }, [onClose]);
 
-  const adjustedX = Math.min(x, (typeof window !== 'undefined' ? window.innerWidth : 1000) - 220);
-  const adjustedY = Math.min(y, (typeof window !== 'undefined' ? window.innerHeight : 800) - 260);
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return;
+    const menuEl = menuRef.current;
+    const menuWidth = menuEl?.offsetWidth || 230;
+    const menuHeight = menuEl?.offsetHeight || 220;
+    const winWidth = window.innerWidth;
+    const winHeight = window.innerHeight;
 
-  return (
+    let left = x + 2;
+    let top = y + 2;
+
+    // Flip to left if overflowing right edge
+    if (left + menuWidth > winWidth - 10) {
+      left = Math.max(10, x - menuWidth - 2);
+    }
+
+    // Flip to top if overflowing bottom edge
+    if (top + menuHeight > winHeight - 10) {
+      top = Math.max(10, y - menuHeight - 2);
+    }
+
+    setCoords({ top, left });
+  }, [x, y]);
+
+  const menuContent = (
     <div
       ref={menuRef}
       style={{
         position: 'fixed',
-        top: `${adjustedY}px`,
-        left: `${adjustedX}px`,
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
         width: '230px',
         backgroundColor: 'rgba(255, 255, 255, 0.96)',
         backdropFilter: 'blur(16px)',
@@ -149,4 +172,7 @@ export const MultiCellContextMenu: React.FC<MultiCellContextMenuProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(menuContent, document.body);
 };

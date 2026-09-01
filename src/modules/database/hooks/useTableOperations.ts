@@ -49,7 +49,7 @@ function tableReducer(state: TableOperationsState, action: TableAction): TableOp
   switch (action.type) {
     case 'CLEAR_TABLE_OPERATIONS':
       return {
-        baseRows: [],
+        ...state,
         operations: [],
         lastUndoableOperations: []
       }

@@ -84,7 +84,7 @@ export default function TimelineView({
     }
   }, [currentDate])
 
-  if (loading) {
+  if (loading || fields.length === 0) {
     return <TimelineViewSkeleton />
   }
 

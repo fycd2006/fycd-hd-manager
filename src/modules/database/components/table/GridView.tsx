@@ -108,7 +108,7 @@ export default function GridView({
   stageMoveRows,
   cancelMoveRows,
 }: GridViewProps) {
-  if (gridLoading) {
+  if (gridLoading || visibleFields.length === 0) {
     return <WorkspaceGridSkeleton />
   }
 
@@ -155,45 +155,87 @@ export default function GridView({
   }
 
   return (
-    <div className="baserow-grid-view-wrapper" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-      <GridViewContent
-        fields={mappedFields}
-        rows={mappedRows}
-        sortField={sortField}
-        sortOrder={sortOrder}
-        sortRules={sortRules}
-        groupByField={groupByField}
-        groupByRules={groupByRules}
-        rowColorRules={rowColorRules}
-        onUpdateCell={handleUpdateCell}
-        onBatchUpdateCells={readOnly ? undefined : onBatchUpdateCells}
-        onAddRow={readOnly ? () => {} : onAddRow}
-        onAddField={readOnly ? () => {} : onShowNewFieldModal}
-        onAddFieldPopover={readOnly ? undefined : onAddFieldPopover}
-        onResizeColumn={handleResizeColumn}
-        onResizeColumnEnd={handleResizeColumnEnd}
-        onExpandRow={handleExpandRow}
-        onDeleteRow={readOnly ? undefined : onDeleteRow}
-        onFieldClick={(field) => onToggleSort?.(`field_${field.id}`)}
-        onOpenFieldContextMenu={readOnly ? undefined : onOpenFieldContextMenu}
-        onUpdateField={readOnly ? undefined : onUpdateField}
-        onUndo={onUndo}
-        onRedo={onRedo}
-        onReorderFields={(srcId, targetId) => (onHandleColumnDrop as any)?.(undefined, targetId, srcId)}
-        onReorderRows={onReorderRows}
-        onBatchAddRows={onBatchAddRows}
-        batchMoveRows={batchMoveRows}
-        stageMoveRows={stageMoveRows}
-        cancelMoveRows={cancelMoveRows}
-        isOffline={isOffline}
-        tableId={tableId}
-        viewId={viewId}
-        newFieldScrollTrigger={newFieldScrollTrigger}
-        initialAggregations={initialAggregations}
-        onUpdateAggregations={onUpdateAggregations}
-        groupCollapseState={groupCollapseState}
-        onUpdateGroupCollapseState={onUpdateGroupCollapseState}
-      />
+    <div
+      className="baserow-grid-view-wrapper"
+      style={{
+        height: '100%',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      {/* Top seamless Animate UI Loading Shimmer Beam during refetch/switch */}
+      {gridLoading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2px',
+            zIndex: 9999,
+            background: 'linear-gradient(90deg, transparent 0%, #52A628 35%, #EA580C 65%, transparent 100%)',
+            backgroundSize: '200% 100%',
+            boxShadow: '0 0 10px rgba(82, 166, 40, 0.45)',
+            animation: 'fycdBarShimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
+      <div
+        style={{
+          flex: 1,
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          opacity: gridLoading ? 0.75 : 1,
+          transition: 'opacity 0.2s ease-out',
+        }}
+      >
+        <GridViewContent
+          fields={mappedFields}
+          rows={mappedRows}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          sortRules={sortRules}
+          groupByField={groupByField}
+          groupByRules={groupByRules}
+          rowColorRules={rowColorRules}
+          onUpdateCell={handleUpdateCell}
+          onBatchUpdateCells={readOnly ? undefined : onBatchUpdateCells}
+          onAddRow={readOnly ? () => {} : onAddRow}
+          onAddField={readOnly ? () => {} : onShowNewFieldModal}
+          onAddFieldPopover={readOnly ? undefined : onAddFieldPopover}
+          onResizeColumn={handleResizeColumn}
+          onResizeColumnEnd={handleResizeColumnEnd}
+          onExpandRow={handleExpandRow}
+          onDeleteRow={readOnly ? undefined : onDeleteRow}
+          onFieldClick={(field) => onToggleSort?.(`field_${field.id}`)}
+          onOpenFieldContextMenu={readOnly ? undefined : onOpenFieldContextMenu}
+          onUpdateField={readOnly ? undefined : onUpdateField}
+          onUndo={onUndo}
+          onRedo={onRedo}
+          onReorderFields={(srcId, targetId) => (onHandleColumnDrop as any)?.(undefined, targetId, srcId)}
+          onReorderRows={onReorderRows}
+          onBatchAddRows={onBatchAddRows}
+          batchMoveRows={batchMoveRows}
+          stageMoveRows={stageMoveRows}
+          cancelMoveRows={cancelMoveRows}
+          isOffline={isOffline}
+          tableId={tableId}
+          viewId={viewId}
+          newFieldScrollTrigger={newFieldScrollTrigger}
+          initialAggregations={initialAggregations}
+          onUpdateAggregations={onUpdateAggregations}
+          groupCollapseState={groupCollapseState}
+          onUpdateGroupCollapseState={onUpdateGroupCollapseState}
+        />
+      </div>
     </div>
   )
 }

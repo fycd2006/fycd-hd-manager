@@ -45,7 +45,7 @@ export default function FormView({
   const [shareUrl, setShareUrl] = useState('')
   const [shareCopied, setShareCopied] = useState(false)
 
-  if (loading) {
+  if (loading || fields.length === 0) {
     return <FormViewSkeleton />
   }
 

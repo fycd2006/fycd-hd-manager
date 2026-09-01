@@ -1,45 +1,94 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
-import type { User, Workspace } from '@/modules/database/types'
+import React, { useState } from 'react'
+import { motion } from 'motion/react'
+import type { Workspace, User } from '@/modules/database/types'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import {
-  ChevronsUpDown,
+  SidebarProvider,
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarRail,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuBadge,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
+  SidebarMenuAction,
+} from '@/components/animate-ui/components/radix/sidebar'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/animate-ui/primitives/radix/collapsible'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from '@/components/animate-ui/components/radix/dropdown-menu'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@/components/ui/avatar'
+import {
+  Home,
+  Bell,
+  Users,
+  Database as DatabaseIcon,
+  Table as TableIcon,
   Plus,
   ChevronRight,
-  Database as DatabaseIcon,
-  MoreVertical,
-  Pencil,
+  ChevronsUpDown,
+  MoreHorizontal,
   Trash2,
-  PanelLeftClose,
-  PanelLeft,
-  PanelLeftOpen,
-  Home,
-  Table as TableIcon,
-  Users,
-  UserPlus,
-  Bell,
-  Sun,
-  Moon,
+  Pencil,
+  Settings,
   LogOut,
+  Moon,
+  Sun,
   Sliders,
-  Search,
+  Sparkles,
+  CreditCard,
+  FolderPlus,
   Check,
-  User as UserIcon,
-  FileText,
-  GripVertical
+  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
+import {
+  AnimatedHome,
+  AnimatedBell,
+  AnimatedUsers,
+  AnimatedDatabase,
+  AnimatedTable,
+  AnimatedFolderPlus,
+  AnimatedPlus,
+} from '@/components/animate-ui/icons'
 
 interface SidebarProps {
   currentUser: User
   workspaces: Workspace[]
   activeWorkspaceId: number | null
   activeTableId: number | null
-  collapsedWorkspaces: Record<number, boolean>
+  collapsedWorkspaces?: Record<number, boolean>
   collapsedDatabases: Record<number, boolean>
   theme: 'light' | 'dark'
-  showDarkReaderPanel: boolean
-  darkReaderSettings: { brightness: number; contrast: number; sepia: number; grayscale: number }
+  showDarkReaderPanel?: boolean
+  darkReaderSettings?: { brightness: number; contrast: number; sepia: number; grayscale: number }
   isSidebarCollapsed?: boolean
   memberCount?: number
   notificationCount?: number
@@ -51,7 +100,7 @@ interface SidebarProps {
   // Actions
   onToggleTheme: () => void
   onLogout: () => void
-  onToggleWorkspaceCollapse: (wsId: number) => void
+  onToggleWorkspaceCollapse?: (wsId: number) => void
   onToggleDatabaseCollapse: (dbId: number) => void
   onSetActiveWorkspaceId: (wsId: number) => void
   onSetActiveTableId: (tableId: number) => void
@@ -65,7 +114,7 @@ interface SidebarProps {
   onShowRenameModal: () => void
   onDeleteWorkspaceOrDb: (action: 'delete_workspace' | 'delete_database', id: number, label: string) => void
   onToggleDarkReaderPanel: () => void
-  onUpdateDarkReaderSettings: (settings: Partial<{ brightness: number; contrast: number; sepia: number; grayscale: number }>) => void
+  onUpdateDarkReaderSettings?: (settings: Partial<{ brightness: number; contrast: number; sepia: number; grayscale: number }>) => void
   onDeleteDarkReaderSettings?: (settings: Partial<{ brightness: number; contrast: number; sepia: number; grayscale: number }>) => void
   onDeleteTable?: (tableId: number, tableName: string) => void
   userPermissions?: any
@@ -74,7 +123,7 @@ interface SidebarProps {
   onReorderDatabases?: (wsId: number, orderedDbIds: number[]) => void
 }
 
-export default function Sidebar({
+export default function AppSidebar({
   currentUser,
   workspaces,
   activeWorkspaceId,
@@ -108,963 +157,633 @@ export default function Sidebar({
   userPermissions,
   onSelectDashboard,
   onMoveTableToDatabase,
-  onReorderDatabases
 }: SidebarProps) {
   const { t } = useI18n()
-  const [activeMenuKey, setActiveMenuKey] = useState<string | null>(null)
-  
-  // Drag and Drop State
+
+  // Drag and drop state for tables
   const [draggedItem, setDraggedItem] = useState<{ type: 'database' | 'table'; id: number; sourceDbId?: number } | null>(null)
-  const [dropTarget, setDropTarget] = useState<{ type: 'database' | 'table'; id: number; position?: 'before' | 'after' | 'inside' } | null>(null)
-  
-  const [workspaceSearchQuery, setWorkspaceSearchQuery] = useState('')
-  const popoverRef = useRef<HTMLDivElement>(null)
+  const [dropTarget, setDropTarget] = useState<{ type: 'database' | 'table'; id: number } | null>(null)
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0]
-  const activeWorkspaceName = activeWorkspace ? activeWorkspace.name : '選擇工作區'
   const canManageStructure = userPermissions?.canManageStructure ?? true
 
-  const toggleMenu = (key: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    setActiveMenuKey(prev => prev === key ? null : key)
-  }
-
-  const closeMenu = () => {
-    setActiveMenuKey(null)
-  }
-
-  // Close menus on outside click or Escape key
-  React.useEffect(() => {
-    if (!activeMenuKey) return
-
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setActiveMenuKey(null)
-      }
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setActiveMenuKey(null)
-      }
-    }
-
-    window.addEventListener('mousedown', handleOutsideClick)
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('mousedown', handleOutsideClick)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [activeMenuKey])
+  const userInitials = (currentUser?.username || currentUser?.email || 'U').slice(0, 2).toUpperCase()
 
   return (
-    <>
-      <style>{`
-        .sidebar-hover-item { transition: all 0.15s ease; }
-        .sidebar-hover-item:hover { background-color: rgba(15, 23, 42, 0.05) !important; }
-        .sidebar-hover-icon { transition: all 0.15s ease; }
-        .sidebar-hover-icon:hover { background-color: rgba(15, 23, 42, 0.08) !important; color: #0f172a !important; }
-        .sidebar-active-table {
-          background-color: #F4F4F5 !important;
-          color: #2d470d !important;
-          font-weight: 600 !important;
-        }
-        .sidebar-active-table::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 4px;
-          bottom: 4px;
-          width: 3px;
-          background-color: #3F6212;
-          border-radius: 0 4px 4px 0;
-        }
-      `}</style>
-
+    <SidebarProvider open={!isSidebarCollapsed} onOpenChange={() => onToggleSidebarCollapse?.()}>
       <div
         className={`layout__col-1 ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`}
         style={{
           width: isSidebarCollapsed ? '56px' : '250px',
           minWidth: isSidebarCollapsed ? '56px' : '250px',
           maxWidth: isSidebarCollapsed ? '56px' : '250px',
-          opacity: 1,
-          visibility: 'visible',
-          overflow: 'hidden',
           transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-          position: 'relative',
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 10,
+          backgroundColor: '#ffffff',
+          borderRight: '1px solid #e2e8f0',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: '#f8fafc',
-          borderRight: '1px solid #e2e8f0',
-          zIndex: 50,
-          userSelect: 'none'
+          overflow: 'hidden',
         }}
-        onClick={closeMenu}
       >
-        {isSidebarCollapsed ? (
-          /* Mini Collapsed Sidebar Strip (width: 56px) */
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', boxSizing: 'border-box' }}>
-            {/* Top Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', width: '100%' }}>
-              {/* Top Expand Button & Logo */}
-              <button
-                onClick={onToggleSidebarCollapse}
-                title="展開側邊欄"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'transform 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.08)')}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-              >
-                <img
-                  src="/logo.png"
-                  alt="FYCD HD Manager Logo"
-                  style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #EA580C', boxShadow: '0 2px 6px rgba(234, 88, 12, 0.25)' }}
-                />
-              </button>
+        <Sidebar collapsible="none" className="w-full h-full bg-slate-50/50 dark:bg-slate-900/50 border-none">
+          {/* 1. Header: Workspace Switcher & Collapse Toggle */}
+          <SidebarHeader style={{ height: '52px', minHeight: '52px', maxHeight: '52px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-b border-slate-200/60 dark:border-slate-800/60">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '4px' }}>
+              <SidebarMenu style={{ flex: 1, minWidth: 0 }}>
+                <SidebarMenuItem>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton
+                        size="lg"
+                        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: isSidebarCollapsed ? 0 : '8px', padding: isSidebarCollapsed ? '0 4px' : '0 8px', borderRadius: '8px', height: '42px', minHeight: '42px', maxHeight: '42px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start' }}
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
+                      >
+                        <div
+                          style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}
+                          className="shadow-sm"
+                        >
+                          {activeWorkspace?.name?.[0]?.toUpperCase() || 'F'}
+                        </div>
+                        {!isSidebarCollapsed && (
+                          <>
+                            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
+                              <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                {activeWorkspace?.name || 'FYCD 工作區'}
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                {activeWorkspace?.databases?.length || 0} 個資料庫
+                              </span>
+                            </div>
+                            <ChevronsUpDown style={{ width: '14px', height: '14px', marginLeft: 'auto', flexShrink: 0, color: '#94a3b8' }} />
+                          </>
+                        )}
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-64 rounded-xl shadow-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}
+                >
+                  <DropdownMenuLabel style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', padding: '4px 8px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                    工作區列表
+                  </DropdownMenuLabel>
+                  {workspaces.map((ws, index) => {
+                    const isSelected = ws.id === activeWorkspaceId
+                    return (
+                      <DropdownMenuItem
+                        key={ws.id}
+                        onClick={() => onSetActiveWorkspaceId(ws.id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          backgroundColor: isSelected ? '#f0fdf4' : undefined,
+                        }}
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-slate-100 dark:focus:bg-slate-800 data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-800 transition-colors"
+                      >
+                        <div style={{
+                          width: '24px',
+                          height: '24px',
+                          minWidth: '24px',
+                          borderRadius: '6px',
+                          border: isSelected ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
+                          background: isSelected ? '#ecfdf5' : '#f8fafc',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 'bold',
+                          fontSize: '11px',
+                          flexShrink: 0,
+                          color: isSelected ? '#059669' : '#334155'
+                        }}>
+                          {ws.name[0]?.toUpperCase() || 'W'}
+                        </div>
+                        <div style={{
+                          flex: 1,
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: '13px',
+                          fontWeight: isSelected ? 600 : 500,
+                          color: isSelected ? '#059669' : '#0f172a'
+                        }}>
+                          {ws.name}
+                        </div>
+                        {isSelected && <Check style={{ width: '14px', height: '14px', color: '#059669', marginLeft: 'auto', flexShrink: 0 }} />}
+                        <DropdownMenuShortcut style={{ marginLeft: isSelected ? '4px' : 'auto' }}>⌘{index + 1}</DropdownMenuShortcut>
+                      </DropdownMenuItem>
+                    )
+                  })}
+                  <DropdownMenuSeparator />
+                  
+                  {canManageStructure && (
+                    <DropdownMenuItem
+                      onClick={onShowWorkspaceModal}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', color: '#059669', fontWeight: 600, fontSize: '13px' }}
+                      className="hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    >
+                      <div style={{ width: '24px', height: '24px', minWidth: '24px', borderRadius: '6px', border: '1px dashed #6ee7b7', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#059669' }}>
+                        <Plus style={{ width: '14px', height: '14px' }} />
+                      </div>
+                      <span>建立新工作區</span>
+                    </DropdownMenuItem>
+                  )}
 
-              <button
-                onClick={onToggleSidebarCollapse}
-                title="展開側邊欄"
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  backgroundColor: '#F4F4F5',
-                  border: '1px solid #E4E4E7',
-                  color: '#18181B',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#F4F4F5'
-                  e.currentTarget.style.transform = 'scale(1.05)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#F4F4F5'
-                  e.currentTarget.style.transform = 'scale(1)'
-                }}
-              >
-                <PanelLeftOpen size={18} />
-              </button>
+                  {activeWorkspace && canManageStructure && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => {
+                          onSetRenameType('workspace')
+                          onSetRenameId(activeWorkspace.id)
+                          onSetRenameNameValue(activeWorkspace.name)
+                          onShowRenameModal()
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#475569' }}
+                        className="hover:bg-slate-100 dark:hover:bg-slate-800"
+                      >
+                        <Pencil style={{ width: '13px', height: '13px' }} />
+                        <span>重新命名當前工作區</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDeleteWorkspaceOrDb('delete_workspace', activeWorkspace.id, activeWorkspace.name)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#dc2626' }}
+                        className="hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        <Trash2 style={{ width: '13px', height: '13px' }} />
+                        <span>刪除當前工作區</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
 
-              <div style={{ width: '28px', height: '1px', backgroundColor: '#e2e8f0' }} />
+          {/* Sidebar Collapse Toggle Button */}
+          {!isSidebarCollapsed && (
+            <button
+              type="button"
+              title={t('nav.collapseSidebar') || '收合側邊欄'}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleSidebarCollapse?.()
+              }}
+              style={{
+                width: '28px',
+                height: '28px',
+                minWidth: '28px',
+                borderRadius: '6px',
+                border: 'none',
+                background: 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#64748b',
+                flexShrink: 0,
+                transition: 'all 0.15s ease',
+              }}
+              className="hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              <PanelLeftClose style={{ width: '16px', height: '16px' }} />
+            </button>
+          )}
+        </div>
+      </SidebarHeader>
 
-              {/* Home Dashboard Shortcut */}
-              {onSelectDashboard && (
-                <button
+        {/* 2. Content: Navigation & Databases/Tables Tree */}
+        <SidebarContent className="p-2 gap-3">
+          {/* Quick Platform Navigation Group */}
+          <SidebarGroup className="p-0">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={!activeTableId || activeTableId === 0}
                   onClick={onSelectDashboard}
-                  title={t('nav.home')}
+                  tooltip={isSidebarCollapsed ? (t('nav.home') || '首頁') : undefined}
+                  className="data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 dark:data-[active=true]:bg-emerald-950/40 dark:data-[active=true]:text-emerald-400 font-medium"
+                >
+                  <AnimatedHome style={{ width: '16px', height: '16px', minWidth: '16px', color: '#059669', flexShrink: 0 }} />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.home') || '首頁'}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
 
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={onShowNotificationsModal}
+                  tooltip={isSidebarCollapsed ? (t('nav.notifications') || '通知中心') : undefined}
+                >
+                  <AnimatedBell style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.notifications') || '通知中心'}</span>
+                  {notificationCount > 0 && (
+                    <SidebarMenuBadge style={{ background: '#f97316', color: '#ffffff' }}>
+                      {notificationCount}
+                    </SidebarMenuBadge>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={onShowMembersModal}
+                  tooltip={isSidebarCollapsed ? (t('nav.members') || '成員管理') : undefined}
+                >
+                  <AnimatedUsers style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
+                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.members') || '成員管理'}</span>
+                  {memberCount !== undefined && (
+                    <SidebarMenuBadge style={{ color: '#94a3b8' }}>
+                      {memberCount}
+                    </SidebarMenuBadge>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+
+          {/* Databases & Tables Group */}
+          <SidebarGroup className="p-0 mt-1">
+            <SidebarGroupLabel
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '4px 8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#64748b',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                whiteSpace: 'nowrap',
+              }}
+              className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1"
+            >
+              <span style={{ whiteSpace: 'nowrap' }}>資料庫清單</span>
+              {canManageStructure && activeWorkspaceId && !isSidebarCollapsed && (
+                <button
+                  type="button"
+                  onClick={() => onShowDatabaseModal(activeWorkspaceId)}
+                  title={t('nav.createDatabase') || '新增資料庫'}
+                  aria-label={t('nav.createDatabase') || '新增資料庫'}
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '10px',
-                    backgroundColor: activeTableId === 0 ? '#F4F4F5' : 'transparent',
-                    border: activeTableId === 0 ? '1px solid #E4E4E7' : '1px solid transparent',
-                    color: activeTableId === 0 ? '#3F6212' : '#64748b',
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '5px',
+                    color: '#64748b',
+                    padding: 0,
+                    transition: 'all 0.15s ease',
                   }}
-                  onMouseEnter={(e) => {
-                    if (activeTableId !== 0) e.currentTarget.style.backgroundColor = '#f1f5f9'
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeTableId !== 0) e.currentTarget.style.backgroundColor = 'transparent'
-                  }}
+                  className="hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400 active:scale-95"
                 >
-                  <Home size={18} />
+                  <FolderPlus style={{ width: '14px', height: '14px' }} />
+                  <span className="sr-only">{t('nav.createDatabase') || '新增資料庫'}</span>
                 </button>
               )}
+            </SidebarGroupLabel>
 
-              {/* Workspace Badge Icon */}
-              <div
-                title={`${t('nav.workspaces')}: ${activeWorkspaceName}`}
-                onClick={onToggleSidebarCollapse}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '10px',
-                  background: '#18181B',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  boxShadow: '0 3px 10px rgba(63, 98, 18, 0.35)',
-                  transition: 'transform 0.15s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                {activeWorkspaceName.charAt(0).toUpperCase()}
-              </div>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {activeWorkspace?.databases?.map((db) => {
+                  const isDbCollapsed = collapsedDatabases[db.id] ?? false
+                  const hasTables = db.tables && db.tables.length > 0
 
-            </div>
-
-            {/* Bottom Section */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', width: '100%' }}>
-              <button
-                onClick={onToggleTheme}
-                title={theme === 'dark' ? t('nav.toggleLightMode') : t('nav.toggleDarkMode')}
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  color: '#64748b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
-
-              <button
-                onClick={onLogout}
-                title={t('nav.logout')}
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  color: '#ef4444',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                <LogOut size={18} />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="sidebar" style={{ height: '100%', display: 'flex', flexDirection: 'column', minWidth: '250px' }}>
-            {/* Global Backdrop Dismiss for Active Sidebar Dropdown Menus */}
-            {activeMenuKey && (
-              <div
-                style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'transparent', pointerEvents: 'auto' }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setActiveMenuKey(null)
-                }}
-              />
-            )}
-
-            {/* Layer 1: Topmost Workspace Header Selector Bar (Image 3 Content - 52px height aligned with toolbar) */}
-            <div style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 10px', borderBottom: '1px solid #e2e8f0', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', overflow: 'hidden' }}>
-
-              <div
-                className="sidebar-hover-item"
-                onClick={(e) => {
-                  if (isSidebarCollapsed) {
-                    onToggleSidebarCollapse?.()
-                  } else {
-                    toggleMenu('workspace-selector', e)
-                  }
-                }}
-                title={t('nav.switchWorkspace')}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1, height: '38px', padding: '0 8px', borderRadius: '8px', cursor: 'pointer', boxSizing: 'border-box' }}
-              >
-                <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: '#18181B', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', flexShrink: 0, boxShadow: '0 1px 4px rgba(24, 24, 27, 0.2)' }}>
-                  {activeWorkspaceName.charAt(0).toUpperCase()}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '1.2' }}>
-                    {activeWorkspaceName}
-                  </span>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500, lineHeight: '1' }}>
-                    工作區
-                  </span>
-                </div>
-                <ChevronsUpDown size={14} color="#64748b" style={{ flexShrink: 0 }} />
-              </div>
-
-              {onToggleSidebarCollapse && (
-                <button
-                  onClick={onToggleSidebarCollapse}
-                  title={t('nav.collapseSidebar')}
-                  className="sidebar-hover-icon"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', width: '32px', height: '32px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '4px', flexShrink: 0 }}
-                >
-                  <PanelLeftClose size={16} />
-                </button>
-              )}
-            </div>
-
-
-            {/* Workspace Switcher Dropdown (Positioned cleanly below top 52px bar at top: 56px) */}
-            {activeMenuKey === 'workspace-selector' && (() => {
-              const filteredWorkspaces = workspaces.filter(w =>
-                w.name.toLowerCase().includes(workspaceSearchQuery.toLowerCase())
-              )
-
-              return (
-                <div
-                  ref={popoverRef}
-                  style={{
-                    position: 'absolute', top: '56px', left: '6px', right: '6px', zIndex: 100000,
-                    background: '#ffffff', boxShadow: '0 20px 45px -8px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(0,0,0,0.04)', borderRadius: '14px',
-                    border: '1px solid #e2e8f0', padding: '6px', animation: 'fadeIn 0.15s ease-out'
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-
-                  {/* Search Bar */}
-                  <div style={{ padding: '6px 10px', borderBottom: '1px solid #f1f5f9' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
-                      <Search size={14} color="#94a3b8" />
-                      <input
-                        type="text"
-                        placeholder="Search"
-                        value={workspaceSearchQuery}
-                        onChange={(e) => setWorkspaceSearchQuery(e.target.value)}
-                        style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', width: '100%', color: '#0f172a' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Filtered Workspace List */}
-                  <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '4px 0' }}>
-                    {filteredWorkspaces.map(ws => {
-                      const isActive = activeWorkspaceId === ws.id
-                      const initials = ws.name.slice(0, 2).toUpperCase()
-                      return (
-                        <div
-                          key={ws.id}
-                          className="sidebar-hover-item"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onSetActiveWorkspaceId(ws.id)
-                            closeMenu()
-                          }}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation()
-                            if (canManageStructure) {
-                              closeMenu()
-                              onSetRenameType('workspace')
-                              onSetRenameId(ws.id)
-                              onSetRenameNameValue(ws.name)
-                              onShowRenameModal()
-                            }
-                          }}
-                          style={{
-                            padding: '7px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            cursor: 'pointer', fontSize: '13px', backgroundColor: isActive ? '#F4F4F5' : 'transparent',
-                            borderRadius: '8px', marginBottom: '2px', transition: 'background-color 0.12s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                            <div style={{
-                              width: '26px', height: '26px', borderRadius: '7px',
-                              background: isActive ? '#3F6212' : '#F4F4F5',
-                              color: isActive ? '#ffffff' : '#3F6212',
-                              border: isActive ? 'none' : '1px solid #E4E4E7',
-                              boxShadow: isActive ? '0 2px 6px rgba(63, 98, 18, 0.25)' : 'none',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              fontSize: '11px', fontWeight: 700, flexShrink: 0
-                            }}>
-                              {initials}
-                            </div>
-
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isActive ? 600 : 400, color: isActive ? '#0f172a' : '#334155' }}>
-                              {ws.name}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {canManageStructure && (
-                              <button
-                                title={t('nav.renameWorkspace')}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  closeMenu()
-                                  onSetRenameType('workspace')
-                                  onSetRenameId(ws.id)
-                                  onSetRenameNameValue(ws.name)
-                                  onShowRenameModal()
-                                }}
-                                style={{
-                                  border: 'none',
-                                  background: 'none',
-                                  cursor: 'pointer',
-                                  color: '#94a3b8',
-                                  padding: '3px 6px',
-                                  borderRadius: '4px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.color = '#1e293b'; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
-                              >
-                                <Pencil size={13} />
-                              </button>
-                            )}
-                            {isActive && <Check size={16} color="#3F6212" />}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-
-                  {/* Add New Workspace Button */}
-                  {canManageStructure && (
-                    <div style={{ padding: '6px 4px 6px 4px', borderBottom: '1px solid #f1f5f9' }}>
-                      <div
-                        className="sidebar-hover-item"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          closeMenu()
-                          onShowWorkspaceModal()
-                        }}
-                        style={{
-                          padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '10px',
-                          cursor: 'pointer', fontSize: '13px', color: '#18181B', fontWeight: 600,
-                          border: '1.5px dashed #E4E4E7', borderRadius: '10px', backgroundColor: '#F4F4F5',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F4F4F5'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#F4F4F5'}
-                      >
-                        <div style={{ width: '22px', height: '22px', borderRadius: '6px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                          <Plus size={14} color="#3F6212" />
-                        </div>
-                        <span>{t('nav.createWorkspace')}</span>
-                      </div>
-                    </div>
-                  )}
-
-
-                  {/* User Account Info Section */}
-                  <div style={{ paddingTop: '6px' }}>
-                    <div style={{ padding: '4px 12px 6px 12px', fontSize: '12px', color: '#64748b', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {currentUser?.email || 'user@example.com'}
-                    </div>
-
-                    <div
-                      className="sidebar-hover-item"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        closeMenu()
-                        onShowUserSettingsModal?.()
-                      }}
-                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}
+                  return (
+                    <Collapsible
+                      key={db.id}
+                      open={!isDbCollapsed}
+                      onOpenChange={() => onToggleDatabaseCollapse(db.id)}
+                      className="group/collapsible w-full"
                     >
-                      <UserIcon size={16} color="#64748b" />
-                      <span>{t('nav.accountSettings')}</span>
-                    </div>
-
-                    <div
-                      className="sidebar-hover-item"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        closeMenu()
-                        onShowSubscriptionModal?.()
-                      }}
-                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#0f172a' }}
-                    >
-                      <FileText size={16} color="#64748b" />
-                      <span>{t('common.settings')}</span>
-                    </div>
-
-                    <div
-                      className="sidebar-hover-item"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        closeMenu()
-                        onLogout()
-                      }}
-                      style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#ef4444', fontWeight: 500 }}
-                    >
-                      <LogOut size={16} color="#ef4444" />
-                      <span>{t('nav.logout')}</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* Navigation & Database Tree Section */}
-            {activeWorkspace && (
-              <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
-
-                {/* Workspace Quick Actions */}
-                <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '3px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
-                  <div
-                    onClick={() => onSelectDashboard ? onSelectDashboard() : onSetActiveTableId(0)}
-                    className="sidebar-hover-item"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '7px 10px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: activeTableId === null || activeTableId === 0 ? 600 : 500,
-                      backgroundColor: activeTableId === null || activeTableId === 0 ? '#F4F4F5' : 'transparent',
-                      color: activeTableId === null || activeTableId === 0 ? '#3F6212' : '#334155',
-                      boxShadow: activeTableId === null || activeTableId === 0 ? 'inset 0 0 0 1px rgba(63, 98, 18, 0.18)' : 'none',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <Home size={16} color={activeTableId === null || activeTableId === 0 ? '#3F6212' : '#64748b'} />
-                    <span>{t('nav.home')}</span>
-                  </div>
-                  <div
-                    onClick={() => onShowNotificationsModal?.()}
-                    className="sidebar-hover-item"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Bell size={16} color="#64748b" />
-                      <span>{t('nav.notifications')}</span>
-                    </div>
-                    {notificationCount > 0 && (
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#ef4444', backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '1px 7px', borderRadius: '10px' }}>
-                        {notificationCount}
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    onClick={() => onShowMembersModal?.()}
-                    className="sidebar-hover-item"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Users size={16} color="#64748b" />
-                      <span>{t('nav.members')}</span>
-                    </div>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#18181B', backgroundColor: '#F4F4F5', border: '1px solid #F4F4F5', padding: '1px 7px', borderRadius: '10px' }}>
-                      {memberCount ?? 1}
-                    </span>
-                  </div>
-
-                  {canManageStructure && (
-                    <div
-                      onClick={() => onShowMembersModal?.()}
-                      className="sidebar-hover-item"
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px', borderRadius: '8px', cursor: 'pointer', color: '#334155', fontSize: '13px', fontWeight: 500, transition: 'all 0.15s ease' }}
-                    >
-                      <UserPlus size={16} color="#64748b" />
-                      <span>{t('members.inviteMember')}</span>
-                    </div>
-                  )}
-                </div>
-
-
-                {/* Databases Header */}
-                <div 
-                  onClick={() => {
-                    const wsId = activeWorkspace?.id || activeWorkspaceId
-                    if (wsId) onShowDatabaseModal(wsId)
-                  }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 8px', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', borderRadius: '6px', userSelect: 'none' }}
-                  className="sidebar-hover-item"
-                  title={t('nav.createDatabase')}
-                >
-                  <span>{t('nav.createDatabase')}</span>
-                  <button
-                    title={t('nav.createDatabase')}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      const wsId = activeWorkspace?.id || activeWorkspaceId
-                      if (wsId) onShowDatabaseModal(wsId)
-                    }}
-                    style={{
-                      background: '#18181B',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: '#ffffff',
-                      padding: '4px',
-                      borderRadius: '5px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                      transition: 'transform 0.1s ease'
-                    }}
-                    onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.92)'}
-                    onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                  >
-                    <Plus size={14} color="#ffffff" />
-                  </button>
-                </div>
-
-                {/* Databases Tree */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {activeWorkspace.databases.map(db => {
-                    const dbMenuKey = `db-${db.id}`
-                    const isDbMenuOpen = activeMenuKey === dbMenuKey
-                    const isDbCollapsed = !!collapsedDatabases[db.id]
-
-                    return (
-                      <div key={db.id} style={{ display: 'flex', flexDirection: 'column' }}>
-
-                        {/* Database Item Row */}
-                        <div
-                          className="sidebar-hover-item"
-                          draggable={canManageStructure}
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'database', id: db.id }))
-                            setDraggedItem({ type: 'database', id: db.id })
-                          }}
-                          onDragOver={(e) => {
-                            if (!draggedItem) return
-                            e.preventDefault()
-                            e.stopPropagation()
-                            if (draggedItem.type === 'database' && draggedItem.id !== db.id) {
-                              setDropTarget({ type: 'database', id: db.id })
-                            } else if (draggedItem.type === 'table') {
-                              setDropTarget({ type: 'database', id: db.id, position: 'inside' })
-                            }
-                          }}
-                          onDragLeave={(e) => {
-                            e.preventDefault()
-                            setDropTarget(prev => prev?.id === db.id ? null : prev)
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            if (!draggedItem) return
-                            if (draggedItem.type === 'database' && draggedItem.id !== db.id && activeWorkspace) {
-                              const currentDbs = activeWorkspace.databases.map(d => d.id)
-                              const fromIdx = currentDbs.indexOf(draggedItem.id)
-                              const toIdx = currentDbs.indexOf(db.id)
-                              if (fromIdx !== -1 && toIdx !== -1) {
-                                currentDbs.splice(fromIdx, 1)
-                                currentDbs.splice(toIdx, 0, draggedItem.id)
-                                if (onReorderDatabases) onReorderDatabases(activeWorkspace.id, currentDbs)
-                              }
-                            } else if (draggedItem.type === 'table') {
-                              if (onMoveTableToDatabase) onMoveTableToDatabase(draggedItem.id, db.id)
-                            }
-                            setDraggedItem(null)
-                            setDropTarget(null)
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '6px 8px',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            position: 'relative',
-                            transition: 'all 0.15s ease',
-                            backgroundColor: dropTarget?.type === 'database' && dropTarget.id === db.id && dropTarget.position === 'inside' ? '#FFF7ED' : undefined,
-                            border: dropTarget?.type === 'database' && dropTarget.id === db.id && dropTarget.position === 'inside' ? '2px dashed #EA580C' : dropTarget?.type === 'database' && dropTarget.id === db.id ? '2px solid #EA580C' : undefined,
-                          }}
-                        >
-                          <div
-                            onClick={() => onToggleDatabaseCollapse(db.id)}
-                            onDoubleClick={() => {
-                              if (canManageStructure) {
-                                onSetRenameType('database')
-                                onSetRenameId(db.id)
-                                onSetRenameNameValue(db.name)
-                                onShowRenameModal()
-                              }
-                            }}
-                            title={`${db.name} (${t('nav.doubleClickRename')})`}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, overflow: 'hidden' }}
-                          >
-                            <ChevronRight
-                              size={14}
-                              color="#64748b"
-                              style={{
-                                flexShrink: 0,
-                                transition: 'transform 0.15s ease',
-                                transform: !isDbCollapsed ? 'rotate(90deg)' : 'none'
-                              }}
-                            />
-                            <DatabaseIcon size={15} color="#3F6212" style={{ flexShrink: 0 }} />
-                            <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {db.name}
-                            </span>
-                          </div>
-
-                          {canManageStructure && (
-                            <button
-                              onClick={(e) => toggleMenu(dbMenuKey, e)}
-                              className="sidebar-hover-icon"
-                              title={t('nav.databaseOptions')}
-                              style={{ background: 'none', border: 'none', padding: '3px', borderRadius: '4px', color: '#64748b', display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0 }}
+                      <SidebarMenuItem style={{ position: 'relative', width: '100%' }} className="group/menu-item">
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }} className="group/db-row">
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton
+                              tooltip={isSidebarCollapsed ? db.name : undefined}
+                              style={{ display: 'flex', alignItems: 'center', width: '100%', height: '32px', paddingLeft: '6px', paddingRight: canManageStructure && !isSidebarCollapsed ? '32px' : '8px' }}
+                              className="font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                             >
-                              <MoreVertical size={14} />
-                            </button>
-                          )}
+                              {!isSidebarCollapsed && (
+                                <ChevronRight
+                                  style={{
+                                    width: '14px',
+                                    height: '14px',
+                                    minWidth: '14px',
+                                    color: '#94a3b8',
+                                    transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                                    transform: !isDbCollapsed ? 'rotate(90deg)' : 'none',
+                                    marginRight: '4px',
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              )}
+                              <AnimatedDatabase style={{ width: '16px', height: '16px', minWidth: '16px', color: '#059669', flexShrink: 0 }} />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '13px', marginLeft: '6px' }}>{db.name}</span>
+                            </SidebarMenuButton>
+                          </CollapsibleTrigger>
 
-                          {/* Database Options Dropdown */}
-                          {isDbMenuOpen && (
-                            <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 100000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
-                              <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                                <li>
-                                  <div
-                                    className="sidebar-hover-item"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      closeMenu()
-                                      onSetRenameType('database')
-                                      onSetRenameId(db.id)
-                                      onSetRenameNameValue(db.name)
-                                      onShowRenameModal()
-                                    }}
-                                    style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
-                                  >
-                                    <Pencil size={14} />
-                                    <span>{t('common.rename')}</span>
-                                  </div>
-                                </li>
-                                <li>
-                                  <div
-                                    className="sidebar-hover-item"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      closeMenu()
-                                      onDeleteWorkspaceOrDb('delete_database', db.id, db.name)
-                                    }}
-                                    style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
-                                  >
-                                    <Trash2 size={14} />
-                                    <span>{t('nav.deleteDatabase')}</span>
-                                  </div>
-                                </li>
-                              </ul>
-                            </div>
+                          {/* Database Options Menu */}
+                          {!isSidebarCollapsed && canManageStructure && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <SidebarMenuAction showOnHover style={{ top: '6px' }}>
+                                  <MoreHorizontal style={{ width: '13px', height: '13px', minWidth: '13px' }} />
+                                </SidebarMenuAction>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent side="right" align="start" className="w-44 rounded-xl">
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    onSetRenameType('database')
+                                    onSetRenameId(db.id)
+                                    onSetRenameNameValue(db.name)
+                                    onShowRenameModal()
+                                  }}
+                                  className="cursor-pointer gap-2"
+                                >
+                                  <Pencil style={{ width: '14px', height: '14px' }} />
+                                  <span>{t('common.rename')}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => onShowCreateTableModal?.(db.id)}
+                                  className="cursor-pointer gap-2"
+                                >
+                                  <Plus style={{ width: '14px', height: '14px', color: '#059669' }} />
+                                  <span>{t('nav.createTable')}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => onDeleteWorkspaceOrDb('delete_database', db.id, db.name)}
+                                  className="cursor-pointer gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                >
+                                  <Trash2 style={{ width: '14px', height: '14px' }} />
+                                  <span>{t('nav.deleteDatabase')}</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
                         </div>
 
-                        {/* Tables Sub-tree */}
-                        {!isDbCollapsed && (
-                          <div style={{ paddingLeft: '22px', display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '2px', marginBottom: '4px' }}>
-                            {db.tables.map(table => {
-                              const tblMenuKey = `tbl-${table.id}`
-                              const isTblMenuOpen = activeMenuKey === tblMenuKey
-                              const isActive = activeTableId === table.id
+                        {/* Tables Submenu List */}
+                        {!isSidebarCollapsed && (
+                          <CollapsibleContent>
+                            <SidebarMenuSub className="my-0.5">
+                              {hasTables ? (
+                                db.tables.map((table) => {
+                                  const isActive = activeTableId === table.id
 
-                              return (
-                                <div
-                                  key={table.id}
-                                  draggable={canManageStructure}
-                                  onDragStart={(e) => {
-                                    e.stopPropagation()
-                                    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'table', id: table.id, sourceDbId: db.id }))
-                                    setDraggedItem({ type: 'table', id: table.id, sourceDbId: db.id })
-                                  }}
-                                  onDragOver={(e) => {
-                                    if (draggedItem?.type === 'table' && draggedItem.id !== table.id) {
-                                      e.preventDefault()
-                                      e.stopPropagation()
-                                      setDropTarget({ type: 'table', id: table.id })
-                                    }
-                                  }}
-                                  onDragLeave={(e) => {
-                                    e.preventDefault()
-                                    setDropTarget(prev => prev?.id === table.id ? null : prev)
-                                  }}
-                                  onDrop={(e) => {
-                                    e.preventDefault()
-                                    e.stopPropagation()
-                                    if (draggedItem?.type === 'table' && draggedItem.id !== table.id) {
-                                      const targetDbId = db.id
-                                      const targetTableIndex = db.tables.findIndex(t => t.id === table.id)
-                                      if (onMoveTableToDatabase) onMoveTableToDatabase(draggedItem.id, targetDbId, targetTableIndex >= 0 ? targetTableIndex : undefined)
-                                    }
-                                    setDraggedItem(null)
-                                    setDropTarget(null)
-                                  }}
-                                  className={`sidebar-hover-item ${isActive ? 'sidebar-active-table' : ''}`}
-                                  style={{
-                                    padding: '6px 10px',
-                                    borderRadius: '6px',
-                                    position: 'relative',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease',
-                                    backgroundColor: dropTarget?.type === 'table' && dropTarget.id === table.id ? '#FFF7ED' : undefined,
-                                    borderTop: dropTarget?.type === 'table' && dropTarget.id === table.id ? '2px solid #EA580C' : undefined,
-                                  }}
-                                  onClick={() => onSetActiveTableId(table.id)}
-                                  onDoubleClick={(e) => {
-                                    e.stopPropagation()
-                                    if (canManageStructure) {
-                                      onSetRenameType('table')
-                                      onSetRenameId(table.id)
-                                      onSetRenameNameValue(table.name)
-                                      onShowRenameModal()
-                                    }
-                                  }}
-                                  title={`${table.name} (${t('nav.doubleClickRename')})`}
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                                    <TableIcon size={14} color={isActive ? '#3F6212' : '#64748b'} style={{ flexShrink: 0 }} />
-                                    <span style={{ fontSize: '13px', color: isActive ? '#3F6212' : '#334155', fontWeight: isActive ? 600 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {table.name}
-                                    </span>
-                                  </div>
-
-
-                                  {canManageStructure && (
-                                    <button
-                                      className="sidebar-hover-icon"
-                                      title={t('nav.tableOptions')}
-                                      onClick={(e) => toggleMenu(tblMenuKey, e)}
-                                      style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: '2px 4px',
-                                        cursor: 'pointer',
-                                        color: '#64748b',
-                                        borderRadius: '4px',
-                                        flexShrink: 0
+                                  return (
+                                    <SidebarMenuSubItem
+                                      key={table.id}
+                                      style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}
+                                      draggable={canManageStructure}
+                                      onDragStart={(e) => {
+                                        e.stopPropagation()
+                                        e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'table', id: table.id, sourceDbId: db.id }))
+                                        setDraggedItem({ type: 'table', id: table.id, sourceDbId: db.id })
                                       }}
+                                      onDragOver={(e) => {
+                                        if (draggedItem?.type === 'table' && draggedItem.id !== table.id) {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setDropTarget({ type: 'table', id: table.id })
+                                        }
+                                      }}
+                                      onDragLeave={(e) => {
+                                        e.preventDefault()
+                                        setDropTarget(prev => prev?.id === table.id ? null : prev)
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        if (draggedItem?.type === 'table' && draggedItem.id !== table.id) {
+                                          const targetDbId = db.id
+                                          const targetTableIndex = db.tables.findIndex(t => t.id === table.id)
+                                          if (onMoveTableToDatabase) onMoveTableToDatabase(draggedItem.id, targetDbId, targetTableIndex >= 0 ? targetTableIndex : undefined)
+                                        }
+                                        setDraggedItem(null)
+                                        setDropTarget(null)
+                                      }}
+                                      className={`group/table-row group/sub-item ${dropTarget?.id === table.id ? 'border-t-2 border-orange-500 bg-orange-50/50' : ''}`}
                                     >
-                                      <MoreVertical size={13} />
-                                    </button>
-                                  )}
-
-                                  {/* Table Options Dropdown */}
-                                  {isTblMenuOpen && (
-                                    <div style={{ position: 'absolute', right: '0', top: '100%', zIndex: 100000, background: '#ffffff', boxShadow: '0 8px 20px rgba(15,23,42,0.15)', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '160px', padding: '4px 0' }}>
-                                      <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-                                        <li>
-                                          <div
-                                            className="sidebar-hover-item"
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              closeMenu()
-                                              onSetRenameType('table')
-                                              onSetRenameId(table.id)
-                                              onSetRenameNameValue(table.name)
-                                              onShowRenameModal()
-                                            }}
-                                            style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#1e293b' }}
-                                          >
-                                            <Pencil size={14} />
-                                            <span>{t('common.rename')}</span>
-                                          </div>
-                                        </li>
-                                        {onDeleteTable && (
-                                          <li>
-                                            <div
-                                              className="sidebar-hover-item"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                closeMenu()
-                                                onDeleteTable(table.id, table.name)
-                                              }}
-                                              style={{ padding: '7px 12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#ef4444', cursor: 'pointer' }}
-                                            >
-                                              <Trash2 size={14} />
-                                              <span>{t('nav.deleteTable')}</span>
-                                            </div>
-                                          </li>
+                                      <SidebarMenuSubButton
+                                        isActive={isActive}
+                                        onClick={() => onSetActiveTableId(table.id)}
+                                        onDoubleClick={(e) => {
+                                          e.stopPropagation()
+                                          if (canManageStructure) {
+                                            onSetRenameType('table')
+                                            onSetRenameId(table.id)
+                                            onSetRenameNameValue(table.name)
+                                            onShowRenameModal()
+                                          }
+                                        }}
+                                        style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', height: '28px', paddingRight: canManageStructure ? '30px' : '6px' }}
+                                        className={`group/btn ${isActive ? 'text-emerald-800 dark:text-emerald-300 font-semibold' : ''}`}
+                                      >
+                                        {isActive && (
+                                          <motion.div
+                                            layoutId="active-sidebar-table-indicator"
+                                            className="absolute inset-0 rounded-md bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/15 dark:border-emerald-500/30 pointer-events-none"
+                                            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                                          />
                                         )}
-                                      </ul>
-                                    </div>
-                                  )}
+                                        <AnimatedTable style={{ position: 'relative', zIndex: 1, width: '14px', height: '14px', minWidth: '14px', color: isActive ? '#059669' : '#64748b', flexShrink: 0 }} />
+                                        <span style={{ position: 'relative', zIndex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px', marginLeft: '6px' }}>{table.name}</span>
+                                      </SidebarMenuSubButton>
+
+                                      {/* Table Options Dropdown Action */}
+                                      {canManageStructure && (
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <SidebarMenuAction showOnHover>
+                                              <MoreHorizontal style={{ width: '13px', height: '13px', minWidth: '13px' }} />
+                                            </SidebarMenuAction>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent side="right" align="start" className="w-40 rounded-xl">
+                                            <DropdownMenuItem
+                                              onClick={() => {
+                                                onSetRenameType('table')
+                                                onSetRenameId(table.id)
+                                                onSetRenameNameValue(table.name)
+                                                onShowRenameModal()
+                                              }}
+                                              className="cursor-pointer gap-2"
+                                            >
+                                              <Pencil style={{ width: '14px', height: '14px' }} />
+                                              <span>{t('common.rename')}</span>
+                                            </DropdownMenuItem>
+                                            {onDeleteTable && (
+                                              <>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem
+                                                  onClick={() => onDeleteTable(table.id, table.name)}
+                                                  className="cursor-pointer gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                >
+                                                  <Trash2 style={{ width: '14px', height: '14px' }} />
+                                                  <span>{t('nav.deleteTable')}</span>
+                                                </DropdownMenuItem>
+                                              </>
+                                            )}
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      )}
+                                    </SidebarMenuSubItem>
+                                  )
+                                })
+                              ) : (
+                                <div className="px-2 py-1 text-xs text-slate-400 italic">
+                                  無資料表
                                 </div>
-                              )
-                            })}
+                              )}
 
-                            {canManageStructure && (
-                              <div
-                                className="sidebar-hover-item"
-                                onClick={() => onShowCreateTableModal?.(db.id)}
-                                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', color: '#64748b', fontSize: '12px', cursor: 'pointer', fontWeight: 500, borderRadius: '6px', marginTop: '2px' }}
-                              >
-                                <Plus size={14} />
-                                <span>{t('nav.createTable')}</span>
-                              </div>
-                            )}
-                          </div>
+                              {/* Create Table Quick Button */}
+                              {canManageStructure && (
+                                <SidebarMenuSubItem style={{ width: '100%' }}>
+                                  <button
+                                    onClick={() => onShowCreateTableModal?.(db.id)}
+                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '4px 6px', fontSize: '12px', color: '#64748b', borderRadius: '6px' }}
+                                    className="hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors font-medium mt-0.5"
+                                  >
+                                    <AnimatedPlus style={{ width: '12px', height: '12px' }} />
+                                    <span>{t('nav.createTable')}</span>
+                                  </button>
+                                </SidebarMenuSubItem>
+                              )}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
                         )}
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        {/* 3. Footer: User Profile Dropdown & System Actions */}
+        <SidebarFooter style={{ height: '48px', minHeight: '48px', maxHeight: '48px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-t border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    size="lg"
+                    style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', padding: isSidebarCollapsed ? '0 4px' : '0 8px', borderRadius: '8px', height: '40px', minHeight: '40px', maxHeight: '40px' }}
+                    className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
+                  >
+                    <div
+                      style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11px', flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
+                    >
+                      HD
+                    </div>
+                    {!isSidebarCollapsed && (
+                      <>
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            FYCD HD MANAGER
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {currentUser?.email || 'fycd2006@mail.ntut.edu.tw'}
+                          </span>
+                        </div>
+                        <ChevronsUpDown style={{ width: '14px', height: '14px', marginLeft: 'auto', flexShrink: 0, color: '#94a3b8' }} />
+                      </>
+                    )}
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-60 rounded-xl shadow-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
+                  side={isSidebarCollapsed ? 'right' : 'top'}
+                  align="end"
+                  sideOffset={8}
+                >
+                  <DropdownMenuLabel className="p-0 font-normal">
+                    <div className="flex items-center gap-2.5 px-2 py-2 text-left text-sm" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px' }}>
+                      <div
+                        style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}
+                      >
+                        HD
                       </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Sidebar Footer */}
-            <div style={{ marginTop: 'auto', height: '44px', minHeight: '44px', maxHeight: '44px', borderTop: '1px solid #e2e8f0', padding: '0 12px', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxSizing: 'border-box' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                <img
-                  src="/logo.png"
-                  alt="FYCD HD Manager Logo"
-                  style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', border: '1px solid #e2e8f0', flexShrink: 0 }}
-                />
-                <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--brand-orange-main, #EA580C)', letterSpacing: '-0.02em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  FYCD HD Manager
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                <button
-                  onClick={onToggleTheme}
-                  title={theme === 'dark' ? t('nav.toggleLightMode') : t('nav.toggleDarkMode')}
-                  className="sidebar-hover-icon"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                </button>
-
-                <button
-                  onClick={onToggleDarkReaderPanel}
-                  title={t('nav.filterSettings')}
-                  className="sidebar-hover-icon"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Sliders size={15} />
-                </button>
-
-                <button
-                  onClick={onLogout}
-                  title={t('nav.logout')}
-                  className="sidebar-hover-icon"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '5px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <LogOut size={15} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                          FYCD HD MANAGER
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                          {currentUser?.email || 'fycd2006@mail.ntut.edu.tw'}
+                        </span>
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    {onShowSubscriptionModal && (
+                      <DropdownMenuItem onClick={onShowSubscriptionModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
+                        <Sparkles className="size-4 text-amber-500 shrink-0" />
+                        <span style={{ color: 'inherit' }}>升級方案與授權</span>
+                      </DropdownMenuItem>
+                    )}
+                    {onShowMembersModal && (
+                      <DropdownMenuItem onClick={onShowMembersModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
+                        <Users className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                        <span style={{ color: 'inherit' }}>{t('nav.members')}</span>
+                      </DropdownMenuItem>
+                    )}
+                    {onShowNotificationsModal && (
+                      <DropdownMenuItem onClick={onShowNotificationsModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
+                        <Bell className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                        <span style={{ color: 'inherit' }}>{t('nav.notifications')}</span>
+                      </DropdownMenuItem>
+                    )}
+                    {onShowUserSettingsModal && (
+                      <DropdownMenuItem onClick={onShowUserSettingsModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
+                        <Settings className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                        <span style={{ color: 'inherit' }}>帳號與偏好設定</span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={onToggleTheme} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
+                      {theme === 'dark' ? <Sun className="size-4 text-amber-500 shrink-0" /> : <Moon className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />}
+                      <span style={{ color: 'inherit' }}>{theme === 'dark' ? '切換為亮色模式' : '切換為深色模式'}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onToggleDarkReaderPanel} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
+                      <Sliders className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                      <span style={{ color: 'inherit' }}>進階濾鏡調色盤</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={onLogout}
+                    className="cursor-pointer gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                  >
+                    <LogOut className="size-4 shrink-0 text-red-600 dark:text-red-400" />
+                    <span style={{ color: 'inherit' }}>登出系統</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+          <SidebarRail onClick={onToggleSidebarCollapse} />
+        </Sidebar>
       </div>
-    </>
+    </SidebarProvider>
   )
 }

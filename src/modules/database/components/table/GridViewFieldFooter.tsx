@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { Plus, Check, ChevronDown } from 'lucide-react'
 import type { TableField } from '@/modules/database/types'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 export interface FieldSummaryData {
   count: number
@@ -75,20 +76,85 @@ export default function GridViewFieldFooter({
   const currentMode = aggregationMode || (isNumeric ? 'sum' : 'count')
   const isPrimary = fieldIndex === 0
 
-  let displayText = ''
-  if (currentMode === 'count') displayText = `${summaryData?.count || 0}`
-  else if (currentMode === 'empty_count') displayText = `${summaryData?.emptyCount || 0}`
-  else if (currentMode === 'percent') displayText = `${summaryData?.percentFilled || 0}%`
-  else if (currentMode === 'sum') displayText = summaryData?.sum !== null ? `Σ ${summaryData.sum}` : `${summaryData?.count || 0}`
-  else if (currentMode === 'avg') displayText = summaryData?.avg !== null ? `x̄ ${summaryData.avg}` : `${summaryData?.count || 0}`
-  else if (currentMode === 'min') displayText = summaryData?.min !== null ? `Min ${summaryData.min}` : '-'
-  else if (currentMode === 'max') displayText = summaryData?.max !== null ? `Max ${summaryData.max}` : '-'
-  else if (currentMode === 'unique') displayText = `${summaryData?.uniqueCount || 0}`
-  else if (currentMode === 'none') displayText = ''
+  const renderDisplayContent = () => {
+    if (currentMode === 'none') return null
+    if (currentMode === 'count') {
+      return <SlidingNumber number={summaryData?.count || 0} initiallyStable={true} />
+    }
+    if (currentMode === 'empty_count') {
+      return <SlidingNumber number={summaryData?.emptyCount || 0} initiallyStable={true} />
+    }
+    if (currentMode === 'percent') {
+      return (
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <SlidingNumber number={summaryData?.percentFilled || 0} initiallyStable={true} />%
+        </span>
+      )
+    }
+    if (currentMode === 'sum') {
+      if (summaryData?.sum !== null && summaryData?.sum !== undefined) {
+        const isInt = Number.isInteger(summaryData.sum)
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+            <span>Σ</span>
+            <SlidingNumber number={summaryData.sum} decimalPlaces={isInt ? 0 : 2} thousandSeparator="," initiallyStable={true} />
+          </span>
+        )
+      }
+      return <SlidingNumber number={summaryData?.count || 0} initiallyStable={true} />
+    }
+    if (currentMode === 'avg') {
+      if (summaryData?.avg !== null && summaryData?.avg !== undefined) {
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+            <span>x̄</span>
+            <SlidingNumber number={summaryData.avg} decimalPlaces={2} initiallyStable={true} />
+          </span>
+        )
+      }
+      return <SlidingNumber number={summaryData?.count || 0} initiallyStable={true} />
+    }
+    if (currentMode === 'min') {
+      if (summaryData?.min !== null && summaryData?.min !== undefined) {
+        const num = Number(summaryData.min)
+        if (!isNaN(num)) {
+          return (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              <span>Min</span>
+              <SlidingNumber number={num} initiallyStable={true} />
+            </span>
+          )
+        }
+        return `Min ${summaryData.min}`
+      }
+      return '-'
+    }
+    if (currentMode === 'max') {
+      if (summaryData?.max !== null && summaryData?.max !== undefined) {
+        const num = Number(summaryData.max)
+        if (!isNaN(num)) {
+          return (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              <span>Max</span>
+              <SlidingNumber number={num} initiallyStable={true} />
+            </span>
+          )
+        }
+        return `Max ${summaryData.max}`
+      }
+      return '-'
+    }
+    if (currentMode === 'unique') {
+      return <SlidingNumber number={summaryData?.uniqueCount || 0} initiallyStable={true} />
+    }
+    return null
+  }
 
   const availableOptions = AGGREGATION_KEYS
     .filter(opt => isFieldCompatibleWithAggregation(field, opt.key))
     .map(opt => ({ ...opt, label: t(`footer.${opt.key}`) }))
+
+  const displayContent = renderDisplayContent()
 
   return (
     <div
@@ -102,7 +168,8 @@ export default function GridViewFieldFooter({
         zIndex: isPrimary ? 24 : 1,
         flexShrink: 0,
         boxSizing: 'border-box',
-        height: '38px',
+        height: '100%',
+        minHeight: '100%',
         padding: '0 10px',
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid #e2e8f0',
         boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.08)' : undefined,
@@ -126,9 +193,9 @@ export default function GridViewFieldFooter({
       }}
       title={t('footer.count')}
     >
-      {currentMode !== 'none' && displayText ? (
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 600, color: '#18181B', fontFamily: 'monospace' }}>
-          {displayText}
+      {currentMode !== 'none' && displayContent ? (
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '12px', fontWeight: 600, color: '#18181B', fontFamily: 'monospace', display: 'inline-flex', alignItems: 'center' }}>
+          {displayContent}
         </span>
       ) : (
         <span style={{ fontSize: '12px', color: '#78716C', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -146,6 +213,7 @@ export default function GridViewFieldFooter({
         >
           <div
             data-grid-portal="true"
+            className="animate-popover"
             style={{
               position: 'fixed',
               left: `${popoverPos.x}px`,

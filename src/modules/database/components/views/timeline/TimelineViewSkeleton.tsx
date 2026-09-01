@@ -12,7 +12,8 @@ export const TimelineViewSkeleton: React.FC<TimelineViewSkeletonProps> = ({ load
       style={{
         width: '100%',
         height: '100%',
-        minHeight: '380px',
+        flex: 1,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#ffffff',

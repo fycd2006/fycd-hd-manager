@@ -36,7 +36,7 @@ export default function GalleryView({
   const { t } = useI18n()
   const firstTextField = fields.find(f => f.type === 'text')
 
-  if (loading) {
+  if (loading || fields.length === 0) {
     return <GalleryViewSkeleton />
   }
 

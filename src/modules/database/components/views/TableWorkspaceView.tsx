@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
 import DatabaseViewRouter from '@/modules/database/components/views/DatabaseViewRouter'
 import PullToRefresh from '@/components/ui/PullToRefresh'
@@ -307,91 +308,111 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
       />
 
       {/* View content with PullToRefresh */}
-      <PullToRefresh
-        onRefresh={async () => {
-          if (typeof window !== 'undefined') {
-            addToast('正在重新載入全網頁與最新版本...', 'info')
-            window.location.reload()
-          }
-        }}
+      <div
+        className="layout__col-2-2 content"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
+          '--row-height':
+            rowHeightSize === 'medium'
+              ? '44px'
+              : rowHeightSize === 'large'
+              ? '60px'
+              : rowHeightSize === 'extra'
+              ? '80px'
+              : '32px',
+        } as any}
       >
-        <div
-          className="layout__col-2-2 content"
-          style={{
-            '--row-height':
-              rowHeightSize === 'medium'
-                ? '44px'
-                : rowHeightSize === 'large'
-                ? '60px'
-                : rowHeightSize === 'extra'
-                ? '80px'
-                : '32px',
-          } as any}
+        <PullToRefresh
+          onRefresh={async () => {
+            if (typeof window !== 'undefined') {
+              addToast('正在重新載入全網頁與最新版本...', 'info')
+              window.location.reload()
+            }
+          }}
         >
-          <DatabaseViewRouter
-            currentView={currentView}
-            fields={fields}
-            hiddenFieldKeys={hiddenFieldKeys}
-            displayRows={displayRows}
-            gridLoading={gridLoading}
-            readOnly={!currentUser || !currentUserRolePermissions.canEditData}
-            isOffline={isOffline}
-            frozenColumnsCount={frozenColumnsCount}
-            columnWidths={columnWidths}
-            sortField={sortField}
-            sortOrder={sortOrder}
-            sortRules={sortRules}
-            groupByField={groupByField}
-            groupByRules={groupByRules}
-            groupCollapseState={groupCollapseState}
-            onUpdateGroupCollapseState={setGroupCollapseState}
-            rowColorRules={rowColorRules}
-            editingFieldId={editingFieldId}
-            editingFieldName={editingFieldName}
-            editingCell={editingCell}
-            editInputRef={editInputRef}
-            searchQuery={searchQuery}
-            filterRules={filterRules}
-            groupedRows={groupedRows}
-            getRowBgColorClass={getRowBgColorClass}
-            updateCell={updateCell}
-            batchUpdateCells={batchUpdateCells}
-            toggleSort={toggleSort}
-            setEditingFieldId={setEditingFieldId}
-            setEditingFieldName={setEditingFieldName}
-            handleColumnDragStart={handleColumnDragStart}
-            handleColumnDragOver={handleColumnDragOver}
-            handleColumnDrop={handleColumnDrop}
-            setColumnWidths={setColumnWidths}
-            activeTableId={activeTableId}
-            activeViewId={activeViewId}
-            newFieldScrollTrigger={newFieldScrollTrigger}
-            views={views}
-            updateViewConfig={saveViewConfig}
-            setContextMenu={setContextMenu}
-            setSelectedRow={setSelectedRow}
-            setShowDetailModal={setShowDetailModal}
-            duplicateRow={duplicateRow || (async () => {})}
-            deleteRow={deleteRow || (() => {})}
-            batchDeleteRows={batchDeleteRows}
-            addRow={addRow}
-            batchAddRows={batchAddRows}
-            setShowNewFieldModal={setShowNewFieldModal}
-            onAddFieldPopover={(pos) => {
-              setNewFieldPopoverPos(pos)
-              setShowNewFieldModal(true)
+          <motion.div
+            key={`table-tab-content-${activeTableId}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: 0,
             }}
-            handleUpdateField={handleUpdateField}
-            setFieldContextMenu={setFieldContextMenu}
-            onUndo={undo}
-            onRedo={redo}
-            onReorderRows={handleReorderRows}
-            batchMoveRows={batchMoveRows}
-            stageMoveRows={stageMoveRows}
-            cancelMoveRows={cancelMoveRows}
-          />
-        </div>
-      </PullToRefresh>
+            className="w-full h-full flex flex-col flex-1 min-h-0"
+          >
+              <DatabaseViewRouter
+                currentView={currentView}
+                fields={fields}
+                hiddenFieldKeys={hiddenFieldKeys}
+                displayRows={displayRows}
+                gridLoading={gridLoading}
+                readOnly={!currentUser || !currentUserRolePermissions.canEditData}
+                isOffline={isOffline}
+                frozenColumnsCount={frozenColumnsCount}
+                columnWidths={columnWidths}
+                sortField={sortField}
+                sortOrder={sortOrder}
+                sortRules={sortRules}
+                groupByField={groupByField}
+                groupByRules={groupByRules}
+                groupCollapseState={groupCollapseState}
+                onUpdateGroupCollapseState={setGroupCollapseState}
+                rowColorRules={rowColorRules}
+                editingFieldId={editingFieldId}
+                editingFieldName={editingFieldName}
+                editingCell={editingCell}
+                editInputRef={editInputRef}
+                searchQuery={searchQuery}
+                filterRules={filterRules}
+                groupedRows={groupedRows}
+                getRowBgColorClass={getRowBgColorClass}
+                updateCell={updateCell}
+                batchUpdateCells={batchUpdateCells}
+                toggleSort={toggleSort}
+                setEditingFieldId={setEditingFieldId}
+                setEditingFieldName={setEditingFieldName}
+                handleColumnDragStart={handleColumnDragStart}
+                handleColumnDragOver={handleColumnDragOver}
+                handleColumnDrop={handleColumnDrop}
+                setColumnWidths={setColumnWidths}
+                activeTableId={activeTableId}
+                activeViewId={activeViewId}
+                newFieldScrollTrigger={newFieldScrollTrigger}
+                views={views}
+                updateViewConfig={saveViewConfig}
+                setContextMenu={setContextMenu}
+                setSelectedRow={setSelectedRow}
+                setShowDetailModal={setShowDetailModal}
+                duplicateRow={duplicateRow || (async () => {})}
+                deleteRow={deleteRow || (() => {})}
+                batchDeleteRows={batchDeleteRows}
+                addRow={addRow}
+                batchAddRows={batchAddRows}
+                setShowNewFieldModal={setShowNewFieldModal}
+                onAddFieldPopover={(pos) => {
+                  setNewFieldPopoverPos(pos)
+                  setShowNewFieldModal(true)
+                }}
+                handleUpdateField={handleUpdateField}
+                setFieldContextMenu={setFieldContextMenu}
+                onUndo={undo}
+                onRedo={redo}
+                onReorderRows={handleReorderRows}
+                batchMoveRows={batchMoveRows}
+                stageMoveRows={stageMoveRows}
+                cancelMoveRows={cancelMoveRows}
+              />
+            </motion.div>
+        </PullToRefresh>
+      </div>
     </>
   )
 }

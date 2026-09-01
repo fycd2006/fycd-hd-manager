@@ -130,7 +130,18 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   const activeView = views?.find(v => v.id === activeViewId)
 
   return (
-    <div key={currentView} className="w-full h-full animate-in fade-in duration-200 ease-out">
+    <div
+      key={currentView}
+      className="w-full h-full"
+      style={{
+        height: '100%',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+      }}
+    >
       {currentView === 'grid' && (
         <GridView
           tableId={activeTableId}

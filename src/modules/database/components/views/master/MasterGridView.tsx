@@ -57,6 +57,7 @@ import {
 } from '@/modules/database/components/views/grid/cells/utils'
 import { renderFormulaCell } from '@/modules/database/components/views/grid/cells/FormulaCell'
 import { parseLatestCommentEntries } from '@/modules/database/components/views/grid/GridViewCell'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 import { FieldMappingModal } from './FieldMappingModal'
 import { MasterGridCell } from './MasterGridCell'
@@ -1494,8 +1495,8 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                       />
                       <span>全部資料表</span>
                     </div>
-                    <span style={{ fontSize: '11px', color: selectedTableIds.length === 0 ? '#52A628' : '#a1a1aa', fontVariantNumeric: 'tabular-nums' }}>
-                      {totalRowsCount != null ? totalRowsCount : rows.length} 筆
+                    <span style={{ fontSize: '11px', color: selectedTableIds.length === 0 ? '#52A628' : '#a1a1aa', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                      <SlidingNumber number={totalRowsCount != null ? totalRowsCount : rows.length} /> 筆
                     </span>
                   </button>
 
@@ -1560,8 +1561,8 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                         </button>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                          <span style={{ fontSize: '11px', color: active ? '#52A628' : '#a1a1aa', fontVariantNumeric: 'tabular-nums' }}>
-                            {count} 筆
+                          <span style={{ fontSize: '11px', color: active ? '#52A628' : '#a1a1aa', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                            <SlidingNumber number={count} /> 筆
                           </span>
                           <button
                             onClick={() => handleFocusTable(tid)}
@@ -2993,18 +2994,23 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                 position: 'sticky',
                 bottom: 0,
                 zIndex: 20,
+                height: '48px',
+                minHeight: '48px',
+                maxHeight: '48px',
                 backgroundColor: '#fafafa',
                 borderTop: '1px solid #e4e4e7',
                 fontSize: '12px',
                 fontWeight: 500,
                 color: '#52525b',
+                boxSizing: 'border-box',
               }}
             >
-              <tr>
+              <tr style={{ height: '48px' }}>
                 <td
                   data-testid="footer-count-cell"
                   style={{
-                    padding: '8px 14px',
+                    height: '48px',
+                    padding: '0 14px',
                     color: '#71717a',
                     fontWeight: 600,
                     position: 'sticky',
@@ -3012,6 +3018,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
                     zIndex: 30,
                     backgroundColor: '#fafafa',
                     textAlign: 'center',
+                    boxSizing: 'border-box',
                   }}
                 >
                   {filteredRows.length === rows.length ? `${rows.length} 筆` : `${filteredRows.length}/${rows.length} 筆`}

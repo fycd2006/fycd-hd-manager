@@ -12,7 +12,8 @@ export const FormViewSkeleton: React.FC<FormViewSkeletonProps> = ({ loadingText 
       style={{
         width: '100%',
         height: '100%',
-        minHeight: '400px',
+        flex: 1,
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

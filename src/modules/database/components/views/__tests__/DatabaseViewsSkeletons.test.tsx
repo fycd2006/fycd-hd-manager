@@ -36,16 +36,17 @@ describe('Database Views Skeleton & UI/UX Consistency', () => {
     { id: 3, tableId: 10, name: 'Due Date', type: 'date', order: 2, options: null },
   ]
 
+  const todayStr = new Date().toISOString().slice(0, 10)
   const mockRows: TableRow[] = [
     {
       id: 101,
       tableId: 10,
       order: 0,
-      createdAt: '2026-08-21T00:00:00.000Z',
+      createdAt: `${todayStr}T00:00:00.000Z`,
       data: {
         field_1: 'Task 1',
         field_2: 'Todo',
-        field_3: '2026-08-21',
+        field_3: todayStr,
       },
     },
   ]

@@ -12,6 +12,7 @@ import GridViewFieldFooter from '@/modules/database/components/table/GridViewFie
 import { MultiCellContextMenu } from '@/modules/database/components/menu/MultiCellContextMenu';
 import PopoverPortal from '@/components/ui/PopoverPortal';
 import { useOnClickOutside } from '@/hooks/useOnClickOutside';
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number';
 
 export interface RowData {
   id: number;
@@ -1446,14 +1447,14 @@ export const GridView: React.FC<GridViewProps> = ({
       tabIndex={0}
       onKeyDown={handleKeyDown}
       className="grid-view"
-      style={{ outline: 'none', height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      style={{ outline: 'none', height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, position: 'relative' }}
     >
       {/* Single Unified GPU Scroll Container (Natively synchronizes Head, Rows, and Footer) */}
       <div 
         ref={bodyRef}
         className="grid-view__scroll-container"
         onScroll={(e) => {
-          if (footerScrollRef.current) {
+          if (footerScrollRef.current && Math.abs(footerScrollRef.current.scrollLeft - e.currentTarget.scrollLeft) > 1) {
             footerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
           }
         }}
@@ -1463,7 +1464,7 @@ export const GridView: React.FC<GridViewProps> = ({
             setCellContextMenu({ x: e.clientX, y: e.clientY });
           }
         }}
-        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative', background: '#fafaf9' }}
+        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative', background: '#fafaf9', paddingBottom: '48px' }}
       >
         <div style={{ minWidth: '100%', width: `${totalTableWidth}px`, display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           {/* 1. Header (Sticky Top: 0 inside unified scroll container) */}
@@ -1977,90 +1978,98 @@ export const GridView: React.FC<GridViewProps> = ({
             {/* Scroll padding area below table */}
             <div style={{ height: '20px', width: '100%' }} />
           </div>
+        </div>
+      </div>
 
-          {/* 3. Sticky Bottom Summary Footer Bar (Height: 38px + 6px Scrollbar = 44px matching Sidebar) */}
-          <div
-            ref={footerScrollRef}
-            className="grid-view__footer-container"
-            style={{
-              position: 'sticky',
-              bottom: 0,
-              zIndex: 35,
-              flexShrink: 0,
-              width: `${totalTableWidth}px`,
-              height: '38px',
-              minHeight: '38px',
-              maxHeight: '38px',
-              borderTop: '1px solid #e2e8f0',
-              background: '#ffffff',
-              boxShadow: '0 -2px 10px rgba(15, 23, 42, 0.04)',
-              boxSizing: 'border-box',
-            }}
-          >
-            <div
-              className="grid-view__summary-bar"
-              style={{
-                display: 'flex',
-                height: '38px',
-                width: `${totalTableWidth}px`,
-                boxSizing: 'border-box',
-                fontSize: '12px',
-                color: '#475569',
-              }}
-            >
-              <div style={{
-                width: `${rowDetailsWidth}px`,
-                minWidth: `${rowDetailsWidth}px`,
-                maxWidth: `${rowDetailsWidth}px`,
-                boxSizing: 'border-box',
-                height: '38px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'sticky',
-                left: 0,
-                zIndex: 25,
-                flexShrink: 0,
-                padding: '0 8px',
-                textAlign: 'center',
-                fontWeight: 600,
-                borderRight: '1px solid #e2e8f0',
-                background: '#f8fafc',
-                color: '#18181B'
-              }}>
-                {rows.length} 筆
-              </div>
+      {/* 3. Summary Footer Bar — positioned absolutely at bottom of .grid-view, always visible */}
+      <div
+        ref={footerScrollRef}
+        className="grid-view__footer-container"
+        onScroll={(e) => {
+          if (bodyRef.current && Math.abs(bodyRef.current.scrollLeft - e.currentTarget.scrollLeft) > 1) {
+            bodyRef.current.scrollLeft = e.currentTarget.scrollLeft;
+          }
+        }}
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 36,
+          height: '48px',
+          minHeight: '48px',
+          maxHeight: '48px',
+          borderTop: '1px solid #e2e8f0',
+          background: '#ffffff',
+          boxShadow: '0 -2px 10px rgba(15, 23, 42, 0.04)',
+          boxSizing: 'border-box',
+          overflowX: 'auto',
+          overflowY: 'hidden',
+        }}
+      >
+        <div
+          className="grid-view__summary-bar"
+          style={{
+            display: 'flex',
+            height: '100%',
+            minHeight: '100%',
+            width: `${totalTableWidth}px`,
+            boxSizing: 'border-box',
+            fontSize: '12px',
+            color: '#475569',
+          }}
+        >
+          <div style={{
+            width: `${rowDetailsWidth}px`,
+            minWidth: `${rowDetailsWidth}px`,
+            maxWidth: `${rowDetailsWidth}px`,
+            boxSizing: 'border-box',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'sticky',
+            left: 0,
+            zIndex: 25,
+            flexShrink: 0,
+            padding: '0 8px',
+            textAlign: 'center',
+            fontWeight: 600,
+            borderRight: '1px solid #e2e8f0',
+            background: '#f8fafc',
+            color: '#18181B'
+          }}>
+            <SlidingNumber number={rows.length} initiallyStable={true} /> 筆
+          </div>
 
-              {fields.map((field, fieldIndex) => {
-                const summary = fieldSummaries[field.id];
-                const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
-                return (
-                  <GridViewFieldFooter
-                    key={field.id}
-                    field={field}
-                    fieldIndex={fieldIndex}
-                    rowDetailsWidth={rowDetailsWidth}
-                    summaryData={summary}
-                    totalRowCount={rows.length}
-                    aggregationMode={mode}
-                    onSelectAggregationMode={(fieldId, newMode) => {
-                      handleSelectAggregationMode(fieldId, newMode);
-                    }}
-                  />
-                );
-              })}
-              {/* Footer Right Extension Area (Clean seamless canvas without fake dividing lines) */}
-              <div
-                style={{
-                  width: '200px',
-                  minWidth: '200px',
-                  flexShrink: 0,
-                  boxSizing: 'border-box',
-                  background: '#ffffff'
+          {fields.map((field, fieldIndex) => {
+            const summary = fieldSummaries[field.id];
+            const mode = aggregationModes[field.id] || (field.type === 'number' || field.type === 'rating' ? 'sum' : 'count');
+            return (
+              <GridViewFieldFooter
+                key={field.id}
+                field={field}
+                fieldIndex={fieldIndex}
+                rowDetailsWidth={rowDetailsWidth}
+                summaryData={summary}
+                totalRowCount={rows.length}
+                aggregationMode={mode}
+                onSelectAggregationMode={(fieldId, newMode) => {
+                  handleSelectAggregationMode(fieldId, newMode);
                 }}
               />
-            </div>
-          </div>
+            );
+          })}
+          {/* Footer Right Extension Area */}
+          <div
+            style={{
+              width: '200px',
+              minWidth: '200px',
+              flexShrink: 0,
+              boxSizing: 'border-box',
+              background: '#ffffff'
+            }}
+          />
         </div>
       </div>
 

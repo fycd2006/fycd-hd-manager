@@ -11,6 +11,7 @@ import {
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { MasterGridView } from '@/modules/database/components/views/master'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 interface WorkspaceDashboardProps {
   currentUser: User
@@ -321,8 +322,8 @@ export default function WorkspaceDashboard({
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 DATABASE COUNT
               </div>
-              <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em' }}>
-                {databases.length}
+              <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline' }}>
+                <SlidingNumber number={databases.length} inView={true} />
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>{t('dashboard.databaseUnit')}</span>
               </div>
             </div>
@@ -355,8 +356,8 @@ export default function WorkspaceDashboard({
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 TOTAL TABLES
               </div>
-              <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em' }}>
-                {totalTablesCount}
+              <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline' }}>
+                <SlidingNumber number={totalTablesCount} inView={true} />
                 <span style={{ fontSize: '13px', fontWeight: 500, color: '#71717a', marginLeft: '6px' }}>{t('dashboard.tableUnit')}</span>
               </div>
             </div>
