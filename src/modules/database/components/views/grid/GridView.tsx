@@ -3,9 +3,9 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronRight, ChevronDown, Plus } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Trash2, X, Copy } from 'lucide-react';
 import { TableField, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '@/modules/database/types';
-import { getOptionColor, parseSelectItems } from '@/modules/database/components/views/grid/cells/utils';
+import { getOptionColor, parseSelectItems, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -279,14 +279,14 @@ export function computeFieldSummaries(rowsList: RowData[], fieldList: TableField
     const uniqueVals = new Set<string>();
 
     rowsList.forEach((row) => {
-      const val = row.values[field.id];
+      const val = row?.values?.[field.id] ?? (row as any)?.data?.[`field_${field.id}`] ?? (row as any)?.data?.[field.id] ?? (row as any)?.[field.id];
       if (val !== undefined && val !== null && val !== '') {
         count++;
         const strVal = typeof val === 'object' ? JSON.stringify(val) : String(val);
         uniqueVals.add(strVal);
 
-        const num = Number(val);
-        if (!isNaN(num) && typeof val !== 'boolean') {
+        const num = parseNumberInput(val);
+        if (num !== null && typeof val !== 'boolean') {
           sum += num;
           numericCount++;
           if (minVal === null || num < minVal) minVal = num;
@@ -307,8 +307,8 @@ export function computeFieldSummaries(rowsList: RowData[], fieldList: TableField
       count,
       emptyCount,
       percentFilled,
-      sum: numericCount > 0 ? Number(sum.toFixed(2)) : null,
-      avg: numericCount > 0 ? Number((sum / numericCount).toFixed(2)) : null,
+      sum: numericCount > 0 ? Number(sum.toFixed(4)) : null,
+      avg: numericCount > 0 ? Number((sum / numericCount).toFixed(4)) : null,
       min: minVal,
       max: maxVal,
       uniqueCount: uniqueVals.size,
@@ -358,6 +358,52 @@ interface GridViewProps {
   onUpdateAggregations?: (agg: Record<string | number, string>) => void;
 }
 
+/**
+ * RFC 4180 compliant TSV / CSV parser for multi-line pasted cells
+ */
+function parseClipboardTSV(text: string): string[][] {
+  const result: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentCell += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === '\t' && !inQuotes) {
+      currentRow.push(currentCell);
+      currentCell = '';
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') {
+        i++;
+      }
+      currentRow.push(currentCell);
+      currentCell = '';
+      if (currentRow.length > 0 && (currentRow.length > 1 || currentRow[0] !== '')) {
+        result.push(currentRow);
+      }
+      currentRow = [];
+    } else {
+      currentCell += char;
+    }
+  }
+  if (currentCell.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentCell);
+    if (currentRow.length > 0 && (currentRow.length > 1 || currentRow[0] !== '')) {
+      result.push(currentRow);
+    }
+  }
+  return result;
+}
+
 export const GridView: React.FC<GridViewProps> = ({
   fields,
   rows,
@@ -401,6 +447,7 @@ export const GridView: React.FC<GridViewProps> = ({
   const [editingCellInfo, setEditingCellInfo] = useState<{ rowId: number; colIndex: number } | null>(null);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set());
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [typeOverValue, setTypeOverValue] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -440,6 +487,36 @@ export const GridView: React.FC<GridViewProps> = ({
     toastTimeoutRef.current = setTimeout(() => setToastMessage(null), 2200);
   }, []);
 
+  const handleResizeColumnLocal = useCallback((fieldId: number, width: number) => {
+    if (containerRef.current) {
+      containerRef.current.style.setProperty(`--field-width-${fieldId}`, `${width}px`);
+    }
+    onUpdateField?.(fieldId, { width });
+  }, [onUpdateField]);
+
+  const handleAutoFitColumn = useCallback((fieldId: number) => {
+    const targetField = fields.find(f => f.id === fieldId);
+    if (!targetField) return;
+
+    let maxCharWidth = targetField.name.length * 13 + 56;
+    const sampleRows = rows.slice(0, 150);
+    sampleRows.forEach(r => {
+      const fk = `field_${targetField.id}`;
+      const val = (r as any).data && fk in (r as any).data ? (r as any).data[fk] : r.values?.[targetField.id];
+      if (val !== undefined && val !== null && val !== '') {
+        const str = typeof val === 'object' ? JSON.stringify(val) : String(val);
+        const measured = str.length * 8.5 + 32;
+        if (measured > maxCharWidth) {
+          maxCharWidth = measured;
+        }
+      }
+    });
+
+    const autoWidth = Math.min(600, Math.max(90, Math.ceil(maxCharWidth)));
+    handleResizeColumnLocal(fieldId, autoWidth);
+    onResizeColumnEnd?.(fieldId, autoWidth);
+    showToast(`已自動調整「${targetField.name}」欄寬為 ${autoWidth}px`);
+  }, [fields, rows, handleResizeColumnLocal, onResizeColumnEnd, showToast]);
 
   const selectionBounds = useMemo(() => {
     if (!selectionStart || !selectionEnd) return null;
@@ -450,6 +527,53 @@ export const GridView: React.FC<GridViewProps> = ({
     const isMulti = minRow !== maxRow || minCol !== maxCol;
     return { minRow, maxRow, minCol, maxCol, isMulti };
   }, [selectionStart, selectionEnd]);
+
+  const autofillBounds = useMemo(() => {
+    if (!isAutofilling || !autofillStart || !autofillEnd) return null;
+    const minRow = Math.min(autofillStart[0], autofillEnd[0]);
+    const maxRow = Math.max(autofillStart[0], autofillEnd[0]);
+    const minCol = Math.min(autofillStart[1], autofillEnd[1]);
+    const maxCol = Math.max(autofillStart[1], autofillEnd[1]);
+    return { minRow, maxRow, minCol, maxCol };
+  }, [isAutofilling, autofillStart, autofillEnd]);
+
+  const handleAutoFillDown = useCallback((sourceRowIndex: number, colIndex: number) => {
+    const targetField = fields[colIndex];
+    const sourceRowData = rows[sourceRowIndex];
+    if (!targetField || !sourceRowData || sourceRowIndex >= rows.length - 1) return;
+
+    const sourceValue = sourceRowData.values?.[targetField.id] ?? (sourceRowData as any).data?.[`field_${targetField.id}`] ?? (sourceRowData as any).data?.[targetField.id] ?? null;
+    const rowMap = new Map<number, Record<string, any>>();
+
+    for (let r = sourceRowIndex + 1; r < rows.length; r++) {
+      const rData = rows[r];
+      if (rData) {
+        const map = rowMap.get(rData.id) || {};
+        map[`field_${targetField.id}`] = sourceValue;
+        rowMap.set(rData.id, map);
+      }
+    }
+
+    if (rowMap.size > 0) {
+      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+      if (onBatchUpdateCells) {
+        onBatchUpdateCells(batchUpdates);
+      } else {
+        (async () => {
+          const entries = Array.from(rowMap.entries());
+          for (let i = 0; i < entries.length; i += 2) {
+            const chunk = entries.slice(i, i + 2);
+            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+          }
+        })();
+      }
+      setSelectedCell([sourceRowIndex, colIndex]);
+      setSelectionStart([sourceRowIndex, colIndex]);
+      setSelectionEnd([rows.length - 1, colIndex]);
+      showToast(`已向下自動填滿至第 ${rows.length} 列`);
+    }
+  }, [rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
 
   const handleCopySelection = useCallback(() => {
     const lines: string[] = [];
@@ -576,11 +700,24 @@ export const GridView: React.FC<GridViewProps> = ({
     }
     if (!textToPaste) return;
 
-    const lines = textToPaste.split(/\r?\n/).filter((line, i, arr) => i < arr.length - 1 || line.length > 0);
-    if (lines.length === 0) return;
-    const pastedGrid = lines.map(line => line.split('\t'));
+    const pastedGrid = parseClipboardTSV(textToPaste);
+    if (pastedGrid.length === 0) return;
 
     const rowMap = new Map<number, Record<string, any>>();
+
+    const sanitizePastedVal = (raw: string, field: TableField): any => {
+      const trimmed = (raw ?? '').trim();
+      if (field.type === 'number') {
+        return parseNumberInput(trimmed);
+      }
+      if (field.type === 'boolean') {
+        const lower = trimmed.toLowerCase();
+        if (['true', '1', 'yes', 'v', '是', '✓', 'ok'].includes(lower)) return true;
+        if (['false', '0', 'no', '否', 'x'].includes(lower)) return false;
+        return Boolean(trimmed);
+      }
+      return trimmed;
+    };
 
     if (selectionBounds && selectionBounds.isMulti) {
       // Batch paste into multi-cell selection bounds
@@ -601,7 +738,7 @@ export const GridView: React.FC<GridViewProps> = ({
 
           if (targetRow && targetField) {
             const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = cellVal.trim();
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
             rowMap.set(targetRow.id, map);
           }
         }
@@ -610,6 +747,28 @@ export const GridView: React.FC<GridViewProps> = ({
       // Single focus cell selected -> paste grid starting at selectionStart
       const startRow = selectionStart[0];
       const startCol = selectionStart[1];
+
+      // Auto expand rows if pasted data exceeds table row count
+      const extraRowsCount = (startRow + pastedGrid.length) - rows.length;
+      if (extraRowsCount > 0 && onBatchAddRows) {
+        const newRowsToAppend: Record<string, any>[] = [];
+        for (let i = 0; i < extraRowsCount; i++) {
+          const rOffset = (rows.length - startRow) + i;
+          const sourceRow = pastedGrid[rOffset];
+          const newRowData: Record<string, any> = {};
+          if (sourceRow) {
+            sourceRow.forEach((cellVal, cOffset) => {
+              const targetColIndex = startCol + cOffset;
+              if (targetColIndex < fields.length) {
+                const targetField = fields[targetColIndex];
+                newRowData[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
+              }
+            });
+          }
+          newRowsToAppend.push(newRowData);
+        }
+        onBatchAddRows(newRowsToAppend);
+      }
 
       pastedGrid.forEach((sourceRow, rOffset) => {
         const targetRowIndex = startRow + rOffset;
@@ -622,7 +781,7 @@ export const GridView: React.FC<GridViewProps> = ({
           const targetField = fields[targetColIndex];
           if (targetRow && targetField) {
             const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = cellVal.trim();
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
             rowMap.set(targetRow.id, map);
           }
         });
@@ -643,13 +802,14 @@ export const GridView: React.FC<GridViewProps> = ({
           }
         })();
       }
+      showToast('已完成資料貼上');
     }
-  }, [selectionBounds, selectionStart, rows, fields, onUpdateCell, onBatchUpdateCells]);
+  }, [selectionBounds, selectionStart, rows, fields, onUpdateCell, onBatchUpdateCells, onBatchAddRows, showToast]);
 
   useEffect(() => {
     const handlePasteEvent = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const isInputTarget = target && (
+      const isInputTarget = target && typeof target.closest === 'function' && (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable ||
@@ -709,6 +869,10 @@ export const GridView: React.FC<GridViewProps> = ({
                 }
               })();
             }
+            setSelectedCell([minR, minC]);
+            setSelectionStart([minR, minC]);
+            setSelectionEnd([maxR, maxC]);
+            showToast(`已填滿 ${maxR - minR + 1} 列資料`);
           }
         }
       }
@@ -725,7 +889,7 @@ export const GridView: React.FC<GridViewProps> = ({
       window.removeEventListener('dragend', handleMouseUp);
       window.removeEventListener('drop', handleMouseUp);
     };
-  }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell]);
+  }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
 
 
   const [internalCollapseState, setInternalCollapseState] = useState<GroupCollapseState>({
@@ -955,50 +1119,66 @@ export const GridView: React.FC<GridViewProps> = ({
       onAddRow?.();
       return;
     }
-    if (direction === 'nextCol' && cIndex === fields.length - 1 && rIndex === rows.length - 1) {
-      onAddRow?.();
-      return;
-    }
 
     let nextRow = rIndex;
     let nextCol = cIndex;
 
-    if (visualGroupedRows && visualGroupedRows.length > 0) {
-      const currentVisualIdx = visualGroupedRows.findIndex(v => v.originalIndex === rIndex);
-      if (currentVisualIdx >= 0) {
-        let nextVisualIdx = currentVisualIdx;
-        if (direction === 'nextRow') nextVisualIdx = Math.min(visualGroupedRows.length - 1, currentVisualIdx + 1);
-        if (direction === 'prevRow') nextVisualIdx = Math.max(0, currentVisualIdx - 1);
-        nextRow = visualGroupedRows[nextVisualIdx].originalIndex;
+    // Tab / Shift+Tab row wrapping
+    if (direction === 'nextCol') {
+      if (cIndex === fields.length - 1) {
+        if (rIndex < rows.length - 1) {
+          nextRow = rIndex + 1;
+          nextCol = 0;
+        } else {
+          onAddRow?.();
+          return;
+        }
+      } else {
+        nextCol = cIndex + 1;
       }
-    } else {
-      if (direction === 'nextRow') nextRow = Math.min(rows.length - 1, rIndex + 1);
-      if (direction === 'prevRow') nextRow = Math.max(0, rIndex - 1);
+    } else if (direction === 'prevCol') {
+      if (cIndex === 0 && rIndex > 0) {
+        nextRow = rIndex - 1;
+        nextCol = fields.length - 1;
+      } else {
+        nextCol = Math.max(0, cIndex - 1);
+      }
+    } else if (direction === 'nextRow') {
+      if (visualGroupedRows && visualGroupedRows.length > 0) {
+        const currentVisualIdx = visualGroupedRows.findIndex(v => v.originalIndex === rIndex);
+        if (currentVisualIdx >= 0) {
+          const nextVisualIdx = Math.min(visualGroupedRows.length - 1, currentVisualIdx + 1);
+          nextRow = visualGroupedRows[nextVisualIdx].originalIndex;
+        }
+      } else {
+        nextRow = Math.min(rows.length - 1, rIndex + 1);
+      }
+    } else if (direction === 'prevRow') {
+      if (visualGroupedRows && visualGroupedRows.length > 0) {
+        const currentVisualIdx = visualGroupedRows.findIndex(v => v.originalIndex === rIndex);
+        if (currentVisualIdx >= 0) {
+          const nextVisualIdx = Math.max(0, currentVisualIdx - 1);
+          nextRow = visualGroupedRows[nextVisualIdx].originalIndex;
+        }
+      } else {
+        nextRow = Math.max(0, rIndex - 1);
+      }
     }
 
-    if (direction === 'nextCol') nextCol = Math.min(fields.length - 1, cIndex + 1);
-    if (direction === 'prevCol') nextCol = Math.max(0, cIndex - 1);
-
-    const targetRow = rows[nextRow];
     setSelectedCell([nextRow, nextCol]);
     setSelectionStart([nextRow, nextCol]);
     setSelectionEnd([nextRow, nextCol]);
 
-    if (direction === 'nextRow' && nextRow !== rIndex) {
-      if (targetRow) setEditingCellInfo({ rowId: targetRow.id, colIndex: nextCol });
-      setTimeout(() => {
-        setIsEditing(true);
-      }, 50);
-    } else {
-      setIsEditing(false);
-      setEditingCellInfo(null);
-    }
+    // Professional DB UX: Enter/Tab moves focus and stays in Selected state
+    // (DO NOT force edit mode, so user can freely navigate with arrows or press any key for Type-over)
+    setIsEditing(false);
+    setEditingCellInfo(null);
   }, [rows, fields.length, visualGroupedRows, onAddRow]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const isInputTarget = target && (
+      const isInputTarget = target && typeof target.closest === 'function' && (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable ||
@@ -1006,44 +1186,161 @@ export const GridView: React.FC<GridViewProps> = ({
       );
       if (isEditing || isInputTarget) return;
 
+      // Select All: Ctrl+A / Cmd+A
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        const allIds = new Set(rows.map(r => r.id));
+        setSelectedRowIds(allIds);
+        setSelectionStart([0, 0]);
+        setSelectionEnd([Math.max(0, rows.length - 1), Math.max(0, fields.length - 1)]);
+        return;
+      }
+
+      // Escape: Clear multi-selection / row selection
+      if (e.key === 'Escape') {
+        if (selectedRowIds.size > 0 || (selectionBounds && selectionBounds.isMulti)) {
+          e.preventDefault();
+          setSelectedRowIds(new Set());
+          if (selectedCell) {
+            setSelectionStart(selectedCell);
+            setSelectionEnd(selectedCell);
+          } else {
+            setSelectionStart(null);
+            setSelectionEnd(null);
+          }
+          return;
+        }
+      }
+
       // Undo: Ctrl+Z / Cmd+Z
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         Promise.resolve(onUndo?.()).then(res => {
           if (res !== false) {
             showToast('已執行復原 (Undo)');
           }
         });
+        return;
       }
 
       // Redo: Ctrl+Y / Cmd+Y or Ctrl+Shift+Z
       if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         Promise.resolve(onRedo?.()).then(res => {
           if (res !== false) {
             showToast('已執行重做 (Redo)');
           }
         });
+        return;
       }
 
       // Copy: Ctrl+C / Cmd+C
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         handleCopySelection();
+        return;
       }
 
       // Cut: Ctrl+X / Cmd+X
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
         handleCutSelection();
+        return;
       }
 
       // Paste: Ctrl+V / Cmd+V
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
         handlePasteSelection();
+        return;
       }
 
       // Clear values: Delete / Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectionBounds) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (selectionBounds || selectedCell)) {
+        e.preventDefault();
         handleClearSelectionValues();
+        return;
+      }
+
+      // Spacebar: Toggle boolean checkbox or expand row detail modal
+      if (e.key === ' ' && selectedCell) {
+        const [r, c] = selectedCell;
+        const targetRow = rows[r];
+        const targetField = fields[c];
+        if (targetRow && targetField) {
+          e.preventDefault();
+          if (targetField.type === 'boolean') {
+            const fk = `field_${targetField.id}`;
+            const hasK = (targetRow as any).data && fk in (targetRow as any).data;
+            const currentVal = hasK ? (targetRow as any).data[fk] : targetRow.values?.[targetField.id];
+            const isChecked = Boolean(currentVal === true || currentVal === 'true' || currentVal === 1 || currentVal === '1');
+            onUpdateCell?.(targetRow.id, targetField.id, !isChecked);
+          } else {
+            onExpandRow?.(targetRow.id);
+          }
+          return;
+        }
+      }
+
+      // Enter / Shift+Enter: Navigate rows (Excel / Google Sheets desktop standard)
+      if (e.key === 'Enter' && selectedCell) {
+        e.preventDefault();
+        const [r, c] = selectedCell;
+        handleNavigateCell(r, c, e.shiftKey ? 'prevRow' : 'nextRow');
+        return;
+      }
+
+      // F2: Start editing focused cell
+      if (e.key === 'F2' && selectedCell) {
+        e.preventDefault();
+        const [r, c] = selectedCell;
+        const targetRow = rows[r];
+        if (targetRow) {
+          setEditingCellInfo({ rowId: targetRow.id, colIndex: c });
+          setTypeOverValue(null);
+          setIsEditing(true);
+        }
+        return;
+      }
+
+      // Tab / Shift+Tab: Navigate columns and wrap to next row
+      if (e.key === 'Tab' && selectedCell) {
+        e.preventDefault();
+        const [r, c] = selectedCell;
+        handleNavigateCell(r, c, e.shiftKey ? 'prevCol' : 'nextCol');
+        return;
+      }
+
+      // Home / End / Ctrl+Home / Ctrl+End
+      if ((e.key === 'Home' || e.key === 'End') && selectedCell) {
+        e.preventDefault();
+        const [r, c] = selectedCell;
+        if (e.ctrlKey || e.metaKey) {
+          const nextR = e.key === 'Home' ? 0 : Math.max(0, rows.length - 1);
+          const nextC = e.key === 'Home' ? 0 : Math.max(0, fields.length - 1);
+          setSelectedCell([nextR, nextC]);
+          setSelectionStart([nextR, nextC]);
+          setSelectionEnd([nextR, nextC]);
+        } else {
+          const nextC = e.key === 'Home' ? 0 : Math.max(0, fields.length - 1);
+          setSelectedCell([r, nextC]);
+          setSelectionStart([r, nextC]);
+          setSelectionEnd([r, nextC]);
+        }
+        return;
+      }
+
+      // Quick rating score 0-5
+      if (selectedCell && ['0', '1', '2', '3', '4', '5'].includes(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const [r, c] = selectedCell;
+        const targetRow = rows[r];
+        const targetField = fields[c];
+        if (targetRow && targetField && targetField.type === 'rating') {
+          e.preventDefault();
+          onUpdateCell?.(targetRow.id, targetField.id, Number(e.key));
+          return;
+        }
       }
 
       // Keyboard Arrow Keys Navigation & Shift Range Expansion
@@ -1078,11 +1375,27 @@ export const GridView: React.FC<GridViewProps> = ({
           setSelectedCell([nextRow, nextCol]);
           setEditingCellInfo(null);
         }
+        return;
+      }
+
+      // Type-over Direct Entry on Printable Characters
+      const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && e.key !== ' ';
+      if (selectedCell && isPrintable) {
+        const [r, c] = selectedCell;
+        const targetRow = rows[r];
+        const targetField = fields[c];
+        const readOnlyTypes = ['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'formula', 'boolean', 'file'];
+        if (targetRow && targetField && !readOnlyTypes.includes(targetField.type)) {
+          e.preventDefault();
+          setEditingCellInfo({ rowId: targetRow.id, colIndex: c });
+          setTypeOverValue(e.key);
+          setIsEditing(true);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, selectionBounds, selectionStart, selectionEnd, rows, fields, handleCopySelection, handleCutSelection, handlePasteSelection, handleClearSelectionValues, visualGroupedRows]);
+  }, [isEditing, selectedCell, selectionBounds, selectionStart, selectionEnd, selectedRowIds, rows, fields, handleCopySelection, handleCutSelection, handlePasteSelection, handleClearSelectionValues, handleNavigateCell, visualGroupedRows, onUndo, onRedo, onUpdateCell, onExpandRow, showToast]);
 
   // Ensure Row 1 (index 0) is visible at top on initial mount or table switch
   useEffect(() => {
@@ -1230,76 +1543,52 @@ export const GridView: React.FC<GridViewProps> = ({
     };
   }, [rowVirtualizer]);
 
-  // Auto scroll to selected cell row when selectedCell changes (ONLY in flat non-grouped view)
+  // Auto scroll to selected cell row and column when selectedCell changes
   useEffect(() => {
-    if (selectedCell && rowVirtualizer && (!effectiveGroupByRules || effectiveGroupByRules.length === 0)) {
-      rowVirtualizer.scrollToIndex(selectedCell[0], { align: 'auto' });
-    }
-  }, [selectedCell, rowVirtualizer, effectiveGroupByRules]);
+    if (!selectedCell) return;
+    const [r, c] = selectedCell;
 
-  const handleResizeColumnLocal = useCallback((fieldId: number, newWidth: number) => {
-    if (containerRef.current) {
-      containerRef.current.style.setProperty(`--field-width-${fieldId}`, `${newWidth}px`);
+    // 1. Vertical auto-scroll (flat non-grouped view)
+    if (rowVirtualizer && (!effectiveGroupByRules || effectiveGroupByRules.length === 0)) {
+      rowVirtualizer.scrollToIndex(r, { align: 'auto' });
     }
-  }, []);
+
+    // 2. Horizontal auto-scroll (ensure target column is visible within viewport)
+    if (bodyRef.current && fields.length > 0 && c >= 0 && c < fields.length) {
+      const container = bodyRef.current;
+      let colLeft = rowDetailsWidth;
+      for (let i = 0; i < c; i++) {
+        colLeft += (fields[i]?.width || 180);
+      }
+      const targetColWidth = fields[c]?.width || 180;
+      const colRight = colLeft + targetColWidth;
+      const frozenLeft = rowDetailsWidth + (fields[0]?.width || 180); // column 0 is frozen sticky
+
+      const currentScrollLeft = container.scrollLeft;
+      const clientWidth = container.clientWidth;
+
+      if (c > 0) {
+        if (colRight > currentScrollLeft + clientWidth) {
+          if (typeof container.scrollTo === 'function') {
+            container.scrollTo({ left: colRight - clientWidth + 24, behavior: 'smooth' });
+          } else {
+            container.scrollLeft = colRight - clientWidth + 24;
+          }
+        } else if (colLeft < currentScrollLeft + frozenLeft) {
+          if (typeof container.scrollTo === 'function') {
+            container.scrollTo({ left: Math.max(0, colLeft - frozenLeft - 16), behavior: 'smooth' });
+          } else {
+            container.scrollLeft = Math.max(0, colLeft - frozenLeft - 16);
+          }
+        }
+      }
+    }
+  }, [selectedCell, fields, rowDetailsWidth, rowVirtualizer, effectiveGroupByRules]);
 
   useOnClickOutside(containerRef, () => {
     setSelectedCell(null);
     setIsEditing(false);
   });
-
-
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!selectedCell) return;
-
-      const [r, c] = selectedCell;
-
-      if (isEditing) {
-        if (e.key === 'Escape') {
-          setIsEditing(false);
-        }
-        return;
-      }
-
-      // Enter or F2 starts editing
-      if (e.key === 'Enter' || e.key === 'F2') {
-        e.preventDefault();
-        setIsEditing(true);
-        return;
-      }
-
-      // Arrow navigation
-      switch (e.key) {
-        case 'ArrowUp':
-          e.preventDefault();
-          if (r > 0) setSelectedCell([r - 1, c]);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (r < rows.length - 1) setSelectedCell([r + 1, c]);
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          if (c > 0) setSelectedCell([r, c - 1]);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          if (c < fields.length - 1) setSelectedCell([r, c + 1]);
-          break;
-        case 'Tab':
-          e.preventDefault();
-          if (e.shiftKey) {
-            if (c > 0) setSelectedCell([r, c - 1]);
-          } else {
-            if (c < fields.length - 1) setSelectedCell([r, c + 1]);
-          }
-          break;
-      }
-    },
-    [selectedCell, isEditing, fields.length, rows.length]
-  );
 
   const storageKey = useMemo(() => {
     if (tableId && viewId) return `grid_agg_modes_${tableId}_${viewId}`;
@@ -1445,7 +1734,6 @@ export const GridView: React.FC<GridViewProps> = ({
     <div
       ref={containerRef}
       tabIndex={0}
-      onKeyDown={handleKeyDown}
       className="grid-view"
       style={{ outline: 'none', height: '100%', width: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, position: 'relative' }}
     >
@@ -1492,6 +1780,7 @@ export const GridView: React.FC<GridViewProps> = ({
               onAddFieldPopover={onAddFieldPopover}
               onResizeColumn={handleResizeColumnLocal}
               onResizeColumnEnd={onResizeColumnEnd}
+              onAutoFitColumn={handleAutoFitColumn}
               onFieldClick={onFieldClick}
               onOpenFieldContextMenu={onOpenFieldContextMenu}
               onReorderFields={onReorderFields}
@@ -1705,7 +1994,9 @@ export const GridView: React.FC<GridViewProps> = ({
                                       rowDetailsWidth={rowDetailsWidth}
                                       selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
                                       isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
+                                      initialTypeOverValue={editingCellInfo?.rowId === row.id && isEditing ? typeOverValue : undefined}
                                       selectionBounds={selectionBounds}
+                                      autofillBounds={autofillBounds}
                                       isRowSelectedDirectly={selectedRowIds.has(row.id)}
                                       canDrag={canDragRows}
                                       onToggleRowCheckbox={handleToggleRowCheckbox}
@@ -1722,10 +2013,14 @@ export const GridView: React.FC<GridViewProps> = ({
                                         }
                                         setIsEditing(false);
                                         setEditingCellInfo(null);
+                                        setTypeOverValue(null);
                                       }}
                                       onMouseEnterCell={(cIndex) => {
                                         if (isDraggingSelection && selectionStart) {
                                           setSelectionEnd([rIndex, cIndex]);
+                                        }
+                                        if (isAutofilling && autofillStart) {
+                                          setAutofillEnd([rIndex, cIndex]);
                                         }
                                       }}
                                       onStartAutofillCell={(cIndex, e) => {
@@ -1736,9 +2031,10 @@ export const GridView: React.FC<GridViewProps> = ({
                                         setSelectionStart([rIndex, cIndex]);
                                         setSelectionEnd([rIndex, cIndex]);
                                       }}
-                                      onStartEditCell={(cIndex) => {
+                                      onStartEditCell={(cIndex, initVal) => {
                                         setSelectedCell([rIndex, cIndex]);
                                         setEditingCellInfo({ rowId: row.id, colIndex: cIndex });
+                                        setTypeOverValue(initVal || null);
                                         setIsEditing(true);
                                       }}
                                       onUpdateCell={(fieldId, val) => {
@@ -1748,9 +2044,11 @@ export const GridView: React.FC<GridViewProps> = ({
                                       onCancelEditCell={() => {
                                         setIsEditing(false);
                                         setEditingCellInfo(null);
+                                        setTypeOverValue(null);
                                       }}
                                       onExpandRow={() => onExpandRow?.(row.id)}
                                       onReorderRows={onReorderRows}
+                                      onAutoFillDown={(cIndex) => handleAutoFillDown(rIndex >= 0 ? rIndex : 0, cIndex)}
                                       onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}
                                     />
                                   );
@@ -1860,7 +2158,9 @@ export const GridView: React.FC<GridViewProps> = ({
                         rowDetailsWidth={rowDetailsWidth}
                         selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
                         isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
+                        initialTypeOverValue={editingCellInfo?.rowId === row.id && isEditing ? typeOverValue : undefined}
                         selectionBounds={selectionBounds}
+                        autofillBounds={autofillBounds}
                         isRowSelectedDirectly={selectedRowIds.has(row.id)}
                         canDrag={canDragRows}
                         onToggleRowCheckbox={handleToggleRowCheckbox}
@@ -1878,10 +2178,14 @@ export const GridView: React.FC<GridViewProps> = ({
                           }
                           setIsEditing(false);
                           setEditingCellInfo(null);
+                          setTypeOverValue(null);
                         }}
                         onMouseEnterCell={(cIndex) => {
                           if (isDraggingSelection && selectionStart) {
                             setSelectionEnd([rIndex, cIndex]);
+                          }
+                          if (isAutofilling && autofillStart) {
+                            setAutofillEnd([rIndex, cIndex]);
                           }
                         }}
                         onStartAutofillCell={(cIndex, e) => {
@@ -1892,9 +2196,11 @@ export const GridView: React.FC<GridViewProps> = ({
                           setSelectionStart([rIndex, cIndex]);
                           setSelectionEnd([rIndex, cIndex]);
                         }}
-                        onStartEditCell={(cIndex) => {
+                        onAutoFillDown={(cIndex) => handleAutoFillDown(rIndex, cIndex)}
+                        onStartEditCell={(cIndex, initVal) => {
                           setSelectedCell([rIndex, cIndex]);
                           setEditingCellInfo({ rowId: row.id, colIndex: cIndex });
+                          setTypeOverValue(initVal || null);
                           setIsEditing(true);
                         }}
                         onUpdateCell={(fieldId, val) => {
@@ -1904,6 +2210,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         onCancelEditCell={() => {
                           setIsEditing(false);
                           setEditingCellInfo(null);
+                          setTypeOverValue(null);
                         }}
                         onExpandRow={() => onExpandRow?.(row.id)}
                         onReorderRows={onReorderRows}
@@ -2072,6 +2379,137 @@ export const GridView: React.FC<GridViewProps> = ({
           />
         </div>
       </div>
+
+      {/* Floating Batch Selection Capsule Action Bar */}
+      {selectedRowIds.size > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 60,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '8px 16px',
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(8px)',
+            color: '#ffffff',
+            borderRadius: '9999px',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15)',
+            fontSize: '13px',
+            fontWeight: 500,
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: '#3F6212',
+                color: '#ffffff',
+                borderRadius: '9999px',
+                padding: '2px 8px',
+                fontSize: '12px',
+                fontWeight: 700,
+              }}
+            >
+              {selectedRowIds.size}
+            </span>
+            <span>列已選取</span>
+          </div>
+
+          <div style={{ width: '1px', height: '16px', background: 'rgba(255, 255, 255, 0.2)' }} />
+
+          <button
+            type="button"
+            onClick={handleCopySelection}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.12)',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.22)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)'}
+            title="複製選取的資料 (Ctrl+C)"
+          >
+            <Copy size={13} />
+            複製
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDeleteSelectedRows}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(239, 68, 68, 0.2)',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              color: '#fca5a5',
+              fontSize: '12px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#ef4444';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+              e.currentTarget.style.color = '#fca5a5';
+            }}
+            title="刪除選取的列 (Delete)"
+          >
+            <Trash2 size={13} />
+            刪除
+          </button>
+
+          <div style={{ width: '1px', height: '16px', background: 'rgba(255, 255, 255, 0.2)' }} />
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedRowIds(new Set());
+              setSelectionStart(null);
+              setSelectionEnd(null);
+              setSelectedCell(null);
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '9999px',
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = '#ffffff'}
+            onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+            title="取消選取 (Esc)"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
 
       {/* Batch Add Rows Popover Menu */}
       {batchAddMenuPosition && (

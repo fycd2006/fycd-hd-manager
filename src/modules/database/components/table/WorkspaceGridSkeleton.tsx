@@ -130,28 +130,6 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
           </div>
         ))}
       </div>
-
-      <style jsx>{`
-        @keyframes fycdBarShimmer {
-          0% {
-            background-position: 0% 50%;
-          }
-          50% {
-            background-position: 100% 50%;
-          }
-          100% {
-            background-position: 0% 50%;
-          }
-        }
-        @keyframes fycdRowPulse {
-          0% {
-            opacity: 0.4;
-          }
-          100% {
-            opacity: 1;
-          }
-        }
-      `}</style>
     </motion.div>
   );
 };

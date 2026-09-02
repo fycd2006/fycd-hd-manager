@@ -25,7 +25,7 @@ import { getSessionUser } from '@/lib/auth'
 import { useTableOperations } from '@/modules/database/hooks/useTableOperations'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
-import { parseSelectItems, evaluateCellCondition } from '@/modules/database/components/views/grid/cells/utils'
+import { parseSelectItems, evaluateCellCondition, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils'
 import { normalizeRowData } from '@/modules/database/utils/normalizeRowData'
 import { ToastContainer } from '@/components/ui/ToastContainer'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -305,11 +305,18 @@ export default function Home() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement
+      const target = e.target as HTMLElement | null
       const isInputFocused = activeEl && (
         activeEl.tagName === 'INPUT' ||
         activeEl.tagName === 'TEXTAREA' ||
         (activeEl as HTMLElement).isContentEditable
       )
+
+      // If keydown originated inside .grid-view, let GridView handle it to avoid duplicate undo/redo execution
+      if ((target && typeof target.closest === 'function' && target.closest('.grid-view')) ||
+          (activeEl && typeof activeEl.closest === 'function' && activeEl.closest('.grid-view'))) {
+        return
+      }
 
       if ((e.ctrlKey || e.metaKey) && !isInputFocused) {
         if (e.key.toLowerCase() === 'z') {
@@ -573,15 +580,22 @@ export default function Home() {
           const rawA = getCellValue(a, ruleField)
           const rawB = getCellValue(b, ruleField)
 
+          const isAEmpty = rawA === null || rawA === undefined || rawA === ''
+          const isBEmpty = rawB === null || rawB === undefined || rawB === ''
+
+          if (isAEmpty && isBEmpty) continue
+          if (isAEmpty) return 1
+          if (isBEmpty) return -1
+
           let diff = 0
           if (fieldObj?.type === 'single_select' || fieldObj?.type === 'multiple_select') {
             const namesA = parseSelectItems(rawA, fieldObj.options).join(', ')
             const namesB = parseSelectItems(rawB, fieldObj.options).join(', ')
             diff = namesA.localeCompare(namesB, 'zh-TW', { numeric: true })
           } else {
-            const numA = Number(rawA)
-            const numB = Number(rawB)
-            if (!isNaN(numA) && !isNaN(numB) && rawA !== '' && rawB !== '') {
+            const numA = parseNumberInput(rawA)
+            const numB = parseNumberInput(rawB)
+            if (numA !== null && numB !== null) {
               diff = numA - numB
             } else {
               diff = String(rawA || '').localeCompare(String(rawB || ''), 'zh-TW', { numeric: true })

@@ -9,6 +9,7 @@ import { useWorkspaceStore } from '@/modules/database/store/useWorkspaceStore'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import MobileSearchModal from './MobileSearchModal'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
+import BottomSheet from '@/components/ui/BottomSheet'
 
 interface MobileBottomNavProps {
   workspaces: Workspace[]
@@ -922,66 +923,27 @@ export default function MobileBottomNav({
         onSelectRow={onSelectRow}
       />
 
-      {/* Database & Table Selector Modal */}
-      {showDbModal && (
+      {/* Database & Table Selector Bottom Sheet */}
+      <BottomSheet
+        show={showDbModal}
+        onClose={() => setShowDbModal(false)}
+        isDark={isDark}
+        maxHeight="85vh"
+        zIndex={1050}
+      >
         <div
           style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1050,
             display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(15, 23, 42, 0.45)',
-            backdropFilter: 'blur(4px)',
-            pointerEvents: 'auto',
-            touchAction: 'manipulation',
-            animation: 'backdropFadeIn 0.2s ease',
+            flexDirection: 'column',
+            gap: '12px',
+            padding: '16px 20px 12px 20px',
+            backgroundColor: isDark ? '#0f172a' : '#ffffff',
+            borderBottom: isDark ? '1px solid #1e293b' : '1px solid #f1f5f9',
           }}
-          onClick={() => setShowDbModal(false)}
         >
-          <style>{`
-            @keyframes mobileDbSheetSlideUp {
-              from { transform: translateY(100%); }
-              to { transform: translateY(0); }
-            }
-          `}</style>
-          <div
-            style={{
-              width: '100vw',
-              maxWidth: '100vw',
-              maxHeight: '85vh',
-              backgroundColor: isDark ? '#0f172a' : '#ffffff',
-              borderRadius: '24px 24px 0 0',
-              boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.25)',
-              border: isDark ? '1px solid rgba(255,255,255,0.1)' : 'none',
-              borderBottom: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              animation: 'mobileDbSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
-              paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
-            }}
-            onClick={e => e.stopPropagation()}
-            role="dialog"
-            aria-label={t('mobileNav.databasesAndTables')}
-          >
-            {/* Top Handle Pill */}
-            <div style={{ width: '36px', height: '4px', borderRadius: '9999px', backgroundColor: isDark ? '#334155' : '#cbd5e1', margin: '10px auto 2px auto', flexShrink: 0 }} />
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                padding: '16px 20px 12px 20px',
-                backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                borderBottom: isDark ? '1px solid #1e293b' : '1px solid #f1f5f9',
-              }}
-            >
-              {/* Row 1: Title & Close Button */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Row 1: Title & Close Button */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <DatabaseIcon size={18} color="#3F6212" />
                   </div>
@@ -1246,9 +1208,7 @@ export default function MobileBottomNav({
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheet>
     </>
   )
 

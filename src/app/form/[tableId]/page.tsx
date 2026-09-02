@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import { parseNumberInput } from '@/modules/database/components/views/grid/cells/utils'
 
 interface TableField {
   id: number
@@ -197,10 +198,17 @@ export default function PublicFormPage() {
 
     try {
       const submitUrl = isTokenMode ? `/api/form/${rawParam}` : `/api/tables/${tableId}/rows`
+      const cleanedData: Record<string, any> = { ...formData }
+      fields.forEach(f => {
+        const key = `field_${f.id}`
+        if (f.type === 'number' && key in cleanedData) {
+          cleanedData[key] = parseNumberInput(cleanedData[key])
+        }
+      })
       const res = await fetch(submitUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: formData }),
+        body: JSON.stringify({ data: cleanedData }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -326,12 +334,13 @@ export default function PublicFormPage() {
                     {/* NUMBER */}
                     {field.type === 'number' && (
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         value={val == null ? '' : val}
-                        onChange={e => handleInputChange(key, e.target.value === '' ? null : Number(e.target.value))}
+                        onChange={e => handleInputChange(key, e.target.value)}
                         required={isRequired}
                         placeholder={formViewSettings?.placeholders?.[field.id] || ""}
-                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none' }}
+                        style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none', fontFamily: 'monospace' }}
                         onFocus={e => e.target.style.borderColor = '#3F6212'}
                         onBlur={e => e.target.style.borderColor = 'rgba(63, 98, 18,0.15)'}
                       />

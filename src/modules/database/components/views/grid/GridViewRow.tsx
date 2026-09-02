@@ -22,7 +22,9 @@ interface GridViewRowProps {
   rowDetailsWidth?: number;
   selectedColumnIndex?: number | null;
   isCellEditing?: boolean;
+  initialTypeOverValue?: string | null;
   selectionBounds?: { minRow: number; maxRow: number; minCol: number; maxCol: number; isMulti: boolean } | null;
+  autofillBounds?: { minRow: number; maxRow: number; minCol: number; maxCol: number } | null;
   isRowSelectedDirectly?: boolean;
   canDrag?: boolean;
   onSelectCell: (colIndex: number, e?: React.MouseEvent) => void;
@@ -31,7 +33,8 @@ interface GridViewRowProps {
   onMouseEnterRowHeader?: (rowIndex: number, e?: React.MouseEvent) => void;
   onMouseEnterCell?: (colIndex: number) => void;
   onStartAutofillCell?: (colIndex: number, e: React.MouseEvent) => void;
-  onStartEditCell: (colIndex: number) => void;
+  onAutoFillDown?: (colIndex: number) => void;
+  onStartEditCell: (colIndex: number, initialVal?: string) => void;
   onUpdateCell: (fieldId: number, value: any) => void;
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
   onCancelEditCell: () => void;
@@ -48,7 +51,9 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   rowDetailsWidth = 56,
   selectedColumnIndex,
   isCellEditing,
+  initialTypeOverValue,
   selectionBounds,
+  autofillBounds,
   isRowSelectedDirectly = false,
   canDrag = true,
   onSelectCell,
@@ -57,6 +62,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   onMouseEnterRowHeader,
   onMouseEnterCell,
   onStartAutofillCell,
+  onAutoFillDown,
   onStartEditCell,
   onUpdateCell,
   onUpdateField,
@@ -276,6 +282,14 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           right: cIndex === selectionBounds.maxCol,
         } : undefined;
 
+        const isInAutofillRange = Boolean(
+          autofillBounds &&
+          rowIndex >= autofillBounds.minRow &&
+          rowIndex <= autofillBounds.maxRow &&
+          cIndex >= autofillBounds.minCol &&
+          cIndex <= autofillBounds.maxCol
+        );
+
         return (
           <GridViewCell
             key={field.id}
@@ -285,16 +299,19 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             isSelected={Boolean(isSelected)}
             isEditing={Boolean(isSelected && isCellEditing)}
             isInRange={isInRange}
+            isInAutofillRange={isInAutofillRange}
             isRowSelected={isRowSelected}
             isRowHovered={isHovered}
             rangeEdges={rangeEdges}
             isPrimary={cIndex === 0}
             rowColorBg={matchedColorBg}
             rowDetailsWidth={rowDetailsWidth}
+            initialTypeOverValue={isSelected ? initialTypeOverValue : undefined}
             onSelect={(e) => onSelectCell(cIndex, e)}
             onMouseEnterCell={() => onMouseEnterCell?.(cIndex)}
             onStartAutofill={(e) => onStartAutofillCell?.(cIndex, e)}
-            onStartEdit={() => onStartEditCell(cIndex)}
+            onAutoFillDown={() => onAutoFillDown?.(cIndex)}
+            onStartEdit={(initVal?: string) => onStartEditCell(cIndex, initVal)}
             onUpdate={(val) => onUpdateCell(field.id, val)}
             onUpdateField={onUpdateField}
             onCancelEdit={onCancelEditCell}

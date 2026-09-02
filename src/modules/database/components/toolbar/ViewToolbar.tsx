@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'motion/react'
 import { PanelLeft, PanelLeftClose, PanelLeftOpen, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload } from 'lucide-react'
 import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
@@ -1045,48 +1046,58 @@ export function ViewToolbar({
       )}
 
       {/* View Switcher Bottom Sheet / Popover Portal */}
-      {showViewContext && (isMobile || menuAnchorRect) && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: isMobile ? 'calc(54px + env(safe-area-inset-bottom))' : 0,
-            zIndex: 99999990,
-            backgroundColor: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
-            backdropFilter: isMobile ? 'blur(4px)' : 'none',
-            display: isMobile ? 'flex' : 'block',
-            alignItems: isMobile ? 'flex-end' : undefined,
-            justifyContent: isMobile ? 'center' : undefined,
-            padding: isMobile ? '0 10px 8px 10px' : 0,
-            pointerEvents: 'auto',
-            animation: isMobile ? 'backdropFadeIn 0.2s ease' : 'none',
-          }}
-          onClick={() => setShowViewContext(false)}
-        >
-          <div 
-            style={{ 
-              position: isMobile ? 'relative' : 'fixed', 
-              top: isMobile ? undefined : `${(menuAnchorRect?.top || 0) + (menuAnchorRect?.height || 0) + 6}px`, 
-              left: isMobile ? undefined : `${Math.max(8, Math.min(menuAnchorRect?.left || 8, (typeof window !== 'undefined' ? window.innerWidth : 800) - 250))}px`, 
-              width: isMobile ? '100%' : undefined,
-              minWidth: isMobile ? '100%' : '240px', 
-              maxWidth: isMobile ? '100%' : '90vw',
-              maxHeight: isMobile ? 'calc(100vh - 54px - env(safe-area-inset-bottom) - 48px)' : 'calc(100vh - 100px)',
-              zIndex: 99999995, 
-              background: '#fff', 
-              boxShadow: isMobile ? '0 12px 36px -4px rgba(15, 23, 42, 0.28), 0 2px 10px rgba(0, 0, 0, 0.08)' : '0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(0,0,0,0.04)', 
-              borderRadius: isMobile ? '18px' : '12px', 
-              border: isMobile ? '1px solid rgba(226, 232, 240, 0.9)' : '1px solid #e2e8f0', 
-              padding: isMobile ? '14px 16px 16px 16px' : '0', 
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              animation: isMobile ? 'bottomSheetSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showViewContext && (isMobile || menuAnchorRect) && (
+            <motion.div
+              key="view-context-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: isMobile ? 'calc(54px + env(safe-area-inset-bottom))' : 0,
+                zIndex: 99999990,
+                backgroundColor: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
+                backdropFilter: isMobile ? 'blur(4px)' : 'none',
+                display: isMobile ? 'flex' : 'block',
+                alignItems: isMobile ? 'flex-end' : undefined,
+                justifyContent: isMobile ? 'center' : undefined,
+                padding: isMobile ? '0 10px 8px 10px' : 0,
+                pointerEvents: 'auto',
+              }}
+              onClick={() => setShowViewContext(false)}
+            >
+              <motion.div 
+                key="view-context-panel"
+                initial={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: -4 }}
+                animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+                exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: -4 }}
+                transition={isMobile ? { type: 'spring', damping: 28, stiffness: 350 } : { duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                style={{ 
+                  position: isMobile ? 'relative' : 'fixed', 
+                  top: isMobile ? undefined : `${(menuAnchorRect?.top || 0) + (menuAnchorRect?.height || 0) + 6}px`, 
+                  left: isMobile ? undefined : `${Math.max(8, Math.min(menuAnchorRect?.left || 8, (typeof window !== 'undefined' ? window.innerWidth : 800) - 250))}px`, 
+                  width: isMobile ? '100%' : undefined,
+                  minWidth: isMobile ? '100%' : '240px', 
+                  maxWidth: isMobile ? '100%' : '90vw',
+                  maxHeight: isMobile ? 'calc(100vh - 54px - env(safe-area-inset-bottom) - 48px)' : 'calc(100vh - 100px)',
+                  zIndex: 99999995, 
+                  background: '#fff', 
+                  boxShadow: isMobile ? '0 12px 36px -4px rgba(15, 23, 42, 0.28), 0 2px 10px rgba(0, 0, 0, 0.08)' : '0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 2px 8px rgba(0,0,0,0.04)', 
+                  borderRadius: isMobile ? '18px' : '12px', 
+                  border: isMobile ? '1px solid rgba(226, 232, 240, 0.9)' : '1px solid #e2e8f0', 
+                  padding: isMobile ? '14px 16px 16px 16px' : '0', 
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
             {isMobile && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ width: '36px', height: '4px', borderRadius: '9999px', backgroundColor: '#cbd5e1', marginBottom: '10px' }} />
@@ -1187,8 +1198,10 @@ export function ViewToolbar({
                 </a>
               </div>
             )}
-          </div>
-        </div>,
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
         document.body
       )}
 
@@ -1211,59 +1224,59 @@ export function ViewToolbar({
       )}
 
       {/* Top-Layer Floating Portal for Toolbar Menus (Prevents any overflow clipping across all viewports) */}
-      {activeHeaderMenu && (isMobile || menuAnchorRect) && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: isMobile ? 'calc(54px + env(safe-area-inset-bottom))' : 0,
-            zIndex: 99999990,
-            backgroundColor: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
-            backdropFilter: isMobile ? 'blur(4px)' : 'none',
-            display: isMobile ? 'flex' : 'block',
-            alignItems: isMobile ? 'flex-end' : undefined,
-            justifyContent: isMobile ? 'center' : undefined,
-            padding: isMobile ? '0 10px 8px 10px' : 0,
-            pointerEvents: 'auto',
-            animation: isMobile ? 'backdropFadeIn 0.2s ease' : 'none',
-          }}
-          onClick={() => setActiveHeaderMenu(null)}
-        >
-          <style>{`
-            @keyframes bottomSheetSlideUp {
-              from { transform: translateY(100%); }
-              to { transform: translateY(0); }
-            }
-            @keyframes backdropFadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-          `}</style>
-          <div
-            ref={popoverMenuRef}
-            className="toolbar-popover-card"
-            data-portal-root="true"
-            style={{
-              position: isMobile ? 'relative' : 'fixed',
-              top: isMobile ? undefined : `${(menuAnchorRect?.top || 0) + (menuAnchorRect?.height || 0) + 6}px`,
-              left: isMobile ? undefined : `${Math.max(8, Math.min(menuAnchorRect?.left || 8, (typeof window !== 'undefined' ? window.innerWidth : 800) - (activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? 540 : activeHeaderMenu === 'sort' || activeHeaderMenu === 'group' ? 490 : 290)))}px`,
-              width: isMobile ? '100%' : undefined,
-              maxWidth: isMobile ? '100%' : '92vw',
-              maxHeight: isMobile ? 'calc(100vh - 54px - env(safe-area-inset-bottom) - 48px)' : 'calc(100vh - 100px)',
-              zIndex: 99999995,
-              backgroundColor: '#ffffff',
-              borderRadius: isMobile ? '18px' : '10px',
-              boxShadow: isMobile ? '0 12px 36px -4px rgba(15, 23, 42, 0.28), 0 2px 10px rgba(0, 0, 0, 0.08)' : '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
-              border: isMobile ? '1px solid rgba(226, 232, 240, 0.9)' : '1px solid #e2e8f0',
-              padding: isMobile ? '14px 16px 16px 16px' : (activeHeaderMenu === 'hide' || activeHeaderMenu === 'rowHeight' ? '6px' : '12px'),
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              animation: isMobile ? 'bottomSheetSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {activeHeaderMenu && (isMobile || menuAnchorRect) && (
+            <motion.div
+              key="header-menu-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: isMobile ? 'calc(54px + env(safe-area-inset-bottom))' : 0,
+                zIndex: 99999990,
+                backgroundColor: isMobile ? 'rgba(15, 23, 42, 0.45)' : 'transparent',
+                backdropFilter: isMobile ? 'blur(4px)' : 'none',
+                display: isMobile ? 'flex' : 'block',
+                alignItems: isMobile ? 'flex-end' : undefined,
+                justifyContent: isMobile ? 'center' : undefined,
+                padding: isMobile ? '0 10px 8px 10px' : 0,
+                pointerEvents: 'auto',
+              }}
+              onClick={() => setActiveHeaderMenu(null)}
+            >
+              <motion.div
+                key="header-menu-panel"
+                ref={popoverMenuRef}
+                className="toolbar-popover-card"
+                data-portal-root="true"
+                initial={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: -4 }}
+                animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+                exit={isMobile ? { y: '100%' } : { opacity: 0, scale: 0.95, y: -4 }}
+                transition={isMobile ? { type: 'spring', damping: 28, stiffness: 350 } : { duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  position: isMobile ? 'relative' : 'fixed',
+                  top: isMobile ? undefined : `${(menuAnchorRect?.top || 0) + (menuAnchorRect?.height || 0) + 6}px`,
+                  left: isMobile ? undefined : `${Math.max(8, Math.min(menuAnchorRect?.left || 8, (typeof window !== 'undefined' ? window.innerWidth : 800) - (activeHeaderMenu === 'filter' || activeHeaderMenu === 'color' ? 540 : activeHeaderMenu === 'sort' || activeHeaderMenu === 'group' ? 490 : 290)))}px`,
+                  width: isMobile ? '100%' : undefined,
+                  maxWidth: isMobile ? '100%' : '92vw',
+                  maxHeight: isMobile ? 'calc(100vh - 54px - env(safe-area-inset-bottom) - 48px)' : 'calc(100vh - 100px)',
+                  zIndex: 99999995,
+                  backgroundColor: '#ffffff',
+                  borderRadius: isMobile ? '18px' : '10px',
+                  boxShadow: isMobile ? '0 12px 36px -4px rgba(15, 23, 42, 0.28), 0 2px 10px rgba(0, 0, 0, 0.08)' : '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
+                  border: isMobile ? '1px solid rgba(226, 232, 240, 0.9)' : '1px solid #e2e8f0',
+                  padding: isMobile ? '14px 16px 16px 16px' : (activeHeaderMenu === 'hide' || activeHeaderMenu === 'rowHeight' ? '6px' : '12px'),
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
             {/* Mobile Bottom Sheet Grab Handle & Header */}
             {isMobile && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '12px' }}>
@@ -1598,8 +1611,10 @@ export function ViewToolbar({
                 )}
               </div>
             )}
-          </div>
-        </div>,
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
         document.body
       )}
     </>

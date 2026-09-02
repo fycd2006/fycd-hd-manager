@@ -1,7 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import { MessageSquare, History, Send, Edit2, Check, X } from 'lucide-react'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 export interface RowComment {
   id: number
@@ -129,7 +131,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >
-      {/* Header Tabs with Airtable Top Blue Active Line */}
+      {/* Header Tabs with Animated Active Indicator */}
       <div
         style={{
           display: 'flex',
@@ -141,16 +143,16 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
         <button
           onClick={() => setActiveTab('comments')}
           style={{
+            position: 'relative',
             flex: 1,
             padding: '14px 16px',
             fontSize: '13px',
             fontWeight: activeTab === 'comments' ? 600 : 500,
             border: 'none',
-            borderBottom: activeTab === 'comments' ? '2px solid #EA580C' : '2px solid transparent',
             cursor: 'pointer',
             background: 'transparent',
             color: activeTab === 'comments' ? '#EA580C' : '#64748b',
-            transition: 'all 0.15s ease',
+            transition: 'color 0.15s ease',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -160,23 +162,37 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
           <span>Comments</span>
           {comments.length > 0 && (
             <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#475569', padding: '1px 6px', borderRadius: '10px' }}>
-              {comments.length}
+              <SlidingNumber number={comments.length} />
             </span>
+          )}
+          {activeTab === 'comments' && (
+            <motion.div
+              layoutId="active-comment-tab-indicator"
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '2px',
+                backgroundColor: '#EA580C',
+              }}
+              transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+            />
           )}
         </button>
         <button
           onClick={() => setActiveTab('activity')}
           style={{
+            position: 'relative',
             flex: 1,
             padding: '14px 16px',
             fontSize: '13px',
             fontWeight: activeTab === 'activity' ? 600 : 500,
             border: 'none',
-            borderBottom: activeTab === 'activity' ? '2px solid #EA580C' : '2px solid transparent',
             cursor: 'pointer',
             background: 'transparent',
             color: activeTab === 'activity' ? '#EA580C' : '#64748b',
-            transition: 'all 0.15s ease',
+            transition: 'color 0.15s ease',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -186,149 +202,52 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
           <span>History</span>
           {(activityLog.length + fetchedLogs.length) > 0 && (
             <span style={{ fontSize: '11px', background: '#f1f5f9', color: '#475569', padding: '1px 6px', borderRadius: '10px' }}>
-              {activityLog.length + fetchedLogs.length}
+              <SlidingNumber number={activityLog.length + fetchedLogs.length} />
             </span>
+          )}
+          {activeTab === 'activity' && (
+            <motion.div
+              layoutId="active-comment-tab-indicator"
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: '2px',
+                backgroundColor: '#EA580C',
+              }}
+              transition={{ type: 'spring', stiffness: 450, damping: 30 }}
+            />
           )}
         </button>
       </div>
 
-      {/* Tab Content 1: Comments */}
-      {activeTab === 'comments' && (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: '20px 20px 16px' }}>
-          <div
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              paddingRight: '4px',
-            }}
+      {/* Tab Contents with AnimatePresence */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'comments' && (
+          <motion.div
+            key="tab-comments"
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: '20px 20px 16px' }}
           >
-            {commentsLoading ? (
-              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '60px 0' }}>
-                Loading comments...
-              </div>
-            ) : comments.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '100%',
-                  minHeight: '260px',
-                  color: '#64748b',
-                  gap: '16px',
-                  padding: '32px 20px',
-                  textAlign: 'center',
-                }}
-              >
-                <div
-                  style={{
-                    width: '64px',
-                    height: '64px',
-                    borderRadius: '50%',
-                    border: '2px solid #1e293b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#1e293b',
-                  }}
-                >
-                  <MessageSquare size={28} strokeWidth={1.75} />
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                paddingRight: '4px',
+              }}
+            >
+              {commentsLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '200px', color: '#94a3b8', fontSize: '13px' }}>
+                  Loading comments...
                 </div>
-                <div style={{ maxWidth: '260px' }}>
-                  <p style={{ fontSize: '14px', color: '#334155', margin: 0, lineHeight: '1.5' }}>
-                    No comments for this row yet. Use the form below to add a comment.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              comments.map(c => (
-                <div
-                  key={c.id}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                    background: '#ffffff',
-                    padding: '12px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid #e2e8f0',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                      {c.user?.username || 'User'}
-                    </span>
-                    <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                      {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#334155', wordBreak: 'break-word', lineHeight: '1.5' }}>
-                    {c.content}
-                  </p>
-                </div>
-              ))
-            )}
-            <div ref={commentsEndRef} />
-          </div>
-
-          {/* Bottom Comment Input */}
-          {!readOnly && (
-            <form onSubmit={postComment} style={{ marginTop: '16px' }}>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  placeholder="Comment"
-                  value={commentInput}
-                  onChange={e => setCommentInput(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 42px 12px 14px',
-                    fontSize: '13px',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    outline: 'none',
-                    backgroundColor: '#ffffff',
-                    color: '#0f172a',
-                    transition: 'border-color 0.15s ease',
-                  }}
-                  onFocus={e => (e.target.style.borderColor = '#EA580C')}
-                  onBlur={e => (e.target.style.borderColor = '#cbd5e1')}
-                />
-                <button
-                  type="submit"
-                  disabled={!commentInput.trim()}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    background: 'none',
-                    border: 'none',
-                    color: commentInput.trim() ? '#EA580C' : '#cbd5e1',
-                    cursor: commentInput.trim() ? 'pointer' : 'default',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '4px',
-                  }}
-                >
-                  <Send size={16} />
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-
-      {/* Tab Content 2: Activity Log */}
-      {activeTab === 'activity' && (() => {
-        const mergedLogs = [...activityLog, ...fetchedLogs]
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: '20px 20px 16px' }}>
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {mergedLogs.length === 0 ? (
+              ) : comments.length === 0 ? (
                 <div
                   style={{
                     display: 'flex',
@@ -336,87 +255,214 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     height: '100%',
-                    minHeight: '220px',
+                    minHeight: '260px',
                     color: '#64748b',
-                    gap: '12px',
-                    padding: '24px',
+                    gap: '16px',
+                    padding: '32px 20px',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
-                    <History size={22} />
-                  </div>
-                  <span style={{ fontSize: '13px', color: '#475569' }}>尚無此資料列的歷史變更紀錄</span>
-                </div>
-              ) : (
-                mergedLogs.map((log, index) => {
-                  const logId = log.id || String(index)
-                  const isEditing = editingLogId === logId
-                  const logUser = log.user || (log as any).username || 'System'
-                  const logTime = log.time || (log as any).timestamp || (log as any).createdAt || ''
-                  const logContent = log.content || (log as any).description || (log as any).action || ''
-
-                return (
                   <div
-                    key={logId}
                     style={{
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: '#ffffff',
-                      border: '1px solid #e2e8f0',
-                      fontSize: '13px',
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      border: '2px solid #1e293b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#1e293b',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: 600, color: '#334155' }}>{logUser}</span>
-                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>{logTime}</span>
+                    <MessageSquare size={28} strokeWidth={1.75} />
+                  </div>
+                  <div style={{ maxWidth: '260px' }}>
+                    <p style={{ fontSize: '14px', color: '#334155', margin: 0, lineHeight: '1.5' }}>
+                      No comments for this row yet. Use the form below to add a comment.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                comments.map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      background: '#ffffff',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                        {c.user?.username || 'User'}
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                        {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#334155', wordBreak: 'break-word', lineHeight: '1.5' }}>
+                      {c.content}
+                    </p>
+                  </div>
+                ))
+              )}
+              <div ref={commentsEndRef} />
+            </div>
 
-                    {isEditing ? (
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                        <input
-                          type="text"
-                          value={editingLogContent}
-                          onChange={e => setEditingLogContent(e.target.value)}
-                          style={{ flex: 1, padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
-                        />
-                        <button
-                          onClick={() => handleSaveLogEdit(logId)}
-                          style={{ padding: '4px 10px', background: '#18181B', border: 'none', color: '#fff', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-                        >
-                          <Check size={14} />
-                        </button>
-                        <button
-                          onClick={() => setEditingLogId(null)}
-                          style={{ padding: '4px 10px', background: '#94a3b8', border: 'none', color: '#fff', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: '#475569' }}>{logContent}</span>
-                        {!readOnly && onUpdateActivityLog && (
-                          <button
-                            onClick={() => {
-                              setEditingLogId(logId)
-                              setEditingLogContent(logContent)
-                            }}
-                            style={{ background: 'none', border: 'none', color: '#18181B', fontSize: '11px', cursor: 'pointer' }}
-                          >
-                            <Edit2 size={12} />
-                          </button>
+            {/* Bottom Comment Input */}
+            {!readOnly && (
+              <form onSubmit={postComment} style={{ marginTop: '16px' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="Comment"
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 42px 12px 14px',
+                      fontSize: '13px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      outline: 'none',
+                      backgroundColor: '#ffffff',
+                      color: '#0f172a',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = '#EA580C')}
+                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!commentInput.trim()}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      background: 'none',
+                      border: 'none',
+                      color: commentInput.trim() ? '#EA580C' : '#cbd5e1',
+                      cursor: commentInput.trim() ? 'pointer' : 'default',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '4px',
+                    }}
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              </form>
+            )}
+          </motion.div>
+        )}
+
+        {/* Tab Content 2: Activity Log */}
+        {activeTab === 'activity' && (() => {
+          const mergedLogs = [...activityLog, ...fetchedLogs]
+          return (
+            <motion.div
+              key="tab-activity"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18, ease: 'easeOut' }}
+              style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, padding: '20px 20px 16px' }}
+            >
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {mergedLogs.length === 0 ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%',
+                      minHeight: '220px',
+                      color: '#64748b',
+                      gap: '12px',
+                      padding: '24px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+                      <History size={22} />
+                    </div>
+                    <span style={{ fontSize: '13px', color: '#475569' }}>尚無此資料列的歷史變更紀錄</span>
+                  </div>
+                ) : (
+                  mergedLogs.map((log, index) => {
+                    const logId = log.id || String(index)
+                    const isEditing = editingLogId === logId
+                    const logUser = log.user || (log as any).username || 'System'
+                    const logTime = log.time || (log as any).timestamp || (log as any).createdAt || ''
+                    const logContent = log.content || (log as any).description || (log as any).action || ''
+
+                    return (
+                      <div
+                        key={logId}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          background: '#ffffff',
+                          border: '1px solid #e2e8f0',
+                          fontSize: '13px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 600, color: '#334155' }}>{logUser}</span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8' }}>{logTime}</span>
+                        </div>
+
+                        {isEditing ? (
+                          <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                            <input
+                              type="text"
+                              value={editingLogContent}
+                              onChange={(e) => setEditingLogContent(e.target.value)}
+                              style={{ flex: 1, padding: '6px 10px', fontSize: '12px', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                            />
+                            <button
+                              onClick={() => handleSaveLogEdit(logId)}
+                              style={{ padding: '4px 10px', background: '#18181B', border: 'none', color: '#fff', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              onClick={() => setEditingLogId(null)}
+                              style={{ padding: '4px 10px', background: '#94a3b8', border: 'none', color: '#fff', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: '#475569' }}>{logContent}</span>
+                            {!readOnly && onUpdateActivityLog && (
+                              <button
+                                onClick={() => {
+                                  setEditingLogId(logId)
+                                  setEditingLogContent(logContent)
+                                }}
+                                style={{ background: 'none', border: 'none', color: '#18181B', fontSize: '11px', cursor: 'pointer' }}
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                )
-              })
-              )}
-            </div>
-          </div>
-        )
-      })()}
+                    )
+                  })
+                )}
+              </div>
+            </motion.div>
+          )
+        })()}
+      </AnimatePresence>
     </div>
   )
 }

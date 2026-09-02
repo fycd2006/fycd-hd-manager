@@ -27,7 +27,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ tableId: string }> }
 ) {
-  try {
+  const executeQuery = async () => {
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
@@ -66,7 +66,27 @@ export async function GET(
     }
 
     return NextResponse.json(result.rows, { headers: noCacheHeaders })
+  }
+
+  try {
+    return await executeQuery()
   } catch (error: unknown) {
+    const isTransient = error instanceof Error && (
+      error.name === 'PrismaClientInitializationError' ||
+      error.message.includes("Can't reach database server") ||
+      error.message.includes('Connection lost') ||
+      error.message.includes('ETIMEDOUT')
+    )
+
+    if (isTransient) {
+      try {
+        await new Promise(r => setTimeout(r, 350))
+        return await executeQuery()
+      } catch (retryError) {
+        console.error('[API GET /api/tables/[tableId]/rows Retry Failed]:', retryError)
+      }
+    }
+
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[API GET /api/tables/[tableId]/rows Error]:', error)
     return NextResponse.json({ error: msg || '查詢資料列失敗' }, { status: 500 })

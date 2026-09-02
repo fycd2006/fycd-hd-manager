@@ -6,8 +6,9 @@ import { formatDateValue } from '@/modules/database/utils';
 import { CardDrawer } from '@/modules/database/components/cards';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import PopoverPortal from '@/components/ui/PopoverPortal';
-import { parseSelectItems, resolveChoiceString, getOptionColor, BASEROW_PALETTE } from './cells/utils';
+import { parseSelectItems, resolveChoiceString, getOptionColor, BASEROW_PALETTE, parseNumberInput, formatNumberValue } from './cells/utils';
 import { LinkedRowCardChip } from './cells/LinkedRowCardChip';
+export { parseNumberInput, formatNumberValue };
 
 export interface CommentLogEntry {
   id: string
@@ -278,34 +279,7 @@ export const LatestCommentModal: React.FC<{
 
 
 
-export function formatNumberValue(val: any, options?: any): string {
-  if (val === null || val === undefined || val === '') return '';
-  const num = Number(val);
-  if (isNaN(num)) return String(val);
 
-  let opts: any = {};
-  if (options) {
-    try {
-      opts = typeof options === 'string' ? JSON.parse(options) : options;
-    } catch {}
-  }
-
-  const decimals = typeof opts.number_decimal_places === 'number' ? opts.number_decimal_places : null;
-  const prefix = opts.number_prefix || '';
-  const suffix = opts.number_suffix || '';
-  const format = opts.number_format || 'thousands';
-
-  let formatted = '';
-  if (decimals !== null) {
-    formatted = format === 'standard'
-      ? num.toFixed(decimals)
-      : num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  } else {
-    formatted = format === 'standard' ? String(num) : num.toLocaleString();
-  }
-
-  return `${prefix}${formatted}${suffix}`;
-}
 
 export function renderFormulaCell(value: any) {
   if (value === null || value === undefined || value === '') {
@@ -388,16 +362,19 @@ interface GridViewCellProps {
   isSelected: boolean;
   isEditing: boolean;
   isInRange?: boolean;
+  isInAutofillRange?: boolean;
   isRowSelected?: boolean;
   isRowHovered?: boolean;
   rangeEdges?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   isPrimary?: boolean;
   rowColorBg?: string | null;
   rowDetailsWidth?: number;
+  initialTypeOverValue?: string | null;
   onSelect: (e?: React.MouseEvent) => void;
   onMouseEnterCell?: () => void;
   onStartAutofill?: (e: React.MouseEvent) => void;
-  onStartEdit: () => void;
+  onAutoFillDown?: () => void;
+  onStartEdit: (initialVal?: string) => void;
   onUpdate: (val: any) => void;
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
   onCancelEdit: () => void;
@@ -411,15 +388,18 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   isSelected,
   isEditing,
   isInRange,
+  isInAutofillRange = false,
   isRowSelected,
   isRowHovered,
   rangeEdges,
   isPrimary = false,
   rowColorBg,
   rowDetailsWidth = 56,
+  initialTypeOverValue,
   onSelect,
   onMouseEnterCell,
   onStartAutofill,
+  onAutoFillDown,
   onStartEdit,
   onUpdate,
   onUpdateField,
@@ -513,17 +493,26 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     return Array.from(new Set(names));
   };
 
-  const [localVal, setLocalVal] = useState<any>(getInitialStringValue(value, field.type));
+  const [localVal, setLocalVal] = useState<any>(
+    initialTypeOverValue !== undefined && initialTypeOverValue !== null
+      ? initialTypeOverValue
+      : getInitialStringValue(value, field.type)
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const localValRef = useRef(localVal);
   const hasCommittedRef = useRef(false);
   const longTextDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const [selectActiveIndex, setSelectActiveIndex] = useState<number>(0);
 
   useEffect(() => {
-    if (!isEditing) {
+    if (isEditing) {
+      if (initialTypeOverValue !== undefined && initialTypeOverValue !== null) {
+        setLocalVal(initialTypeOverValue);
+      }
+    } else {
       setLocalVal(getInitialStringValue(value, field.type));
     }
-  }, [value, field.type, isEditing]);
+  }, [value, field.type, isEditing, initialTypeOverValue]);
 
   useEffect(() => {
     localValRef.current = localVal;
@@ -532,6 +521,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   useEffect(() => {
     if (isEditing) {
       hasCommittedRef.current = false;
+      setSelectActiveIndex(0);
     }
   }, [isEditing]);
 
@@ -549,14 +539,19 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       const timer = setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          if (typeof (inputRef.current as any).select === 'function' && field.type !== 'single_select' && field.type !== 'multiple_select') {
+          if (initialTypeOverValue !== undefined && initialTypeOverValue !== null) {
+            const len = String(initialTypeOverValue).length;
+            try {
+              inputRef.current.setSelectionRange(len, len);
+            } catch {}
+          } else if (typeof (inputRef.current as any).select === 'function' && field.type !== 'single_select' && field.type !== 'multiple_select') {
             (inputRef.current as any).select();
           }
         }
       }, 30);
       return () => clearTimeout(timer);
     }
-  }, [isEditing, field.type]);
+  }, [isEditing, field.type, initialTypeOverValue]);
 
   const handleBlur = () => {
     onUpdate(localVal);
@@ -569,9 +564,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           ['text', 'number', 'date', 'email', 'url', 'phone', 'phone_number'].includes(field.type)) {
         hasCommittedRef.current = true;
         if (field.type === 'number') {
-          const trimmed = String(localValRef.current ?? '').trim();
-          const num = trimmed === '' ? null : Number(trimmed);
-          onUpdate(isNaN(num as any) ? null : num);
+          onUpdate(parseNumberInput(localValRef.current));
         } else {
           onUpdate(localValRef.current);
         }
@@ -1119,19 +1112,6 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') onCancelEdit();
-                if (e.key === 'Enter' && comboSearch) {
-                   const finalVal = comboSearch.trim();
-                   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(finalVal) || /^[0-9a-f]{24,}$/i.test(finalVal);
-                   if (!isExactMatch && !isUuid && onUpdateField) {
-                     const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
-                     const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
-                     const newChoiceObjs = [...choiceObjs, { id: newId, name: finalVal, color: newColor }];
-                     onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
-                   }
-                   setLocalVal(finalVal);
-                   onUpdate(finalVal);
-                   onCancelEdit();
-                }
               }}
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
@@ -1182,28 +1162,59 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       autoFocus
                       type="text"
                       value={comboSearch}
-                      onChange={(e) => setComboSearch(e.target.value)}
+                      onChange={(e) => {
+                        setComboSearch(e.target.value);
+                        setSelectActiveIndex(0);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Escape') {
                           onCancelEdit();
-                        }
-                        if (e.key === 'Enter') {
+                        } else if (e.key === 'ArrowDown') {
                           e.preventDefault();
-                          if (!comboSearch.trim()) return;
-                          const val = comboSearch.trim();
-                          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
-                          if (!isExactMatch && !isUuid && onUpdateField) {
-                            const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
-                            const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
-                            const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                          const maxIdx = filteredOptions.length - 1 + (comboSearch && !isExactMatch ? 1 : 0);
+                          setSelectActiveIndex(prev => Math.min(prev + 1, Math.max(0, maxIdx)));
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSelectActiveIndex(prev => Math.max(0, prev - 1));
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (selectActiveIndex >= 0 && selectActiveIndex < filteredOptions.length) {
+                            const opt = filteredOptions[selectActiveIndex];
+                            setLocalVal(opt);
+                            onUpdate(opt);
+                            onCancelEdit();
+                            return;
                           }
-                          setLocalVal(val);
-                          onUpdate(val);
-                          onCancelEdit();
+                          if (selectActiveIndex === filteredOptions.length && comboSearch && !isExactMatch) {
+                            const valToCreate = comboSearch.trim();
+                            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToCreate) || /^[0-9a-f]{24,}$/i.test(valToCreate);
+                            if (!isUuid && onUpdateField) {
+                              const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                              const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                              const newChoiceObjs = [...choiceObjs, { id: newId, name: valToCreate, color: newColor }];
+                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            }
+                            setLocalVal(valToCreate);
+                            onUpdate(valToCreate);
+                            onCancelEdit();
+                            return;
+                          }
+                          if (comboSearch.trim()) {
+                            const val = comboSearch.trim();
+                            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
+                            if (!isExactMatch && !isUuid && onUpdateField) {
+                              const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                              const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                              const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
+                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            }
+                            setLocalVal(val);
+                            onUpdate(val);
+                            onCancelEdit();
+                          }
                         }
                       }}
-                      placeholder="搜尋或輸入新增..."
+                      placeholder="搜尋或輸入新增 (↑↓ 選擇，Enter 確認)..."
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
                     />
                   </div>
@@ -1211,6 +1222,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                     {filteredOptions.map((opt, i) => {
                       const { bg, text } = getOptionColor(opt, choiceObjs);
                       const isSelected = localVal === opt;
+                      const isHighlighted = selectActiveIndex === i;
                       return (
                         <div 
                           key={i} 
@@ -1229,11 +1241,18 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                             onUpdate(opt);
                             onCancelEdit();
                           }}
-                          style={{ padding: '6px 12px', cursor: 'pointer', background: isSelected ? '#f1f5f9' : 'transparent', display: 'flex', alignItems: 'center' }}
-                          onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.background = '#f8fafc' }}
-                          onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#f1f5f9' : 'transparent'}
+                          style={{
+                            padding: '6px 12px',
+                            cursor: 'pointer',
+                            background: isSelected ? '#f1f5f9' : (isHighlighted ? '#f8fafc' : 'transparent'),
+                            borderLeft: isHighlighted ? '3px solid #3F6212' : '3px solid transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            transition: 'all 0.1s ease',
+                          }}
+                          onMouseEnter={() => { setSelectActiveIndex(i); }}
                         >
-                          <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
+                          <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', fontWeight: isSelected ? 600 : 400 }}>
                             {opt}
                           </span>
                         </div>
@@ -1256,9 +1275,16 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           onUpdate(valToCreate);
                           onCancelEdit();
                         }}
-                        style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#F4F4F5'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#F4F4F5'}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          color: '#18181B',
+                          fontWeight: 500,
+                          background: selectActiveIndex === filteredOptions.length ? '#e2e8f0' : '#F4F4F5',
+                          borderLeft: selectActiveIndex === filteredOptions.length ? '3px solid #3F6212' : '3px solid transparent',
+                        }}
+                        onMouseEnter={() => setSelectActiveIndex(filteredOptions.length)}
                       >
                         + 建立 "{comboSearch}"
                       </div>
@@ -1289,22 +1315,6 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') onCancelEdit();
-                if (e.key === 'Enter' && comboSearch && !searchAlreadySelected) {
-                   const valToAdd = comboSearch.trim();
-                   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(valToAdd) || /^[0-9a-f]{24,}$/i.test(valToAdd);
-                   if (!isExactMatch && !isUuid && onUpdateField) {
-                     const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
-                     const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
-                     const newChoiceObjs = [...choiceObjs, { id: newId, name: valToAdd, color: newColor }];
-                     onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
-                   }
-                   const nextItems = [...currentItems, valToAdd];
-                   const nextVal = JSON.stringify(nextItems);
-                   setLocalVal(nextVal);
-                   onUpdate(nextVal);
-                   setComboSearch(''); // reset search after enter
-                   e.preventDefault(); // prevent ending edit
-                }
               }}
               style={{
                 position: 'absolute', top: 0, left: 0, width: '100%', minHeight: '100%', 
@@ -1366,39 +1376,83 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                       autoFocus
                       type="text"
                       value={comboSearch}
-                      onChange={(e) => setComboSearch(e.target.value)}
+                      onChange={(e) => {
+                        setComboSearch(e.target.value);
+                        setSelectActiveIndex(0);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Escape') {
                           onCancelEdit();
-                        }
-                        if (e.key === 'Enter') {
+                        } else if (e.key === 'ArrowDown') {
                           e.preventDefault();
-                          if (!comboSearch.trim()) return;
-                          const val = comboSearch.trim();
-                          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
-                          if (!isExactMatch && !isUuid && onUpdateField) {
-                            const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
-                            const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
-                            const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                          const maxIdx = filteredOptions.length - 1 + (comboSearch && !isExactMatch ? 1 : 0);
+                          setSelectActiveIndex(prev => Math.min(prev + 1, Math.max(0, maxIdx)));
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSelectActiveIndex(prev => Math.max(0, prev - 1));
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (selectActiveIndex >= 0 && selectActiveIndex < filteredOptions.length) {
+                            const opt = filteredOptions[selectActiveIndex];
+                            let nextItems = [...currentItems];
+                            if (nextItems.includes(opt)) {
+                              nextItems = nextItems.filter(v => v !== opt);
+                            } else {
+                              nextItems.push(opt);
+                            }
+                            const nextVal = JSON.stringify(nextItems);
+                            setLocalVal(nextVal);
+                            onUpdate(nextVal);
+                            setComboSearch('');
+                            return;
                           }
-                          let nextItems = [...currentItems];
-                          if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
-                            nextItems.push(val);
+                          if (selectActiveIndex === filteredOptions.length && comboSearch && !isExactMatch) {
+                            const val = comboSearch.trim();
+                            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
+                            if (!isUuid && onUpdateField) {
+                              const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                              const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                              const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
+                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            }
+                            let nextItems = [...currentItems];
+                            if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
+                              nextItems.push(val);
+                            }
+                            const nextVal = JSON.stringify(nextItems);
+                            setLocalVal(nextVal);
+                            onUpdate(nextVal);
+                            setComboSearch('');
+                            return;
                           }
-                          const nextVal = JSON.stringify(nextItems);
-                          setLocalVal(nextVal);
-                          onUpdate(nextVal);
-                          setComboSearch('');
+                          if (comboSearch.trim()) {
+                            const val = comboSearch.trim();
+                            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val) || /^[0-9a-f]{24,}$/i.test(val);
+                            if (!isExactMatch && !isUuid && onUpdateField) {
+                              const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
+                              const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
+                              const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
+                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            }
+                            let nextItems = [...currentItems];
+                            if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
+                              nextItems.push(val);
+                            }
+                            const nextVal = JSON.stringify(nextItems);
+                            setLocalVal(nextVal);
+                            onUpdate(nextVal);
+                            setComboSearch('');
+                          }
                         }
                       }}
-                      placeholder="搜尋或輸入新增..."
+                      placeholder="搜尋或輸入新增 (↑↓ 選擇，Enter 切換)..."
                       style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
                     />
                   </div>
                   <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
                     {filteredOptions.map((opt, i) => {
                       const isSelected = currentItems.includes(opt);
+                      const isHighlighted = selectActiveIndex === i;
                       const { bg, text } = getOptionColor(opt, choiceObjs);
                       return (
                         <div 
@@ -1420,19 +1474,20 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
                           }}
                           style={{ 
                             padding: '6px 12px', cursor: 'pointer', 
-                            background: isSelected ? '#f8fafc' : 'transparent', 
-                            display: 'flex', alignItems: 'center', gap: '8px'
+                            background: isSelected ? '#f1f5f9' : (isHighlighted ? '#f8fafc' : 'transparent'),
+                            borderLeft: isHighlighted ? '3px solid #3F6212' : '3px solid transparent',
+                            display: 'flex', alignItems: 'center', gap: '8px',
+                            transition: 'all 0.1s ease',
                           }}
-                          onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.background = '#f8fafc' }}
-                          onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#f8fafc' : 'transparent'}
+                          onMouseEnter={() => setSelectActiveIndex(i)}
                         >
                           <input 
                             type="checkbox" 
                             checked={isSelected}
                             onChange={() => {}} // handled by parent div click
-                            style={{ margin: 0, cursor: 'pointer', pointerEvents: 'none' }}
+                            style={{ margin: 0, cursor: 'pointer', pointerEvents: 'none', accentColor: '#3F6212' }}
                           />
-                          <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
+                          <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', fontWeight: isSelected ? 600 : 400 }}>
                             {opt}
                           </span>
                         </div>
@@ -1683,8 +1738,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         return null;
       }
 
-      const inputType = field.type === 'number' ? 'number' 
-        : field.type === 'date' ? 'date' 
+      const inputType = field.type === 'date' ? 'date' 
         : field.type === 'email' ? 'email' 
         : field.type === 'url' ? 'url' 
         : (field.type === 'phone' || field.type === 'phone_number') ? 'tel' 
@@ -1694,7 +1748,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
         <input
           ref={inputRef}
           type={inputType}
-          step={field.type === 'number' ? 'any' : undefined}
+          inputMode={field.type === 'number' ? 'decimal' : undefined}
           value={localVal}
           onChange={(e) => {
             const nextVal = e.target.value;
@@ -1706,9 +1760,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
           onBlur={() => {
             hasCommittedRef.current = true;
             if (field.type === 'number') {
-              const trimmed = String(localVal ?? '').trim();
-              const num = trimmed === '' ? null : Number(trimmed);
-              onUpdate(isNaN(num as any) ? null : num);
+              onUpdate(parseNumberInput(localVal));
             } else {
               onUpdate(localVal);
             }
@@ -1720,9 +1772,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               hasCommittedRef.current = true;
               const isShift = e.shiftKey;
               if (field.type === 'number') {
-                const trimmed = String(localVal ?? '').trim();
-                const num = trimmed === '' ? null : Number(trimmed);
-                onUpdate(isNaN(num as any) ? null : num);
+                onUpdate(parseNumberInput(localVal));
               } else {
                 onUpdate(localVal);
               }
@@ -1733,14 +1783,32 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
               hasCommittedRef.current = true;
               const isShift = e.shiftKey;
               if (field.type === 'number') {
-                const trimmed = String(localVal ?? '').trim();
-                const num = trimmed === '' ? null : Number(trimmed);
-                onUpdate(isNaN(num as any) ? null : num);
+                onUpdate(parseNumberInput(localVal));
               } else {
                 onUpdate(localVal);
               }
               onCancelEdit();
               onNavigateCell?.(isShift ? 'prevCol' : 'nextCol');
+            } else if (e.key === 'ArrowDown' && ['text', 'number', 'email', 'url', 'phone', 'phone_number'].includes(field.type)) {
+              e.preventDefault();
+              hasCommittedRef.current = true;
+              if (field.type === 'number') {
+                onUpdate(parseNumberInput(localVal));
+              } else {
+                onUpdate(localVal);
+              }
+              onCancelEdit();
+              onNavigateCell?.('nextRow');
+            } else if (e.key === 'ArrowUp' && ['text', 'number', 'email', 'url', 'phone', 'phone_number'].includes(field.type)) {
+              e.preventDefault();
+              hasCommittedRef.current = true;
+              if (field.type === 'number') {
+                onUpdate(parseNumberInput(localVal));
+              } else {
+                onUpdate(localVal);
+              }
+              onCancelEdit();
+              onNavigateCell?.('prevRow');
             } else if (e.key === 'Escape') {
               hasCommittedRef.current = true;
               onCancelEdit();
@@ -1758,7 +1826,8 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             outline: 'none',
             background: '#ffffff',
             fontSize: '13px',
-            fontFamily: 'inherit',
+            fontFamily: field.type === 'number' ? 'monospace' : 'inherit',
+            textAlign: field.type === 'number' ? 'right' : 'left',
             padding: '0 8px',
             margin: 0,
             color: '#0f172a',
@@ -2300,6 +2369,9 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   } else if (isSelected) {
     // Single selected cell focus outline
     cellShadow = 'inset 0 0 0 2px #3F6212';
+  } else if (isInAutofillRange) {
+    // Real-time bounding box highlight for autofill preview
+    cellShadow = 'inset 0 0 0 2px #84cc16';
   }
 
   // Combine selection shadow with primary column shadow if isPrimary
@@ -2395,6 +2467,11 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
             e.stopPropagation();
             onStartAutofill?.(e);
           }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onAutoFillDown?.();
+          }}
+          title="拖曳填滿；雙擊自動向下填滿"
           style={{ position: 'absolute', right: '-1px', bottom: '-1px', width: '6px', height: '6px', backgroundColor: '#18181B', cursor: 'crosshair', zIndex: 20 }}
         />
       )}

@@ -161,6 +161,31 @@ export const parseSelectItems = (val: any, fieldOptions?: any): string[] => {
   return [resolveChoiceString(String(val), fieldOptions)];
 };
 
+export function parseNumberInput(val: any): number | null {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'number') {
+    return isNaN(val) || !isFinite(val) ? null : val;
+  }
+  const str = String(val).trim();
+  if (str === '') return null;
+
+  const isNegative = /^\s*[-–—]|\([^\)]+\)/.test(str) || (str.includes('-') && !str.toLowerCase().includes('e-'));
+  
+  // Strip currency symbols, commas, percent, units and parentheses
+  let cleaned = str
+    .replace(/[,\s$¥€£元%]/g, '')
+    .replace(/^NT\$/i, '')
+    .replace(/^NT/i, '')
+    .replace(/[()]/g, '');
+
+  if (cleaned === '' || cleaned === '-' || cleaned === '+') return null;
+
+  const parsed = Number(cleaned);
+  if (isNaN(parsed)) return null;
+
+  return isNegative && parsed > 0 ? -parsed : parsed;
+}
+
 export function evaluateCellCondition(
   val: any,
   field: { type?: string; options?: any } | undefined,
@@ -169,6 +194,7 @@ export function evaluateCellCondition(
 ): boolean {
   const target = (targetValue || '').toLowerCase().trim();
 
+  // 1. Select field types
   if (field?.type === 'single_select' || field?.type === 'multiple_select') {
     const selectNames = parseSelectItems(val, field.options).map(s => s.toLowerCase());
     switch (operator) {
@@ -189,6 +215,55 @@ export function evaluateCellCondition(
     }
   }
 
+  // 2. Numeric comparison for numeric field types or numeric operators
+  const isNumericField = field && ['number', 'rating', 'autonumber', 'percent', 'currency'].includes(field.type || '');
+  const isNumericOp = ['higher_than', 'higher_than_or_equal', 'lower_than', 'lower_than_or_equal', 'greater_than', 'greater_or_equal', 'less_than', 'less_or_equal', '>', '<', '>=', '<='].includes(operator);
+
+  if (isNumericField || isNumericOp) {
+    const cellNum = parseNumberInput(val);
+    const targetNum = parseNumberInput(targetValue);
+    const isCellEmpty = val === null || val === undefined || String(val).trim() === '';
+
+    switch (operator) {
+      case 'empty':
+        return isCellEmpty;
+      case 'not_empty':
+        return !isCellEmpty;
+      case 'equals':
+        if (cellNum !== null && targetNum !== null) return cellNum === targetNum;
+        return String(val ?? '').trim().toLowerCase() === target;
+      case 'not_equals':
+        if (cellNum !== null && targetNum !== null) return cellNum !== targetNum;
+        return String(val ?? '').trim().toLowerCase() !== target;
+      case 'higher_than':
+      case 'greater_than':
+      case '>':
+        if (cellNum === null || targetNum === null) return false;
+        return cellNum > targetNum;
+      case 'higher_than_or_equal':
+      case 'greater_or_equal':
+      case '>=':
+        if (cellNum === null || targetNum === null) return false;
+        return cellNum >= targetNum;
+      case 'lower_than':
+      case 'less_than':
+      case '<':
+        if (cellNum === null || targetNum === null) return false;
+        return cellNum < targetNum;
+      case 'lower_than_or_equal':
+      case 'less_or_equal':
+      case '<=':
+        if (cellNum === null || targetNum === null) return false;
+        return cellNum <= targetNum;
+      case 'contains':
+        return String(val ?? '').toLowerCase().includes(target);
+      case 'not_contains':
+        return !String(val ?? '').toLowerCase().includes(target);
+      default:
+        return false;
+    }
+  }
+
   const strVal = String(val ?? '').toLowerCase();
   switch (operator) {
     case 'equals':
@@ -203,6 +278,34 @@ export function evaluateCellCondition(
       return val === null || val === undefined || strVal === '' || strVal === 'null' || strVal === 'undefined';
     case 'not_empty':
       return val !== null && val !== undefined && strVal !== '' && strVal !== 'null' && strVal !== 'undefined';
+    case 'higher_than':
+    case 'greater_than':
+    case '>': {
+      const n1 = parseNumberInput(val);
+      const n2 = parseNumberInput(targetValue);
+      return n1 !== null && n2 !== null && n1 > n2;
+    }
+    case 'higher_than_or_equal':
+    case 'greater_or_equal':
+    case '>=': {
+      const n1 = parseNumberInput(val);
+      const n2 = parseNumberInput(targetValue);
+      return n1 !== null && n2 !== null && n1 >= n2;
+    }
+    case 'lower_than':
+    case 'less_than':
+    case '<': {
+      const n1 = parseNumberInput(val);
+      const n2 = parseNumberInput(targetValue);
+      return n1 !== null && n2 !== null && n1 < n2;
+    }
+    case 'lower_than_or_equal':
+    case 'less_or_equal':
+    case '<=': {
+      const n1 = parseNumberInput(val);
+      const n2 = parseNumberInput(targetValue);
+      return n1 !== null && n2 !== null && n1 <= n2;
+    }
     default:
       return false;
   }
@@ -225,16 +328,20 @@ export function formatNumberValue(val: any, options?: any): string {
   const suffix = opts.number_suffix || '';
   const format = opts.number_format || 'thousands';
 
+  const isNegative = num < 0;
+  const absNum = Math.abs(num);
+
   let formatted = '';
   if (decimals !== null) {
     formatted = format === 'standard'
-      ? num.toFixed(decimals)
-      : num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      ? absNum.toFixed(decimals)
+      : absNum.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   } else {
-    formatted = format === 'standard' ? String(num) : num.toLocaleString();
+    formatted = format === 'standard' ? String(absNum) : absNum.toLocaleString();
   }
 
-  return `${prefix}${formatted}${suffix}`;
+  const sign = isNegative ? '-' : '';
+  return `${sign}${prefix}${formatted}${suffix}`;
 }
 
 export const cleanChoice = (item: any): string[] => {

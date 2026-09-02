@@ -117,8 +117,6 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  transform: scale(0.96) translateY(6px);
-  animation: scaleUpModal 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .modal-box--small { max-width: 400px; }
@@ -514,11 +512,6 @@
   to { transform: rotate(360deg); }
 }
 
-@keyframes scaleUpModal {
-  from { transform: scale(0.96); opacity: 0; filter: blur(3px); }
-  to { transform: scale(1); opacity: 1; filter: blur(0px); }
-}
-
 @keyframes popoverSpringIn {
   from { transform: scale(0.96); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
@@ -543,6 +536,27 @@
 .animate-view-transition {
   animation: fycdFadeSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity, filter;
+}
+
+@keyframes fycdBarShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes fycdRowPulse {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* ===== Animate UI & Radix Sidebar Component System ===== */

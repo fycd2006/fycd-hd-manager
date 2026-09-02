@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import React from 'react'
 import { useI18n, LocaleCode } from '@/lib/i18n/i18nContext'
 import { Check, Globe } from 'lucide-react'
+import FloatingMenuContainer from '@/components/ui/FloatingMenuContainer'
 
 interface LangSwitcherDropdownProps {
   isOpen: boolean
@@ -19,68 +19,14 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
   anchorRect
 }) => {
   const { locale, locales, setLocale, t } = useI18n()
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        onClose()
-      }
-    }
-
-    const handleScrollOrResize = () => {
-      onClose()
-    }
-
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscapeKey)
-      window.addEventListener('scroll', handleScrollOrResize, true)
-      window.addEventListener('resize', handleScrollOrResize)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscapeKey)
-      window.removeEventListener('scroll', handleScrollOrResize, true)
-      window.removeEventListener('resize', handleScrollOrResize)
-    }
-  }, [isOpen, onClose])
 
   if (!isOpen || !anchorRect) return null
 
-  // Calculate top-layer fixed position
   const topPos = anchorRect.bottom + 6
-  let leftPos = align === 'right' ? anchorRect.right - 200 : anchorRect.left
-  if (typeof window !== 'undefined') {
-    leftPos = Math.max(12, Math.min(leftPos, window.innerWidth - 210))
-  }
+  const leftPos = align === 'right' ? anchorRect.right - 200 : anchorRect.left
 
-  const menuContent = (
-    <div
-      style={{
-        position: 'fixed',
-        top: `${topPos}px`,
-        left: `${leftPos}px`,
-        zIndex: 99999999,
-        backgroundColor: '#ffffff',
-        borderRadius: '12px',
-        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(0,0,0,0.06)',
-        border: '1px solid #e2e8f0',
-        padding: '6px',
-        minWidth: '200px',
-        boxSizing: 'border-box'
-      }}
-      ref={dropdownRef}
-      role="menu"
-      aria-label="Language selection menu"
-    >
+  return (
+    <FloatingMenuContainer show={isOpen} x={leftPos} y={topPos} onClose={onClose} width={200}>
       <div style={{ padding: '6px 10px 4px 10px', fontSize: '11px', fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Globe size={13} color="#3F6212" />
         <span>{t('common.language')}</span>
@@ -127,8 +73,6 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
           )
         })}
       </div>
-    </div>
+    </FloatingMenuContainer>
   )
-
-  return createPortal(menuContent, document.body)
 }

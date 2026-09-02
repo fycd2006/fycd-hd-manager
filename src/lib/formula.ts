@@ -90,7 +90,7 @@ export function preprocessShortAliases(
 
   let orderedKeys: string[] = []
   if (fieldOrder && Array.isArray(fieldOrder) && fieldOrder.length > 0) {
-    orderedKeys = fieldOrder.map(id => `field_${id}`).filter(k => k in (variables || {}))
+    orderedKeys = fieldOrder.map(id => `field_${id}`)
     Object.keys(variables || {}).forEach(k => {
       if (!orderedKeys.includes(k)) orderedKeys.push(k)
     })
@@ -113,7 +113,8 @@ export function preprocessShortAliases(
       return orderedKeys[num - 1]
     }
 
-    return match
+    // 3. Fallback: if not found in orderedKeys, map F(num) to field_(num)
+    return `field_${num}`
   })
 }
 
@@ -274,6 +275,39 @@ export function evaluateFormula(
     .replace(/[\{\}]/g, '')
     .replace(/\[field_(\d+)\]/gi, 'field_$1')
     .replace(/\[F(\d+)\]/gi, 'F$1')
+
+  // Check if expression references fields and if all referenced fields are blank/empty
+  const referencedVars = extractVariables(sanitizedExpr)
+  if (referencedVars.length > 0) {
+    const upperExpr = sanitizedExpr.toUpperCase()
+    const hasConditionalHandling = /\b(IF|ISBLANK|IFERROR|IFNULL|COALESCE|SWITCH)\b/.test(upperExpr)
+
+    if (!hasConditionalHandling) {
+      // Normalize variables keys for lookup
+      const normalizedVars: Record<string, any> = {}
+      if (variables && typeof variables === 'object') {
+        Object.entries(variables).forEach(([k, v]) => {
+          const lowerKey = k.toLowerCase().replace(/[\{\}\[\]]/g, '').trim()
+          normalizedVars[lowerKey] = v
+          if (lowerKey.startsWith('field_')) {
+            normalizedVars[lowerKey.replace('field_', '')] = v
+          }
+        })
+      }
+
+      const allReferencedBlank = referencedVars.every(v => {
+        const clean = v.toLowerCase().replace(/[\{\}\[\]]/g, '').trim()
+        const foundVal = clean in normalizedVars
+          ? normalizedVars[clean]
+          : (`field_${clean}` in normalizedVars ? normalizedVars[`field_${clean}`] : undefined)
+        return foundVal === null || foundVal === undefined || (typeof foundVal === 'string' && foundVal.trim() === '')
+      })
+
+      if (allReferencedBlank) {
+        return null
+      }
+    }
+  }
 
   const parser = createParser(variables)
   const { result, error } = parser.parse(sanitizedExpr)

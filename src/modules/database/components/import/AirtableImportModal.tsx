@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useState } from 'react'
+import { motion } from 'motion/react'
 import { X, UploadCloud, Link as LinkIcon, Key, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
+import ModalOverlay from '@/components/ui/ModalOverlay'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface AirtableImportModalProps {
@@ -21,9 +22,6 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
   const [error, setError] = useState<string | null>(null)
   const [resultStats, setResultStats] = useState<{ tableCount: number; rowCount: number } | null>(null)
 
-  const overlayRef = useRef<HTMLDivElement>(null)
-  const mousedownOnBackdropRef = useRef<boolean>(false)
-
   // Reset modal state when opened
   React.useEffect(() => {
     if (isOpen) {
@@ -36,8 +34,6 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
       setProgress(0)
     }
   }, [isOpen])
-
-  if (!isOpen) return null
 
   const handleImport = async () => {
     setError(null)
@@ -92,35 +88,13 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
     }
   }
 
-  const handleBackdropMouseDown = (e: React.MouseEvent) => {
-    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
-  }
-
-  const handleBackdropMouseUp = (e: React.MouseEvent) => {
-    if (e.target === overlayRef.current && mousedownOnBackdropRef.current) {
-      onClose()
-    }
-    mousedownOnBackdropRef.current = false
-  }
-
-  const modalContent = (
-    <div
-      ref={overlayRef}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999999,
-        backgroundColor: 'rgba(15, 23, 42, 0.65)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-      }}
-      onMouseDown={handleBackdropMouseDown}
-      onMouseUp={handleBackdropMouseUp}
-    >
-      <div
+  return (
+    <ModalOverlay show={isOpen} onClose={onClose} closeOnBackdrop closeOnEscape zIndex={99999999}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
         style={{
           width: '100%',
           maxWidth: '540px',
@@ -445,13 +419,8 @@ export function AirtableImportModal({ isOpen, onClose, onSuccess, activeWorkspac
             </button>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </ModalOverlay>
   )
-
-  if (typeof window !== 'undefined') {
-    return createPortal(modalContent, document.body)
-  }
-  return modalContent
 }
 

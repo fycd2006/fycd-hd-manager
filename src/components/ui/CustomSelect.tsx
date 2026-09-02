@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'motion/react'
 import { ChevronDown, Check } from 'lucide-react'
 
 export interface CustomSelectOption {
@@ -155,89 +156,100 @@ export function CustomSelect({
       </div>
 
       {/* Floating Options Menu via React Portal */}
-      {isOpen && popoverCoords && createPortal(
-        <div
-          className="custom-select-portal-root"
-          data-portal-root="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 2147483640,
-            backgroundColor: 'transparent',
-            pointerEvents: 'auto',
-          }}
-          onClick={(e) => {
-            e.stopPropagation()
-            setIsOpen(false)
-          }}
-        >
-          <div
-            ref={dropdownListRef}
-            className="custom-select-dropdown toolbar-popover-card animate-popover"
-            style={{
-              position: 'fixed',
-              top: popoverCoords.top !== undefined ? `${popoverCoords.top}px` : undefined,
-              bottom: popoverCoords.bottom !== undefined ? `${popoverCoords.bottom}px` : undefined,
-              left: `${popoverCoords.left}px`,
-              width: `${popoverCoords.width}px`,
-              minWidth: '150px',
-              backgroundColor: '#ffffff',
-              borderRadius: '8px',
-              border: '1px solid #E7E5E4',
-              boxShadow: '0 12px 24px -4px rgba(28, 25, 23, 0.08)',
-              zIndex: 2147483645,
-              padding: '4px',
-              maxHeight: '220px',
-              overflowY: 'auto',
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onScroll={(e) => e.stopPropagation()}
-            onWheel={(e) => e.stopPropagation()}
-          >
-            {options.map((opt) => {
-              const isSelected = opt.value === value
-              return (
-                <div
-                  key={opt.value}
-                  onClick={() => {
-                    onChange(opt.value)
-                    setIsOpen(false)
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '7px 10px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
-                    color: isSelected ? '#3F6212' : '#1C1917',
-                    fontWeight: isSelected ? 600 : 400,
-                    transition: 'background-color 0.12s ease',
-                    marginBottom: '2px',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = '#FAFAF9'
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                    }
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {opt.icon}
-                    {opt.label}
-                  </span>
-                  {isSelected && <Check size={14} color="#3F6212" style={{ flexShrink: 0, marginLeft: '6px' }} />}
-                </div>
-              )
-            })}
-          </div>
-        </div>,
+      {createPortal(
+        <AnimatePresence>
+          {isOpen && popoverCoords && (
+            <div
+              className="custom-select-portal-root"
+              data-portal-root="true"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 2147483640,
+                backgroundColor: 'transparent',
+                pointerEvents: 'auto',
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsOpen(false)
+              }}
+            >
+              <motion.div
+                ref={dropdownListRef}
+                key="custom-select-popover"
+                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                className="custom-select-dropdown toolbar-popover-card"
+                style={{
+                  position: 'fixed',
+                  top: popoverCoords.top !== undefined ? `${popoverCoords.top}px` : undefined,
+                  bottom: popoverCoords.bottom !== undefined ? `${popoverCoords.bottom}px` : undefined,
+                  left: `${popoverCoords.left}px`,
+                  width: `${popoverCoords.width}px`,
+                  minWidth: '150px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '10px',
+                  border: '1px solid #E7E5E4',
+                  boxShadow: '0 12px 28px -4px rgba(28, 25, 23, 0.12), 0 0 0 1px rgba(0,0,0,0.03)',
+                  zIndex: 2147483645,
+                  padding: '4px',
+                  maxHeight: '220px',
+                  overflowY: 'auto',
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onScroll={(e) => e.stopPropagation()}
+                onWheel={(e) => e.stopPropagation()}
+              >
+                {options.map((opt) => {
+                  const isSelected = opt.value === value
+                  return (
+                    <motion.div
+                      key={opt.value}
+                      whileHover={{ x: 2 }}
+                      transition={{ duration: 0.1 }}
+                      onClick={() => {
+                        onChange(opt.value)
+                        setIsOpen(false)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '7px 10px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
+                        color: isSelected ? '#3F6212' : '#1C1917',
+                        fontWeight: isSelected ? 600 : 400,
+                        transition: 'background-color 0.12s ease',
+                        marginBottom: '2px',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.backgroundColor = '#FAFAF9'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.backgroundColor = 'transparent'
+                        }
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {opt.icon}
+                        {opt.label}
+                      </span>
+                      {isSelected && <Check size={14} color="#3F6212" style={{ flexShrink: 0, marginLeft: '6px' }} />}
+                    </motion.div>
+                  )
+                })}
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
         document.body
       )}
     </div>

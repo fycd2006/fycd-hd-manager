@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useLayoutEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React from 'react';
 import {
   Pencil,
   RefreshCcw,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { useI18n } from '@/lib/i18n/i18nContext';
+import FloatingMenuContainer from '@/components/ui/FloatingMenuContainer';
 
 interface FieldContextMenuProps {
   field: TableField;
@@ -60,50 +60,6 @@ export const FieldContextMenu: React.FC<FieldContextMenuProps> = ({
   onDeleteField,
 }) => {
   const { t } = useI18n();
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState({ top: y, left: x });
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-
-    window.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [onClose]);
-
-  useLayoutEffect(() => {
-    if (typeof window === 'undefined') return;
-    const menuEl = menuRef.current;
-    const menuWidth = menuEl?.offsetWidth || 240;
-    const menuHeight = menuEl?.offsetHeight || 480;
-    const winWidth = window.innerWidth;
-    const winHeight = window.innerHeight;
-
-    let left = x + 2;
-    let top = y + 2;
-
-    // Flip to left if overflowing right edge
-    if (left + menuWidth > winWidth - 10) {
-      left = Math.max(10, x - menuWidth - 2);
-    }
-
-    // Flip to top if overflowing bottom edge
-    if (top + menuHeight > winHeight - 10) {
-      top = Math.max(10, y - menuHeight - 2);
-    }
-
-    setCoords({ top, left });
-  }, [x, y]);
 
   const menuItems = [
     {
@@ -111,21 +67,21 @@ export const FieldContextMenu: React.FC<FieldContextMenuProps> = ({
       icon: Pencil,
       onClick: () => { onEditField(field); onClose(); }
     },
-    {
-      label: t('contextMenu.changePrimaryField'),
+    ...(onChangePrimaryField ? [{
+      label: t('contextMenu.setPrimaryField'),
       icon: RefreshCcw,
-      onClick: () => { onChangePrimaryField?.(field); onClose(); }
-    },
-    {
-      label: t('contextMenu.configureDateDependencies'),
+      onClick: () => { onChangePrimaryField(field); onClose(); }
+    }] : []),
+    ...(onConfigureDateDependencies && (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') ? [{
+      label: t('contextMenu.configureDateDep'),
       icon: Calendar,
-      onClick: () => { onConfigureDateDependencies?.(field); onClose(); }
-    },
-    {
-      label: t('contextMenu.editFieldPermissions'),
+      onClick: () => { onConfigureDateDependencies(field); onClose(); }
+    }] : []),
+    ...(onEditPermissions ? [{
+      label: t('contextMenu.editPermissions'),
       icon: Lock,
-      onClick: () => { onEditPermissions?.(field); onClose(); }
-    },
+      onClick: () => { onEditPermissions(field); onClose(); }
+    }] : []),
     {
       label: t('contextMenu.insertLeft'),
       icon: ArrowLeft,
@@ -168,26 +124,8 @@ export const FieldContextMenu: React.FC<FieldContextMenuProps> = ({
     },
   ];
 
-  const menuContent = (
-    <div
-      ref={menuRef}
-      style={{
-        position: 'fixed',
-        top: `${coords.top}px`,
-        left: `${coords.left}px`,
-        width: '240px',
-        backgroundColor: 'rgba(255, 255, 255, 0.96)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(226, 232, 240, 0.85)',
-        borderRadius: '12px',
-        boxShadow: '0 20px 35px -10px rgba(15, 23, 42, 0.16), 0 8px 15px -6px rgba(15, 23, 42, 0.08)',
-        zIndex: 999999,
-        padding: '4px',
-        fontSize: '13px',
-        color: '#1e293b'
-      }}
-    >
+  return (
+    <FloatingMenuContainer x={x} y={y} onClose={onClose} width={240}>
       {/* Title Header */}
       <div style={{ padding: '8px 12px 6px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f1f5f9', marginBottom: '4px' }}>
         {field.name} ({field.id})
@@ -245,15 +183,12 @@ export const FieldContextMenu: React.FC<FieldContextMenuProps> = ({
           color: '#ef4444',
           transition: 'all 0.15s ease'
         }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
       >
         <Trash2 style={{ width: '15px', height: '15px', color: '#ef4444', flexShrink: 0, strokeWidth: 1.75 }} />
         <span>{t('contextMenu.deleteField')}</span>
       </div>
-    </div>
+    </FloatingMenuContainer>
   );
-
-  if (typeof document === 'undefined') return null;
-  return createPortal(menuContent, document.body);
 };

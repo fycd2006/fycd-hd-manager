@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
-import { createPortal } from 'react-dom'
+import React, { useState, useMemo } from 'react'
+import { motion } from 'motion/react'
 import { Search, X, ChevronRight } from 'lucide-react'
+import ModalOverlay from '@/components/ui/ModalOverlay'
 import type { TableField, TableRow } from '@/modules/database/types'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
@@ -19,57 +20,41 @@ export default function MobileSearchModal({
   onClose,
   fields = [],
   rows = [],
-  onSelectRow
+  onSelectRow,
 }: MobileSearchModalProps) {
   const { t } = useI18n()
-  const [mounted, setMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const searchResults = useMemo(() => {
     if (!searchTerm.trim() || rows.length === 0) return []
     const term = searchTerm.toLowerCase().trim()
-    return rows.filter(row => {
-      return Object.values(row.data || {}).some(val => {
-        if (val === null || val === undefined) return false
-        return String(val).toLowerCase().includes(term)
+    return rows
+      .filter((row) => {
+        return Object.values(row.data || {}).some((val) => {
+          if (val === null || val === undefined) return false
+          return String(val).toLowerCase().includes(term)
+        })
       })
-    }).slice(0, 30)
+      .slice(0, 30)
   }, [rows, searchTerm])
-
-  if (!show || !mounted) return null
 
   // Get primary text for a row
   const getRowTitle = (row: TableRow) => {
-    const firstTextField = fields.find(f => f.type === 'text') || fields[0]
+    const firstTextField = fields.find((f) => f.type === 'text') || fields[0]
     if (firstTextField && row.data?.[firstTextField.name]) {
       return String(row.data[firstTextField.name])
     }
-    const anyVal = Object.values(row.data || {}).find(v => v !== null && v !== '')
+    const anyVal = Object.values(row.data || {}).find((v) => v !== null && v !== '')
     return anyVal ? String(anyVal) : `#${row.id}`
   }
 
-  const modalContent = (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1050,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(4px)',
-        pointerEvents: 'auto',
-        touchAction: 'manipulation'
-      }}
-      onClick={onClose}
-    >
-      {/* Soft Borderless Elevated Card */}
-      <div
+  return (
+    <ModalOverlay show={show} onClose={onClose} closeOnBackdrop closeOnEscape zIndex={1050}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
         style={{
           width: '500px',
           maxWidth: '92vw',
@@ -80,9 +65,9 @@ export default function MobileSearchModal({
           border: 'none',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={t('mobileNav.searchRecords')}
       >
@@ -244,9 +229,7 @@ export default function MobileSearchModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </ModalOverlay>
   )
-
-  return createPortal(modalContent, document.body)
 }

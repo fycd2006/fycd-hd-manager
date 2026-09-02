@@ -65,10 +65,13 @@ describe('evaluateFormula', () => {
     expect(evaluateFormula('IF(F1 > 100, F2 * 2, F2)', rowVars)).toBe(20)
   })
 
-  it('handles empty/null cell operands gracefully without returning #ERROR!', () => {
-    expect(evaluateFormula('field_1 * 10', { field_1: null })).toBe(0)
-    expect(evaluateFormula('field_1 + 50', { field_1: '' })).toBe(50)
-    expect(evaluateFormula('field_1 + field_2', { field_1: null, field_2: '' })).toBe(0)
+  it('returns null when referenced cells are empty/null to avoid ghost calculations on blank rows', () => {
+    expect(evaluateFormula('field_1 * 10', { field_1: null })).toBe(null)
+    expect(evaluateFormula('field_1 + 50', { field_1: '' })).toBe(null)
+    expect(evaluateFormula('field_1 + field_2', { field_1: null, field_2: '' })).toBe(null)
+    expect(evaluateFormula('F2', {})).toBe(null)
+    expect(evaluateFormula('F2 + 2', {}, [1, 2])).toBe(null)
+    expect(evaluateFormula('field_1 + field_2', { field_1: 10, field_2: null })).toBe(10)
   })
 
   it('handles IFERROR gracefully for division by zero', () => {

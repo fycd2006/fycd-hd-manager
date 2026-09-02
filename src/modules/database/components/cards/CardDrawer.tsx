@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'motion/react'
 import { X, Table as TableIcon, Loader2, AlertCircle } from 'lucide-react'
 import type { TableField, TableRow } from '@/modules/database/types'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import AdvancedFieldInputs from '../modals/AdvancedFieldInputs'
 import { formatDateValue } from '@/modules/database/utils'
-import { renderFormulaCell } from '../views/grid/GridViewCell'
+import { renderFormulaCell, parseNumberInput } from '../views/grid/GridViewCell'
 import { safeJsonParse } from '@/lib/json-utils'
 
 export interface CardDrawerProps {
@@ -158,87 +159,95 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
       : '關聯列詳情'
 
   return createPortal(
-    <div
-      data-testid="card-drawer-overlay"
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.45)',
-        backdropFilter: 'blur(4px)',
-        zIndex: 9999,
-        display: 'flex',
-        justifyContent: 'flex-end',
-        animation: 'cardDrawerFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-      }}
-    >
-      <style>{`
-        @keyframes cardDrawerFadeIn {
-          from { opacity: 0; backdrop-filter: blur(0px); }
-          to { opacity: 1; backdrop-filter: blur(4px); }
-        }
-        @keyframes cardDrawerSlideIn {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        @keyframes cardDrawerItemFadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes cardDrawerShimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        .card-drawer-skeleton-shimmer {
-          background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
-          background-size: 200% 100%;
-          animation: cardDrawerShimmer 1.5s infinite;
-        }
-        .card-drawer-card-item {
-          transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .card-drawer-card-item:hover {
-          border-color: #d4d4d8 !important;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
-        }
-        .card-drawer-input {
-          transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .card-drawer-input:focus {
-          border-color: #84cc16 !important;
-          box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.15) !important;
-        }
-        .card-drawer-close-btn {
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .card-drawer-close-btn:hover {
-          background: #f4f4f5 !important;
-          color: #18181b !important;
-          transform: rotate(90deg);
-        }
-        @media (max-width: 767px) {
-          [data-testid="card-drawer-panel"] {
-            max-width: 100vw !important;
-            width: 100vw !important;
-            border-left: none !important;
-          }
-        }
-      `}</style>
-      <div
-        data-testid="card-drawer-panel"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: '500px',
-          height: '100%',
-          backgroundColor: '#ffffff',
-          boxShadow: '-12px 0 40px -4px rgba(0, 0, 0, 0.16), -2px 0 12px -2px rgba(0, 0, 0, 0.08)',
-          borderLeft: '1px solid rgba(228, 228, 231, 0.8)',
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'cardDrawerSlideIn 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
-        }}
-      >
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          key="card-drawer-overlay"
+          data-testid="card-drawer-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.22, ease: 'easeOut' }}
+          onClick={onClose}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <style>{`
+            @keyframes cardDrawerShimmer {
+              0% { background-position: -200% 0; }
+              100% { background-position: 200% 0; }
+            }
+            .card-drawer-skeleton-shimmer {
+              background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
+              background-size: 200% 100%;
+              animation: cardDrawerShimmer 1.5s infinite;
+            }
+            .card-drawer-card-item {
+              transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            }
+            .card-drawer-card-item:hover {
+              border-color: #d4d4d8 !important;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+            }
+            .card-drawer-input {
+              transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            }
+            .card-drawer-input:focus {
+              border-color: #84cc16 !important;
+              box-shadow: 0 0 0 3px rgba(132, 204, 22, 0.15) !important;
+            }
+            .card-drawer-close-btn {
+              transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            }
+            .card-drawer-close-btn:hover {
+              background: #f4f4f5 !important;
+              color: #18181b !important;
+              transform: rotate(90deg);
+            }
+            @media (max-width: 767px) {
+              [data-testid="card-drawer-panel"] {
+                max-width: 100vw !important;
+                width: 100vw !important;
+                border-left: none !important;
+              }
+            }
+          `}</style>
+          <motion.div
+            key="card-drawer-panel"
+            data-testid="card-drawer-panel"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+            drag="x"
+            dragConstraints={{ left: 0 }}
+            dragElastic={{ left: 0, right: 0.6 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.x > 120 || info.velocity.x > 300) {
+                onClose()
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '500px',
+              height: '100%',
+              backgroundColor: '#ffffff',
+              boxShadow: '-12px 0 40px -4px rgba(0, 0, 0, 0.16), -2px 0 12px -2px rgba(0, 0, 0, 0.08)',
+              borderLeft: '1px solid rgba(228, 228, 231, 0.8)',
+              display: 'flex',
+              flexDirection: 'column',
+              touchAction: 'pan-y',
+            }}
+          >
         {/* Header */}
         <div
           style={{
@@ -585,7 +594,8 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
                       </label>
                     ) : field.type === 'number' ? (
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         className="card-drawer-input"
                         value={value ?? ''}
                         disabled={isReadOnlyField}
@@ -593,13 +603,14 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
                           focusValuesRef.current[fieldKey] = value
                         }}
                         onChange={(e) => {
-                          const val = e.target.value === '' ? null : Number(e.target.value)
-                          setFormData((prev) => ({ ...prev, [fieldKey]: val }))
+                          const text = e.target.value
+                          setFormData((prev) => ({ ...prev, [fieldKey]: text }))
                         }}
                         onBlur={(e) => {
-                          const val = e.target.value === '' ? null : Number(e.target.value)
-                          if (val !== focusValuesRef.current[fieldKey]) {
-                            handleUpdateCell(fieldKey, val)
+                          const parsed = parseNumberInput(e.target.value)
+                          setFormData((prev) => ({ ...prev, [fieldKey]: parsed }))
+                          if (parsed !== focusValuesRef.current[fieldKey]) {
+                            handleUpdateCell(fieldKey, parsed)
                           }
                         }}
                         style={{
@@ -611,6 +622,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
                           outline: 'none',
                           background: isReadOnlyField ? '#f4f4f5' : '#ffffff',
                           color: '#18181b',
+                          fontFamily: 'monospace',
                         }}
                       />
                     ) : isReadOnlyField ? (
@@ -695,8 +707,10 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
             </div>
           )}
         </div>
-      </div>
-    </div>,
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   )
 }

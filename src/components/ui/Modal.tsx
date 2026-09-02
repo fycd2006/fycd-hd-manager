@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { motion } from 'motion/react'
 import { X } from 'lucide-react'
 import ModalOverlay from './ModalOverlay'
 
@@ -30,8 +31,6 @@ export default function Modal({
   showCloseButton = true,
   overflowVisible = false,
 }: ModalProps) {
-  if (!show) return null
-
   const sizeWidthMap = {
     tiny: '360px',
     small: '480px',
@@ -46,7 +45,6 @@ export default function Modal({
       onClose={onClose}
       closeOnBackdrop={closeOnOutsideClick}
       closeOnEscape={closeOnEscape}
-      className="animate-in fade-in duration-200"
       style={{
         zIndex: 99999,
         padding: '20px',
@@ -55,8 +53,12 @@ export default function Modal({
         WebkitBackdropFilter: 'blur(10px)',
       }}
     >
-      <div
-        className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 transition-all duration-200 animate-in fade-in zoom-in-95"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.94, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+        className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xl"
         style={{
           position: 'relative',
           display: 'flex',
@@ -69,7 +71,6 @@ export default function Modal({
           borderRadius: '16px',
           backgroundColor: '#ffffff',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(228, 228, 231, 0.9)',
-          animation: 'scaleUpModal 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         <div
@@ -136,7 +137,7 @@ export default function Modal({
             {children}
           </div>
         </div>
-      </div>
+      </motion.div>
     </ModalOverlay>
   )
 }

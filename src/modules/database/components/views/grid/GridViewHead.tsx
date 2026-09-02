@@ -69,6 +69,7 @@ interface GridViewHeadProps {
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
   onResizeColumnEnd?: (fieldId: number, newWidth: number) => void;
+  onAutoFitColumn?: (fieldId: number) => void;
   onReorderFields?: (sourceFieldId: number, targetFieldId: number) => void;
   totalTableWidth?: number;
 }
@@ -86,6 +87,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   onOpenFieldContextMenu,
   onResizeColumn,
   onResizeColumnEnd,
+  onAutoFitColumn,
   onReorderFields,
   totalTableWidth,
 }) => {
@@ -262,6 +264,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             {/* Column Resize Handle */}
             <div
               className={`grid-view__column-resize-handle ${isResizingThis || isHoveringResize ? 'active' : ''}`}
+              title="按住拖曳調整欄寬，連按兩下自動最適寬度 (Auto-fit)"
               onMouseEnter={() => setHoveringResizeFieldId(field.id)}
               onMouseLeave={() => {
                 if (resizingFieldId !== field.id) {
@@ -269,6 +272,11 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
                 }
               }}
               onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onAutoFitColumn?.(field.id);
+              }}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();

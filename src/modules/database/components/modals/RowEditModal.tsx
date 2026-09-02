@@ -8,7 +8,7 @@ import RowCommentsPanel, { ActivityLogEntry } from './RowCommentsPanel'
 import CollaboratorSelector from './CollaboratorSelector'
 import AdvancedFieldInputs from './AdvancedFieldInputs'
 import { formatDateValue } from '@/modules/database/utils'
-import { renderFormulaCell } from '../views/grid/GridViewCell'
+import { renderFormulaCell, parseNumberInput } from '../views/grid/GridViewCell'
 import ModalOverlay from '@/components/ui/ModalOverlay'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
@@ -366,27 +366,21 @@ export default function RowEditModal({
                         </div>
                       ) : (
                         <input
-                          type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                          step={field.type === 'number' ? 'any' : undefined}
+                          type={field.type === 'date' ? 'date' : 'text'}
+                          inputMode={field.type === 'number' ? 'decimal' : undefined}
                           readOnly={readOnly}
                           value={field.type === 'date' ? formatDateValue(value) : (value ?? '')}
                           onFocus={() => handleFocusField(fieldKey)}
                           onChange={e => {
                             const val = e.target.value
-                            if (field.type === 'number') {
-                              const trimmed = val.trim()
-                              const num = trimmed === '' ? null : Number(trimmed)
-                              handleChange(field.id, isNaN(num as any) ? null : num, false)
-                            } else {
-                              handleChange(field.id, val, false)
-                            }
+                            handleChange(field.id, val, false)
                           }}
                           onBlur={e => {
                             const val = e.target.value
                             if (field.type === 'number') {
-                              const trimmed = val.trim()
-                              const num = trimmed === '' ? null : Number(trimmed)
-                              commitFieldChangeLog(fieldKey, isNaN(num as any) ? null : num)
+                              const num = parseNumberInput(val)
+                              handleChange(field.id, num, false)
+                              commitFieldChangeLog(fieldKey, num)
                             } else {
                               commitFieldChangeLog(fieldKey, val)
                             }
@@ -399,6 +393,7 @@ export default function RowEditModal({
                             border: '1px solid #cbd5e1',
                             borderRadius: '8px',
                             fontSize: '14px',
+                            fontFamily: field.type === 'number' ? 'monospace' : 'inherit',
                             color: '#0f172a',
                             outline: 'none',
                             transition: 'border-color 0.15s ease',

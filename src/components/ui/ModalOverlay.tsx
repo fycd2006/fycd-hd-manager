@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useCallback } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import PortalWrapper from './PortalWrapper'
 
 interface ModalOverlayProps {
@@ -19,13 +20,14 @@ interface ModalOverlayProps {
 }
 
 /**
- * Unified full-screen modal overlay.
+ * Unified full-screen modal overlay with Animate UI / Motion physics.
  *
  * Handles ALL event propagation boilerplate:
  * - Backdrop: onMouseDown + onTouchStart + onClick (mousedown→click pattern to prevent drag-close)
  * - Inner card: stopPropagation on onMouseDown, onTouchStart, onPointerDown, onClick
  * - ESC key close
  * - Optional body scroll lock
+ * - Smooth AnimatePresence exit animations
  */
 export default function ModalOverlay({
   show,
@@ -67,55 +69,64 @@ export default function ModalOverlay({
   }, [show, lockScroll])
 
   const handleBackdropMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    mousedownOnBackdropRef.current = (e.target === overlayRef.current)
+    mousedownOnBackdropRef.current = e.target === overlayRef.current
   }, [])
 
-  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (closeOnBackdrop && e.target === overlayRef.current && mousedownOnBackdropRef.current) {
-      e.stopPropagation()
-      e.preventDefault()
-      onClose()
-    }
-    mousedownOnBackdropRef.current = false
-  }, [closeOnBackdrop, onClose])
-
-  if (!show) return null
+  const handleBackdropClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (closeOnBackdrop && e.target === overlayRef.current && mousedownOnBackdropRef.current) {
+        e.stopPropagation()
+        e.preventDefault()
+        onClose()
+      }
+      mousedownOnBackdropRef.current = false
+    },
+    [closeOnBackdrop, onClose]
+  )
 
   return (
     <PortalWrapper>
-      {/* Backdrop */}
-      <div
-        ref={overlayRef}
-        className={className}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex,
-          backgroundColor: 'rgba(15, 23, 42, 0.4)',
-          backdropFilter: blur ? 'blur(4px)' : undefined,
-          WebkitBackdropFilter: blur ? 'blur(4px)' : undefined,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px',
-          ...style,
-        }}
-        onMouseDown={handleBackdropMouseDown}
-        onTouchStart={handleBackdropMouseDown as any}
-        onClick={handleBackdropClick}
-      >
-        {/* Inner card — blocks all event propagation */}
-        <div
-          onMouseDown={e => e.stopPropagation()}
-          onMouseUp={e => e.stopPropagation()}
-          onTouchStart={e => e.stopPropagation()}
-          onPointerDown={e => e.stopPropagation()}
-          onClick={e => e.stopPropagation()}
-          style={{ display: 'contents' }}
-        >
-          {children}
-        </div>
-      </div>
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            key="modal-overlay-backdrop"
+            ref={overlayRef}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={className}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex,
+              backgroundColor: 'rgba(15, 23, 42, 0.45)',
+              backdropFilter: blur ? 'blur(4px)' : undefined,
+              WebkitBackdropFilter: blur ? 'blur(4px)' : undefined,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px',
+              ...style,
+            }}
+            onMouseDown={handleBackdropMouseDown}
+            onTouchStart={handleBackdropMouseDown as any}
+            onClick={handleBackdropClick}
+          >
+            {/* Inner card — blocks all event propagation */}
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              onMouseUp={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: 'contents' }}
+            >
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </PortalWrapper>
   )
 }

@@ -23,14 +23,29 @@ export function FilterMenu({
   const safeFields = Array.isArray(fields) ? fields : []
   const safeFilterRules = Array.isArray(filterRules) ? filterRules : []
 
-  const operatorOptions = useMemo(() => [
-    { value: 'contains', label: t('filter.contains') },
-    { value: 'not_contains', label: t('filter.notContains') },
-    { value: 'equals', label: t('filter.equals') },
-    { value: 'not_equals', label: t('filter.notEquals') },
-    { value: 'empty', label: t('filter.isEmpty') },
-    { value: 'not_empty', label: t('filter.isNotEmpty') },
-  ], [t])
+  const getOperatorOptionsForField = (field: TableField | undefined) => {
+    const isNum = field && ['number', 'rating', 'autonumber', 'percent', 'currency'].includes(field.type || '')
+    if (isNum) {
+      return [
+        { value: 'equals', label: t('filter.equals') || '= 等於' },
+        { value: 'not_equals', label: t('filter.notEquals') || '≠ 不等於' },
+        { value: 'higher_than', label: '> 大於' },
+        { value: 'higher_than_or_equal', label: '≥ 大於等於' },
+        { value: 'lower_than', label: '< 小於' },
+        { value: 'lower_than_or_equal', label: '≤ 小於等於' },
+        { value: 'empty', label: t('filter.isEmpty') || '為空' },
+        { value: 'not_empty', label: t('filter.isNotEmpty') || '不為空' },
+      ]
+    }
+    return [
+      { value: 'contains', label: t('filter.contains') },
+      { value: 'not_contains', label: t('filter.notContains') },
+      { value: 'equals', label: t('filter.equals') },
+      { value: 'not_equals', label: t('filter.notEquals') },
+      { value: 'empty', label: t('filter.isEmpty') },
+      { value: 'not_empty', label: t('filter.isNotEmpty') },
+    ]
+  }
 
   const fieldOptions = useMemo(() => safeFields.map((f) => ({
     value: `field_${f.id}`,
@@ -63,9 +78,11 @@ export function FilterMenu({
   }
 
   const handleAddRule = () => {
+    const firstField = safeFields[0]
+    const isNum = firstField && ['number', 'rating', 'autonumber', 'percent', 'currency'].includes(firstField.type || '')
     const newRule: FilterRule = {
-      fieldKey: safeFields.length > 0 ? `field_${safeFields[0].id}` : '',
-      operator: 'contains',
+      fieldKey: firstField ? `field_${firstField.id}` : '',
+      operator: isNum ? 'equals' : 'contains',
       value: '',
     }
     setFilterRules([...safeFilterRules, newRule])
@@ -215,6 +232,13 @@ export function FilterMenu({
                       const newRules = [...safeFilterRules]
                       newRules[idx].fieldKey = val
                       newRules[idx].value = ''
+                      const nextField = safeFields.find(f => `field_${f.id}` === val || String(f.id) === val)
+                      const nextIsNum = nextField && ['number', 'rating', 'autonumber', 'percent', 'currency'].includes(nextField.type || '')
+                      if (nextIsNum && (newRules[idx].operator === 'contains' || newRules[idx].operator === 'not_contains')) {
+                        newRules[idx].operator = 'equals'
+                      } else if (!nextIsNum && ['higher_than', 'higher_than_or_equal', 'lower_than', 'lower_than_or_equal'].includes(newRules[idx].operator)) {
+                        newRules[idx].operator = 'contains'
+                      }
                       setFilterRules(newRules)
                     }}
                     placeholder={t('filter.selectField')}
@@ -222,10 +246,10 @@ export function FilterMenu({
                 </div>
 
                 {/* Operator Select */}
-                <div style={{ width: '100px', flexShrink: 0 }}>
+                <div style={{ width: '110px', flexShrink: 0 }}>
                   <CustomSelect
                     value={rule.operator}
-                    options={operatorOptions}
+                    options={getOperatorOptionsForField(selectedField)}
                     onChange={(val) => {
                       const newRules = [...safeFilterRules]
                       newRules[idx].operator = val as FilterRule['operator']
@@ -283,7 +307,8 @@ export function FilterMenu({
                     />
                   ) : (
                     <input 
-                      type={selectedField?.type === 'number' ? 'number' : selectedField?.type === 'date' ? 'date' : 'text'} 
+                      type={selectedField?.type === 'date' ? 'date' : 'text'} 
+                      inputMode={selectedField?.type === 'number' ? 'decimal' : undefined}
                       className="soft-input"
                       value={rule.value} 
                       onChange={(e) => {
