@@ -225,4 +225,56 @@ describe('Route Handler Integration: PATCH /api/tables/[tableId]/rows', () => {
     expect(response.status).toBe(403)
     expect(prisma.$executeRaw).not.toHaveBeenCalled()
   })
+
+  it('Formula recomputation on number edit: generates valid parameterized SQL and updates formula field', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({
+      auth: { user: { id: 1 }, role: 'member' },
+    })
+
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, tableId: 10, name: 'Price', type: 'number', options: null },
+      { id: 2, tableId: 10, name: 'Tax', type: 'formula', options: JSON.stringify({ expression: '{field_1} * 0.05' }) },
+    ])
+    ;(prisma.tableRow.findFirst as jest.Mock).mockResolvedValue({
+      id: 100,
+      tableId: 10,
+      data: JSON.stringify({ field_1: 100, field_2: 5 }),
+    })
+
+    const executedSqls: any[] = []
+    ;(prisma.$executeRaw as jest.Mock).mockImplementation(async (sqlObj: any) => {
+      executedSqls.push(sqlObj)
+      return 1
+    })
+    ;(prisma.tableRow.findUnique as jest.Mock).mockResolvedValue({
+      id: 100,
+      tableId: 10,
+      data: JSON.stringify({ field_1: 200, field_2: 5 }),
+      updatedAt: new Date(),
+    })
+
+    const request = new Request('http://localhost:3000/api/tables/10/rows', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rowId: 100,
+        fieldKey: 'field_1',
+        value: 200,
+      }),
+    })
+    const params = Promise.resolve({ tableId: '10' })
+
+    const response = await PATCH(request, { params })
+    expect(response.status).toBe(200)
+
+    const body = await response.json()
+    expect(body.data.field_1).toBe(200)
+    expect(body.data.field_2).toBe(10) // 200 * 0.05 = 10
+
+    // Ensure formula update query was executed with valid parameterization (not $.?)
+    expect(executedSqls.length).toBe(2)
+    const formulaQuery = executedSqls[1]
+    const sqlText = formulaQuery.strings ? formulaQuery.strings.join('?') : ''
+    expect(sqlText).not.toContain('$.?')
+  })
 })

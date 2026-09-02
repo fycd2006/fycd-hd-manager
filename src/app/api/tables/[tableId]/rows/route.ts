@@ -263,7 +263,11 @@ export async function PATCH(
         if (val === null || val === undefined) {
           setFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
         } else if (typeof val === 'number') {
-          setFragments.push(Prisma.sql`${jsonPath}, ${val}`)
+          if (Number.isFinite(val)) {
+            setFragments.push(Prisma.sql`${jsonPath}, ${val}`)
+          } else {
+            setFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
+          }
         } else if (typeof val === 'boolean') {
           setFragments.push(Prisma.sql`${jsonPath}, CAST(${val ? 'true' : 'false'} AS JSON)`)
         } else if (typeof val === 'object') {
@@ -293,28 +297,56 @@ export async function PATCH(
         const fieldOrder = fields.map((f) => f.id)
         for (const ff of formulaFields) {
           const destKey = `field_${ff.id}`
+          const jsonPath = `$.${destKey}`
           const expr = extractFormulaExpression(ff.options)
           if (!expr) continue
           try {
             const res = evaluateFormula(expr, rowData, fieldOrder)
-            const computedVal = res != null ? String(res) : ''
+            const computedVal = res != null ? res : ''
             if (rowData[destKey] !== computedVal) {
               rowData[destKey] = computedVal
-              formulaFragments.push(Prisma.sql`$.${destKey}, ${computedVal}`)
+              if (computedVal === null || computedVal === undefined) {
+                formulaFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
+              } else if (typeof computedVal === 'number') {
+                if (Number.isFinite(computedVal)) {
+                  formulaFragments.push(Prisma.sql`${jsonPath}, ${computedVal}`)
+                } else {
+                  formulaFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
+                }
+              } else if (typeof computedVal === 'boolean') {
+                formulaFragments.push(Prisma.sql`${jsonPath}, CAST(${computedVal ? 'true' : 'false'} AS JSON)`)
+              } else if (typeof computedVal === 'object') {
+                formulaFragments.push(Prisma.sql`${jsonPath}, CAST(${JSON.stringify(computedVal)} AS JSON)`)
+              } else {
+                formulaFragments.push(Prisma.sql`${jsonPath}, ${String(computedVal)}`)
+              }
               formulaChanged = true
             }
           } catch {
             if (rowData[destKey] !== '#VALUE!') {
               rowData[destKey] = '#VALUE!'
-              formulaFragments.push(Prisma.sql`$.${destKey}, '#VALUE!'`)
+              formulaFragments.push(Prisma.sql`${jsonPath}, ${'#VALUE!'}`)
               formulaChanged = true
             }
           }
         }
         if (formulaChanged && formulaFragments.length > 0) {
-          await prisma.$executeRaw(
-            Prisma.sql`UPDATE TableRow SET data = JSON_SET(COALESCE(data, '{}'), ${Prisma.join(formulaFragments, ', ')}) WHERE id = ${rid} AND tableId = ${tid}`
-          )
+          try {
+            await prisma.$executeRaw(
+              Prisma.sql`UPDATE TableRow SET data = JSON_SET(COALESCE(data, '{}'), ${Prisma.join(formulaFragments, ', ')}), updatedAt = ${now} WHERE id = ${rid} AND tableId = ${tid} AND deletedAt IS NULL`
+            )
+          } catch (formulaErr) {
+            console.warn('[Formula DB Update Warning, falling back to ORM]:', formulaErr)
+            await prisma.tableRow.update({
+              where: { id: rid },
+              data: {
+                data: rowData as Prisma.InputJsonValue,
+                updatedAt: now,
+              },
+            }).catch((ormErr) => {
+              console.error('[Formula ORM Fallback Failed]:', ormErr)
+            })
+          }
         }
       }
 
