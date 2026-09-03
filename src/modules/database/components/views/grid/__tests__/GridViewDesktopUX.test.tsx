@@ -304,6 +304,116 @@ describe('GridView Desktop UX Operations', () => {
 
     expect(handleReorder).toHaveBeenCalledWith([1], 0);
   });
+
+  it('auto-scrolls vertically when dragging near bottom/top edges', () => {
+    let sTop = 100;
+    const origGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+    const origScrollTopDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
+
+    Object.defineProperty(Element.prototype, 'scrollTop', {
+      get() { return sTop; },
+      set(v) { sTop = v; },
+      configurable: true,
+    });
+
+    jest.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: any) {
+      if (this.classList?.contains('grid-view__scroll-container')) {
+        return {
+          top: 100,
+          bottom: 600,
+          left: 50,
+          right: 800,
+          width: 750,
+          height: 500,
+          x: 50,
+          y: 100,
+          toJSON: () => {},
+        };
+      }
+      return origGetBoundingClientRect.call(this);
+    });
+
+    renderWithI18n(<GridView fields={fields} rows={mockRows} />);
+
+    const scrollContainer = document.querySelector('.grid-view__scroll-container') as HTMLElement;
+    expect(scrollContainer).toBeTruthy();
+
+    // Set scroll position to 100 after initial mount resets
+    sTop = 100;
+
+    // 1. Drag near bottom edge (clientY = 580, bottom is 600)
+    scrollContainer.dispatchEvent(new MouseEvent('dragover', { clientX: 400, clientY: 580, bubbles: true }));
+    expect(sTop).toBeGreaterThan(100);
+
+    // 2. Drag near top edge (clientY = 140, top is 100, topThreshold is 196)
+    const prevScrollTop = sTop;
+    scrollContainer.dispatchEvent(new MouseEvent('dragover', { clientX: 400, clientY: 140, bubbles: true }));
+    expect(sTop).toBeLessThan(prevScrollTop);
+
+    // 3. Stop scrolling on dragEnd
+    window.dispatchEvent(new Event('dragend'));
+
+    // Cleanup
+    if (origScrollTopDescriptor) {
+      Object.defineProperty(Element.prototype, 'scrollTop', origScrollTopDescriptor);
+    }
+    jest.restoreAllMocks();
+  });
+
+  it('auto-scrolls horizontally when dragging column near right/left edges', () => {
+    let sLeft = 100;
+    const origGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+    const origScrollLeftDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollLeft');
+
+    Object.defineProperty(Element.prototype, 'scrollLeft', {
+      get() { return sLeft; },
+      set(v) { sLeft = v; },
+      configurable: true,
+    });
+
+    jest.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: any) {
+      if (this.classList?.contains('grid-view__scroll-container')) {
+        return {
+          top: 100,
+          bottom: 600,
+          left: 50,
+          right: 800,
+          width: 750,
+          height: 500,
+          x: 50,
+          y: 100,
+          toJSON: () => {},
+        };
+      }
+      return origGetBoundingClientRect.call(this);
+    });
+
+    renderWithI18n(<GridView fields={fields} rows={mockRows} />);
+
+    const scrollContainer = document.querySelector('.grid-view__scroll-container') as HTMLElement;
+    expect(scrollContainer).toBeTruthy();
+
+    // Set scroll position to 100 after initial mount resets
+    sLeft = 100;
+
+    // 1. Drag near right edge (clientX = 780, right is 800)
+    scrollContainer.dispatchEvent(new MouseEvent('dragover', { clientX: 780, clientY: 300, bubbles: true }));
+    expect(sLeft).toBeGreaterThan(100);
+
+    // 2. Drag near left edge (clientX = 80, left is 50, leftThreshold is 176)
+    const prevScrollLeft = sLeft;
+    scrollContainer.dispatchEvent(new MouseEvent('dragover', { clientX: 80, clientY: 300, bubbles: true }));
+    expect(sLeft).toBeLessThan(prevScrollLeft);
+
+    // 3. Drop stops scrolling
+    scrollContainer.dispatchEvent(new Event('drop', { bubbles: true }));
+
+    // Cleanup
+    if (origScrollLeftDescriptor) {
+      Object.defineProperty(Element.prototype, 'scrollLeft', origScrollLeftDescriptor);
+    }
+    jest.restoreAllMocks();
+  });
 });
 
 function onBatchUpdateCalls(mockFn: jest.Mock) {

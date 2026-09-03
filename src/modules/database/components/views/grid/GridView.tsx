@@ -524,6 +524,118 @@ export const GridView: React.FC<GridViewProps> = ({
     showToast(`已自動調整「${targetField.name}」欄寬為 ${autoWidth}px`);
   }, [fields, rows, handleResizeColumnLocal, onResizeColumnEnd, showToast]);
 
+  // Continuous 60fps/120fps edge auto-scrolling when dragging rows, columns, or cell selection
+  const scrollVelocityRef = useRef<{ vx: number; vy: number }>({ vx: 0, vy: 0 });
+  const autoScrollRafRef = useRef<number | null>(null);
+
+  const startAutoScrollLoop = useCallback(() => {
+    if (autoScrollRafRef.current !== null) return;
+    const step = () => {
+      const { vx, vy } = scrollVelocityRef.current;
+      if ((vx !== 0 || vy !== 0) && bodyRef.current) {
+        if (vy !== 0) {
+          bodyRef.current.scrollTop += vy;
+        }
+        if (vx !== 0) {
+          bodyRef.current.scrollLeft += vx;
+        }
+        autoScrollRafRef.current = requestAnimationFrame(step);
+      } else {
+        autoScrollRafRef.current = null;
+      }
+    };
+    autoScrollRafRef.current = requestAnimationFrame(step);
+  }, []);
+
+  const stopAutoScroll = useCallback(() => {
+    scrollVelocityRef.current = { vx: 0, vy: 0 };
+    if (autoScrollRafRef.current !== null) {
+      cancelAnimationFrame(autoScrollRafRef.current);
+      autoScrollRafRef.current = null;
+    }
+  }, []);
+
+  const handleDragAutoScroll = useCallback((clientX: number, clientY: number) => {
+    if (!bodyRef.current) return;
+    if (typeof clientX !== 'number' || typeof clientY !== 'number') return;
+    const rect = bodyRef.current.getBoundingClientRect();
+
+    // Ignore if cursor is far outside table boundaries (e.g. outside window)
+    if (
+      clientX < rect.left - 100 ||
+      clientX > rect.right + 100 ||
+      clientY < rect.top - 100 ||
+      clientY > rect.bottom + 100
+    ) {
+      stopAutoScroll();
+      return;
+    }
+
+    const EDGE_Y = 60;
+    const EDGE_X = 70;
+    const MIN_SPEED = 4;
+    const MAX_SPEED = 24;
+
+    let vy = 0;
+    let vx = 0;
+
+    // 1. Vertical auto-scroll (Moving Rows)
+    // Top edge (accounting for sticky column header height of 36px)
+    const topThreshold = rect.top + 36 + EDGE_Y;
+    if (clientY <= topThreshold) {
+      const dist = Math.max(0, topThreshold - clientY);
+      vy = -Math.min(MAX_SPEED, MIN_SPEED + (dist / EDGE_Y) * (MAX_SPEED - MIN_SPEED));
+    } else if (clientY >= rect.bottom - EDGE_Y) {
+      // Bottom edge
+      const dist = Math.max(0, clientY - (rect.bottom - EDGE_Y));
+      vy = Math.min(MAX_SPEED, MIN_SPEED + (dist / EDGE_Y) * (MAX_SPEED - MIN_SPEED));
+    }
+
+    // 2. Horizontal auto-scroll (Moving Columns)
+    // Left edge (accounting for sticky row details / header)
+    const leftThreshold = rect.left + rowDetailsWidth + EDGE_X;
+    if (clientX <= leftThreshold) {
+      const dist = Math.max(0, leftThreshold - clientX);
+      vx = -Math.min(MAX_SPEED, MIN_SPEED + (dist / EDGE_X) * (MAX_SPEED - MIN_SPEED));
+    } else if (clientX >= rect.right - EDGE_X) {
+      // Right edge
+      const dist = Math.max(0, clientX - (rect.right - EDGE_X));
+      vx = Math.min(MAX_SPEED, MIN_SPEED + (dist / EDGE_X) * (MAX_SPEED - MIN_SPEED));
+    }
+
+    if (vx !== 0 || vy !== 0) {
+      if (bodyRef.current) {
+        if (vy !== 0) bodyRef.current.scrollTop += vy;
+        if (vx !== 0) bodyRef.current.scrollLeft += vx;
+      }
+      scrollVelocityRef.current = { vx, vy };
+      startAutoScrollLoop();
+    } else {
+      stopAutoScroll();
+    }
+  }, [rowDetailsWidth, startAutoScrollLoop, stopAutoScroll]);
+
+  // Window drag listeners for row/column drag edge auto-scrolling
+  useEffect(() => {
+    const onWindowDragOver = (e: DragEvent) => {
+      handleDragAutoScroll(e.clientX, e.clientY);
+    };
+    const onWindowDragEnd = () => {
+      stopAutoScroll();
+    };
+
+    window.addEventListener('dragover', onWindowDragOver);
+    window.addEventListener('dragend', onWindowDragEnd);
+    window.addEventListener('drop', onWindowDragEnd);
+
+    return () => {
+      stopAutoScroll();
+      window.removeEventListener('dragover', onWindowDragOver);
+      window.removeEventListener('dragend', onWindowDragEnd);
+      window.removeEventListener('drop', onWindowDragEnd);
+    };
+  }, [handleDragAutoScroll, stopAutoScroll]);
+
   const handleCellSelect = useCallback((rIndex: number, cIndex: number, e?: React.MouseEvent) => {
     if (e?.shiftKey && selectedCell) {
       setSelectionStart(selectedCell);
@@ -552,7 +664,12 @@ export const GridView: React.FC<GridViewProps> = ({
         isDraggingSelectionRef.current = false;
         setIsDraggingSelection(false);
       }
+      stopAutoScroll();
       return;
+    }
+
+    if (e && (isDraggingSelectionRef.current || isAutofillingRef.current)) {
+      handleDragAutoScroll(e.clientX, e.clientY);
     }
 
     if (isDraggingSelectionRef.current && selectionStartRef.current) {
@@ -566,7 +683,7 @@ export const GridView: React.FC<GridViewProps> = ({
     if (isAutofillingRef.current && autofillStartRef.current) {
       setAutofillEnd([rIndex, cIndex]);
     }
-  }, []);
+  }, [handleDragAutoScroll, stopAutoScroll]);
 
   const handleStartAutofillCell = useCallback((rIndex: number, cIndex: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -998,6 +1115,7 @@ export const GridView: React.FC<GridViewProps> = ({
           }
         }
       }
+      stopAutoScroll();
       isDraggingSelectionRef.current = false;
       selectionStartRef.current = null;
       selectionEndRef.current = null;
@@ -1962,6 +2080,13 @@ export const GridView: React.FC<GridViewProps> = ({
           if (footerScrollRef.current && Math.abs(footerScrollRef.current.scrollLeft - e.currentTarget.scrollLeft) > 1) {
             footerScrollRef.current.scrollLeft = e.currentTarget.scrollLeft;
           }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          handleDragAutoScroll(e.clientX, e.clientY);
+        }}
+        onDragLeave={() => {
+          stopAutoScroll();
         }}
         onContextMenu={(e) => {
           if (selectionBounds) {

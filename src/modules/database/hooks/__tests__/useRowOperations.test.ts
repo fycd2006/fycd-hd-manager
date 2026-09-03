@@ -14,8 +14,8 @@ jest.mock('@/modules/database/services/row', () => ({
 
 describe('useRowOperations - Batch Multi-Row Reorder', () => {
   const mockFields: TableField[] = [
-    { id: 1, name: 'Name', type: 'text', tableId: 1, order: 0 },
-    { id: 2, name: 'Status', type: 'single_select', tableId: 1, order: 1 },
+    { id: 1, name: 'Name', type: 'text', tableId: 1, order: 0, options: null },
+    { id: 2, name: 'Status', type: 'single_select', tableId: 1, order: 1, options: null },
   ];
 
   const initialRows: TableRow[] = [
