@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Edit2, Trash2, Check, Send } from 'lucide-react';
 import ModalOverlay from '@/components/ui/ModalOverlay';
+import { useAuthStore } from '@/modules/database/store';
 
 export interface CommentLogEntry {
   id: string
@@ -33,14 +34,33 @@ export const LatestCommentModal: React.FC<{
   const [newText, setNewText] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const handleAdd = (e?: React.MouseEvent) => {
+  const [authState] = useAuthStore()
+  const cachedUser = typeof window !== 'undefined' ? (() => {
+    try {
+      const raw = localStorage.getItem('fycd_cached_user')
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  })() : null
+  const currentUserName = authState.currentUser?.username || cachedUser?.username || authState.currentUser?.email?.split('@')[0] || cachedUser?.email?.split('@')[0] || '使用者'
+
+  useEffect(() => {
+    if (show && !readOnly) {
+      const timer = setTimeout(() => {
+        textareaRef.current?.focus()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [show, readOnly])
+
+  const handleAdd = (e?: React.MouseEvent | React.FormEvent) => {
     e?.stopPropagation()
     if (!newText.trim() || readOnly) return
     const nowStr = new Date().toLocaleString('zh-TW', { hour12: false })
     const newEntry: CommentLogEntry = {
       id: 'lc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-      user: '使用者',
+      user: currentUserName,
       time: nowStr,
       content: newText.trim()
     }
@@ -118,9 +138,9 @@ export const LatestCommentModal: React.FC<{
               <span>尚無留言紀錄，請在下方輸入框新增第一筆備註。</span>
             </div>
           ) : (
-            entries.map((item, idx) => {
+            [...entries].reverse().map((item, idx) => {
               const isEditing = editingId === item.id
-              const isLatest = idx === entries.length - 1
+              const isLatest = idx === 0
               return (
                 <div
                   key={item.id || idx}
@@ -219,10 +239,18 @@ export const LatestCommentModal: React.FC<{
         {!readOnly && (
           <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <textarea
+              ref={textareaRef}
+              autoFocus
               rows={3}
-              placeholder="輸入新留言備註 (長文字，支援多列輸入)..."
+              placeholder="輸入新留言備註 (長文字，支援多列輸入，Ctrl+Enter 送出)..."
               value={newText}
               onChange={e => setNewText(e.target.value)}
+              onKeyDown={e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  handleAdd();
+                }
+              }}
               style={{
                 width: '100%',
                 padding: '10px 12px',

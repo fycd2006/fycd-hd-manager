@@ -215,6 +215,42 @@ export function evaluateCellCondition(
     }
   }
 
+  // 1b. Latest comment field type
+  if (field?.type === 'latest_comment') {
+    let commentList: Array<{ content?: string; user?: string; time?: string }> = [];
+    if (Array.isArray(val)) {
+      commentList = val;
+    } else if (typeof val === 'string' && val.trim()) {
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) commentList = parsed;
+      } catch {}
+    }
+
+    const matchAny = commentList.some(item => {
+      const c = String(item?.content || '').toLowerCase();
+      const u = String(item?.user || '').toLowerCase();
+      return c.includes(target) || u.includes(target);
+    });
+
+    switch (operator) {
+      case 'contains':
+        return matchAny;
+      case 'not_contains':
+        return !matchAny;
+      case 'empty':
+        return commentList.length === 0;
+      case 'not_empty':
+        return commentList.length > 0;
+      case 'equals':
+        return commentList.some(item => String(item?.content || '').toLowerCase().trim() === target);
+      case 'not_equals':
+        return !commentList.some(item => String(item?.content || '').toLowerCase().trim() === target);
+      default:
+        return matchAny;
+    }
+  }
+
   // 2. Numeric comparison for numeric field types or numeric operators
   const isNumericField = field && ['number', 'rating', 'autonumber', 'percent', 'currency'].includes(field.type || '');
   const isNumericOp = ['higher_than', 'higher_than_or_equal', 'lower_than', 'lower_than_or_equal', 'greater_than', 'greater_or_equal', 'less_than', 'less_or_equal', '>', '<', '>=', '<='].includes(operator);
@@ -368,3 +404,5 @@ export const cleanChoice = (item: any): string[] => {
   }
   return [String(item)];
 };
+
+export const doesCellMatchFilter = evaluateCellCondition;

@@ -864,7 +864,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
           textVal = val
             .map((item) =>
               typeof item === 'object' && item !== null
-                ? item.value || item.name || item.username || item.title || (item.id ? `ID: ${item.id}` : '')
+                ? (item.content ? `${item.time ? `[${item.time}] ` : ''}${item.content}${item.user ? ` (${item.user})` : ''}` : (item.value || item.name || item.username || item.title || (item.id ? `ID: ${item.id}` : '')))
                 : String(item)
             )
             .filter(Boolean)

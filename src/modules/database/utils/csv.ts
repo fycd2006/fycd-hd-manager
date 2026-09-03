@@ -53,6 +53,11 @@ export const exportToCSV = (
           valStr = val.map(item => {
             if (item && typeof item === 'object' && !Array.isArray(item)) {
               const obj = item as Record<string, unknown>
+              if (obj.content !== undefined && obj.content !== null) {
+                const userStr = obj.user ? ` (${obj.user})` : ''
+                const timeStr = obj.time ? `[${obj.time}] ` : ''
+                return `${timeStr}${obj.content}${userStr}`
+              }
               return String(obj.value || obj.name || '')
             }
             return String(item)
