@@ -424,6 +424,7 @@ export default function Home() {
   useRealtimeSync({
     activeTableId: wsState.activeTableId,
     setRows,
+    setFields,
     fetchTableData,
     addToast: uiActions.addToast,
   })
@@ -484,8 +485,9 @@ export default function Home() {
       ;(window as any).dispatchTableOp = dispatch
       ;(window as any).rows = rows
       ;(window as any).fields = fields
+      ;(window as any).__activeTableId = wsState.activeTableId
     }
-  }, [updateCell, fetchTableData, dispatch, rows, fields])
+  }, [updateCell, fetchTableData, dispatch, rows, fields, wsState.activeTableId])
 
 
 

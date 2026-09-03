@@ -76,4 +76,71 @@ describe('useRealtimeSync - Pusher Connection Listener Leak Reproduction', () =>
     expect(mockUnbind).toHaveBeenCalledWith('state_change', expect.any(Function))
     expect(mockUnbind).toHaveBeenCalledTimes(2) // 1 for table switch cleanup + 1 for unmount
   })
+
+  it('subscribes to and handles field-updated, field-created, field-deleted, and fields-reordered events', () => {
+    const setRows = jest.fn()
+    const setFields = jest.fn()
+    const fetchTableData = jest.fn().mockResolvedValue(undefined)
+    const addToast = jest.fn()
+
+    const eventHandlers: Record<string, Function> = {}
+    mockChannel.bind.mockImplementation((event: string, callback: Function) => {
+      eventHandlers[event] = callback
+    })
+
+    renderHook(() =>
+      useRealtimeSync({
+        activeTableId: 1,
+        setRows,
+        setFields,
+        fetchTableData,
+        addToast,
+      })
+    )
+
+    // Verify all field events are bound
+    expect(mockChannel.bind).toHaveBeenCalledWith('field-updated', expect.any(Function))
+    expect(mockChannel.bind).toHaveBeenCalledWith('field-created', expect.any(Function))
+    expect(mockChannel.bind).toHaveBeenCalledWith('field-deleted', expect.any(Function))
+    expect(mockChannel.bind).toHaveBeenCalledWith('fields-reordered', expect.any(Function))
+    expect(mockChannel.bind).toHaveBeenCalledWith('rows-batch-changed', expect.any(Function))
+
+    // 1. Test field-updated
+    eventHandlers['field-updated']({
+      field: { id: 10, name: '類別', options: { choices: [{ id: 'opt_123', name: '新選項' }] } },
+    })
+    expect(setFields).toHaveBeenCalled()
+    const updateFn = setFields.mock.calls[0][0]
+    const initialFields = [{ id: 10, name: '舊類別', options: {} }, { id: 11, name: '其他' }]
+    expect(updateFn(initialFields)).toEqual([
+      { id: 10, name: '類別', options: { choices: [{ id: 'opt_123', name: '新選項' }] } },
+      { id: 11, name: '其他' },
+    ])
+
+    // 2. Test field-created
+    eventHandlers['field-created']({
+      field: { id: 12, name: '最新欄位', order: 2 },
+    })
+    const createFn = setFields.mock.calls[1][0]
+    expect(createFn(initialFields)).toEqual([
+      { id: 10, name: '舊類別', options: {} },
+      { id: 11, name: '其他' },
+      { id: 12, name: '最新欄位', order: 2 },
+    ])
+
+    // 3. Test field-deleted
+    eventHandlers['field-deleted']({ fieldId: 10 })
+    const deleteFn = setFields.mock.calls[2][0]
+    expect(deleteFn(initialFields)).toEqual([
+      { id: 11, name: '其他' },
+    ])
+
+    // 4. Test fields-reordered
+    eventHandlers['fields-reordered']()
+    expect(fetchTableData).toHaveBeenCalledWith(1)
+
+    // 5. Test rows-batch-changed
+    eventHandlers['rows-batch-changed']()
+    expect(fetchTableData).toHaveBeenCalledWith(1)
+  })
 })

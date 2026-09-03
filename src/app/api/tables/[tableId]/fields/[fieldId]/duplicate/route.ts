@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { authorizeAction } from '@/lib/authorize'
+import { triggerTableEvent } from '@/lib/pusher-server'
 
 export async function POST(
   request: Request,
@@ -81,6 +82,10 @@ export async function POST(
             AND JSON_CONTAINS_PATH(data, 'one', ${srcPath}) = 1`
       )
     }
+
+    const socketId = request.headers.get('x-socket-id') || undefined
+    triggerTableEvent(tid, 'field-created', { field: newField }, socketId)
+    triggerTableEvent(tid, 'rows-batch-changed', { type: 'update' }, socketId)
 
     return NextResponse.json(newField, { status: 201 })
   } catch (error: any) {

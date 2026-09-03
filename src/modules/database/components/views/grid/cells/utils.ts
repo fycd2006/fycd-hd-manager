@@ -58,9 +58,23 @@ export const getOptionColor = (str: string, allOptions?: any[]) => {
   };
 };
 
-const isUuidPattern = (s: string) =>
+const isChoiceIdPattern = (s: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.trim()) ||
-  /^[0-9a-f]{24,}$/i.test(s.trim())
+  /^[0-9a-f]{24,}$/i.test(s.trim()) ||
+  /^opt_[a-z0-9_]+$/i.test(s.trim());
+
+let lastSelfHealTime = 0;
+export const triggerBackgroundFieldSync = () => {
+  if (typeof window === 'undefined') return;
+  const now = Date.now();
+  if (now - lastSelfHealTime < 3000) return;
+  lastSelfHealTime = now;
+  const win = window as any;
+  const activeTableId = win.__activeTableId;
+  if (typeof win.fetchTableData === 'function' && activeTableId) {
+    win.fetchTableData(activeTableId).catch(() => {});
+  }
+};
 
 export const resolveChoiceString = (str: string, fieldOptions?: any): string => {
   if (!str) return '';
@@ -110,23 +124,53 @@ export const resolveChoiceString = (str: string, fieldOptions?: any): string => 
     return false;
   });
 
-  if (matched) {
-    if (typeof matched === 'string') {
-      return isUuidPattern(matched) ? '' : matched;
-    }
-    const label = matched.name ?? matched.label ?? matched.text ?? matched.value;
-    if (label !== undefined && label !== null && String(label).trim() !== '') {
-      const labelStr = String(label).trim();
-      return isUuidPattern(labelStr) ? '' : labelStr;
-    }
-    if (matched.id !== undefined && matched.id !== null) {
-      const idStr = String(matched.id).trim();
-      return isUuidPattern(idStr) ? '' : idStr;
+  let effectiveMatched = matched;
+  if (!effectiveMatched && typeof window !== 'undefined' && Array.isArray((window as any).fields)) {
+    for (const f of (window as any).fields) {
+      if (!f?.options) continue;
+      let fOpts = f.options;
+      if (typeof fOpts === 'string') {
+        try {
+          fOpts = JSON.parse(fOpts);
+          if (typeof fOpts === 'string') fOpts = JSON.parse(fOpts);
+        } catch {}
+      }
+      const choices = Array.isArray(fOpts) ? fOpts : (fOpts?.choices || fOpts?.select_options || fOpts?.options || []);
+      const found = choices.find((c: any) => {
+        if (!c) return false;
+        if (typeof c === 'string') return c.trim() === strTrimmed || c.trim().toLowerCase() === strLower;
+        const cId = c.id != null ? String(c.id).trim() : '';
+        const cVal = c.value != null ? String(c.value).trim() : '';
+        const cName = c.name != null ? String(c.name).trim() : '';
+        return (cId && (cId === strTrimmed || cId.toLowerCase() === strLower)) ||
+               (cVal && (cVal === strTrimmed || cVal.toLowerCase() === strLower)) ||
+               (cName && (cName === strTrimmed || cName.toLowerCase() === strLower));
+      });
+      if (found) {
+        effectiveMatched = found;
+        break;
+      }
     }
   }
 
-  // If not matched and string is a raw UUID, never display as chip
-  if (isUuidPattern(strTrimmed)) {
+  if (effectiveMatched) {
+    if (typeof effectiveMatched === 'string') {
+      return isChoiceIdPattern(effectiveMatched) ? '' : effectiveMatched;
+    }
+    const label = effectiveMatched.name ?? effectiveMatched.label ?? effectiveMatched.text ?? effectiveMatched.value;
+    if (label !== undefined && label !== null && String(label).trim() !== '') {
+      const labelStr = String(label).trim();
+      return isChoiceIdPattern(labelStr) ? '' : labelStr;
+    }
+    if (effectiveMatched.id !== undefined && effectiveMatched.id !== null) {
+      const idStr = String(effectiveMatched.id).trim();
+      return isChoiceIdPattern(idStr) ? '' : idStr;
+    }
+  }
+
+  // If not matched and string is a raw ID (UUID or opt_*), never display as chip
+  if (isChoiceIdPattern(strTrimmed)) {
+    triggerBackgroundFieldSync();
     return '';
   }
 

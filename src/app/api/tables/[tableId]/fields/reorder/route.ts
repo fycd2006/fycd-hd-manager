@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
+import { triggerTableEvent } from '@/lib/pusher-server'
 
 export async function POST(
   request: Request,
@@ -33,6 +34,9 @@ export async function POST(
         })
       }
     })
+
+    const socketId = request.headers.get('x-socket-id') || body?.socket_id || undefined
+    triggerTableEvent(id, 'fields-reordered', { order: fieldIds }, socketId)
 
     return NextResponse.json({ message: '欄位排序更新成功' })
   } catch (error: any) {

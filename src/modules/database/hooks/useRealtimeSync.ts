@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { getPusherClient } from '@/lib/pusher-client'
 import { normalizeRowData } from '@/modules/database/utils/normalizeRowData'
-import type { TableRow, CellValue } from '@/modules/database/types'
+import type { TableRow, CellValue, TableField } from '@/modules/database/types'
 
 interface RowUpdatedPayload {
   rowId: number
@@ -23,9 +23,26 @@ interface RowDeletedPayload {
   rowId?: number
 }
 
+interface FieldUpdatedPayload {
+  field?: TableField
+}
+
+interface FieldCreatedPayload {
+  field?: TableField
+}
+
+interface FieldDeletedPayload {
+  fieldId?: number
+}
+
+interface FieldsReorderedPayload {
+  order?: number[]
+}
+
 interface UseRealtimeSyncParams {
   activeTableId: number | null
   setRows: (payload: TableRow[] | ((prev: TableRow[]) => TableRow[])) => void
+  setFields?: (payload: TableField[] | ((prev: TableField[]) => TableField[])) => void
   fetchTableData: (tableId: number) => Promise<void>
   addToast: (message: string, type: 'success' | 'error' | 'info') => void
 }
@@ -34,13 +51,15 @@ interface UseRealtimeSyncParams {
  * Manages Pusher WebSocket subscriptions for real-time multi-user sync.
  * Subscribes to the active table's channel and handles row CRUD events.
  */
-export function useRealtimeSync({ activeTableId, setRows, fetchTableData, addToast }: UseRealtimeSyncParams) {
+export function useRealtimeSync({ activeTableId, setRows, setFields, fetchTableData, addToast }: UseRealtimeSyncParams) {
   const setRowsRef = useRef(setRows)
+  const setFieldsRef = useRef(setFields)
   const fetchTableDataRef = useRef(fetchTableData)
   const addToastRef = useRef(addToast)
 
   useEffect(() => {
     setRowsRef.current = setRows
+    setFieldsRef.current = setFields
     fetchTableDataRef.current = fetchTableData
     addToastRef.current = addToast
   })
@@ -122,6 +141,47 @@ export function useRealtimeSync({ activeTableId, setRows, fetchTableData, addToa
       if (!data?.rowId) return
       const deletedId = data.rowId
       setRowsRef.current(prev => prev.filter(r => r.id !== deletedId))
+    })
+
+    channel.bind('field-updated', (data: FieldUpdatedPayload | undefined) => {
+      if (!data?.field) return
+      const updatedField = data.field
+      if (setFieldsRef.current) {
+        setFieldsRef.current(prev => prev.map(f => f.id === updatedField.id ? { ...f, ...updatedField } : f))
+      }
+    })
+
+    channel.bind('field-created', (data: FieldCreatedPayload | undefined) => {
+      if (!data?.field) return
+      const newField = data.field
+      if (setFieldsRef.current) {
+        setFieldsRef.current(prev => {
+          if (prev.some(f => f.id === newField.id)) {
+            return prev.map(f => f.id === newField.id ? { ...f, ...newField } : f)
+          }
+          return [...prev, newField].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        })
+      }
+    })
+
+    channel.bind('field-deleted', (data: FieldDeletedPayload | undefined) => {
+      if (!data?.fieldId) return
+      const deletedId = data.fieldId
+      if (setFieldsRef.current) {
+        setFieldsRef.current(prev => prev.filter(f => f.id !== deletedId))
+      }
+    })
+
+    channel.bind('fields-reordered', () => {
+      if (activeTableId) {
+        fetchTableDataRef.current(activeTableId)
+      }
+    })
+
+    channel.bind('rows-batch-changed', () => {
+      if (activeTableId) {
+        fetchTableDataRef.current(activeTableId)
+      }
     })
 
     return () => {

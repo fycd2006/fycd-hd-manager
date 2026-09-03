@@ -4,6 +4,15 @@
  */
 
 import { TableField } from '../types'
+import { getSocketId } from '@/lib/pusher-client'
+
+const getHeaders = () => {
+  const socketId = getSocketId()
+  return {
+    'Content-Type': 'application/json',
+    ...(socketId ? { 'x-socket-id': socketId } : {}),
+  }
+}
 
 /**
  * Fetch all fields for a table
@@ -31,7 +40,7 @@ export const createField = async (
   try {
     const res = await fetch(`/api/tables/${tableId}/fields`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(field),
     })
     const data = await res.json()
@@ -54,7 +63,7 @@ export const duplicateField = async (
   try {
     const res = await fetch(`/api/tables/${tableId}/fields/${fieldId}/duplicate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
     })
     const data = await res.json()
     if (res.ok) {
@@ -71,8 +80,10 @@ export const duplicateField = async (
  */
 export const deleteField = async (tableId: number, fieldId: number): Promise<{ ok: boolean; error?: string }> => {
   try {
+    const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/fields/${fieldId}`, {
       method: 'DELETE',
+      headers: socketId ? { 'x-socket-id': socketId } : undefined,
     })
     if (res.ok) {
       return { ok: true }
@@ -91,7 +102,7 @@ export const renameField = async (tableId: number, fieldId: number, name: string
   try {
     const res = await fetch(`/api/tables/${tableId}/fields/${fieldId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ name }),
     })
     if (res.ok) {
@@ -111,7 +122,7 @@ export const reorderFields = async (tableId: number, fieldOrder: number[]): Prom
   try {
     const res = await fetch(`/api/tables/${tableId}/fields/reorder`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ order: fieldOrder }),
     })
     if (res.ok) {
@@ -130,7 +141,7 @@ export const updateField = async (tableId: number, fieldId: number, updates: Par
   try {
     const res = await fetch(`/api/tables/${tableId}/fields/${fieldId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(updates),
     })
     if (res.ok) {

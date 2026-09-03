@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
 import { getSessionUser } from '@/lib/auth'
 import { createGeneratedColumn } from '@/modules/database/services/schemaService'
+import { triggerTableEvent } from '@/lib/pusher-server'
 import { z } from 'zod'
 
 const createFieldSchema = z.object({
@@ -31,7 +32,7 @@ export const GET = withApiHandler<{ tableId: string }>(
 )
 
 export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createFieldSchema>>(
-  async ({ params, body }) => {
+  async ({ request, params, body }) => {
     const id = parseInt(params.tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
@@ -159,7 +160,11 @@ export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createFie
       }
     })
 
-    return NextResponse.json({ ...field, order: insertOrder }, { status: 201 })
+    const resultField = { ...field, order: insertOrder }
+    const socketId = request.headers.get('x-socket-id') || (body as any)?.socket_id || undefined
+    triggerTableEvent(id, 'field-created', { field: resultField }, socketId)
+
+    return NextResponse.json(resultField, { status: 201 })
   },
   {
     auth: { action: 'canManageStructure' },

@@ -5,6 +5,7 @@ import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade
 import { createGeneratedColumn, dropGeneratedColumn } from '@/modules/database/services/schemaService'
 import { migrateSelectFieldsForTable } from '@/modules/database/services/selectFieldMigration'
 import { authorizeAction } from '@/lib/authorize'
+import { triggerTableEvent } from '@/lib/pusher-server'
 import { z } from 'zod'
 
 const updateFieldSchema = z.object({
@@ -16,7 +17,7 @@ const updateFieldSchema = z.object({
 })
 
 export const PATCH = withApiHandler<{ tableId: string; fieldId: string }, z.infer<typeof updateFieldSchema>>(
-  async ({ params, body }) => {
+  async ({ request, params, body }) => {
     const tid = parseInt(params.tableId)
     const fid = parseInt(params.fieldId)
     if (isNaN(fid) || isNaN(tid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
@@ -65,6 +66,9 @@ export const PATCH = withApiHandler<{ tableId: string; fieldId: string }, z.infe
         await createGeneratedColumn(fid).catch(err => console.error('[Schema DDL Error]', err))
       }
     }
+    const socketId = request.headers.get('x-socket-id') || (body as any)?.socket_id || undefined
+    triggerTableEvent(tid, 'field-updated', { field: updated }, socketId)
+
     return updated
   },
   {
@@ -73,7 +77,7 @@ export const PATCH = withApiHandler<{ tableId: string; fieldId: string }, z.infe
 )
 
 export const DELETE = withApiHandler<{ tableId: string; fieldId: string }>(
-  async ({ params }) => {
+  async ({ request, params }) => {
     const tid = parseInt(params.tableId)
     const fid = parseInt(params.fieldId)
     if (isNaN(fid) || isNaN(tid)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
@@ -99,6 +103,10 @@ export const DELETE = withApiHandler<{ tableId: string; fieldId: string }>(
     }
     
     await cleanupFieldDependencies(fid)
+
+    const socketId = request.headers.get('x-socket-id') || undefined
+    triggerTableEvent(tid, 'field-deleted', { fieldId: fid }, socketId)
+
     return { message: '欄位已刪除' }
   },
   {
