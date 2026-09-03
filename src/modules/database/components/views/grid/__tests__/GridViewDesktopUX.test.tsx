@@ -198,6 +198,31 @@ describe('GridView Desktop UX Operations', () => {
     // Only Cell 0 remains selected
     expect(col0).toHaveClass('active');
   });
+
+  it('smoothly multi-selects cells while dragging with left mouse button held (buttons === 1)', () => {
+    renderWithI18n(<GridView fields={fields} rows={mockRows} />);
+
+    // 1. Mouse down on row 0, col 0
+    const cell0 = screen.getByText('項目 1');
+    const col0 = cell0.closest('.grid-view__column');
+    fireEvent.mouseDown(col0 || cell0, { button: 0 });
+
+    expect(col0).toHaveClass('active');
+
+    // 2. Drag into row 1, col 0 holding left button (buttons === 1)
+    const cell1 = screen.getByText('項目 2');
+    const col1 = cell1.closest('.grid-view__column');
+    fireEvent.mouseEnter(col1 || cell1, { buttons: 1 });
+
+    // Both Cell 0 and Cell 1 should now be part of the active selection!
+    expect(col0).toHaveClass('active');
+    expect(col1).toHaveClass('active');
+
+    // 3. Release mouse
+    fireEvent.mouseUp(window);
+    expect(col0).toHaveClass('active');
+    expect(col1).toHaveClass('active');
+  });
 });
 
 function onBatchUpdateCalls(mockFn: jest.Mock) {

@@ -464,6 +464,12 @@ export const GridView: React.FC<GridViewProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
 
+  const selectionStartRef = useRef<[number, number] | null>(null);
+  const selectionEndRef = useRef<[number, number] | null>(null);
+  const isDraggingSelectionRef = useRef<boolean>(false);
+  const isAutofillingRef = useRef<boolean>(false);
+  const autofillStartRef = useRef<[number, number] | null>(null);
+
   // 1. Table switch or initial load: reset horizontal and vertical scroll positions
   useEffect(() => {
     if (bodyRef.current) {
@@ -517,6 +523,63 @@ export const GridView: React.FC<GridViewProps> = ({
     onResizeColumnEnd?.(fieldId, autoWidth);
     showToast(`已自動調整「${targetField.name}」欄寬為 ${autoWidth}px`);
   }, [fields, rows, handleResizeColumnLocal, onResizeColumnEnd, showToast]);
+
+  const handleCellSelect = useCallback((rIndex: number, cIndex: number, e?: React.MouseEvent) => {
+    if (e?.shiftKey && selectedCell) {
+      setSelectionStart(selectedCell);
+      setSelectionEnd([rIndex, cIndex]);
+      selectionStartRef.current = selectedCell;
+      selectionEndRef.current = [rIndex, cIndex];
+    } else {
+      setSelectedCell([rIndex, cIndex]);
+      setSelectionStart([rIndex, cIndex]);
+      setSelectionEnd([rIndex, cIndex]);
+      selectionStartRef.current = [rIndex, cIndex];
+      selectionEndRef.current = [rIndex, cIndex];
+      if (e?.button === 0) {
+        isDraggingSelectionRef.current = true;
+        setIsDraggingSelection(true);
+      }
+    }
+    setIsEditing(false);
+    setEditingCellInfo(null);
+    setTypeOverValue(null);
+  }, [selectedCell]);
+
+  const handleCellMouseEnter = useCallback((rIndex: number, cIndex: number, e?: React.MouseEvent) => {
+    if (e && e.buttons === 0 && !isAutofillingRef.current) {
+      if (isDraggingSelectionRef.current) {
+        isDraggingSelectionRef.current = false;
+        setIsDraggingSelection(false);
+      }
+      return;
+    }
+
+    if (isDraggingSelectionRef.current && selectionStartRef.current) {
+      const prevEnd = selectionEndRef.current;
+      if (!prevEnd || prevEnd[0] !== rIndex || prevEnd[1] !== cIndex) {
+        selectionEndRef.current = [rIndex, cIndex];
+        setSelectionEnd([rIndex, cIndex]);
+      }
+    }
+
+    if (isAutofillingRef.current && autofillStartRef.current) {
+      setAutofillEnd([rIndex, cIndex]);
+    }
+  }, []);
+
+  const handleStartAutofillCell = useCallback((rIndex: number, cIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    isAutofillingRef.current = true;
+    autofillStartRef.current = [rIndex, cIndex];
+    setIsAutofilling(true);
+    setAutofillStart([rIndex, cIndex]);
+    setAutofillEnd([rIndex, cIndex]);
+    selectionStartRef.current = [rIndex, cIndex];
+    selectionEndRef.current = [rIndex, cIndex];
+    setSelectionStart([rIndex, cIndex]);
+    setSelectionEnd([rIndex, cIndex]);
+  }, []);
 
   const selectionBounds = useMemo(() => {
     if (!selectionStart || !selectionEnd) return null;
@@ -935,6 +998,11 @@ export const GridView: React.FC<GridViewProps> = ({
           }
         }
       }
+      isDraggingSelectionRef.current = false;
+      selectionStartRef.current = null;
+      selectionEndRef.current = null;
+      isAutofillingRef.current = false;
+      autofillStartRef.current = null;
       setIsDraggingSelection(false);
       setIsAutofilling(false);
       setAutofillStart(null);
@@ -2136,49 +2204,16 @@ export const GridView: React.FC<GridViewProps> = ({
                                       selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
                                       isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                                       initialTypeOverValue={editingCellInfo?.rowId === row.id && isEditing ? typeOverValue : undefined}
-                                      selectionBounds={selectionBounds}
+                                      onSelectCell={(cIndex, e) => handleCellSelect(rIndex, cIndex, e)}
+                                      onMouseEnterCell={(cIndex, e) => handleCellMouseEnter(rIndex, cIndex, e)}
+                                      onStartAutofillCell={(cIndex, e) => handleStartAutofillCell(rIndex, cIndex, e)}
                                       autofillBounds={autofillBounds}
+                                      selectionBounds={selectionBounds}
                                       isRowSelectedDirectly={selectedRowIds.has(row.id)}
                                       canDrag={canDragRows}
                                       onToggleRowCheckbox={handleToggleRowCheckbox}
                                       onSelectRowHeader={handleSelectRowHeader}
                                       onMouseEnterRowHeader={handleMouseEnterRowHeader}
-                                      onSelectCell={(cIndex, e) => {
-                                        if (e?.shiftKey && selectedCell) {
-                                          setSelectionStart(selectedCell);
-                                          setSelectionEnd([rIndex, cIndex]);
-                                        } else {
-                                          setSelectedCell([rIndex, cIndex]);
-                                          setSelectionStart([rIndex, cIndex]);
-                                          setSelectionEnd([rIndex, cIndex]);
-                                          if (e?.button === 0) {
-                                            setIsDraggingSelection(true);
-                                          }
-                                        }
-                                        setIsEditing(false);
-                                        setEditingCellInfo(null);
-                                        setTypeOverValue(null);
-                                      }}
-                                      onMouseEnterCell={(cIndex, e) => {
-                                        if (isDraggingSelection && selectionStart) {
-                                          if (e && e.buttons !== 1) {
-                                            setIsDraggingSelection(false);
-                                          } else {
-                                            setSelectionEnd([rIndex, cIndex]);
-                                          }
-                                        }
-                                        if (isAutofilling && autofillStart) {
-                                          setAutofillEnd([rIndex, cIndex]);
-                                        }
-                                      }}
-                                      onStartAutofillCell={(cIndex, e) => {
-                                        e.stopPropagation();
-                                        setIsAutofilling(true);
-                                        setAutofillStart([rIndex, cIndex]);
-                                        setAutofillEnd([rIndex, cIndex]);
-                                        setSelectionStart([rIndex, cIndex]);
-                                        setSelectionEnd([rIndex, cIndex]);
-                                      }}
                                       onStartEditCell={(cIndex, initVal) => {
                                         setSelectedCell([rIndex, cIndex]);
                                         setEditingCellInfo({ rowId: row.id, colIndex: cIndex });
@@ -2316,42 +2351,9 @@ export const GridView: React.FC<GridViewProps> = ({
                         onToggleRowCheckbox={handleToggleRowCheckbox}
                         onSelectRowHeader={handleSelectRowHeader}
                         onMouseEnterRowHeader={handleMouseEnterRowHeader}
-                        onSelectCell={(cIndex, e) => {
-                          if (e?.shiftKey && selectedCell) {
-                            setSelectionStart(selectedCell);
-                            setSelectionEnd([rIndex, cIndex]);
-                          } else {
-                            setSelectedCell([rIndex, cIndex]);
-                            setSelectionStart([rIndex, cIndex]);
-                            setSelectionEnd([rIndex, cIndex]);
-                            if (e?.button === 0) {
-                              setIsDraggingSelection(true);
-                            }
-                          }
-                          setIsEditing(false);
-                          setEditingCellInfo(null);
-                          setTypeOverValue(null);
-                        }}
-                        onMouseEnterCell={(cIndex, e) => {
-                          if (isDraggingSelection && selectionStart) {
-                            if (e && e.buttons !== 1) {
-                              setIsDraggingSelection(false);
-                            } else {
-                              setSelectionEnd([rIndex, cIndex]);
-                            }
-                          }
-                          if (isAutofilling && autofillStart) {
-                            setAutofillEnd([rIndex, cIndex]);
-                          }
-                        }}
-                        onStartAutofillCell={(cIndex, e) => {
-                          e.stopPropagation();
-                          setIsAutofilling(true);
-                          setAutofillStart([rIndex, cIndex]);
-                          setAutofillEnd([rIndex, cIndex]);
-                          setSelectionStart([rIndex, cIndex]);
-                          setSelectionEnd([rIndex, cIndex]);
-                        }}
+                        onSelectCell={(cIndex, e) => handleCellSelect(rIndex, cIndex, e)}
+                        onMouseEnterCell={(cIndex, e) => handleCellMouseEnter(rIndex, cIndex, e)}
+                        onStartAutofillCell={(cIndex, e) => handleStartAutofillCell(rIndex, cIndex, e)}
                         onAutoFillDown={(cIndex) => handleAutoFillDown(rIndex, cIndex)}
                         onStartEditCell={(cIndex, initVal) => {
                           setSelectedCell([rIndex, cIndex]);

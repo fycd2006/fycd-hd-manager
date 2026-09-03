@@ -2163,9 +2163,19 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
           }
         }
       }}
+      onDragStart={(e) => {
+        if (!isEditing) {
+          e.preventDefault();
+        }
+      }}
       onMouseEnter={(e) => {
         setIsCellHovered(true);
         if (!isEditing) {
+          onMouseEnterCell?.(e);
+        }
+      }}
+      onMouseMove={(e) => {
+        if (!isEditing && e.buttons === 1) {
           onMouseEnterCell?.(e);
         }
       }}
@@ -2193,7 +2203,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid var(--border-color, #e2e8f0)',
         borderBottom: '1px solid var(--border-color, #e2e8f0)',
         background: cellBg ? `linear-gradient(${cellBg}, ${cellBg}), ${rowColorBg || '#ffffff'}` : (rowColorBg || '#ffffff'),
-        transition: 'background 0.12s ease, box-shadow 0.12s ease',
+        transition: isSelected || isInRange ? 'none' : 'background 0.12s ease, box-shadow 0.12s ease',
         boxSizing: 'border-box',
         display: 'flex',
         alignItems: 'center',
