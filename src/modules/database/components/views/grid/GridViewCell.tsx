@@ -379,6 +379,7 @@ interface GridViewCellProps {
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
   onCancelEdit: () => void;
   onNavigateCell?: (direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export const GridViewCell: React.FC<GridViewCellProps> = ({
@@ -405,6 +406,7 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
   onUpdateField,
   onCancelEdit,
   onNavigateCell,
+  onContextMenu,
 }) => {
   const getInitialStringValue = (val: any, type: string): string => {
     if (val === null || val === undefined) return type === 'multiple_select' ? '[]' : '';
@@ -2394,9 +2396,17 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
       ref={cellRef}
       onMouseDown={(e) => {
         wasSelectedRef.current = isSelected;
-        if (!isEditing && e.button === 0) {
-          onSelect(e);
+        if (!isEditing) {
+          if (e.button === 0) {
+            onSelect(e);
+          } else if (e.button === 2 && !isInRange && !isSelected) {
+            onSelect(e);
+          }
         }
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContextMenu?.(e);
       }}
       onTouchStart={() => {
         wasSelectedRef.current = isSelected;

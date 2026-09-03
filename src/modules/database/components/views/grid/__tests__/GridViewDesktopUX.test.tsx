@@ -5,8 +5,13 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react';
+import { I18nProvider } from '@/lib/i18n/i18nContext';
 import { GridView } from '../GridView';
 import type { TableField } from '@/modules/database/types';
+
+const renderWithI18n = (ui: React.ReactElement) => {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+};
 
 // Mock react-virtualizer
 jest.mock('@tanstack/react-virtual', () => ({
@@ -123,6 +128,53 @@ describe('GridView Desktop UX Operations', () => {
     const updates = onBatchUpdateCells.mock.calls[0][0];
     // field_2 should be parsed as clean number 1250.5, NOT raw string "$1,250.50"
     expect(updates[0].data.field_2).toBe(1250.5);
+  });
+
+  it('selects entire row on Shift+Space and entire column on Ctrl+Space', () => {
+    renderWithI18n(<GridView fields={fields} rows={mockRows} />);
+
+    // Select row 0, col 1
+    const numCell = screen.getByText('100');
+    fireEvent.mouseDown(numCell, { button: 0 });
+
+    // Press Shift + Space: should select entire row 0
+    fireEvent.keyDown(window, { key: ' ', shiftKey: true });
+
+    // MultiCell action bar should show "列已選取"
+    expect(screen.getByText('列已選取')).toBeInTheDocument();
+
+    // Press Ctrl + Space: should select entire column 1 across all 3 rows
+    fireEvent.keyDown(window, { key: ' ', ctrlKey: true });
+
+    // Selection stats pill should show "已選取 3 格" and numeric sum: 100 + 200 + 300 = 600
+    expect(screen.getByText(/已選取/)).toBeInTheDocument();
+    expect(screen.getByText('600')).toBeInTheDocument();
+  });
+
+  it('selects entire column when clicking column header', () => {
+    renderWithI18n(<GridView fields={fields} rows={mockRows} />);
+
+    // Click on column header for "金額"
+    const colHeader = screen.getByText('金額');
+    fireEvent.click(colHeader.closest('.grid-view__column--field') || colHeader);
+
+    // Should display selection statistics pill with 3 cells and sum 600
+    expect(screen.getByText(/已選取/)).toBeInTheDocument();
+    expect(screen.getByText('600')).toBeInTheDocument();
+  });
+
+  it('syncs selection and opens context menu on right click of unselected cell', () => {
+    renderWithI18n(<GridView fields={fields} rows={mockRows} />);
+
+    // Right click on "項目 2" cell (row 1, col 0)
+    const cellRow1 = screen.getByText('項目 2');
+    const cellCol = cellRow1.closest('.grid-view__column');
+    expect(cellCol).not.toHaveClass('active');
+
+    fireEvent.contextMenu(cellCol || cellRow1, { clientX: 200, clientY: 300 });
+
+    // Cell should now be active/selected!
+    expect(cellCol).toHaveClass('active');
   });
 });
 

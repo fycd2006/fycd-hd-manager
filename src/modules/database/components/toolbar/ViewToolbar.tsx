@@ -747,7 +747,7 @@ export function ViewToolbar({
               >
                 <Filter size={16} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
                 <span className="header__filter-name" style={{ color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#44403C', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 600 : 500 }}>
-                  {filterRules.length > 0 ? `${filterRules.length} ${t('toolbar.filter')}` : t('toolbar.filter')}
+                  {filterRules.length > 0 ? `${t('toolbar.filter')} (${filterRules.length})` : t('toolbar.filter')}
                 </span>
               </a>
             </li>
@@ -779,7 +779,7 @@ export function ViewToolbar({
               >
                 <ArrowDownAZ size={16} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
                 <span className="header__filter-name" style={{ color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#44403C', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 600 : 500 }}>
-                  {activeSortRules.length > 0 ? `${activeSortRules.length} ${t('toolbar.sort')}` : t('toolbar.sort')}
+                  {activeSortRules.length > 0 ? `${t('toolbar.sort')} (${activeSortRules.length})` : t('toolbar.sort')}
                 </span>
               </a>
             </li>
@@ -811,7 +811,7 @@ export function ViewToolbar({
               >
                 <Palette size={16} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
                 <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#44403C', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 600 : 500 }}>
-                  {safeRowColorRules.length > 0 ? `${safeRowColorRules.length} ${t('toolbar.color')}` : t('toolbar.color')}
+                  {safeRowColorRules.length > 0 ? `${t('toolbar.color')} (${safeRowColorRules.length})` : t('toolbar.color')}
                 </span>
               </a>
             </li>
@@ -843,7 +843,7 @@ export function ViewToolbar({
               >
                 <Layers size={16} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
                 <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#44403C', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 600 : 500 }}>
-                  {activeGroupByRules.length > 0 ? `${activeGroupByRules.length} ${t('toolbar.group')}` : t('toolbar.group')}
+                  {activeGroupByRules.length > 0 ? `${t('toolbar.group')} (${activeGroupByRules.length})` : t('toolbar.group')}
                 </span>
               </a>
             </li>
@@ -877,7 +877,7 @@ export function ViewToolbar({
               >
                 <EyeOff size={16} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
                 <span className="header__filter-name" style={{ color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#44403C', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 600 : 500 }}>
-                  {actualHiddenCount > 0 ? `${actualHiddenCount} ${t('toolbar.hideFields')}` : t('toolbar.hideFields')}
+                  {actualHiddenCount > 0 ? `${t('toolbar.hideFields')} (${actualHiddenCount})` : t('toolbar.hideFields')}
                 </span>
               </a>
             </li>

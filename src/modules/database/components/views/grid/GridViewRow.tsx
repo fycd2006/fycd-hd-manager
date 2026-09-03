@@ -41,6 +41,8 @@ interface GridViewRowProps {
   onExpandRow?: () => void;
   onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void;
   onNavigateCell?: (colIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => void;
+  onContextMenuCell?: (colIndex: number, e: React.MouseEvent) => void;
+  onContextMenuRowHeader?: (e: React.MouseEvent) => void;
 }
 
 export const GridViewRow: React.FC<GridViewRowProps> = ({
@@ -70,6 +72,8 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
   onExpandRow,
   onReorderRows,
   onNavigateCell,
+  onContextMenuCell,
+  onContextMenuRowHeader,
 }) => {
   const { t } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
@@ -183,6 +187,10 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
           if (e.button === 0 && !canDrag) {
             onSelectRowHeader?.(rowIndex, e);
           }
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onContextMenuRowHeader?.(e);
         }}
         onMouseEnter={(e) => {
           setIsHovered(true);
@@ -316,6 +324,7 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
             onUpdateField={onUpdateField}
             onCancelEdit={onCancelEditCell}
             onNavigateCell={(dir) => onNavigateCell?.(cIndex, dir)}
+            onContextMenu={(e) => onContextMenuCell?.(cIndex, e)}
           />
         );
       })}

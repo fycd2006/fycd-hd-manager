@@ -66,6 +66,7 @@ interface GridViewHeadProps {
   onAddField?: () => void;
   onAddFieldPopover?: (position: { top: number; left: number }) => void;
   onFieldClick?: (field: TableField, e: React.MouseEvent) => void;
+  onSelectColumn?: (fieldIndex: number) => void;
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void;
   onResizeColumn?: (fieldId: number, newWidth: number) => void;
   onResizeColumnEnd?: (fieldId: number, newWidth: number) => void;
@@ -84,6 +85,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
   onToggleSelectAllRows,
   onAddField,
   onAddFieldPopover,
+  onSelectColumn,
   onOpenFieldContextMenu,
   onResizeColumn,
   onResizeColumnEnd,
@@ -231,7 +233,7 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
             }}
             onClick={(e) => {
               e.stopPropagation();
-              onOpenFieldContextMenu?.(field, e.clientX, e.clientY);
+              onSelectColumn?.(fieldIndex);
             }}
             onContextMenu={(e) => {
               e.preventDefault();

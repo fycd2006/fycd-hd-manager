@@ -68,17 +68,17 @@ export const FieldContextMenu: React.FC<FieldContextMenuProps> = ({
       onClick: () => { onEditField(field); onClose(); }
     },
     ...(onChangePrimaryField ? [{
-      label: t('contextMenu.setPrimaryField'),
+      label: t('contextMenu.changePrimaryField'),
       icon: RefreshCcw,
       onClick: () => { onChangePrimaryField(field); onClose(); }
     }] : []),
     ...(onConfigureDateDependencies && (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') ? [{
-      label: t('contextMenu.configureDateDep'),
+      label: t('contextMenu.configureDateDependencies'),
       icon: Calendar,
       onClick: () => { onConfigureDateDependencies(field); onClose(); }
     }] : []),
     ...(onEditPermissions ? [{
-      label: t('contextMenu.editPermissions'),
+      label: t('contextMenu.editFieldPermissions'),
       icon: Lock,
       onClick: () => { onEditPermissions(field); onClose(); }
     }] : []),

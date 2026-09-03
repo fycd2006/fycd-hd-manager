@@ -528,6 +528,47 @@ export const GridView: React.FC<GridViewProps> = ({
     return { minRow, maxRow, minCol, maxCol, isMulti };
   }, [selectionStart, selectionEnd]);
 
+  // Dynamic real-time selection statistics (Count, Sum, Avg, Min, Max)
+  const selectionStats = useMemo(() => {
+    if (!selectionBounds || !selectionBounds.isMulti) return null;
+    const { minRow, maxRow, minCol, maxCol } = selectionBounds;
+    const totalCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
+    if (totalCount <= 1) return null;
+
+    let numericSum = 0;
+    let numericCount = 0;
+    let minVal: number | null = null;
+    let maxVal: number | null = null;
+
+    for (let r = minRow; r <= maxRow; r++) {
+      const row = rows[r];
+      if (!row) continue;
+      for (let c = minCol; c <= maxCol; c++) {
+        const field = fields[c];
+        if (!field) continue;
+        const val = (row as any).data?.[`field_${field.id}`] ?? row.values?.[field.id];
+        if (val !== null && val !== undefined && val !== '') {
+          const num = Number(val);
+          if (!isNaN(num) && typeof val !== 'boolean') {
+            numericSum += num;
+            numericCount++;
+            if (minVal === null || num < minVal) minVal = num;
+            if (maxVal === null || num > maxVal) maxVal = num;
+          }
+        }
+      }
+    }
+
+    return {
+      totalCount,
+      numericCount,
+      sum: numericCount > 0 ? Number(numericSum.toFixed(4)) : null,
+      avg: numericCount > 0 ? Number((numericSum / numericCount).toFixed(2)) : null,
+      min: minVal,
+      max: maxVal,
+    };
+  }, [selectionBounds, rows, fields]);
+
   const autofillBounds = useMemo(() => {
     if (!isAutofilling || !autofillStart || !autofillEnd) return null;
     const minRow = Math.min(autofillStart[0], autofillEnd[0]);
@@ -1263,8 +1304,31 @@ export const GridView: React.FC<GridViewProps> = ({
         return;
       }
 
+      // Shift + Space: Select entire row (Excel / Airtable standard)
+      if (e.shiftKey && e.key === ' ' && selectedCell) {
+        e.preventDefault();
+        const [r] = selectedCell;
+        const targetRow = rows[r];
+        if (targetRow) {
+          setSelectedRowIds(new Set([targetRow.id]));
+          setSelectionStart([r, 0]);
+          setSelectionEnd([r, Math.max(0, fields.length - 1)]);
+        }
+        return;
+      }
+
+      // Ctrl + Space / Cmd + Space: Select entire column (Excel / Airtable standard)
+      if ((e.ctrlKey || e.metaKey) && e.key === ' ' && selectedCell) {
+        e.preventDefault();
+        const [, c] = selectedCell;
+        setSelectionStart([0, c]);
+        setSelectionEnd([Math.max(0, rows.length - 1), c]);
+        setSelectedRowIds(new Set());
+        return;
+      }
+
       // Spacebar: Toggle boolean checkbox or expand row detail modal
-      if (e.key === ' ' && selectedCell) {
+      if (e.key === ' ' && !e.shiftKey && !e.ctrlKey && !e.metaKey && selectedCell) {
         const [r, c] = selectedCell;
         const targetRow = rows[r];
         const targetField = fields[c];
@@ -1492,6 +1556,58 @@ export const GridView: React.FC<GridViewProps> = ({
       setSelectedRowIds(newSelectedIds);
     }
   }, [isDraggingSelection, selectionStart, rows, selectedRowIds, fields.length]);
+
+  // Select full column (Airtable / Excel / Google Sheets standard)
+  const handleSelectColumn = useCallback((cIndex: number) => {
+    if (rows.length === 0) return;
+    setSelectedCell([0, cIndex]);
+    setSelectionStart([0, cIndex]);
+    setSelectionEnd([rows.length - 1, cIndex]);
+    setSelectedRowIds(new Set());
+    setIsEditing(false);
+    setEditingCellInfo(null);
+  }, [rows.length]);
+
+  // Context menu on cell with instant selection sync
+  const handleContextMenuCell = useCallback((rIndex: number, cIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // If right-clicked cell is not within the multi-selection bounding box, refocus on it
+    const isInsideMulti = selectionBounds && selectionBounds.isMulti &&
+      rIndex >= selectionBounds.minRow && rIndex <= selectionBounds.maxRow &&
+      cIndex >= selectionBounds.minCol && cIndex <= selectionBounds.maxCol;
+
+    if (!isInsideMulti) {
+      setSelectedCell([rIndex, cIndex]);
+      setSelectionStart([rIndex, cIndex]);
+      setSelectionEnd([rIndex, cIndex]);
+      setSelectedRowIds(new Set());
+      setIsEditing(false);
+      setEditingCellInfo(null);
+    }
+
+    setCellContextMenu({ x: e.clientX, y: e.clientY });
+  }, [selectionBounds]);
+
+  // Context menu on row index header
+  const handleContextMenuRowHeader = useCallback((rIndex: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const row = rows[rIndex];
+    if (!row) return;
+
+    if (!selectedRowIds.has(row.id)) {
+      setSelectedRowIds(new Set([row.id]));
+      setSelectionStart([rIndex, 0]);
+      setSelectionEnd([rIndex, Math.max(0, fields.length - 1)]);
+      setSelectedCell([rIndex, 0]);
+      setIsEditing(false);
+      setEditingCellInfo(null);
+    }
+
+    setCellContextMenu({ x: e.clientX, y: e.clientY });
+  }, [rows, fields.length, selectedRowIds]);
 
   const getRowHeightPx = useCallback(() => {
     if (typeof window !== 'undefined' && containerRef.current) {
@@ -1778,6 +1894,7 @@ export const GridView: React.FC<GridViewProps> = ({
               onToggleSelectAllRows={handleToggleSelectAllRows}
               onAddField={onAddField}
               onAddFieldPopover={onAddFieldPopover}
+              onSelectColumn={handleSelectColumn}
               onResizeColumn={handleResizeColumnLocal}
               onResizeColumnEnd={onResizeColumnEnd}
               onAutoFitColumn={handleAutoFitColumn}
@@ -2050,6 +2167,8 @@ export const GridView: React.FC<GridViewProps> = ({
                                       onReorderRows={onReorderRows}
                                       onAutoFillDown={(cIndex) => handleAutoFillDown(rIndex >= 0 ? rIndex : 0, cIndex)}
                                       onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}
+                                      onContextMenuCell={(cIndex, e) => handleContextMenuCell(rIndex >= 0 ? rIndex : 0, cIndex, e)}
+                                      onContextMenuRowHeader={(e) => handleContextMenuRowHeader(rIndex >= 0 ? rIndex : 0, e)}
                                     />
                                   );
                                 })}
@@ -2215,6 +2334,8 @@ export const GridView: React.FC<GridViewProps> = ({
                         onExpandRow={() => onExpandRow?.(row.id)}
                         onReorderRows={onReorderRows}
                         onNavigateCell={(cIndex, dir) => handleNavigateCell(rIndex, cIndex, dir)}
+                        onContextMenuCell={(cIndex, e) => handleContextMenuCell(rIndex, cIndex, e)}
+                        onContextMenuRowHeader={(e) => handleContextMenuRowHeader(rIndex, e)}
                       />
                     </div>
                   );
@@ -2568,7 +2689,58 @@ export const GridView: React.FC<GridViewProps> = ({
         </PopoverPortal>
       )}
 
-      {cellContextMenu && (selectionBounds || selectedRowIds.size > 0) && (
+      {/* Floating Dynamic Selection Statistics Pill (Excel / Sheets / Airtable) */}
+      {selectionStats && selectionStats.totalCount > 1 && selectedRowIds.size === 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '58px',
+            right: '24px',
+            zIndex: 45,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '7px 16px',
+            background: 'rgba(24, 24, 27, 0.92)',
+            backdropFilter: 'blur(8px)',
+            color: '#ffffff',
+            borderRadius: '9999px',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.1)',
+            fontSize: '12px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            pointerEvents: 'auto',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ color: '#a1a1aa' }}>已選取</span>
+            <strong style={{ color: '#ffffff', fontFamily: 'var(--font-mono, monospace)' }}>{selectionStats.totalCount}</strong>
+            <span style={{ color: '#a1a1aa' }}>格</span>
+          </div>
+
+          {selectionStats.numericCount > 0 && (
+            <>
+              <div style={{ width: '1px', height: '14px', background: 'rgba(255, 255, 255, 0.2)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ color: '#a1a1aa' }}>加總:</span>
+                <strong style={{ color: '#a3e635', fontFamily: 'var(--font-mono, monospace)' }}>{selectionStats.sum}</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ color: '#a1a1aa' }}>平均:</span>
+                <strong style={{ color: '#38bdf8', fontFamily: 'var(--font-mono, monospace)' }}>{selectionStats.avg}</strong>
+              </div>
+              {selectionStats.numericCount > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#d4d4d8', fontSize: '11px' }}>
+                  <span>最小: {selectionStats.min}</span>
+                  <span>/</span>
+                  <span>最大: {selectionStats.max}</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {cellContextMenu && (
         <MultiCellContextMenu
           x={cellContextMenu.x}
           y={cellContextMenu.y}
@@ -2577,14 +2749,14 @@ export const GridView: React.FC<GridViewProps> = ({
               ? selectedRowIds.size * fields.length
               : selectionBounds
               ? (selectionBounds.maxRow - selectionBounds.minRow + 1) * (selectionBounds.maxCol - selectionBounds.minCol + 1)
-              : 0
+              : 1
           }
           selectedRowCount={
             selectedRowIds.size > 0
               ? selectedRowIds.size
               : selectionBounds
               ? selectionBounds.maxRow - selectionBounds.minRow + 1
-              : 0
+              : 1
           }
           onClose={() => setCellContextMenu(null)}
           onCopy={handleCopySelection}
