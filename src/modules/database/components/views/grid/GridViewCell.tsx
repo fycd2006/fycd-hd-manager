@@ -371,7 +371,7 @@ interface GridViewCellProps {
   rowDetailsWidth?: number;
   initialTypeOverValue?: string | null;
   onSelect: (e?: React.MouseEvent) => void;
-  onMouseEnterCell?: () => void;
+  onMouseEnterCell?: (e: React.MouseEvent) => void;
   onStartAutofill?: (e: React.MouseEvent) => void;
   onAutoFillDown?: () => void;
   onStartEdit: (initialVal?: string) => void;
@@ -2425,10 +2425,10 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
           }
         }
       }}
-      onMouseEnter={() => {
+      onMouseEnter={(e) => {
         setIsCellHovered(true);
         if (!isEditing) {
-          onMouseEnterCell?.();
+          onMouseEnterCell?.(e);
         }
       }}
       onMouseLeave={() => {

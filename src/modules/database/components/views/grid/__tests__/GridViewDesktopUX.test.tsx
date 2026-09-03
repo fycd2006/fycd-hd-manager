@@ -176,6 +176,28 @@ describe('GridView Desktop UX Operations', () => {
     // Cell should now be active/selected!
     expect(cellCol).toHaveClass('active');
   });
+
+  it('moving mouse across cells without holding left button (buttons === 0) does NOT extend selection', () => {
+    renderWithI18n(<GridView fields={fields} rows={mockRows} />);
+
+    // 1. Click on row 0, col 0
+    const cell0 = screen.getByText('項目 1');
+    const col0 = cell0.closest('.grid-view__column');
+    fireEvent.mouseDown(col0 || cell0, { button: 0 });
+    fireEvent.mouseUp(window);
+
+    expect(col0).toHaveClass('active');
+
+    // 2. Move mouse to row 1, col 0 without holding mouse button (buttons === 0)
+    const cell1 = screen.getByText('項目 2');
+    const col1 = cell1.closest('.grid-view__column');
+    fireEvent.mouseEnter(col1 || cell1, { buttons: 0 });
+
+    // Cell 1 must NOT become active or selected!
+    expect(col1).not.toHaveClass('active');
+    // Only Cell 0 remains selected
+    expect(col0).toHaveClass('active');
+  });
 });
 
 function onBatchUpdateCalls(mockFn: jest.Mock) {

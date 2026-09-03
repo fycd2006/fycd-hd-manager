@@ -941,12 +941,16 @@ export const GridView: React.FC<GridViewProps> = ({
       setAutofillEnd(null);
     };
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointerup', handleMouseUp);
     window.addEventListener('dragend', handleMouseUp);
     window.addEventListener('drop', handleMouseUp);
+    window.addEventListener('blur', handleMouseUp);
     return () => {
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointerup', handleMouseUp);
       window.removeEventListener('dragend', handleMouseUp);
       window.removeEventListener('drop', handleMouseUp);
+      window.removeEventListener('blur', handleMouseUp);
     };
   }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
 
@@ -2147,14 +2151,21 @@ export const GridView: React.FC<GridViewProps> = ({
                                           setSelectedCell([rIndex, cIndex]);
                                           setSelectionStart([rIndex, cIndex]);
                                           setSelectionEnd([rIndex, cIndex]);
+                                          if (e?.button === 0) {
+                                            setIsDraggingSelection(true);
+                                          }
                                         }
                                         setIsEditing(false);
                                         setEditingCellInfo(null);
                                         setTypeOverValue(null);
                                       }}
-                                      onMouseEnterCell={(cIndex) => {
+                                      onMouseEnterCell={(cIndex, e) => {
                                         if (isDraggingSelection && selectionStart) {
-                                          setSelectionEnd([rIndex, cIndex]);
+                                          if (e && e.buttons !== 1) {
+                                            setIsDraggingSelection(false);
+                                          } else {
+                                            setSelectionEnd([rIndex, cIndex]);
+                                          }
                                         }
                                         if (isAutofilling && autofillStart) {
                                           setAutofillEnd([rIndex, cIndex]);
@@ -2313,15 +2324,21 @@ export const GridView: React.FC<GridViewProps> = ({
                             setSelectedCell([rIndex, cIndex]);
                             setSelectionStart([rIndex, cIndex]);
                             setSelectionEnd([rIndex, cIndex]);
-                            setIsDraggingSelection(true);
+                            if (e?.button === 0) {
+                              setIsDraggingSelection(true);
+                            }
                           }
                           setIsEditing(false);
                           setEditingCellInfo(null);
                           setTypeOverValue(null);
                         }}
-                        onMouseEnterCell={(cIndex) => {
+                        onMouseEnterCell={(cIndex, e) => {
                           if (isDraggingSelection && selectionStart) {
-                            setSelectionEnd([rIndex, cIndex]);
+                            if (e && e.buttons !== 1) {
+                              setIsDraggingSelection(false);
+                            } else {
+                              setSelectionEnd([rIndex, cIndex]);
+                            }
                           }
                           if (isAutofilling && autofillStart) {
                             setAutofillEnd([rIndex, cIndex]);

@@ -31,7 +31,7 @@ interface GridViewRowProps {
   onSelectRowHeader?: (rowIndex: number, e: React.MouseEvent) => void;
   onToggleRowCheckbox?: (rowId: number, e: React.MouseEvent) => void;
   onMouseEnterRowHeader?: (rowIndex: number, e?: React.MouseEvent) => void;
-  onMouseEnterCell?: (colIndex: number) => void;
+  onMouseEnterCell?: (colIndex: number, e: React.MouseEvent) => void;
   onStartAutofillCell?: (colIndex: number, e: React.MouseEvent) => void;
   onAutoFillDown?: (colIndex: number) => void;
   onStartEditCell: (colIndex: number, initialVal?: string) => void;
@@ -316,7 +316,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
             rowDetailsWidth={rowDetailsWidth}
             initialTypeOverValue={isSelected ? initialTypeOverValue : undefined}
             onSelect={(e) => onSelectCell(cIndex, e)}
-            onMouseEnterCell={() => onMouseEnterCell?.(cIndex)}
+            onMouseEnterCell={(e) => onMouseEnterCell?.(cIndex, e)}
             onStartAutofill={(e) => onStartAutofillCell?.(cIndex, e)}
             onAutoFillDown={() => onAutoFillDown?.(cIndex)}
             onStartEdit={(initVal?: string) => onStartEditCell(cIndex, initVal)}
