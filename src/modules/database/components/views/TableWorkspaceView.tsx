@@ -79,7 +79,7 @@ export interface TableWorkspaceViewProps {
   handleColumnDragStart: (e: React.DragEvent, fieldId: number) => void
   handleColumnDragOver: (e: React.DragEvent) => void
   handleColumnDrop: (e: React.DragEvent, targetFieldId: number) => void
-  handleReorderRows: (sourceIndex: number, targetIndex: number) => Promise<void>
+  handleReorderRows: (sourceIndex: number | number[], targetIndex: number) => Promise<void>
   setContextMenu: (menu: any) => void
   setNewFieldPopoverPos: (pos: { top: number; left: number }) => void
   onSelectDashboard: () => void

@@ -60,7 +60,7 @@ interface DatabaseViewRouterProps {
   setFieldContextMenu: (menu: { field: TableField; x: number; y: number } | null) => void
   onUndo?: () => void
   onRedo?: () => void
-  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void
+  onReorderRows?: (sourceRowIndex: number | number[], targetRowIndex: number) => void
   batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean
   stageMoveRows?: (rowIds: number[]) => void
   cancelMoveRows?: () => void

@@ -345,7 +345,7 @@ interface GridViewProps {
   onUndo?: () => Promise<boolean | void> | boolean | void;
   onRedo?: () => Promise<boolean | void> | boolean | void;
   onReorderFields?: (sourceFieldId: number, targetFieldId: number) => void;
-  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void;
+  onReorderRows?: (sourceRowIndex: number | number[], targetRowIndex: number) => void;
   onBatchAddRows?: (rows: Array<Record<string, any>>) => void;
   batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean;
   stageMoveRows?: (rowIds: number[]) => void;
@@ -1569,6 +1569,15 @@ export const GridView: React.FC<GridViewProps> = ({
     return selectedRowIds.size > 0 || Boolean(selectionBounds);
   }, [selectedRowIds.size, selectionBounds]);
 
+  const selectedRowIndices = useMemo(() => {
+    if (selectedRowIds.size === 0) return [];
+    const indices: number[] = [];
+    rows.forEach((r, idx) => {
+      if (selectedRowIds.has(r.id)) indices.push(idx);
+    });
+    return indices;
+  }, [rows, selectedRowIds]);
+
   const handleToggleSelectAllRows = useCallback(() => {
     if (isAllRowsSelected) {
       setSelectedRowIds(new Set());
@@ -2210,6 +2219,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                       autofillBounds={autofillBounds}
                                       selectionBounds={selectionBounds}
                                       isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                                      selectedRowIndices={selectedRowIndices}
                                       canDrag={canDragRows}
                                       onToggleRowCheckbox={handleToggleRowCheckbox}
                                       onSelectRowHeader={handleSelectRowHeader}
@@ -2347,6 +2357,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         selectionBounds={selectionBounds}
                         autofillBounds={autofillBounds}
                         isRowSelectedDirectly={selectedRowIds.has(row.id)}
+                        selectedRowIndices={selectedRowIndices}
                         canDrag={canDragRows}
                         onToggleRowCheckbox={handleToggleRowCheckbox}
                         onSelectRowHeader={handleSelectRowHeader}

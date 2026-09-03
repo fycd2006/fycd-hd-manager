@@ -38,8 +38,9 @@ interface GridViewRowProps {
   onUpdateCell: (fieldId: number, value: any) => void;
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
   onCancelEditCell: () => void;
+  selectedRowIndices?: number[];
   onExpandRow?: () => void;
-  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void;
+  onReorderRows?: (sourceRowIndex: number | number[], targetRowIndex: number) => void;
   onNavigateCell?: (colIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => void;
   onContextMenuCell?: (colIndex: number, e: React.MouseEvent) => void;
   onContextMenuRowHeader?: (e: React.MouseEvent) => void;
@@ -69,6 +70,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
   onUpdateCell,
   onUpdateField,
   onCancelEditCell,
+  selectedRowIndices,
   onExpandRow,
   onReorderRows,
   onNavigateCell,
@@ -121,11 +123,30 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
         if (!canDrag) return;
         e.preventDefault();
         setIsDragTarget(false);
-        const sourceIdxStr = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
-        if (sourceIdxStr !== '') {
-          const sourceIdx = parseInt(sourceIdxStr, 10);
+        const dataStr = e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text');
+        if (dataStr) {
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (Array.isArray(parsed)) {
+              const movingIndices = parsed.filter((i) => typeof i === 'number');
+              if (movingIndices.length > 0 && !movingIndices.includes(rowIndex)) {
+                onReorderRows?.(movingIndices, rowIndex);
+                return;
+              }
+            }
+          } catch {}
+
+          if (dataStr.includes(',')) {
+            const indices = dataStr.split(',').map((s) => parseInt(s.trim(), 10)).filter((i) => !isNaN(i));
+            if (indices.length > 0 && !indices.includes(rowIndex)) {
+              onReorderRows?.(indices, rowIndex);
+              return;
+            }
+          }
+
+          const sourceIdx = parseInt(dataStr, 10);
           if (!isNaN(sourceIdx) && sourceIdx !== rowIndex) {
-            onReorderRows?.(sourceIdx, rowIndex);
+            onReorderRows?.([sourceIdx], rowIndex);
           }
         }
       }}
@@ -155,8 +176,47 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
             e.preventDefault();
             return;
           }
-          e.dataTransfer.setData('text/plain', String(rowIndex));
+
+          const isPartOfMulti = Boolean(
+            isRowSelected && selectedRowIndices && selectedRowIndices.length > 1 && selectedRowIndices.includes(rowIndex)
+          );
+          const movingIndices = isPartOfMulti ? selectedRowIndices! : [rowIndex];
+
+          const payload = JSON.stringify(movingIndices);
+          e.dataTransfer.setData('application/json', payload);
+          e.dataTransfer.setData('text/plain', movingIndices.join(','));
           e.dataTransfer.effectAllowed = 'move';
+
+          // Floating drag badge (Ghost Image) for multi-row drag
+          if (movingIndices.length > 1 && typeof document !== 'undefined') {
+            const dragBadge = document.createElement('div');
+            dragBadge.textContent = `移動 ${movingIndices.length} 列`;
+            dragBadge.style.cssText = [
+              'position: fixed',
+              'top: -1000px',
+              'left: -1000px',
+              'background: #1e293b',
+              'color: #ffffff',
+              'font-size: 12px',
+              'font-weight: 600',
+              'padding: 5px 12px',
+              'border-radius: 9999px',
+              'box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28)',
+              'border: 1px solid rgba(255, 255, 255, 0.2)',
+              'z-index: 99999',
+              'pointer-events: none',
+              'white-space: nowrap',
+            ].join(';');
+            document.body.appendChild(dragBadge);
+            if (e.dataTransfer.setDragImage) {
+              e.dataTransfer.setDragImage(dragBadge, 20, 15);
+            }
+            setTimeout(() => {
+              if (dragBadge.parentNode) {
+                dragBadge.parentNode.removeChild(dragBadge);
+              }
+            }, 0);
+          }
         }}
         style={{
           width: `${rowDetailsWidth}px`,
@@ -345,6 +405,7 @@ export const GridViewRow = React.memo<GridViewRowProps>(GridViewRowInner, (prev,
   if (prev.selectedColumnIndex !== next.selectedColumnIndex) return false;
   if (prev.isCellEditing !== next.isCellEditing) return false;
   if (prev.isRowSelectedDirectly !== next.isRowSelectedDirectly) return false;
+  if (prev.selectedRowIndices !== next.selectedRowIndices) return false;
   if (prev.initialTypeOverValue !== next.initialTypeOverValue) return false;
 
   // 3. Multi-selection range changes affecting this row

@@ -223,6 +223,87 @@ describe('GridView Desktop UX Operations', () => {
     expect(col0).toHaveClass('active');
     expect(col1).toHaveClass('active');
   });
+
+  it('drags multiple selected rows together as a batch', () => {
+    const handleReorder = jest.fn();
+    renderWithI18n(<GridView fields={fields} rows={mockRows} onReorderRows={handleReorder} />);
+
+    // 1. Hover row 0 and row 1 to reveal and click their row checkboxes
+    const rowElements = document.querySelectorAll('.grid-view__row');
+    expect(rowElements.length).toBeGreaterThanOrEqual(3);
+
+    fireEvent.mouseEnter(rowElements[0]);
+    const cb0 = rowElements[0].querySelector('input[type="checkbox"]');
+    expect(cb0).toBeTruthy();
+    fireEvent.click(cb0!);
+
+    fireEvent.mouseEnter(rowElements[1]);
+    const cb1 = rowElements[1].querySelector('input[type="checkbox"]');
+    expect(cb1).toBeTruthy();
+    fireEvent.click(cb1!);
+
+    // 2. Find row draggable handle on row 0
+    const row0Header = rowElements[0].querySelector('.grid-view__column--no-border-right[draggable="true"]');
+    expect(row0Header).toBeTruthy();
+
+    // 3. Initiate drag on row 0
+    const dataStore: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (format: string, data: string) => { dataStore[format] = data; },
+      getData: (format: string) => dataStore[format] || '',
+      setDragImage: jest.fn(),
+      effectAllowed: 'none',
+      dropEffect: 'none',
+    };
+
+    fireEvent.dragStart(row0Header!, { dataTransfer });
+
+    // Verify multi-row payload includes both row 0 and row 1: [0, 1]
+    expect(dataStore['application/json']).toBe(JSON.stringify([0, 1]));
+
+    // 4. Drop onto row 2
+    const dropEvent = {
+      dataTransfer: {
+        getData: (format: string) => dataStore[format] || '',
+      },
+      preventDefault: jest.fn(),
+    };
+    fireEvent.drop(rowElements[2], dropEvent);
+
+    // Verify onReorderRows was called with movingIndices [0, 1] and targetIndex 2!
+    expect(handleReorder).toHaveBeenCalledWith([0, 1], 2);
+  });
+
+  it('drags single row when row is not part of a multi-selection', () => {
+    const handleReorder = jest.fn();
+    renderWithI18n(<GridView fields={fields} rows={mockRows} onReorderRows={handleReorder} />);
+
+    const rowElements = document.querySelectorAll('.grid-view__row');
+    const row1Header = rowElements[1].querySelector('.grid-view__column--no-border-right[draggable="true"]');
+    expect(row1Header).toBeTruthy();
+
+    const dataStore: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (format: string, data: string) => { dataStore[format] = data; },
+      getData: (format: string) => dataStore[format] || '',
+      setDragImage: jest.fn(),
+      effectAllowed: 'none',
+      dropEffect: 'none',
+    };
+
+    // Drag row 1 without multi-selection
+    fireEvent.dragStart(row1Header!, { dataTransfer });
+    expect(dataStore['application/json']).toBe(JSON.stringify([1]));
+
+    fireEvent.drop(rowElements[0], {
+      dataTransfer: {
+        getData: (format: string) => dataStore[format] || '',
+      },
+      preventDefault: jest.fn(),
+    });
+
+    expect(handleReorder).toHaveBeenCalledWith([1], 0);
+  });
 });
 
 function onBatchUpdateCalls(mockFn: jest.Mock) {

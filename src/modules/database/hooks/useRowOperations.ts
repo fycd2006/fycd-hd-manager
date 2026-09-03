@@ -132,39 +132,71 @@ export function useRowOperations({
     }
   }, [activeTableId, fields, setRows, addToast])
 
-  // Reorder rows (Drag & Drop with DB persistence & Cross-Group field sync)
-  const handleReorderRows = useCallback(async (srcIdx: number, targetIdx: number) => {
-    if (!activeTableId || srcIdx === targetIdx) return
-    const sourceRow = displayRows[srcIdx]
+  // Reorder rows (Drag & Drop with DB persistence, Batch moving & Cross-Group field sync)
+  const handleReorderRows = useCallback(async (srcInput: number | number[], targetIdx: number) => {
+    if (!activeTableId) return
+    const rawIndices = Array.isArray(srcInput) ? srcInput : [srcInput]
+    const validSrcIndices = Array.from(new Set(rawIndices))
+      .filter(i => typeof i === 'number' && i >= 0 && i < displayRows.length)
+      .sort((a, b) => a - b)
+
+    if (validSrcIndices.length === 0) return
+    if (validSrcIndices.length === 1 && validSrcIndices[0] === targetIdx) return
+
     const targetRow = displayRows[targetIdx]
-    if (!sourceRow || !targetRow) return
+    if (!targetRow) return
 
     // Check if dragging across groups
     const effectiveGroups = groupByRules && groupByRules.length > 0
       ? groupByRules
       : (groupByField ? [{ fieldKey: groupByField, order: 'asc' as const }] : [])
 
-    let fieldUpdates: Record<string, CellValue> | null = null
+    const updatesByRowId = new Map<number, Record<string, CellValue>>()
     if (effectiveGroups.length > 0) {
-      effectiveGroups.forEach(grp => {
-        const targetVal = targetRow.data?.[grp.fieldKey] ?? targetRow.data?.[grp.fieldKey.replace('field_', '')]
-        const srcVal = sourceRow.data?.[grp.fieldKey] ?? sourceRow.data?.[grp.fieldKey.replace('field_', '')]
-        if (targetVal !== undefined && targetVal !== srcVal) {
-          if (!fieldUpdates) fieldUpdates = {}
-          fieldUpdates[grp.fieldKey] = targetVal
+      validSrcIndices.forEach(idx => {
+        const row = displayRows[idx]
+        if (!row) return
+        let fUpdates: Record<string, CellValue> | null = null
+        effectiveGroups.forEach(grp => {
+          const targetVal = targetRow.data?.[grp.fieldKey] ?? targetRow.data?.[grp.fieldKey.replace('field_', '')]
+          const srcVal = row.data?.[grp.fieldKey] ?? row.data?.[grp.fieldKey.replace('field_', '')]
+          if (targetVal !== undefined && targetVal !== srcVal) {
+            if (!fUpdates) fUpdates = {}
+            fUpdates[grp.fieldKey] = targetVal
+          }
+        })
+        if (fUpdates) {
+          updatesByRowId.set(row.id, fUpdates)
         }
       })
     }
 
-    // Reorder within displayRows (which respects current sort/group rendering)
-    const newDisplayOrder = [...displayRows]
-    let [moved] = newDisplayOrder.splice(srcIdx, 1)
-    if (fieldUpdates) {
-      const updates: Record<string, CellValue> = fieldUpdates
-      const currentData: Record<string, CellValue> = typeof moved.data === 'object' && moved.data !== null ? moved.data : {}
-      moved = { ...moved, data: Object.assign({}, currentData, updates) }
+    // Extract moved rows in their existing relative order
+    const movedRows = validSrcIndices.map(idx => {
+      let row = displayRows[idx]
+      const fUpdates = updatesByRowId.get(row.id)
+      if (fUpdates) {
+        const currentData: Record<string, CellValue> = typeof row.data === 'object' && row.data !== null ? row.data : {}
+        row = { ...row, data: Object.assign({}, currentData, fUpdates) }
+      }
+      return row
+    })
+
+    // Remove moved rows from displayRows
+    const movedIdSet = new Set(movedRows.map(r => r.id))
+    const remainingRows = displayRows.filter(r => !movedIdSet.has(r.id))
+
+    // Find insertion index in the remaining rows
+    let insertIdx = remainingRows.findIndex(r => r.id === targetRow.id)
+    if (insertIdx === -1) {
+      insertIdx = Math.min(targetIdx, remainingRows.length)
     }
-    newDisplayOrder.splice(targetIdx, 0, moved)
+
+    const newDisplayOrder = [
+      ...remainingRows.slice(0, insertIdx),
+      ...movedRows,
+      ...remainingRows.slice(insertIdx)
+    ]
 
     // Build new full rows array
     const displayRowIds = new Set(displayRows.map(r => r.id))
@@ -188,12 +220,16 @@ export function useRowOperations({
     }
 
     try {
-      if (fieldUpdates) {
-        await rowService.updateRow(activeTableId, sourceRow.id, fieldUpdates)
+      if (updatesByRowId.size > 0) {
+        await Promise.all(
+          Array.from(updatesByRowId.entries()).map(([rid, u]) =>
+            rowService.updateRow(activeTableId, rid, u)
+          )
+        )
       }
       const res = await rowService.reorderRows(activeTableId, rowIds)
       if (res.ok) {
-        addToast('已儲存資料列順序', 'success')
+        addToast(movedRows.length > 1 ? `已移動 ${movedRows.length} 列資料` : '已儲存資料列順序', 'success')
       } else {
         addToast(res.error || '儲存資料列順序失敗', 'error')
         setRows(rows)

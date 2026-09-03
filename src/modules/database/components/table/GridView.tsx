@@ -54,7 +54,7 @@ interface GridViewProps {
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void
   onUndo?: () => Promise<boolean | void> | boolean | void
   onRedo?: () => Promise<boolean | void> | boolean | void
-  onReorderRows?: (sourceRowIndex: number, targetRowIndex: number) => void
+  onReorderRows?: (sourceRowIndex: number | number[], targetRowIndex: number) => void
   onBatchAddRows?: (rows: Array<Record<string, any>>) => void
   batchMoveRows?: (rowsToMove: Array<{ sourceRowId: number, data: Record<string, any> }>) => boolean
   stageMoveRows?: (rowIds: number[]) => void
