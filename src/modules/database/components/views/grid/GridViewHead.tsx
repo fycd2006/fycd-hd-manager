@@ -75,7 +75,7 @@ interface GridViewHeadProps {
   totalTableWidth?: number;
 }
 
-export const GridViewHead: React.FC<GridViewHeadProps> = ({
+const GridViewHeadInner: React.FC<GridViewHeadProps> = ({
   fields,
   rowDetailsWidth = 56,
   sortField,
@@ -417,3 +417,6 @@ export const GridViewHead: React.FC<GridViewHeadProps> = ({
     </div>
   );
 };
+
+export const GridViewHead = React.memo<GridViewHeadProps>(GridViewHeadInner);
+

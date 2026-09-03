@@ -45,7 +45,7 @@ interface GridViewRowProps {
   onContextMenuRowHeader?: (e: React.MouseEvent) => void;
 }
 
-export const GridViewRow: React.FC<GridViewRowProps> = ({
+const GridViewRowInner: React.FC<GridViewRowProps> = ({
   row,
   rowIndex,
   fields,
@@ -331,3 +331,65 @@ export const GridViewRow: React.FC<GridViewRowProps> = ({
     </div>
   );
 };
+
+export const GridViewRow = React.memo<GridViewRowProps>(GridViewRowInner, (prev, next) => {
+  // 1. Data equality
+  if (prev.row !== next.row) return false;
+  if (prev.rowIndex !== next.rowIndex) return false;
+  if (prev.fields !== next.fields) return false;
+  if (prev.rowColorRules !== next.rowColorRules) return false;
+  if (prev.rowDetailsWidth !== next.rowDetailsWidth) return false;
+  if (prev.canDrag !== next.canDrag) return false;
+
+  // 2. Focused cell & Editing state for this specific row
+  if (prev.selectedColumnIndex !== next.selectedColumnIndex) return false;
+  if (prev.isCellEditing !== next.isCellEditing) return false;
+  if (prev.isRowSelectedDirectly !== next.isRowSelectedDirectly) return false;
+  if (prev.initialTypeOverValue !== next.initialTypeOverValue) return false;
+
+  // 3. Multi-selection range changes affecting this row
+  const wasInSelection = Boolean(
+    prev.selectionBounds?.isMulti &&
+    prev.rowIndex >= prev.selectionBounds.minRow &&
+    prev.rowIndex <= prev.selectionBounds.maxRow
+  );
+  const isInSelection = Boolean(
+    next.selectionBounds?.isMulti &&
+    next.rowIndex >= next.selectionBounds.minRow &&
+    next.rowIndex <= next.selectionBounds.maxRow
+  );
+  if (wasInSelection !== isInSelection) return false;
+  if (isInSelection) {
+    if (
+      prev.selectionBounds?.minCol !== next.selectionBounds?.minCol ||
+      prev.selectionBounds?.maxCol !== next.selectionBounds?.maxCol ||
+      prev.selectionBounds?.minRow !== next.selectionBounds?.minRow ||
+      prev.selectionBounds?.maxRow !== next.selectionBounds?.maxRow
+    ) {
+      return false;
+    }
+  }
+
+  // 4. Autofill preview range changes affecting this row
+  const wasInAutofill = Boolean(
+    prev.autofillBounds &&
+    prev.rowIndex >= prev.autofillBounds.minRow &&
+    prev.rowIndex <= prev.autofillBounds.maxRow
+  );
+  const isInAutofill = Boolean(
+    next.autofillBounds &&
+    next.rowIndex >= next.autofillBounds.minRow &&
+    next.rowIndex <= next.autofillBounds.maxRow
+  );
+  if (wasInAutofill !== isInAutofill) return false;
+  if (isInAutofill) {
+    if (
+      prev.autofillBounds?.minCol !== next.autofillBounds?.minCol ||
+      prev.autofillBounds?.maxCol !== next.autofillBounds?.maxCol
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+});

@@ -382,7 +382,7 @@ interface GridViewCellProps {
   onContextMenu?: (e: React.MouseEvent) => void;
 }
 
-export const GridViewCell: React.FC<GridViewCellProps> = ({
+const GridViewCellInner: React.FC<GridViewCellProps> = ({
   rowId,
   field,
   value,
@@ -2499,4 +2499,26 @@ export const GridViewCell: React.FC<GridViewCellProps> = ({
     </div>
   );
 };
+
+export const GridViewCell = React.memo<GridViewCellProps>(GridViewCellInner, (prev, next) => {
+  return (
+    prev.rowId === next.rowId &&
+    prev.field === next.field &&
+    prev.value === next.value &&
+    prev.isSelected === next.isSelected &&
+    prev.isEditing === next.isEditing &&
+    prev.isInRange === next.isInRange &&
+    prev.isInAutofillRange === next.isInAutofillRange &&
+    prev.isRowSelected === next.isRowSelected &&
+    prev.isRowHovered === next.isRowHovered &&
+    prev.isPrimary === next.isPrimary &&
+    prev.rowColorBg === next.rowColorBg &&
+    prev.rowDetailsWidth === next.rowDetailsWidth &&
+    prev.initialTypeOverValue === next.initialTypeOverValue &&
+    prev.rangeEdges?.top === next.rangeEdges?.top &&
+    prev.rangeEdges?.bottom === next.rangeEdges?.bottom &&
+    prev.rangeEdges?.left === next.rangeEdges?.left &&
+    prev.rangeEdges?.right === next.rangeEdges?.right
+  );
+});
 
