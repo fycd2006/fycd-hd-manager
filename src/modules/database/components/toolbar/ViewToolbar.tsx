@@ -84,6 +84,8 @@ interface ViewToolbarProps {
   fetchTableData?: (tableId: number) => Promise<void>
   addToast?: (message: string, type: 'success' | 'error' | 'info') => void
   selectedRowIds?: number[]
+  isAiOpen?: boolean
+  onToggleAiOpen?: () => void
 }
 
 export function ViewToolbar({
@@ -135,11 +137,15 @@ export function ViewToolbar({
   fetchTableData,
   addToast,
   selectedRowIds,
+  isAiOpen,
+  onToggleAiOpen,
 }: ViewToolbarProps) {
   const { t } = useI18n()
 
   // AI Assistant Modal state
-  const [showAiModal, setShowAiModal] = useState(false)
+  const [internalShowAiModal, setInternalShowAiModal] = useState(false)
+  const isAiActive = isAiOpen !== undefined ? isAiOpen : internalShowAiModal
+  const handleToggleAi = onToggleAiOpen || (() => setInternalShowAiModal(prev => !prev))
 
   const activeSortRules: SortRule[] = React.useMemo(() => {
     if (sortRules && sortRules.length > 0) return sortRules;
@@ -660,13 +666,13 @@ export function ViewToolbar({
           {/* 11. AI 助手 (Mobile) */}
           <button
             type="button"
-            onClick={() => setShowAiModal(true)}
+            onClick={handleToggleAi}
             style={{
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: showAiModal ? '#ede9fe' : 'none',
+              background: isAiActive ? '#ede9fe' : 'none',
               border: 'none',
               borderRadius: '8px',
               padding: '4px 8px',
@@ -1073,21 +1079,21 @@ export function ViewToolbar({
             <li className="header__filter-item" style={{ position: 'relative', marginLeft: '6px', display: 'flex', alignItems: 'center' }}>
               <button
                 type="button"
-                onClick={() => setShowAiModal(true)}
+                onClick={handleToggleAi}
                 title="AI 資料表助手 (Gemini Flash)"
                 style={{
-                  background: showAiModal ? 'linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)' : '#f5f3ff',
-                  border: showAiModal ? 'none' : '1px solid #ddd6fe',
+                  background: isAiActive ? 'linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)' : '#f5f3ff',
+                  border: isAiActive ? 'none' : '1px solid #ddd6fe',
                   padding: '6px 12px',
                   borderRadius: '9px',
                   cursor: 'pointer',
-                  color: showAiModal ? '#ffffff' : '#7c3aed',
+                  color: isAiActive ? '#ffffff' : '#7c3aed',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
                   fontSize: '12.5px',
                   fontWeight: 600,
-                  boxShadow: showAiModal ? '0 2px 8px rgba(124, 58, 237, 0.3)' : '0 1px 2px rgba(124, 58, 237, 0.05)',
+                  boxShadow: isAiActive ? '0 2px 8px rgba(124, 58, 237, 0.3)' : '0 1px 2px rgba(124, 58, 237, 0.05)',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -1111,15 +1117,17 @@ export function ViewToolbar({
         </header>
       )}
 
-      {/* AI Assistant Dialog Modal */}
-      <AiAssistantModal
-        tableId={tableId || null}
-        isOpen={showAiModal}
-        onClose={() => setShowAiModal(false)}
-        fetchTableData={fetchTableData}
-        addToast={addToast}
-        selectedRowIds={selectedRowIds}
-      />
+      {/* AI Assistant Dialog Modal (fallback when not controlled by parent) */}
+      {!onToggleAiOpen && (
+        <AiAssistantModal
+          tableId={tableId || null}
+          isOpen={internalShowAiModal}
+          onClose={() => setInternalShowAiModal(false)}
+          fetchTableData={fetchTableData}
+          addToast={addToast}
+          selectedRowIds={selectedRowIds}
+        />
+      )}
 
       {/* View Switcher Bottom Sheet / Popover Portal */}
       {typeof document !== 'undefined' && createPortal(

@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { motion, AnimatePresence } from 'motion/react'
 import {
-  Sparkles,
   Send,
   Check,
   AlertTriangle,
@@ -13,16 +13,19 @@ import {
   PlusCircle,
   Edit3,
   Loader2,
-  Plus,
   Table,
   CheckCircle2,
   ChevronRight,
   Pin,
-  PinOff
+  PinOff,
+  Maximize2,
+  Minimize2,
+  Zap,
 } from 'lucide-react'
 import { getSocketId } from '@/lib/pusher-client'
 import type { DiffPreviewData } from './AiDiffModal'
 import { useOptionalTableContext } from '@/modules/database/context/TableContext'
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 
 export interface AiAssistantModalProps {
   tableId: number | null
@@ -32,6 +35,12 @@ export interface AiAssistantModalProps {
   fetchTableData?: (tableId: number) => Promise<void>
   addToast?: (msg: string, type: 'success' | 'error' | 'info') => void
   selectedRowIds?: number[]
+  isDocked?: boolean
+  onToggleDock?: () => void
+  isPanelExpanded?: boolean
+  onToggleExpand?: () => void
+  inlineSidebar?: boolean
+  sidebarWidth?: number
 }
 
 export interface ChatMessage {
@@ -53,11 +62,20 @@ const PRESET_PROMPTS = [
 ]
 
 // Gemini 4-pointed Sparkle SVG icon with official Google gradient
-function GeminiSparkleIcon({ size = 20 }: { size?: number }) {
+function GeminiSparkleIcon({ size = 20, isSpinning = false }: { size?: number; isSpinning?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <motion.svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      animate={isSpinning ? { rotate: 360 } : { rotate: 0 }}
+      transition={isSpinning ? { duration: 4, repeat: Infinity, ease: 'linear' } : undefined}
+      style={{ overflow: 'visible', flexShrink: 0 }}
+    >
       <defs>
-        <linearGradient id="gemini-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <linearGradient id="gemini-grad-modal" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#1a73e8" />
           <stop offset="30%" stopColor="#8ab4f8" />
           <stop offset="70%" stopColor="#9333ea" />
@@ -66,9 +84,9 @@ function GeminiSparkleIcon({ size = 20 }: { size?: number }) {
       </defs>
       <path
         d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"
-        fill="url(#gemini-grad)"
+        fill="url(#gemini-grad-modal)"
       />
-    </svg>
+    </motion.svg>
   )
 }
 
@@ -80,14 +98,27 @@ export function AiAssistantModal({
   fetchTableData,
   addToast = () => {},
   selectedRowIds = [],
+  isDocked: propIsDocked,
+  onToggleDock,
+  isPanelExpanded: propIsExpanded,
+  onToggleExpand,
+  inlineSidebar = false,
+  sidebarWidth,
 }: AiAssistantModalProps) {
   const tableCtx = useOptionalTableContext()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null)
-  const [isPanelExpanded, setIsPanelExpanded] = useState(false)
-  const [isDocked, setIsDocked] = useState(true)
+
+  const [internalIsExpanded, setInternalIsExpanded] = useState(false)
+  const isPanelExpanded = propIsExpanded !== undefined ? propIsExpanded : internalIsExpanded
+  const handleToggleExpand = onToggleExpand || (() => setInternalIsExpanded(prev => !prev))
+
+  const [internalIsDocked, setInternalIsDocked] = useState(true)
+  const isDocked = propIsDocked !== undefined ? propIsDocked : internalIsDocked
+  const handleToggleDock = onToggleDock || (() => setInternalIsDocked(prev => !prev))
+
   const [clearSelectionFocus, setClearSelectionFocus] = useState(false)
 
   // Active selected rows priority: prop selectedRowIds -> tableCtx.selectedRow
@@ -278,7 +309,7 @@ export function AiAssistantModal({
           {
             id: `sys-${Date.now()}`,
             role: 'model',
-            content: `✅ ${summary} 您可以繼續提出其他調整需求。`,
+            content: `已成功執行變更：${diff.reason || summary}`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           },
         ])
@@ -295,389 +326,368 @@ export function AiAssistantModal({
     }
   }
 
-  const panelContent = (
+  // Content of the AI drawer/sidebar
+  const drawerBody = (
     <div
       style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
-        zIndex: 99999999,
-        backgroundColor: isDocked ? 'transparent' : 'rgba(15, 23, 42, 0.4)',
-        backdropFilter: isDocked ? 'none' : 'blur(3px)',
-        WebkitBackdropFilter: isDocked ? 'none' : 'blur(3px)',
-        pointerEvents: isDocked ? 'none' : 'auto',
         display: 'flex',
-        justifyContent: 'flex-end',
-        transition: 'all 0.2s ease',
-      }}
-      onClick={(e) => {
-        if (!isDocked && e.target === e.currentTarget && !loading && !applyingMessageId) onClose()
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        backgroundColor: '#ffffff',
+        overflow: 'hidden',
       }}
     >
-      {/* Gemini Side Drawer / Panel */}
+      {/* Top Header */}
       <div
         style={{
-          width: isPanelExpanded ? '640px' : '460px',
-          maxWidth: '100%',
-          height: '100%',
-          backgroundColor: '#ffffff',
-          boxShadow: isDocked ? '-4px 0 25px rgba(0, 0, 0, 0.12)' : '-6px 0 25px rgba(0, 0, 0, 0.15)',
-          borderLeft: '1px solid #e2e8f0',
+          padding: '12px 18px',
+          borderBottom: '1px solid #edf2f7',
           display: 'flex',
-          flexDirection: 'column',
-          pointerEvents: 'auto',
-          transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-          animation: 'geminiPanelSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: '#ffffff',
+          flexShrink: 0,
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Gemini Header */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderBottom: '1px solid #edf2f7',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: '#ffffff',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              }}
-            >
-              <GeminiSparkleIcon size={18} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
-                  Gemini
-                </span>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    padding: '1px 6px',
-                    borderRadius: '6px',
-                    background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
-                    color: '#6366f1',
-                    border: '1px solid #e0e7ff',
-                  }}
-                >
-                  表格智慧助理
-                </span>
-              </div>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '10px',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            }}
+          >
+            <GeminiSparkleIcon size={18} isSpinning={loading} />
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {/* Dock / Pin Toggle Button */}
-            <button
-              type="button"
-              onClick={() => setIsDocked(prev => !prev)}
-              title={isDocked ? '目前為側邊欄模式 (不遮蔽左側表格，可邊看邊問) - 點擊切換為遮罩對話框' : '目前為遮罩對話框 - 點擊釘選為側邊欄 (邊看邊問)'}
-              style={{
-                background: isDocked ? '#f0fdf4' : '#f8fafc',
-                border: isDocked ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '6px 9px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                color: isDocked ? '#166534' : '#475569',
-                fontWeight: 500,
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDocked ? '#dcfce7' : '#f1f5f9')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isDocked ? '#f0fdf4' : '#f8fafc')}
-            >
-              {isDocked ? <Pin size={13} /> : <PinOff size={13} />}
-              <span>{isDocked ? '已釘選側欄' : '浮動'}</span>
-            </button>
-
-            {/* New Chat Button */}
-            <button
-              type="button"
-              onClick={handleNewChat}
-              title="開啟新對話 (重置上下文)"
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                padding: '6px 10px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                color: '#475569',
-                fontWeight: 500,
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f1f5f9')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
-            >
-              <RotateCcw size={13} />
-              <span>新對話</span>
-            </button>
-
-            {/* Expand / Narrow Width toggle */}
-            <button
-              type="button"
-              onClick={() => setIsPanelExpanded(prev => !prev)}
-              title={isPanelExpanded ? '縮小側欄' : '加寬側欄'}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#64748b',
-                padding: '6px',
-                borderRadius: '8px',
-              }}
-            >
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>{isPanelExpanded ? '⇤' : '⇥'}</span>
-            </button>
-
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={onClose}
-              title="關閉 (Esc)"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#64748b',
-                padding: '6px',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <X size={18} />
-            </button>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
+                Gemini
+              </span>
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  padding: '1px 6px',
+                  borderRadius: '6px',
+                  background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
+                  color: '#6366f1',
+                  border: '1px solid #e0e7ff',
+                }}
+              >
+                表格智慧助理
+              </span>
+              <span
+                style={{
+                  fontSize: '10.5px',
+                  color: '#94a3b8',
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  backgroundColor: '#f1f5f9',
+                  fontWeight: 500,
+                }}
+              >
+                2.0 Flash
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Message Stream Area */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '18px',
-            background: '#ffffff',
-          }}
-        >
-          {/* Welcome Screen when conversation is empty */}
-          {messages.length === 0 && (
-            <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          {/* Dock / Pin Toggle Button */}
+          <button
+            type="button"
+            onClick={handleToggleDock}
+            title={isDocked ? '切換為浮動遮罩對話框' : '釘選為右側邊欄 (邊看表邊對話，不遮蔽表格)'}
+            style={{
+              background: isDocked ? '#f0fdf4' : '#f8fafc',
+              border: isDocked ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '5px 8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              color: isDocked ? '#166534' : '#475569',
+              fontWeight: 500,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {isDocked ? <Pin size={12} /> : <PinOff size={12} />}
+            <span>{isDocked ? '已釘選側欄' : '浮動'}</span>
+          </button>
+
+          {/* New Chat Button */}
+          <button
+            type="button"
+            onClick={handleNewChat}
+            title="開啟新對話 (重置上下文)"
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '5px 8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '12px',
+              color: '#475569',
+              fontWeight: 500,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <RotateCcw size={12} />
+            <span>新對話</span>
+          </button>
+
+          {/* Expand / Narrow Width toggle */}
+          <button
+            type="button"
+            onClick={handleToggleExpand}
+            title={isPanelExpanded ? '縮小側欄 (460px)' : '加寬側欄 (620px)'}
+            style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              cursor: 'pointer',
+              color: '#64748b',
+              padding: '5px 7px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {isPanelExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
+
+          {/* Close Button */}
+          <button
+            type="button"
+            onClick={onClose}
+            title="關閉 (Esc)"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#64748b',
+              padding: '5px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={17} />
+          </button>
+        </div>
+      </div>
+
+      {/* Message Stream Area */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '18px 18px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          background: '#ffffff',
+        }}
+      >
+        {/* Welcome Screen when conversation is empty */}
+        {messages.length === 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '24px 8px',
+              textAlign: 'center',
+              gap: '14px',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
               style={{
+                width: '54px',
+                height: '54px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%)',
+                border: '1px solid #e0e7ff',
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '30px 10px',
-                textAlign: 'center',
-                gap: '14px',
+                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.12)',
               }}
             >
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '16px',
-                  background: 'linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%)',
-                  border: '1px solid #e0e7ff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.1)',
-                }}
-              >
-                <GeminiSparkleIcon size={32} />
-              </div>
+              <GeminiSparkleIcon size={28} />
+            </motion.div>
 
-              <div>
-                <h4 style={{ margin: '0 0 6px', fontSize: '18px', fontWeight: 700, color: '#1e293b' }}>
-                  你好！我是 Gemini 資料表助理
-                </h4>
-                <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: 1.6, maxWidth: '340px' }}>
-                  你可以用自然語言向我詢問資料、要求批次修改、新增或刪除列。我具備連續對話記憶，能根據上下文逐步調整。
-                </p>
-              </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+                今天想如何調整資料表？
+              </h3>
+              <p style={{ margin: '6px 0 0 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.5, maxWidth: '340px' }}>
+                Gemini 可以協助批次修改儲存格、自動補齊、填寫留言紀錄或快速統計。
+              </p>
+            </div>
 
-              {/* Suggestion Chips */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '10px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', textAlign: 'left' }}>
-                  建議提示詞（點擊立即嘗試）：
-                </span>
+            {/* Quick Inspiration Chips */}
+            <div style={{ width: '100%', marginTop: '6px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textAlign: 'left', marginBottom: '8px', paddingLeft: '4px' }}>
+                常用範例提示詞：
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                 {PRESET_PROMPTS.map((prompt, idx) => (
-                  <button
+                  <motion.button
                     key={idx}
                     type="button"
+                    whileHover={{ y: -1.5, scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                     onClick={() => handleSendMessage(prompt)}
                     style={{
+                      background: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '10px',
+                      padding: '8px 12px',
+                      textAlign: 'left',
+                      fontSize: '12.5px',
+                      color: '#334155',
+                      cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: '12px',
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      color: '#334155',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      textAlign: 'left',
                       transition: 'all 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f1f5f9'
-                      e.currentTarget.style.borderColor = '#c7d2fe'
-                      e.currentTarget.style.color = '#4338ca'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#f8fafc'
-                      e.currentTarget.style.borderColor = '#e2e8f0'
-                      e.currentTarget.style.color = '#334155'
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
                     }}
                   >
                     <span>{prompt}</span>
-                    <ChevronRight size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                  </button>
+                    <ChevronRight size={13} color="#94a3b8" />
+                  </motion.button>
                 ))}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Conversation History */}
-          {messages.map((msg) => (
+        {/* Conversation Message List */}
+        {messages.map((msg) => (
+          <motion.div
+            key={msg.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              gap: '4px',
+            }}
+          >
+            {/* Author label & timestamp */}
+            <div style={{ fontSize: '11px', color: '#94a3b8', padding: '0 4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {msg.role === 'model' && <GeminiSparkleIcon size={12} />}
+              <span>{msg.role === 'user' ? '您' : 'Gemini'}</span>
+              <span>•</span>
+              <span>{msg.timestamp}</span>
+            </div>
+
+            {/* Bubble Content */}
             <div
-              key={msg.id}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                gap: '6px',
+                maxWidth: '92%',
+                borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                padding: '10px 14px',
+                fontSize: '13.5px',
+                lineHeight: 1.5,
+                backgroundColor: msg.role === 'user' ? '#1e293b' : '#f8fafc',
+                color: msg.role === 'user' ? '#ffffff' : '#1e293b',
+                border: msg.role === 'user' ? 'none' : '1px solid #e2e8f0',
+                boxShadow: msg.role === 'user' ? '0 2px 6px rgba(15,23,42,0.12)' : '0 1px 2px rgba(0,0,0,0.02)',
               }}
             >
-              {/* Message Header (Avatar / Label) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#94a3b8' }}>
-                {msg.role === 'model' && <GeminiSparkleIcon size={14} />}
-                <span>{msg.role === 'user' ? '你' : 'Gemini'}</span>
-                <span>• {msg.timestamp}</span>
-              </div>
+              {msg.error ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444' }}>
+                  <AlertTriangle size={15} />
+                  <span>{msg.content}</span>
+                </div>
+              ) : (
+                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>
+              )}
 
-              {/* Message Bubble */}
-              <div
-                style={{
-                  maxWidth: '92%',
-                  padding: msg.role === 'user' ? '10px 16px' : '12px 16px',
-                  borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  backgroundColor: msg.role === 'user' ? '#f1f5f9' : '#ffffff',
-                  border: msg.role === 'user' ? 'none' : '1px solid #e2e8f0',
-                  color: '#1e293b',
-                  fontSize: '13.5px',
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  boxShadow: msg.role === 'user' ? 'none' : '0 1px 3px rgba(0,0,0,0.04)',
-                }}
-              >
-                {msg.content}
-
-                {/* Embedded Diff Preview Card (Gemini Style) */}
-                {msg.diff && (
+              {/* Diff Preview Card (Double-Bezel Architecture) */}
+              {msg.diff && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    borderRadius: '12px',
+                    backgroundColor: '#f1f5f9',
+                    border: '1px solid #cbd5e1',
+                    padding: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
                   <div
                     style={{
-                      marginTop: '12px',
-                      backgroundColor: '#f8fafc',
-                      border: '1.5px solid #e2e8f0',
-                      borderRadius: '14px',
-                      padding: '14px',
+                      borderRadius: '8px',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      padding: '10px 12px',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '10px',
+                      gap: '8px',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {msg.diff.action === 'delete_rows' ? (
-                          <Trash2 size={16} color="#ef4444" />
-                        ) : msg.diff.action === 'create_rows' ? (
-                          <PlusCircle size={16} color="#10b981" />
-                        ) : (
-                          <Edit3 size={16} color="#6366f1" />
-                        )}
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#334155' }}>
-                          變更規劃：{msg.diff.reason}
-                        </span>
-                      </div>
-
-                      {msg.applied && (
-                        <span
-                          style={{
-                            fontSize: '11.5px',
-                            fontWeight: 600,
-                            padding: '2px 8px',
-                            borderRadius: '20px',
-                            backgroundColor: '#dcfce7',
-                            color: '#15803d',
-                            border: '1px solid #bbf7d0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          <Check size={12} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ fontWeight: 700, color: '#334155' }}>
+                        變更規劃：{msg.diff.reason || '批次調整'}
+                      </span>
+                      {msg.applied ? (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontWeight: 600 }}>
+                          <CheckCircle2 size={13} />
                           已套用
+                        </span>
+                      ) : (
+                        <span style={{ color: '#6366f1', fontWeight: 600 }}>
+                          待確認
                         </span>
                       )}
                     </div>
 
-                    {/* Cell Updates Table */}
-                    {msg.diff.action === 'update_cells' && msg.diff.changes && (
-                      <div
-                        style={{
-                          maxHeight: '180px',
-                          overflowY: 'auto',
-                          borderRadius: '8px',
-                          border: '1px solid #e2e8f0',
-                          backgroundColor: '#ffffff',
-                        }}
-                      >
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    {/* Change Diff Table */}
+                    {msg.diff.changes && msg.diff.changes.length > 0 && (
+                      <div style={{ overflowX: 'auto', maxHeight: '220px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
                           <thead>
-                            <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
-                              <th style={{ padding: '6px 10px', textAlign: 'left' }}>列</th>
-                              <th style={{ padding: '6px 10px', textAlign: 'left' }}>欄位</th>
-                              <th style={{ padding: '6px 10px', textAlign: 'left' }}>舊值</th>
-                              <th style={{ padding: '6px 10px', textAlign: 'left' }}>新值</th>
+                            <tr style={{ backgroundColor: '#f8fafc', color: '#64748b', borderBottom: '1px solid #e2e8f0' }}>
+                              <th style={{ padding: '6px 8px' }}>目標列</th>
+                              <th style={{ padding: '6px 8px' }}>欄位</th>
+                              <th style={{ padding: '6px 8px' }}>原數值</th>
+                              <th style={{ padding: '6px 8px' }}>變更後</th>
                             </tr>
                           </thead>
                           <tbody>
                             {msg.diff.changes.map((c, i) => (
-                              <tr key={i} style={{ borderBottom: '1px solid #f8fafc' }}>
-                                <td style={{ padding: '6px 10px', fontWeight: 600 }}>{c.rowTitle}</td>
-                                <td style={{ padding: '6px 10px', color: '#64748b' }}>{c.fieldName}</td>
-                                <td style={{ padding: '6px 10px', color: '#dc2626', textDecoration: 'line-through' }}>{c.oldValue}</td>
-                                <td style={{ padding: '6px 10px', color: '#16a34a', fontWeight: 600 }}>{c.newValue}</td>
+                              <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: '6px 8px', color: '#475569' }}>{c.rowTitle || `#${c.rowId}`}</td>
+                                <td style={{ padding: '6px 8px', color: '#64748b' }}>{c.fieldName}</td>
+                                <td style={{ padding: '6px 8px', color: '#94a3b8', textDecoration: 'line-through' }}>{c.oldValue}</td>
+                                <td style={{ padding: '6px 8px', color: '#16a34a', fontWeight: 600 }}>{c.newValue}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -691,16 +701,18 @@ export function AiAssistantModal({
                         style={{
                           backgroundColor: '#fef2f2',
                           border: '1px solid #fecaca',
-                          borderRadius: '8px',
-                          padding: '10px 12px',
-                          fontSize: '12px',
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                          fontSize: '11.5px',
                           color: '#991b1b',
                         }}
                       >
-                        <div>即將刪除以下 {msg.diff.deletedRows.length} 筆資料：</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                        <div>
+                          即將刪除以下 <strong style={{ color: '#dc2626' }}><SlidingNumber number={msg.diff.deletedRows.length} /></strong> 筆資料：
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
                           {msg.diff.deletedRows.map((r, i) => (
-                            <span key={i} style={{ backgroundColor: '#ffffff', border: '1px solid #f87171', padding: '1px 6px', borderRadius: '4px' }}>
+                            <span key={i} style={{ backgroundColor: '#ffffff', border: '1px solid #f87171', padding: '1px 5px', borderRadius: '4px' }}>
                               {r.title}
                             </span>
                           ))}
@@ -714,33 +726,40 @@ export function AiAssistantModal({
                         style={{
                           backgroundColor: '#f0fdf4',
                           border: '1px solid #bbf7d0',
-                          borderRadius: '8px',
-                          padding: '10px 12px',
-                          fontSize: '12px',
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                          fontSize: '11.5px',
                           color: '#166534',
                         }}
                       >
-                        <div>預計新增 {msg.diff.newRows.length} 筆資料</div>
+                        <div>
+                          預計新增 <strong style={{ color: '#15803d' }}><SlidingNumber number={msg.diff.newRows.length} /></strong> 筆資料
+                        </div>
                       </div>
                     )}
 
                     {/* Apply Button */}
                     {!msg.applied && (
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '4px' }}>
-                        <button
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                          預計修改 <span style={{ fontWeight: 700, color: '#3b82f6' }}><SlidingNumber number={msg.diff.changes?.length || 0} /></span> 個儲存格
+                        </div>
+                        <motion.button
                           type="button"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                           onClick={() => handleApplyDiff(msg.id, msg.diff!)}
                           disabled={applyingMessageId === msg.id}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            padding: '6px 14px',
+                            gap: '5px',
+                            padding: '6px 12px',
                             borderRadius: '8px',
                             border: 'none',
                             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                             color: '#ffffff',
-                            fontSize: '12.5px',
+                            fontSize: '12px',
                             fontWeight: 600,
                             cursor: applyingMessageId === msg.id ? 'not-allowed' : 'pointer',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -748,193 +767,271 @@ export function AiAssistantModal({
                         >
                           {applyingMessageId === msg.id ? (
                             <>
-                              <Loader2 size={14} className="animate-spin" />
+                              <Loader2 size={13} className="animate-spin" />
                               <span>套用中...</span>
                             </>
                           ) : (
                             <>
-                              <Check size={14} />
+                              <Check size={13} />
                               <span>確認套用變更</span>
                             </>
                           )}
-                        </button>
+                        </motion.button>
                       </div>
                     )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          ))}
+          </motion.div>
+        ))}
 
-          {/* Gemini Thinking / Loading State */}
-          {loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#94a3b8' }}>
-                <GeminiSparkleIcon size={14} />
-                <span>Gemini</span>
-              </div>
-              <div
-                style={{
-                  padding: '12px 18px',
-                  borderRadius: '18px 18px 18px 4px',
-                  backgroundColor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  color: '#64748b',
-                  fontSize: '13px',
-                }}
-              >
-                <Loader2 size={16} className="animate-spin" style={{ color: '#6366f1' }} />
-                <span>Gemini 正在分析表格與對話脈絡...</span>
-              </div>
+        {/* Gemini Thinking / Loading State */}
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#94a3b8' }}>
+              <GeminiSparkleIcon size={14} isSpinning={true} />
+              <span>Gemini</span>
             </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Bottom Gemini Pill Input Bar */}
-        <div
-          style={{
-            padding: '14px 18px',
-            backgroundColor: '#ffffff',
-            borderTop: '1px solid #f1f5f9',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-          }}
-        >
-          {/* Active Selection Context Pill */}
-          {activeSelectedRowIds.length > 0 && (
             <div
               style={{
+                padding: '10px 16px',
+                borderRadius: '16px 16px 16px 4px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid #e2e8f0',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '5px 12px',
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                borderRadius: '8px',
-                fontSize: '12px',
-                color: '#166534',
-                animation: 'fadeIn 0.15s ease',
+                gap: '8px',
+                color: '#64748b',
+                fontSize: '13px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CheckCircle2 size={13} color="#16a34a" />
-                <span>
-                  <strong>已鎖定選取範圍：</strong>
-                  {activeSelectedRowIds.length === 1
-                    ? `資料列 #${activeSelectedRowIds[0]}`
-                    : `共 ${activeSelectedRowIds.length} 筆選取列 (#${activeSelectedRowIds.slice(0, 3).join(', #')}${activeSelectedRowIds.length > 3 ? '...' : ''})`}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setClearSelectionFocus(true)}
-                title="取消限定，對全表操作"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#15803d',
-                  padding: '2px 4px',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  fontSize: '11px',
-                }}
-              >
-                <span>取消鎖定</span>
-                <X size={12} />
-              </button>
+              <Loader2 size={14} className="animate-spin" style={{ color: '#6366f1' }} />
+              <span>Gemini 正在分析表格結構與指令...</span>
             </div>
-          )}
+          </motion.div>
+        )}
 
-          <div
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Bottom Gemini Pill Input Bar (Double-Bezel Architecture) */}
+      <div
+        style={{
+          padding: '12px 16px',
+          backgroundColor: '#ffffff',
+          borderTop: '1px solid #f1f5f9',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          flexShrink: 0,
+        }}
+      >
+        {/* Active Selection Context Pill with SlidingNumber */}
+        {activeSelectedRowIds.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
             style={{
-              position: 'relative',
-              borderRadius: '24px',
-              border: '1.5px solid #d1d5db',
-              backgroundColor: '#ffffff',
-              padding: '6px 14px',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
-              transition: 'border-color 0.15s, box-shadow 0.15s',
+              justifyContent: 'space-between',
+              padding: '4px 10px',
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '8px',
+              fontSize: '11.5px',
+              color: '#166534',
             }}
           >
-            <textarea
-              ref={inputRef}
-              rows={1}
-              value={inputValue}
-              placeholder="向 Gemini 詢問或描述你想修改的資料..."
-              onChange={(e) => setInputValue(e.target.value)}
-              disabled={loading}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSendMessage()
-                }
-              }}
-              style={{
-                width: '100%',
-                maxHeight: '100px',
-                border: 'none',
-                outline: 'none',
-                resize: 'none',
-                fontSize: '13.5px',
-                lineHeight: 1.4,
-                color: '#1e293b',
-                backgroundColor: 'transparent',
-                paddingTop: '6px',
-                paddingBottom: '6px',
-              }}
-            />
-
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={13} color="#16a34a" />
+              <span>
+                <strong>已鎖定選取範圍：</strong>
+                共 <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono, monospace)' }}><SlidingNumber number={activeSelectedRowIds.length} /></span> 筆選取列
+                {activeSelectedRowIds.length === 1 ? ` (#${activeSelectedRowIds[0]})` : ''}
+              </span>
+            </div>
             <button
               type="button"
-              onClick={() => handleSendMessage()}
-              disabled={loading || !inputValue.trim()}
+              onClick={() => setClearSelectionFocus(true)}
+              title="取消限定，對全表操作"
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
+                background: 'none',
                 border: 'none',
-                background: inputValue.trim() && !loading
-                  ? 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)'
-                  : '#e2e8f0',
-                color: inputValue.trim() && !loading ? '#ffffff' : '#94a3b8',
-                cursor: inputValue.trim() && !loading ? 'pointer' : 'not-allowed',
+                cursor: 'pointer',
+                color: '#15803d',
+                padding: '2px 4px',
+                borderRadius: '4px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                transition: 'all 0.15s ease',
+                gap: '2px',
+                fontSize: '11px',
               }}
-              title="送出 (Enter)"
             >
-              {loading ? <Loader2 size={15} className="animate-spin" /> : <Send size={14} />}
+              <span>取消鎖定</span>
+              <X size={11} />
             </button>
-          </div>
+          </motion.div>
+        )}
 
-          <div
-            style={{
-              fontSize: '11px',
-              color: '#94a3b8',
-              textAlign: 'center',
+        {/* Input Bar */}
+        <div
+          style={{
+            position: 'relative',
+            borderRadius: '20px',
+            border: '1.5px solid #cbd5e1',
+            backgroundColor: '#ffffff',
+            padding: '5px 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+            transition: 'border-color 0.15s, box-shadow 0.15s',
+          }}
+        >
+          <textarea
+            ref={inputRef}
+            rows={1}
+            value={inputValue}
+            placeholder="向 Gemini 詢問或描述你想修改的資料..."
+            onChange={(e) => setInputValue(e.target.value)}
+            disabled={loading}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSendMessage()
+              }
             }}
+            style={{
+              width: '100%',
+              maxHeight: '90px',
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              fontSize: '13px',
+              lineHeight: 1.4,
+              color: '#1e293b',
+              backgroundColor: 'transparent',
+              paddingTop: '6px',
+              paddingBottom: '6px',
+            }}
+          />
+
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleSendMessage()}
+            disabled={loading || !inputValue.trim()}
+            style={{
+              width: '30px',
+              height: '30px',
+              borderRadius: '50%',
+              border: 'none',
+              background: inputValue.trim() && !loading
+                ? 'linear-gradient(135deg, #1a73e8 0%, #7c3aed 100%)'
+                : '#e2e8f0',
+              color: inputValue.trim() && !loading ? '#ffffff' : '#94a3b8',
+              cursor: inputValue.trim() && !loading ? 'pointer' : 'not-allowed',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+            title="送出 (Enter)"
           >
-            Gemini 可能會產生不準確的資訊，重大變更請務必透過預覽卡片確認後再套用。
-          </div>
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={13} />}
+          </motion.button>
+        </div>
+
+        <div
+          style={{
+            fontSize: '10.5px',
+            color: '#94a3b8',
+            textAlign: 'center',
+          }}
+        >
+          Gemini 可能會產生不準確的資訊，重大變更請透過預覽卡片確認後再套用。
         </div>
       </div>
     </div>
   )
 
-  return typeof document !== 'undefined' ? createPortal(panelContent, document.body) : null
+  // 1. INLINE SIDEBAR MODE: Render directly in workspace beside data table
+  if (inlineSidebar) {
+    return (
+      <aside
+        className="ai-assistant-sidebar"
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: `${sidebarWidth || (isPanelExpanded ? 620 : 460)}px`,
+          zIndex: 25,
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#ffffff',
+          borderLeft: '1px solid #e2e8f0',
+          boxShadow: '-4px 0 20px rgba(15, 23, 42, 0.05)',
+          transition: 'width 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+          overflow: 'hidden',
+        }}
+      >
+        {drawerBody}
+      </aside>
+    )
+  }
+
+  // 2. MODAL / FLOATING MODE: Render via portal with backdrop
+  const modalContent = (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        zIndex: 99999999,
+        backgroundColor: 'rgba(15, 23, 42, 0.4)',
+        backdropFilter: 'blur(3px)',
+        WebkitBackdropFilter: 'blur(3px)',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        transition: 'all 0.2s ease',
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading && !applyingMessageId) onClose()
+      }}
+    >
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        style={{
+          width: isPanelExpanded ? '620px' : '460px',
+          maxWidth: '100%',
+          height: '100%',
+          backgroundColor: '#ffffff',
+          boxShadow: '-8px 0 32px rgba(15, 23, 42, 0.18)',
+          borderLeft: '1px solid #e2e8f0',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {drawerBody}
+      </motion.div>
+    </div>
+  )
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null
 }

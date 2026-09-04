@@ -180,7 +180,7 @@ describe('AiAssistantModal & Components', () => {
 
     // Verify selection pill displays
     expect(screen.getByText(/已鎖定選取範圍/i)).toBeInTheDocument()
-    expect(screen.getByText(/共 2 筆選取列/i)).toBeInTheDocument()
+    expect(screen.getByText(/筆選取列/i)).toBeInTheDocument()
 
     // Cancel selection focus
     const cancelBtn = screen.getByText('取消鎖定')

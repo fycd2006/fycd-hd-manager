@@ -6,6 +6,7 @@ import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
 import DatabaseViewRouter from '@/modules/database/components/views/DatabaseViewRouter'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { useTableContext } from '@/modules/database/context/TableContext'
+import { AiAssistantModal } from '@/modules/database/components/ai/AiAssistantModal'
 import type {
   User,
   Workspace,
@@ -188,6 +189,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
     stageMoveRows,
     cancelMoveRows,
     batchMoveRows,
+    selectedRow,
     setSelectedRow,
     setShowDetailModal,
     setShowNewFieldModal,
@@ -205,10 +207,41 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
     return ''
   }
 
+  const [isAiOpen, setIsAiOpen] = React.useState(false)
+  const [isAiExpanded, setIsAiExpanded] = React.useState(false)
+  const [isAiDocked, setIsAiDocked] = React.useState(true)
+  const [isMobile, setIsMobile] = React.useState(false)
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  const aiWidth = !isMobile && isAiOpen && isAiDocked ? (isAiExpanded ? 620 : 460) : 0
+
   return (
     <>
-      {/* View selector and header toolbar */}
-      <ViewToolbar
+      <div
+        className="table-workspace-main"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          right: `${aiWidth}px`,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          overflow: 'hidden',
+          transition: 'right 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
+        {/* View selector and header toolbar */}
+        <ViewToolbar
+          isAiOpen={isAiOpen}
+          onToggleAiOpen={() => setIsAiOpen(prev => !prev)}
         canManageStructure={currentUserRolePermissions.canManageStructure}
         isSidebarCollapsed={isSidebarCollapsed}
         setIsSidebarCollapsed={setIsSidebarCollapsed}
@@ -310,6 +343,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
         tableId={activeTableId}
         fetchTableData={fetchTableData}
         addToast={addToast}
+        selectedRowIds={selectedRow ? [selectedRow.id] : []}
       />
 
       {/* View content with PullToRefresh */}
@@ -418,6 +452,23 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
             </motion.div>
         </PullToRefresh>
       </div>
+      </div>
+
+      {/* AI Assistant Side Panel (when docked) or Floating Modal */}
+      <AiAssistantModal
+        tableId={activeTableId || null}
+        isOpen={isAiOpen}
+        onClose={() => setIsAiOpen(false)}
+        fetchTableData={fetchTableData}
+        addToast={addToast}
+        selectedRowIds={selectedRow ? [selectedRow.id] : []}
+        isDocked={isAiDocked}
+        onToggleDock={() => setIsAiDocked(prev => !prev)}
+        isPanelExpanded={isAiExpanded}
+        onToggleExpand={() => setIsAiExpanded(prev => !prev)}
+        inlineSidebar={!isMobile && isAiDocked}
+        sidebarWidth={aiWidth}
+      />
     </>
   )
 }
