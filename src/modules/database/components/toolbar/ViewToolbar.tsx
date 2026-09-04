@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'motion/react'
-import { PanelLeft, PanelLeftClose, PanelLeftOpen, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload } from 'lucide-react'
+import { PanelLeft, PanelLeftClose, PanelLeftOpen, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload, Sparkles } from 'lucide-react'
 import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -13,6 +13,9 @@ import { GroupMenu } from './menu/GroupMenu'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
+import { AiAssistantBar } from '@/modules/database/components/ai/AiAssistantBar'
+import { AiDiffModal, type DiffPreviewData } from '@/modules/database/components/ai/AiDiffModal'
+import { getSocketId } from '@/lib/pusher-client'
 
 
 interface ViewToolbarProps {
@@ -79,6 +82,9 @@ interface ViewToolbarProps {
   onRedo?: () => void
   canUndo?: boolean
   canRedo?: boolean
+  tableId?: number | null
+  fetchTableData?: (tableId: number) => Promise<void>
+  addToast?: (message: string, type: 'success' | 'error' | 'info') => void
 }
 
 export function ViewToolbar({
@@ -125,9 +131,51 @@ export function ViewToolbar({
   onUndo,
   onRedo,
   canUndo = false,
-  canRedo = false
+  canRedo = false,
+  tableId,
+  fetchTableData,
+  addToast,
 }: ViewToolbarProps) {
   const { t } = useI18n()
+
+  // AI Assistant states
+  const [showAiBar, setShowAiBar] = useState(false)
+  const [diffData, setDiffData] = useState<DiffPreviewData | null>(null)
+  const [isApplyingDiff, setIsApplyingDiff] = useState(false)
+
+  const handleApplyDiff = async () => {
+    if (!diffData || !tableId) return
+    setIsApplyingDiff(true)
+    try {
+      const socketId = getSocketId()
+      const res = await fetch('/api/ai/table-agent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(socketId ? { 'x-socket-id': socketId } : {}),
+        },
+        body: JSON.stringify({
+          tableId,
+          mode: 'execute',
+          confirmedAction: diffData.actionPayload,
+          socketId,
+        }),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        if (addToast) addToast(result.summary || 'AI 變更套用成功', 'success')
+        setDiffData(null)
+        setShowAiBar(false)
+        if (fetchTableData) await fetchTableData(tableId)
+      } else {
+        if (addToast) addToast(result.error || '套用變更失敗', 'error')
+      }
+    } catch (err: any) {
+      if (addToast) addToast(err.message || '套用變更失敗', 'error')
+    } finally {
+      setIsApplyingDiff(false)
+    }
+  }
 
   const activeSortRules: SortRule[] = React.useMemo(() => {
     if (sortRules && sortRules.length > 0) return sortRules;
@@ -1030,6 +1078,33 @@ export function ViewToolbar({
               </div>
             </li>
 
+            {/* AI Assistant Button */}
+            <li className="header__filter-item" style={{ position: 'relative', marginLeft: '6px', display: 'flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShowAiBar(prev => !prev)}
+                title="AI 資料表助手 (Gemini 2.0 Flash)"
+                style={{
+                  background: showAiBar ? 'linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)' : '#f5f3ff',
+                  border: showAiBar ? 'none' : '1px solid #ddd6fe',
+                  padding: '6px 12px',
+                  borderRadius: '9px',
+                  cursor: 'pointer',
+                  color: showAiBar ? '#ffffff' : '#7c3aed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  boxShadow: showAiBar ? '0 2px 8px rgba(124, 58, 237, 0.3)' : '0 1px 2px rgba(124, 58, 237, 0.05)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Sparkles size={14} />
+                <span>AI 助手</span>
+              </button>
+            </li>
+
             <li className="header__filter-item" style={{ position: 'relative', marginLeft: '4px', display: 'flex', alignItems: 'center' }}>
               <LangPicker align="right" variant="toolbar" />
             </li>
@@ -1044,6 +1119,24 @@ export function ViewToolbar({
           </ul>
         </header>
       )}
+
+      {/* AI Assistant Expandable Command Bar */}
+      <AiAssistantBar
+        tableId={tableId || null}
+        isOpen={showAiBar}
+        onClose={() => setShowAiBar(false)}
+        onShowDiff={(diff) => setDiffData(diff)}
+        addToast={addToast || ((msg: string) => console.log(msg))}
+      />
+
+      {/* AI Diff Preview Modal */}
+      <AiDiffModal
+        diff={diffData}
+        isOpen={Boolean(diffData)}
+        isApplying={isApplyingDiff}
+        onClose={() => setDiffData(null)}
+        onConfirm={handleApplyDiff}
+      />
 
       {/* View Switcher Bottom Sheet / Popover Portal */}
       {typeof document !== 'undefined' && createPortal(

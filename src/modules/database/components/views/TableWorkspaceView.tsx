@@ -86,6 +86,7 @@ export interface TableWorkspaceViewProps {
   onSetActiveWorkspaceId: (id: number) => void
   onSetActiveTableId: (id: number) => void
   addToast: (message: string, type: 'success' | 'error' | 'info') => void
+  fetchTableData?: (tableId: number) => Promise<void>
   isOffline?: boolean
   newFieldScrollTrigger?: number
 }
@@ -148,6 +149,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
   onSetActiveWorkspaceId,
   onSetActiveTableId,
   addToast,
+  fetchTableData,
   isOffline,
   newFieldScrollTrigger,
 }) => {
@@ -305,6 +307,9 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
         canRedo={canRedo}
         onUndo={() => undo(activeTableId)}
         onRedo={() => redo(activeTableId)}
+        tableId={activeTableId}
+        fetchTableData={fetchTableData}
+        addToast={addToast}
       />
 
       {/* View content with PullToRefresh */}

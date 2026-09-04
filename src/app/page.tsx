@@ -1251,6 +1251,7 @@ export default function Home() {
               onSetActiveWorkspaceId={wsActions.setActiveWorkspaceId}
               onSetActiveTableId={wsActions.setActiveTableId}
               addToast={uiActions.addToast}
+              fetchTableData={fetchTableData}
               isOffline={isOffline}
               newFieldScrollTrigger={newFieldScrollTrigger}
             />

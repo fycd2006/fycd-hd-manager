@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@formulajs/formulajs": "^4.6.1",
+    "@google/genai": "^2.21.0",
     "@hello-pangea/dnd": "^18.0.1",
     "@prisma/client": "^6.19.3",
     "@radix-ui/react-avatar": "^1.2.6",
