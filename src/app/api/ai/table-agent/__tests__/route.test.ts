@@ -2,6 +2,8 @@ import { POST } from '../route'
 import { authorizeAction } from '@/lib/authorize'
 import prisma from '@/lib/prisma'
 import { triggerTableEvent } from '@/lib/pusher-server'
+import { syncBiDirectionalLinkRow } from '@/modules/database/services/linkRowSync'
+import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 
 const mockGenerateContent = jest.fn()
 
@@ -33,6 +35,25 @@ jest.mock('@/lib/pusher-server', () => ({
 
 jest.mock('@/modules/database/services/masterViewCache', () => ({
   invalidateMasterViewCacheForTable: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('@/modules/database/services/linkRowSync', () => {
+  const original = jest.requireActual('@/modules/database/services/linkRowSync')
+  return {
+    ...original,
+    syncBiDirectionalLinkRow: jest.fn().mockResolvedValue(null),
+  }
+})
+
+jest.mock('@/modules/database/services/rowCascade', () => ({
+  cascadeRecomputeSingleLevel: jest.fn().mockResolvedValue([]),
+}))
+
+jest.mock('@/modules/database/services/createRow', () => ({
+  createTableRow: jest.fn().mockImplementation(async ({ input }) => ({
+    ok: true,
+    row: { id: 999, data: input },
+  })),
 }))
 
 jest.mock('@/lib/prisma', () => {
@@ -262,5 +283,188 @@ describe('POST /api/ai/table-agent', () => {
       { type: 'delete', count: 2 },
       undefined
     )
+  })
+
+  it('resolves single_select option name to UUID and boolean string to boolean on execute', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '名稱', type: 'text', order: 0 },
+      {
+        id: 2,
+        name: '組別',
+        type: 'single_select',
+        options: JSON.stringify({ choices: [{ id: 'opt_group_a', name: '建興組' }] }),
+        order: 1,
+      },
+      { id: 3, name: '已完成', type: 'boolean', order: 2 },
+    ])
+
+    const mockTx = (prisma as any)._mockTx
+    mockTx.tableRow.findUnique.mockResolvedValue({
+      id: 101,
+      tableId: 1,
+      data: { field_1: '測試人員', field_2: null, field_3: false },
+    })
+
+    const req = new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        confirmedAction: {
+          name: 'update_cells',
+          args: {
+            updates: [
+              { rowId: 101, fieldKey: 'field_2', value: '建興組' },
+              { rowId: 101, fieldKey: 'field_3', value: '是' },
+            ],
+          },
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.success).toBe(true)
+
+    expect(mockTx.tableRow.update).toHaveBeenCalledWith({
+      where: { id: 101 },
+      data: {
+        data: {
+          field_1: '測試人員',
+          field_2: 'opt_group_a', // Successfully mapped from '建興組' to 'opt_group_a'
+          field_3: true,          // Successfully coerced from '是' to true
+        },
+      },
+    })
+    expect(cascadeRecomputeSingleLevel).toHaveBeenCalledWith(1, 101)
+  })
+
+  it('formats diff preview human-readably when existing cell is stored as option UUID', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '名稱', type: 'text', order: 0 },
+      {
+        id: 2,
+        name: '組別',
+        type: 'single_select',
+        options: { choices: [{ id: 'opt_old', name: '德光組' }, { id: 'opt_new', name: '建興組' }] },
+        order: 1,
+      },
+    ])
+    ;(prisma.tableRow.findMany as jest.Mock).mockResolvedValue([
+      { id: 101, data: JSON.stringify({ field_1: '張三', field_2: 'opt_old' }) },
+    ])
+
+    mockGenerateContent.mockResolvedValue({
+      functionCalls: [
+        {
+          name: 'update_cells',
+          args: {
+            reason: '調整組別',
+            updates: [{ rowId: 101, fieldKey: 'field_2', value: '建興組' }],
+          },
+        },
+      ],
+    })
+
+    const req = new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        userPrompt: '將張三從德光組改為建興組',
+        mode: 'dry_run',
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const json = await res.json()
+
+    expect(json.changes[0]).toEqual({
+      rowId: 101,
+      rowTitle: '張三',
+      fieldKey: 'field_2',
+      fieldName: '組別',
+      oldValue: '德光組', // Human-readable choice name instead of raw UUID 'opt_old'
+      newValue: '建興組',
+    })
+  })
+
+  it('protects formula fields from overwrite and recomputes formulas dynamically', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '底薪', type: 'number', order: 0 },
+      { id: 2, name: '獎金', type: 'number', order: 1 },
+      { id: 3, name: '總計', type: 'formula', options: 'field_1 + field_2', order: 2 },
+    ])
+
+    const mockTx = (prisma as any)._mockTx
+    mockTx.tableRow.findUnique.mockResolvedValue({
+      id: 101,
+      tableId: 1,
+      data: { field_1: 1000, field_2: 200, field_3: '1200' },
+    })
+
+    const req = new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        confirmedAction: {
+          name: 'update_cells',
+          args: {
+            updates: [
+              { rowId: 101, fieldKey: 'field_1', value: 2000 },
+              { rowId: 101, fieldKey: 'field_3', value: '惡意覆寫' }, // Formula field should be ignored
+            ],
+          },
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+
+    expect(mockTx.tableRow.update).toHaveBeenCalledWith({
+      where: { id: 101 },
+      data: {
+        data: {
+          field_1: 2000,
+          field_2: 200,
+          field_3: '2200', // Recomputed formula 2000 + 200 = 2200
+        },
+      },
+    })
+  })
+
+  it('triggers syncBiDirectionalLinkRow when updating link_row fields', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '標案名稱', type: 'text', order: 0 },
+      { id: 4, name: '指派人員', type: 'link_row', order: 1 },
+    ])
+
+    const mockTx = (prisma as any)._mockTx
+    mockTx.tableRow.findUnique.mockResolvedValue({
+      id: 101,
+      tableId: 1,
+      data: { field_1: '專案A', field_4: [] },
+    })
+
+    const req = new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        confirmedAction: {
+          name: 'update_cells',
+          args: {
+            updates: [{ rowId: 101, fieldKey: 'field_4', value: [201, 202] }],
+          },
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    expect(syncBiDirectionalLinkRow).toHaveBeenCalledWith(1, 101, 4, [201, 202], [])
   })
 })

@@ -1,4 +1,5 @@
 import { FieldType, FieldValidationResult } from '../FieldType'
+import { extractChoices } from './SingleSelectFieldType'
 
 export class MultipleSelectFieldType implements FieldType {
   readonly type = 'multiple_select'
@@ -33,16 +34,25 @@ export class MultipleSelectFieldType implements FieldType {
       return { valid: true, parsedValue: null }
     }
 
-    if (options && Array.isArray(options.choices)) {
+    const choices = extractChoices(options)
+    if (choices.length > 0) {
       const parsedItems: string[] = []
       
       for (const item of items) {
-        const choice = options.choices.find((c: any) => {
-          if (typeof c === 'string') return c === item
-          return c.id === item || c.name === item
+        const itemTrimmed = String(item).trim()
+        const itemLower = itemTrimmed.toLowerCase()
+        const choice = choices.find((c: any) => {
+          if (!c) return false
+          if (typeof c === 'string') return c.trim() === itemTrimmed || c.trim().toLowerCase() === itemLower
+          const cId = c.id != null ? String(c.id).trim() : ''
+          const cName = c.name != null ? String(c.name).trim() : ''
+          const cVal = c.value != null ? String(c.value).trim() : ''
+          return (cId && (cId === itemTrimmed || cId.toLowerCase() === itemLower)) ||
+                 (cName && (cName === itemTrimmed || cName.toLowerCase() === itemLower)) ||
+                 (cVal && (cVal === itemTrimmed || cVal.toLowerCase() === itemLower))
         })
         
-        parsedItems.push(choice ? (typeof choice === 'string' ? choice : choice.id) : item)
+        parsedItems.push(choice ? (typeof choice === 'string' ? choice : (choice.id ?? choice.name)) : itemTrimmed)
       }
       
       return { valid: true, parsedValue: JSON.stringify(parsedItems) }

@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client'
 import { FieldRegistry } from '@/modules/database/fields/types'
 import { safeJsonParse } from '@/lib/json-utils'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
+import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 
 /** Field types that can never be written through a public form submission. */
 export const FORM_READONLY_TYPES = [
@@ -85,6 +86,23 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
       const fieldType = FieldRegistry.get(f.type)
       const def = fieldType.getDefaultValue(fOpts)
       if (def !== null) rowData[key] = def
+    }
+  }
+
+  // Recompute formula fields if present
+  const formulaFields = fields.filter(f => f.type === 'formula')
+  if (formulaFields.length > 0) {
+    const fieldOrder = fields.map(f => f.id)
+    for (const ff of formulaFields) {
+      const destKey = `field_${ff.id}`
+      const expr = extractFormulaExpression(ff.options)
+      if (!expr) continue
+      try {
+        const res = evaluateFormula(expr, rowData as Record<string, any>, fieldOrder)
+        rowData[destKey] = res != null ? res : ''
+      } catch {
+        rowData[destKey] = '#VALUE!'
+      }
     }
   }
 

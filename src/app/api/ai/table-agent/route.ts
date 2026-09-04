@@ -4,6 +4,73 @@ import { authorizeAction } from '@/lib/authorize'
 import { triggerTableEvent } from '@/lib/pusher-server'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { GoogleGenAI, Type } from '@google/genai'
+import { FieldRegistry, extractChoices } from '@/modules/database/fields/types'
+import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
+import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
+import { syncBiDirectionalLinkRow, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
+import { createTableRow } from '@/modules/database/services/createRow'
+import { safeJsonParse } from '@/lib/json-utils'
+
+const READONLY_TYPES = new Set([
+  'formula',
+  'autonumber',
+  'lookup',
+  'rollup',
+  'count',
+  'created_on',
+  'last_modified_on',
+  'created_by',
+  'last_modified_by',
+])
+
+function formatValueForDisplay(val: any, field?: any): string {
+  if (val === null || val === undefined || val === '') return '(空白)'
+  if (!field) return String(val)
+
+  if (field.type === 'single_select' || field.type === 'multiple_select') {
+    const choices = extractChoices(field.options)
+    if (choices.length > 0) {
+      let items: string[] = []
+      if (Array.isArray(val)) {
+        items = val.map(String)
+      } else if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val)
+          if (Array.isArray(parsed)) items = parsed.map(String)
+          else items = [val]
+        } catch {
+          items = val.split(',').map(s => s.trim()).filter(Boolean)
+        }
+      } else {
+        items = [String(val)]
+      }
+
+      const labelList = items.map(item => {
+        const itemTrimmed = String(item).trim()
+        const itemLower = itemTrimmed.toLowerCase()
+        const choice = choices.find((c: any) => {
+          if (!c) return false
+          if (typeof c === 'string') return c.trim() === itemTrimmed || c.trim().toLowerCase() === itemLower
+          const cId = c.id != null ? String(c.id).trim() : ''
+          const cName = c.name != null ? String(c.name).trim() : ''
+          const cVal = c.value != null ? String(c.value).trim() : ''
+          return (cId && (cId === itemTrimmed || cId.toLowerCase() === itemLower)) ||
+                 (cName && (cName === itemTrimmed || cName.toLowerCase() === itemLower)) ||
+                 (cVal && (cVal === itemTrimmed || cVal.toLowerCase() === itemLower))
+        })
+        return choice ? (typeof choice === 'string' ? choice : (choice.name || choice.id)) : itemTrimmed
+      })
+      return labelList.join(', ') || '(空白)'
+    }
+  }
+
+  if (field.type === 'boolean') {
+    if (val === true || val === 'true' || val === '1' || val === 'yes' || val === '是') return '是'
+    if (val === false || val === 'false' || val === '0' || val === 'no' || val === '否') return '否'
+  }
+
+  return String(val)
+}
 
 // Function Calling declarations for Gemini
 const tableTools: any[] = [
@@ -112,22 +179,96 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: '沒有需要更新的儲存格' }, { status: 400 })
         }
 
+        const linkRowSyncTasks: Array<Promise<any>> = []
+        const updatedRowIds = new Set<number>()
+
+        // Group updates by rowId so multiple cell changes on the same row are applied together
+        const updatesByRow = new Map<number, Array<{ fieldKey: string; value: any }>>()
+        for (const u of updates) {
+          const list = updatesByRow.get(u.rowId) || []
+          list.push(u)
+          updatesByRow.set(u.rowId, list)
+        }
+
         await prisma.$transaction(async (tx) => {
-          for (const u of updates) {
+          for (const [rowId, rowUpdates] of updatesByRow.entries()) {
             const row = await tx.tableRow.findUnique({
-              where: { id: u.rowId, tableId: tid, deletedAt: null }
+              where: { id: rowId, tableId: tid, deletedAt: null }
             })
             if (!row) continue
 
             const rowData = typeof row.data === 'string' ? JSON.parse(row.data) : { ...(row.data as any || {}) }
-            rowData[u.fieldKey] = u.value
+
+            for (const u of rowUpdates) {
+              const targetField = fieldMap.get(u.fieldKey)
+              if (!targetField) continue
+
+              // Protect read-only / computed fields
+              if (READONLY_TYPES.has(targetField.type)) continue
+
+              const oldVal = rowData[u.fieldKey]
+              let validatedValue = u.value
+
+              if (targetField.type === 'link_row') {
+                const oldIds = parseLinkRowIds(oldVal)
+                const newIds = parseLinkRowIds(u.value)
+                validatedValue = newIds
+                linkRowSyncTasks.push(
+                  syncBiDirectionalLinkRow(tid, rowId, targetField.id, newIds, oldIds).catch(err => {
+                    console.warn('[Bi-directional Sync Warning in AI Agent]:', err)
+                    return null
+                  })
+                )
+              } else {
+                const fOpts = typeof targetField.options === 'string'
+                  ? safeJsonParse(targetField.options, {})
+                  : (targetField.options || {})
+                const fieldType = FieldRegistry.get(targetField.type)
+                const validateRes = fieldType.validateValue(u.value, fOpts)
+                if (validateRes.valid) {
+                  validatedValue = validateRes.parsedValue
+                }
+              }
+
+              rowData[u.fieldKey] = validatedValue
+            }
+
+            // Recompute formula fields if present in table
+            const formulaFields = fields.filter(f => f.type === 'formula')
+            if (formulaFields.length > 0) {
+              const fieldOrder = fields.map(f => f.id)
+              for (const ff of formulaFields) {
+                const destKey = `field_${ff.id}`
+                const expr = extractFormulaExpression(ff.options)
+                if (!expr) continue
+                try {
+                  const res = evaluateFormula(expr, rowData, fieldOrder)
+                  rowData[destKey] = res != null ? String(res) : ''
+                } catch {
+                  rowData[destKey] = '#VALUE!'
+                }
+              }
+            }
 
             await tx.tableRow.update({
-              where: { id: u.rowId },
+              where: { id: rowId },
               data: { data: rowData }
             })
+
+            updatedRowIds.add(rowId)
           }
         })
+
+        // Run single-level cascade recomputations for modified rows
+        for (const rid of updatedRowIds) {
+          await cascadeRecomputeSingleLevel(tid, rid).catch(err => {
+            console.warn('[Cascade Recompute Warning in AI Agent]:', err)
+          })
+        }
+
+        if (linkRowSyncTasks.length > 0) {
+          await Promise.allSettled(linkRowSyncTasks)
+        }
 
         await invalidateMasterViewCacheForTable(tid).catch(() => {})
         triggerTableEvent(tid, 'rows-batch-changed', { type: 'update', count: updates.length }, socketId || undefined)
@@ -146,34 +287,32 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: '沒有需要新增的資料列' }, { status: 400 })
         }
 
-        // Get max order in table
-        const lastRow = await prisma.tableRow.findFirst({
-          where: { tableId: tid, deletedAt: null },
-          orderBy: { order: 'desc' },
-          select: { order: true }
-        })
-        let nextOrder = (lastRow?.order ?? -1) + 1
-
-        await prisma.$transaction(async (tx) => {
-          for (const r of rows) {
-            await tx.tableRow.create({
-              data: {
-                tableId: tid,
-                order: nextOrder++,
-                data: r
-              }
-            })
+        const createdRows: any[] = []
+        for (const r of rows) {
+          const result = await createTableRow({
+            tableId: tid,
+            input: r,
+            username: 'AI 助理 (AI Assistant)',
+          })
+          if (result.ok) {
+            createdRows.push(result.row)
+          } else {
+            console.warn('[AI createTableRow warning]:', result.error)
           }
-        })
+        }
+
+        if (createdRows.length === 0) {
+          return NextResponse.json({ error: '新增資料列失敗' }, { status: 500 })
+        }
 
         await invalidateMasterViewCacheForTable(tid).catch(() => {})
-        triggerTableEvent(tid, 'rows-batch-changed', { type: 'create', count: rows.length }, socketId || undefined)
+        triggerTableEvent(tid, 'rows-batch-changed', { type: 'create', count: createdRows.length }, socketId || undefined)
 
         return NextResponse.json({
           success: true,
           action: 'create_rows',
-          count: rows.length,
-          summary: `成功新增 ${rows.length} 筆資料列`
+          count: createdRows.length,
+          summary: `成功新增 ${createdRows.length} 筆資料列`
         })
       }
 
@@ -240,15 +379,13 @@ export async function POST(request: Request) {
     const schemaDetails = fields.map(f => {
       let choicesList: any[] = []
       if (f.type === 'single_select' || f.type === 'multiple_select') {
-        try {
-          const opts = typeof f.options === 'string' ? JSON.parse(f.options) : f.options
-          choicesList = opts?.choices || opts?.select_options || opts?.options || []
-        } catch {}
+        choicesList = extractChoices(f.options)
       }
       return {
         fieldKey: `field_${f.id}`,
         name: f.name,
         type: f.type,
+        isReadOnly: READONLY_TYPES.has(f.type),
         optionsChoices: choicesList.map((c: any) => ({
           id: c.id,
           name: c.name || c.label || c.value
@@ -266,7 +403,12 @@ ${JSON.stringify(parsedRows)}
 【操作原則】
 1. 請嚴格根據使用者指令呼叫最適當的工具 (update_cells, create_rows, 或 delete_rows)。
 2. 在 update_cells 或 create_rows 中，請務必使用標準 fieldKey (例如 field_${fields[0].id})。
-3. 若欄位為 single_select 或 multiple_select，請優先填入定義好的選項名稱（或選項 ID）。
+3. 特殊欄位填寫規範：
+   - single_select (單選) / multiple_select (多選)：請優先填入定義好的選項名稱（例如「建興組」）或選項 ID。若是多選，填入選項名稱陣列或逗號分隔字串。
+   - boolean (核取方塊)：請填入 true / false 或 是 / 否。
+   - number (數字) / rating (評分)：請填入數值。
+   - link_row (關聯資料)：請填入目標關聯列的 ID 數字陣列（例如 [1, 2]）。
+   - isReadOnly: true 之欄位（formula 公式、autonumber 自動編號、lookup、rollup、count、建立/修改時間等）：為系統自動運算的唯讀欄位，嚴禁直接修改！若使用者要求修改公式或計算結果，請改為修改該公式所引用的原始資料欄位。
 4. 如果使用者的需求無法透過上述工具達成，或只是在打招呼、提問，請直接以繁體中文回答，不需要呼叫任何工具。`
 
     const ai = new GoogleGenAI({ apiKey })
@@ -358,15 +500,17 @@ ${JSON.stringify(parsedRows)}
         const targetField = fieldMap.get(u.fieldKey)
         const rowTitle = targetRow?.[primaryFieldKey] || `列 #${u.rowId}`
         const fieldName = targetField?.name || u.fieldKey
-        const oldValue = targetRow?.[u.fieldKey] ?? '(空白)'
+        const rawOldValue = targetRow?.[u.fieldKey]
+        const oldValue = formatValueForDisplay(rawOldValue, targetField)
+        const newValue = formatValueForDisplay(u.value, targetField)
 
         return {
           rowId: u.rowId,
           rowTitle: String(rowTitle),
           fieldKey: u.fieldKey,
           fieldName,
-          oldValue: String(oldValue),
-          newValue: String(u.value)
+          oldValue,
+          newValue
         }
       })
 
@@ -389,7 +533,7 @@ ${JSON.stringify(parsedRows)}
         for (const [k, v] of Object.entries(r)) {
           const field = fieldMap.get(k)
           const name = field ? field.name : k
-          mapped[name] = v
+          mapped[name] = formatValueForDisplay(v, field)
         }
         return mapped
       })
