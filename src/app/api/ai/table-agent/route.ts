@@ -415,31 +415,87 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '請輸入指令內容' }, { status: 400 })
     }
 
-    // Fetch compact existing rows snapshot (up to 60 active rows)
+    // 1. Fetch total count & existing rows (expand take to 300 to give full visibility for standard tables)
+    const totalRowCount = typeof prisma.tableRow.count === 'function'
+      ? await runDb(() => prisma.tableRow.count({ where: { tableId: tid, deletedAt: null } }).catch(() => 0))
+      : 0
+
     const existingRows = await runDb(() => prisma.tableRow.findMany({
       where: { tableId: tid, deletedAt: null },
-      take: 60,
+      take: 300,
       orderBy: { order: 'asc' },
       select: { id: true, data: true }
     }))
 
-    // Compact row data: omit empty/null cells to drastically reduce token payload and speed up LLM processing
+    const effectiveTotal = Math.max(totalRowCount, existingRows.length)
+
+    // 2. Precompute deterministic Ground Truth statistics (Total count and category distributions)
+    const statsLines: string[] = [`- 資料表目前有效總列數：共 ${effectiveTotal} 筆資料列。`]
+    if (effectiveTotal > existingRows.length) {
+      statsLines.push(`- 注意：當前快照包含前 ${existingRows.length} 筆資料列供即時檢索與細項操作。`)
+    }
+
+    const selectFields = fields.filter(f => f.type === 'single_select' || f.type === 'multiple_select')
+    for (const sf of selectFields) {
+      const counts = new Map<string, number>()
+      let emptyCount = 0
+      for (const r of existingRows) {
+        const d: Record<string, any> = typeof r.data === 'string' ? safeJsonParse(r.data, {}) : (r.data as any || {})
+        const val = d[`field_${sf.id}`]
+        const display = formatValueForDisplay(val, sf)
+        if (!display || display === '(空白)') {
+          emptyCount++
+        } else {
+          const parts = display.split(',').map(s => s.trim()).filter(Boolean)
+          for (const p of parts) {
+            counts.set(p, (counts.get(p) || 0) + 1)
+          }
+        }
+      }
+      const distParts = Array.from(counts.entries()).map(([name, count]) => `${name}: ${count} 筆`)
+      if (emptyCount > 0) distParts.push(`未指定/空白: ${emptyCount} 筆`)
+      if (distParts.length > 0) {
+        statsLines.push(`- 【${sf.name}】精確分佈統計：${distParts.join('、')}`)
+      }
+    }
+
+    // 3. Compact row data: convert raw IDs to human-readable values so the model has 100% semantic accuracy
     const parsedRows = existingRows.map(r => {
-      const dataObj = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data as any || {})
+      const dataObj = typeof r.data === 'string' ? safeJsonParse(r.data, {}) : (r.data as any || {})
       const compactRow: Record<string, any> = { id: r.id }
+      const summaryParts: string[] = []
+
       for (const [k, v] of Object.entries(dataObj)) {
         if (v !== null && v !== undefined && v !== '') {
           const field = fieldMap.get(k)
-          if (field?.type === 'latest_comment') {
+          if (!field) continue
+          let displayVal = ''
+          if (field.type === 'latest_comment') {
             const entries = parseLatestCommentEntries(v)
             if (entries.length > 0) {
               const latest = entries[entries.length - 1]
+              displayVal = latest.content
               compactRow[k] = latest.content
             }
+          } else if (field.type === 'single_select' || field.type === 'multiple_select') {
+            displayVal = formatValueForDisplay(v, field)
+            compactRow[k] = displayVal
+          } else if (field.type === 'boolean') {
+            displayVal = v === true || v === 'true' || v === '1' || v === '是' ? '是' : '否'
+            compactRow[k] = displayVal
           } else {
+            displayVal = String(v)
             compactRow[k] = v
           }
+
+          if (displayVal && displayVal !== '(空白)') {
+            summaryParts.push(`${field.name}: ${displayVal}`)
+          }
         }
+      }
+
+      if (summaryParts.length > 0) {
+        compactRow._summary = summaryParts.join(' | ')
       }
       return compactRow
     })
@@ -457,7 +513,7 @@ export async function POST(request: Request) {
         isReadOnly: READONLY_TYPES.has(f.type),
         optionsChoices: choicesList.map((c: any) => ({
           id: c.id,
-                        name: c.name || c.label || c.value
+          name: c.name || c.label || c.value
         }))
       }
     })
@@ -480,33 +536,41 @@ export async function POST(request: Request) {
       contextGuidance += `\n【使用者當前檢視表 (View)】：${context.activeViewName}\n`
     }
 
-    const systemPrompt = `你是一個專業的高效資料庫自動化 AI 助理。
+    const systemPrompt = `你是一個專為此網頁資料庫打造的專業高效 AI 助理。
+
+【資料庫真實統計 (Ground Truth - 由資料庫引擎直接統計，絕對精準)】
+${statsLines.join('\n')}
+重要規定：當使用者詢問資料筆數、總數、或某分類人數時，請務必直接引用上述真實數據回答，嚴禁自行從快照文字中逐項人工點算！
+
 欄位定義 (Schema):
 ${JSON.stringify(schemaDetails)}
 
-資料快照 (id 為 rowId，欄位對應 fieldKey):
+資料快照 (id 為 rowId，欄位對應 fieldKey，_summary 提供人類可讀欄位標籤摘要):
 ${JSON.stringify(parsedRows)}
 ${contextGuidance}
 
-【操作原則】
-1. 請嚴格根據使用者指令呼叫最適當的工具 (update_cells, create_rows, 或 delete_rows)。
-2. 在 update_cells 或 create_rows 中，請務必使用標準 fieldKey (例如 field_${fields[0].id})。
-3. 特殊欄位填寫規範：
-   - single_select (單選) / multiple_select (多選)：請優先填入定義好的選項名稱（例如「建興組」）或選項 ID。若是多選，填入選項名稱陣列或逗號分隔字串。
+【操作與準確性原則】
+1. 精準回答與條件過濾：
+   - 詢問總列數或統計數據：直接引用上述【資料庫真實統計】數據回覆。
+   - 篩選符合條件的資料列（例如「列出適合初一十五邀約的人」）：直接檢索資料快照中 _summary 或對應欄位的選項標籤（例如「初一十五」），列出精確的姓名或 rowId，不得遺漏或捏造。
+2. 請嚴格根據使用者指令呼叫最適當的工具 (update_cells, create_rows, 或 delete_rows)。
+3. 在 update_cells 或 create_rows 中，請務必使用標準 fieldKey (例如 field_${fields[0].id})。
+4. 特殊欄位填寫規範：
+   - single_select (單選) / multiple_select (多選)：請填入定義好的選項名稱（例如「初一十五」、「建興組」）。若是多選，填入選項名稱陣列或逗號分隔字串。
    - latest_comment (最新留言紀錄)：請直接填入欲新增的留言備註文字（例如「今日已完成訪談」），系統會自動附帶時間戳記與署名並保留歷史紀錄；若使用者要求清空留言，填入 ""。
    - boolean (核取方塊)：請填入 true / false 或 是 / 否。
    - number (數字) / rating (評分)：請填入數值。
    - link_row (關聯資料)：請填入目標關聯列的 ID 數字陣列（例如 [1, 2]）。
    - isReadOnly: true 之欄位（formula 公式、autonumber 自動編號、lookup、rollup、count、建立/修改時間等）：為系統自動運算的唯讀欄位，嚴禁直接修改！若使用者要求修改公式或計算結果，請改為修改該公式所引用的原始資料欄位。
-4. 如果使用者的需求無法透過上述工具達成，或只是在打招呼、提問，請直接以繁體中文回答，不需要呼叫任何工具。`
+5. 如果使用者的需求無法透過上述工具達成，或只是在打招呼、提問、統計分析，請直接以繁體中文回答，不需要呼叫任何工具。`
 
     const ai = new GoogleGenAI({ apiKey })
     const candidateModels = Array.from(
       new Set([
         process.env.GEMINI_MODEL,
-        'gemini-3.1-flash-lite-preview',
+        'gemini-3.6-flash',
         'gemini-3.5-flash',
-        'gemini-3.6-flash'
+        'gemini-3.1-flash-lite-preview'
       ].filter(Boolean) as string[])
     )
 
@@ -547,7 +611,7 @@ ${contextGuidance}
           config: {
             systemInstruction: systemPrompt,
             tools: [{ functionDeclarations: tableTools }],
-            temperature: 0.1
+            temperature: 0.0
           }
         })
         if (response) break
