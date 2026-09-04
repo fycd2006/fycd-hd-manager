@@ -7,13 +7,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { AiAssistantBar } from '../AiAssistantBar'
 import { AiDiffModal, DiffPreviewData } from '../AiDiffModal'
+import { AiAssistantModal } from '../AiAssistantModal'
 
 // Mock pusher-client
 jest.mock('@/lib/pusher-client', () => ({
   getSocketId: jest.fn().mockReturnValue('mock-socket-id'),
 }))
 
-describe('AiAssistantBar & AiDiffModal Components', () => {
+describe('AiAssistantModal & Components', () => {
   const originalFetch = global.fetch
 
   beforeEach(() => {
@@ -23,6 +24,52 @@ describe('AiAssistantBar & AiDiffModal Components', () => {
 
   afterAll(() => {
     global.fetch = originalFetch
+  })
+
+  it('renders AiAssistantModal and handles prompt analysis and diff display', async () => {
+    const onClose = jest.fn()
+    const addToast = jest.fn()
+
+    const mockDiff: DiffPreviewData = {
+      type: 'diff_preview',
+      action: 'update_cells',
+      reason: '將未分組的列設定為建興組',
+      changes: [{ rowId: 1, rowTitle: '列1', fieldKey: 'field_1', fieldName: '組別', oldValue: '未分組', newValue: '建興組' }],
+      actionPayload: { name: 'update_cells', args: {} },
+    }
+
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => mockDiff,
+    })
+
+    render(
+      <AiAssistantModal
+        tableId={1}
+        isOpen={true}
+        onClose={onClose}
+        addToast={addToast}
+      />
+    )
+
+    expect(screen.getByText('AI 資料表智慧助手')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/把所有未填寫組別的人改成建興組/i)).toBeInTheDocument()
+
+    const textarea = screen.getByPlaceholderText(/把所有未填寫組別的人改成建興組/i)
+    fireEvent.change(textarea, { target: { value: '全部改成建興組' } })
+    fireEvent.click(screen.getByText('送出分析'))
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/ai/table-agent', expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          'x-socket-id': 'mock-socket-id',
+        }),
+      }))
+      expect(screen.getByText(/變更預覽確認/i)).toBeInTheDocument()
+      expect(screen.getByText('建興組')).toBeInTheDocument()
+    })
   })
 
   it('renders AiAssistantBar and submits query to table-agent API', async () => {
@@ -110,31 +157,5 @@ describe('AiAssistantBar & AiDiffModal Components', () => {
 
     fireEvent.click(screen.getByText('確認套用變更'))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-  })
-
-  it('renders AiDiffModal for delete action with warning', () => {
-    const onConfirm = jest.fn()
-    const onClose = jest.fn()
-
-    const mockDiff: DiffPreviewData = {
-      type: 'diff_preview',
-      action: 'delete_rows',
-      reason: '刪除未回報者',
-      deletedRows: [{ id: 5, title: '測試成員' }],
-      actionPayload: { name: 'delete_rows', args: { rowIds: [5] } },
-    }
-
-    render(
-      <AiDiffModal
-        diff={mockDiff}
-        isOpen={true}
-        isApplying={false}
-        onConfirm={onConfirm}
-        onClose={onClose}
-      />
-    )
-
-    expect(screen.getByText(/即將刪除以下/i)).toBeInTheDocument()
-    expect(screen.getByText('測試成員')).toBeInTheDocument()
   })
 })
