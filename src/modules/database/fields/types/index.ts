@@ -6,6 +6,7 @@ import { SingleSelectFieldType } from './SingleSelectFieldType'
 import { MultipleSelectFieldType } from './MultipleSelectFieldType'
 import { BooleanFieldType } from './BooleanFieldType'
 import { RatingFieldType } from './RatingFieldType'
+import { LatestCommentFieldType, parseLatestCommentEntries, type CommentLogEntry } from './LatestCommentFieldType'
 
 // Initialize the core registry with built-in types
 export function initializeFieldRegistry() {
@@ -16,6 +17,7 @@ export function initializeFieldRegistry() {
   FieldRegistry.register(new MultipleSelectFieldType())
   FieldRegistry.register(new BooleanFieldType())
   FieldRegistry.register(new RatingFieldType())
+  FieldRegistry.register(new LatestCommentFieldType())
   
   // Future types to implement:
   // LinkRowFieldType
@@ -29,3 +31,4 @@ export { FieldRegistry } from '../FieldRegistry'
 export { extractChoices } from './SingleSelectFieldType'
 export { BooleanFieldType } from './BooleanFieldType'
 export { RatingFieldType } from './RatingFieldType'
+export { LatestCommentFieldType, parseLatestCommentEntries, type CommentLogEntry }

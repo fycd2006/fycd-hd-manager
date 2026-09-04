@@ -80,6 +80,13 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
       if (!validateRes.valid) {
         return { ok: false, error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }
       }
+      if (f.type === 'latest_comment' && Array.isArray(validateRes.parsedValue)) {
+        validateRes.parsedValue.forEach((entry: any) => {
+          if (entry && (entry.user === '系統 (System)' || !entry.user)) {
+            entry.user = username || '系統 (System)'
+          }
+        })
+      }
       rowData[key] = validateRes.parsedValue
     } else {
       const fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})

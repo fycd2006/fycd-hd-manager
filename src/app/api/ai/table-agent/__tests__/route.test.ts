@@ -467,4 +467,111 @@ describe('POST /api/ai/table-agent', () => {
     expect(res.status).toBe(200)
     expect(syncBiDirectionalLinkRow).toHaveBeenCalledWith(1, 101, 4, [201, 202], [])
   })
+
+  it('handles latest_comment by appending new comment entry and preserving previous comments', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '事項', type: 'text', order: 0 },
+      { id: 5, name: '留言紀錄', type: 'latest_comment', order: 1 },
+    ])
+
+    const mockTx = (prisma as any)._mockTx
+    mockTx.tableRow.findUnique.mockResolvedValue({
+      id: 101,
+      tableId: 1,
+      data: {
+        field_1: '專案B',
+        field_5: [
+          { id: '1', user: '張經理', time: '2026/09/01 10:00', content: '第一筆備註' },
+        ],
+      },
+    })
+
+    const req = new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        confirmedAction: {
+          name: 'update_cells',
+          args: {
+            updates: [{ rowId: 101, fieldKey: 'field_5', value: '今日進料檢驗合格' }],
+          },
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(json.success).toBe(true)
+
+    expect(mockTx.tableRow.update).toHaveBeenCalledWith({
+      where: { id: 101 },
+      data: {
+        data: {
+          field_1: '專案B',
+          field_5: [
+            { id: '1', user: '張經理', time: '2026/09/01 10:00', content: '第一筆備註' },
+            expect.objectContaining({
+              user: 'AI 助理 (AI Assistant)',
+              content: '今日進料檢驗合格',
+              time: expect.any(String),
+            }),
+          ],
+        },
+      },
+    })
+  })
+
+  it('formats diff preview for latest_comment with author and content summaries', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '事項', type: 'text', order: 0 },
+      { id: 5, name: '留言紀錄', type: 'latest_comment', order: 1 },
+    ])
+    ;(prisma.tableRow.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 101,
+        data: JSON.stringify({
+          field_1: '事項A',
+          field_5: [
+            { id: '1', user: '張經理', time: '2026/09/01 10:00', content: '採購急件待簽核' },
+          ],
+        }),
+      },
+    ])
+
+    mockGenerateContent.mockResolvedValue({
+      functionCalls: [
+        {
+          name: 'update_cells',
+          args: {
+            reason: '新增最新進度留言',
+            updates: [{ rowId: 101, fieldKey: 'field_5', value: '已於今日下午完成簽核' }],
+          },
+        },
+      ],
+    })
+
+    const req = new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        userPrompt: '幫事項A新增留言：已於今日下午完成簽核',
+        mode: 'dry_run',
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const json = await res.json()
+
+    expect(json.changes[0]).toEqual({
+      rowId: 101,
+      rowTitle: '事項A',
+      fieldKey: 'field_5',
+      fieldName: '留言紀錄',
+      oldValue: '[張經理] 採購急件待簽核',
+      newValue: '已於今日下午完成簽核',
+    })
+  })
 })

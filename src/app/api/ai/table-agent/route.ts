@@ -4,7 +4,7 @@ import { authorizeAction } from '@/lib/authorize'
 import { triggerTableEvent } from '@/lib/pusher-server'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { GoogleGenAI, Type } from '@google/genai'
-import { FieldRegistry, extractChoices } from '@/modules/database/fields/types'
+import { FieldRegistry, extractChoices, parseLatestCommentEntries } from '@/modules/database/fields/types'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
@@ -69,6 +69,19 @@ function formatValueForDisplay(val: any, field?: any): string {
     if (val === false || val === 'false' || val === '0' || val === 'no' || val === '否') return '否'
   }
 
+  if (field.type === 'latest_comment') {
+    const entries = parseLatestCommentEntries(val)
+    if (entries.length === 0) {
+      if (typeof val === 'string' && val.trim() && !val.trim().startsWith('[')) {
+        return val.trim()
+      }
+      return '(無留言)'
+    }
+    const latest = entries[entries.length - 1]
+    const countNote = entries.length > 1 ? ` (共 ${entries.length} 則)` : ''
+    return `[${latest.user || '留言'}] ${latest.content || ''}${countNote}`
+  }
+
   return String(val)
 }
 
@@ -89,7 +102,7 @@ const tableTools: any[] = [
             properties: {
               rowId: { type: Type.INTEGER, description: '目標資料列的 ID (數字)' },
               fieldKey: { type: Type.STRING, description: '目標欄位的 key，例如 field_1, field_2' },
-              value: { type: Type.STRING, description: '更新後的值。若是選項欄位，填入選項名稱或選項 ID' }
+              value: { type: Type.STRING, description: '更新後的值。若為單選/多選填入選項名稱或 ID；若為最新留言欄位填入欲新增的留言備註文字；若為核取方塊填入 true/false 或 是/否' }
             },
             required: ['rowId', 'fieldKey', 'value']
           }
@@ -219,6 +232,51 @@ export async function POST(request: Request) {
                     return null
                   })
                 )
+              } else if (targetField.type === 'latest_comment') {
+                const existingEntries = parseLatestCommentEntries(oldVal)
+                if (u.value === null || u.value === undefined || u.value === '') {
+                  validatedValue = []
+                } else if (Array.isArray(u.value)) {
+                  validatedValue = u.value
+                } else if (typeof u.value === 'string') {
+                  const trimmed = u.value.trim()
+                  try {
+                    const parsed = JSON.parse(trimmed)
+                    if (Array.isArray(parsed)) {
+                      validatedValue = parsed
+                    } else {
+                      validatedValue = [
+                        ...existingEntries,
+                        {
+                          id: String(Date.now()) + Math.random().toString(36).substring(2, 6),
+                          user: 'AI 助理 (AI Assistant)',
+                          time: new Date().toLocaleString('zh-TW', { hour12: false }),
+                          content: trimmed,
+                        },
+                      ]
+                    }
+                  } catch {
+                    validatedValue = [
+                      ...existingEntries,
+                      {
+                        id: String(Date.now()) + Math.random().toString(36).substring(2, 6),
+                        user: 'AI 助理 (AI Assistant)',
+                        time: new Date().toLocaleString('zh-TW', { hour12: false }),
+                        content: trimmed,
+                      },
+                    ]
+                  }
+                } else if (typeof u.value === 'object' && u.value !== null) {
+                  validatedValue = [
+                    ...existingEntries,
+                    {
+                      id: String(Date.now()) + Math.random().toString(36).substring(2, 6),
+                      user: u.value.user || 'AI 助理 (AI Assistant)',
+                      time: u.value.time || new Date().toLocaleString('zh-TW', { hour12: false }),
+                      content: String(u.value.content || ''),
+                    },
+                  ]
+                }
               } else {
                 const fOpts = typeof targetField.options === 'string'
                   ? safeJsonParse(targetField.options, {})
@@ -369,7 +427,16 @@ export async function POST(request: Request) {
       const compactRow: Record<string, any> = { id: r.id }
       for (const [k, v] of Object.entries(dataObj)) {
         if (v !== null && v !== undefined && v !== '') {
-          compactRow[k] = v
+          const field = fieldMap.get(k)
+          if (field?.type === 'latest_comment') {
+            const entries = parseLatestCommentEntries(v)
+            if (entries.length > 0) {
+              const latest = entries[entries.length - 1]
+              compactRow[k] = latest.content
+            }
+          } else {
+            compactRow[k] = v
+          }
         }
       }
       return compactRow
@@ -405,6 +472,7 @@ ${JSON.stringify(parsedRows)}
 2. 在 update_cells 或 create_rows 中，請務必使用標準 fieldKey (例如 field_${fields[0].id})。
 3. 特殊欄位填寫規範：
    - single_select (單選) / multiple_select (多選)：請優先填入定義好的選項名稱（例如「建興組」）或選項 ID。若是多選，填入選項名稱陣列或逗號分隔字串。
+   - latest_comment (最新留言紀錄)：請直接填入欲新增的留言備註文字（例如「今日已完成訪談」），系統會自動附帶時間戳記與署名並保留歷史紀錄；若使用者要求清空留言，填入 ""。
    - boolean (核取方塊)：請填入 true / false 或 是 / 否。
    - number (數字) / rating (評分)：請填入數值。
    - link_row (關聯資料)：請填入目標關聯列的 ID 數字陣列（例如 [1, 2]）。
@@ -493,7 +561,10 @@ ${JSON.stringify(parsedRows)}
     if (callName === 'update_cells') {
       const rawUpdates = (callArgs.updates || []) as Array<{ rowId: number; fieldKey: string; value: any }>
       const rowLookup = new Map<number, any>()
-      parsedRows.forEach(r => rowLookup.set(r.id, r))
+      existingRows.forEach(r => {
+        const dataObj = typeof r.data === 'string' ? safeJsonParse(r.data, {}) : (r.data || {})
+        rowLookup.set(r.id, dataObj)
+      })
 
       const formattedChanges = rawUpdates.map(u => {
         const targetRow = rowLookup.get(u.rowId)
