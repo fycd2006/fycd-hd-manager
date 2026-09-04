@@ -71,7 +71,7 @@ const tableTools: any[] = [
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { tableId, userPrompt, mode = 'dry_run', confirmedAction, socketId } = body
+    const { tableId, userPrompt, messages = [], mode = 'dry_run', confirmedAction, socketId } = body
     const tid = Number(tableId)
 
     if (isNaN(tid)) {
@@ -272,6 +272,32 @@ ${JSON.stringify(parsedRows, null, 2)}
       ].filter(Boolean) as string[])
     )
 
+    // Build conversation contents for multi-turn chat
+    const conversationContents: any[] = []
+    if (Array.isArray(messages) && messages.length > 0) {
+      const sliced = messages.slice(-10)
+      for (const m of sliced) {
+        if (!m || typeof m.content !== 'string' || !m.content.trim()) continue
+        const role = m.role === 'user' ? 'user' : 'model'
+        conversationContents.push({
+          role,
+          parts: [{ text: m.content.trim() }]
+        })
+      }
+    }
+
+    const currentQuery = (userPrompt || '').trim()
+    if (currentQuery) {
+      conversationContents.push({
+        role: 'user',
+        parts: [{ text: currentQuery }]
+      })
+    }
+
+    if (conversationContents.length === 0) {
+      return NextResponse.json({ error: '請提供有效指令或對話內容' }, { status: 400 })
+    }
+
     let response: any = null
     let lastError: any = null
 
@@ -279,13 +305,9 @@ ${JSON.stringify(parsedRows, null, 2)}
       try {
         response = await ai.models.generateContent({
           model: modelName,
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${systemPrompt}\n\n使用者指令: "${userPrompt.trim()}"` }]
-            }
-          ],
+          contents: conversationContents,
           config: {
+            systemInstruction: systemPrompt,
             tools: [{ functionDeclarations: tableTools }],
             temperature: 0.1
           }

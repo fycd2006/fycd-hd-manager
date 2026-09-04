@@ -52,12 +52,12 @@ describe('AiAssistantModal & Components', () => {
       />
     )
 
-    expect(screen.getByText('AI 資料表智慧助手')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText(/把所有未填寫組別的人改成建興組/i)).toBeInTheDocument()
+    expect(screen.getByText('Gemini')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/向 Gemini 詢問或描述你想修改的資料/i)).toBeInTheDocument()
 
-    const textarea = screen.getByPlaceholderText(/把所有未填寫組別的人改成建興組/i)
+    const textarea = screen.getByPlaceholderText(/向 Gemini 詢問或描述你想修改的資料/i)
     fireEvent.change(textarea, { target: { value: '全部改成建興組' } })
-    fireEvent.click(screen.getByText('送出分析'))
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/ai/table-agent', expect.objectContaining({
@@ -67,7 +67,7 @@ describe('AiAssistantModal & Components', () => {
           'x-socket-id': 'mock-socket-id',
         }),
       }))
-      expect(screen.getByText(/變更預覽確認/i)).toBeInTheDocument()
+      expect(screen.getByText(/變更規劃：將未分組的列設定為建興組/i)).toBeInTheDocument()
       expect(screen.getByText('建興組')).toBeInTheDocument()
     })
   })
