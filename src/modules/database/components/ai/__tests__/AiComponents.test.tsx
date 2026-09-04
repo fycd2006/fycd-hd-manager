@@ -187,5 +187,82 @@ describe('AiAssistantModal & Components', () => {
     fireEvent.click(cancelBtn)
     expect(screen.queryByText(/已鎖定選取範圍/i)).not.toBeInTheDocument()
   })
+
+  it('supports model selection dropdown, message hover telemetry, and copy button', async () => {
+    const onClose = jest.fn()
+    const mockReply = {
+      type: 'text_reply',
+      message: '已執行成功，最新輸出統計已更新。',
+      meta: {
+        model: 'gemini-3.6-flash',
+        displayModel: 'Auto (3.6-flash)',
+        isAuto: true,
+        fallbackOccurred: false,
+        latencyMs: 840,
+        tokens: {
+          prompt: 1120,
+          output: 140,
+          total: 1260,
+        },
+      },
+    }
+
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => mockReply,
+    })
+
+    render(
+      <AiAssistantModal
+        tableId={1}
+        isOpen={true}
+        onClose={onClose}
+      />
+    )
+
+    // 1. Check model switcher pill in header
+    const modelBtn = screen.getByTitle(/切換 AI 模型/i)
+    expect(modelBtn).toBeInTheDocument()
+    expect(modelBtn).toHaveTextContent('Auto')
+
+    // Open dropdown
+    fireEvent.click(modelBtn)
+    expect(screen.getByText('模型架構選擇')).toBeInTheDocument()
+    expect(screen.getByText('Gemini 3.6 Flash')).toBeInTheDocument()
+
+    // Select Gemini 3.6 Flash
+    fireEvent.click(screen.getByText('Gemini 3.6 Flash'))
+    expect(modelBtn).toHaveTextContent('3.6 Flash')
+
+    // 2. Send message with selected model
+    const textarea = screen.getByPlaceholderText(/向 Gemini 詢問或描述你想修改的資料/i)
+    fireEvent.change(textarea, { target: { value: '請提供各組人數統計' } })
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/ai/table-agent', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"requestedModel":"gemini-3.6-flash"'),
+      }))
+      expect(screen.getByText('已執行成功，最新輸出統計已更新。')).toBeInTheDocument()
+    })
+
+    // 3. Verify footer elements (copy button, displayModel, and token count)
+    expect(screen.getByTitle('複製內容')).toBeInTheDocument()
+    expect(screen.getByText('Auto (3.6-flash)')).toBeInTheDocument()
+    expect(screen.getByText('1.3k tokens')).toBeInTheDocument()
+
+    // 4. Hover over message content to trigger telemetry popup
+    const messageContent = screen.getByText('已執行成功，最新輸出統計已更新。')
+    fireEvent.mouseEnter(messageContent.parentElement!)
+
+    expect(screen.getByText('執行指標與模型資訊')).toBeInTheDocument()
+    expect(screen.getByText('840 ms')).toBeInTheDocument()
+    expect(screen.getByText('最優模型正常服務')).toBeInTheDocument()
+
+    // Leave hover
+    fireEvent.mouseLeave(messageContent.parentElement!)
+  })
 })
+
 

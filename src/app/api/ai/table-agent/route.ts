@@ -153,7 +153,7 @@ const tableTools: any[] = [
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { tableId, userPrompt, messages = [], mode = 'dry_run', confirmedAction, socketId, context } = body
+    const { tableId, userPrompt, messages = [], mode = 'dry_run', confirmedAction, socketId, context, requestedModel = 'auto' } = body
     const tid = Number(tableId)
 
     if (isNaN(tid)) {
@@ -565,14 +565,13 @@ ${contextGuidance}
 5. 如果使用者的需求無法透過上述工具達成，或只是在打招呼、提問、統計分析，請直接以繁體中文回答，不需要呼叫任何工具。`
 
     const ai = new GoogleGenAI({ apiKey })
-    const candidateModels = Array.from(
-      new Set([
-        process.env.GEMINI_MODEL,
-        'gemini-3.6-flash',
-        'gemini-3.5-flash',
-        'gemini-3.1-flash-lite-preview'
-      ].filter(Boolean) as string[])
-    )
+    const defaultModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview']
+    let candidateModels: string[]
+    if (requestedModel && requestedModel !== 'auto') {
+      candidateModels = Array.from(new Set([requestedModel, ...defaultModels]))
+    } else {
+      candidateModels = Array.from(new Set([process.env.GEMINI_MODEL, ...defaultModels].filter(Boolean) as string[]))
+    }
 
     // Build conversation contents for multi-turn chat
     const conversationContents: any[] = []
@@ -602,6 +601,9 @@ ${contextGuidance}
 
     let response: any = null
     let lastError: any = null
+    let usedModel = ''
+    let fallbackCount = 0
+    const startTime = Date.now()
 
     for (const modelName of candidateModels) {
       try {
@@ -614,9 +616,13 @@ ${contextGuidance}
             temperature: 0.0
           }
         })
-        if (response) break
+        if (response) {
+          usedModel = modelName
+          break
+        }
       } catch (err: any) {
         lastError = err
+        fallbackCount++
         console.warn(`[AI Table Agent] Model ${modelName} encountered error, trying next fallback:`, err?.message || err)
         const errMsg = String(err?.message || '')
         if (errMsg.includes('503') || errMsg.includes('429') || errMsg.includes('UNAVAILABLE')) {
@@ -625,8 +631,25 @@ ${contextGuidance}
       }
     }
 
+    const latencyMs = Date.now() - startTime
+
     if (!response) {
       throw lastError || new Error('所有 AI 備援模型目前均連線異常，請稍後再試。')
+    }
+
+    const isAuto = !requestedModel || requestedModel === 'auto'
+    const shortModelName = (usedModel || 'gemini-3.6-flash').replace('gemini-', '')
+    const meta = {
+      model: usedModel || 'gemini-3.6-flash',
+      displayModel: isAuto ? `Auto (${shortModelName})` : shortModelName,
+      isAuto,
+      fallbackOccurred: fallbackCount > 0,
+      latencyMs,
+      tokens: {
+        prompt: response?.usageMetadata?.promptTokenCount || 0,
+        output: response?.usageMetadata?.candidatesTokenCount || 0,
+        total: response?.usageMetadata?.totalTokenCount || 0,
+      }
     }
 
     const functionCalls = response.functionCalls
@@ -634,7 +657,8 @@ ${contextGuidance}
       return NextResponse.json({
         type: 'text_reply',
         message: response.text || 'AI 無法從您的指令識別需要執行的資料表變更操作，請嘗試更具體的描述。',
-        actionPayload: null
+        actionPayload: null,
+        meta
       })
     }
 
@@ -678,7 +702,8 @@ ${contextGuidance}
         actionPayload: {
           name: 'update_cells',
           args: callArgs
-        }
+        },
+        meta
       })
     }
 
@@ -702,7 +727,8 @@ ${contextGuidance}
         actionPayload: {
           name: 'create_rows',
           args: callArgs
-        }
+        },
+        meta
       })
     }
 
@@ -728,14 +754,16 @@ ${contextGuidance}
         actionPayload: {
           name: 'delete_rows',
           args: callArgs
-        }
+        },
+        meta
       })
     }
 
     return NextResponse.json({
       type: 'text_reply',
       message: response.text || '完成指令分析。',
-      actionPayload: null
+      actionPayload: null,
+      meta
     })
   } catch (error: any) {
     console.error('[AI Table Agent Error]:', error)

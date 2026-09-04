@@ -21,6 +21,8 @@ import {
   Maximize2,
   Minimize2,
   Zap,
+  Copy,
+  ChevronDown,
 } from 'lucide-react'
 import { getSocketId } from '@/lib/pusher-client'
 import type { DiffPreviewData } from './AiDiffModal'
@@ -43,6 +45,19 @@ export interface AiAssistantModalProps {
   sidebarWidth?: number
 }
 
+export interface ChatMessageMeta {
+  model?: string
+  displayModel?: string
+  isAuto?: boolean
+  fallbackOccurred?: boolean
+  latencyMs?: number
+  tokens?: {
+    prompt: number
+    output: number
+    total: number
+  }
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'model'
@@ -51,7 +66,16 @@ export interface ChatMessage {
   applied?: boolean
   error?: string | null
   timestamp: string
+  actionBadge?: string
+  meta?: ChatMessageMeta
 }
+
+export const MODEL_OPTIONS = [
+  { id: 'auto', name: 'Auto (自動智能切換)', badge: '推薦', desc: '優先使用 3.6 Flash，尖峰繁忙自動平滑容錯切換' },
+  { id: 'gemini-3.6-flash', name: 'Gemini 3.6 Flash', badge: '最新旗艦', desc: '新一代極速多模態模型，推理與工具精準度最高' },
+  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash', badge: '穩定平衡', desc: '成熟穩定架構，高輸出吞吐能力' },
+  { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite', badge: '輕量極速', desc: '超輕量高吞吐，適合極簡資料分析' },
+] as const
 
 const PRESET_PROMPTS = [
   '將所有尚未填寫組別的列設為「建興組」',
@@ -110,6 +134,22 @@ export function AiAssistantModal({
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null)
+  const [selectedModel, setSelectedModel] = useState<string>('auto')
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false)
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null)
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+
+  const handleCopyContent = (msgId: string, content: string) => {
+    if (!content) return
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(content).then(() => {
+        setCopiedMessageId(msgId)
+        setTimeout(() => {
+          setCopiedMessageId((prev) => (prev === msgId ? null : prev))
+        }, 2000)
+      }).catch(() => {})
+    }
+  }
 
   const [internalIsExpanded, setInternalIsExpanded] = useState(false)
   const isPanelExpanded = propIsExpanded !== undefined ? propIsExpanded : internalIsExpanded
@@ -209,6 +249,7 @@ export function AiAssistantModal({
           userPrompt: textToSend,
           messages: updatedHistory.map(m => ({ role: m.role, content: m.content })),
           mode: 'dry_run',
+          requestedModel: selectedModel,
           context: {
             selectedRowIds: activeSelectedRowIds.length > 0 ? activeSelectedRowIds : undefined,
             activeViewName: tableCtx?.views?.find(v => v.id === tableCtx?.activeViewId)?.name || (tableCtx?.currentView ? String(tableCtx.currentView) : undefined),
@@ -234,6 +275,14 @@ export function AiAssistantModal({
       }
 
       if (data.type === 'diff_preview') {
+        const actionBadge = data.action === 'update_cells'
+          ? `update_cells (${data.changes?.length || 0} 筆儲存格)`
+          : data.action === 'create_rows'
+          ? `create_rows (${data.newRows?.length || 0} 列)`
+          : data.action === 'delete_rows'
+          ? `delete_rows (${data.deletedRows?.length || 0} 列)`
+          : `run_diff: ${data.action || 'plan'}`
+
         setMessages(prev => [
           ...prev,
           {
@@ -243,6 +292,8 @@ export function AiAssistantModal({
             diff: data,
             applied: false,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            actionBadge,
+            meta: data.meta,
           },
         ])
       } else {
@@ -253,6 +304,8 @@ export function AiAssistantModal({
             role: 'model',
             content: data.message || '完成指令分析。',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            actionBadge: data.actionPayload ? `$ ${data.actionPayload.name}` : undefined,
+            meta: data.meta,
           },
         ])
       }
@@ -354,11 +407,129 @@ export function AiAssistantModal({
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
           <GeminiSparkleIcon size={18} isSpinning={loading} />
           <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b', letterSpacing: '-0.2px' }}>
             Gemini
           </span>
+
+          {/* Model Switcher Pill */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setIsModelDropdownOpen(prev => !prev)}
+              title="切換 AI 模型（預設支援自動智能切換與備援）"
+              aria-label="切換 AI 模型"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 7px',
+                borderRadius: '12px',
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                fontSize: '11px',
+                color: '#475569',
+                cursor: 'pointer',
+                fontWeight: 500,
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0' }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9' }}
+            >
+              <span>
+                {selectedModel === 'auto'
+                  ? 'Auto'
+                  : selectedModel === 'gemini-3.6-flash'
+                  ? '3.6 Flash'
+                  : selectedModel === 'gemini-3.5-flash'
+                  ? '3.5 Flash'
+                  : '3.1 Lite'}
+              </span>
+              <ChevronDown size={11} color="#64748b" />
+            </button>
+
+            <AnimatePresence>
+              {isModelDropdownOpen && (
+                <>
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 90 }}
+                    onClick={() => setIsModelDropdownOpen(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                    transition={{ duration: 0.15 }}
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 6px)',
+                      left: 0,
+                      width: '240px',
+                      backgroundColor: '#ffffff',
+                      borderRadius: '10px',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 10px 25px -4px rgba(15, 23, 42, 0.15), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
+                      padding: '5px',
+                      zIndex: 95,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                    }}
+                  >
+                    <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      模型架構選擇
+                    </div>
+                    {MODEL_OPTIONS.map((opt) => {
+                      const isSelected = selectedModel === opt.id
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedModel(opt.id)
+                            setIsModelDropdownOpen(false)
+                          }}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'flex-start',
+                            gap: '2px',
+                            padding: '6px 8px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            backgroundColor: isSelected ? '#f1f5f9' : 'transparent',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'background-color 0.1s',
+                            width: '100%',
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc'
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <span style={{ fontSize: '12px', fontWeight: isSelected ? 600 : 500, color: isSelected ? '#0f172a' : '#334155' }}>
+                              {opt.name}
+                            </span>
+                            <span style={{ fontSize: '9.5px', padding: '1px 5px', borderRadius: '4px', backgroundColor: isSelected ? '#dbeafe' : '#f1f5f9', color: isSelected ? '#1d4ed8' : '#64748b' }}>
+                              {opt.badge}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '10.5px', color: '#64748b' }}>
+                            {opt.desc}
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -580,9 +751,12 @@ export function AiAssistantModal({
               <span>{msg.timestamp}</span>
             </div>
 
-            {/* Bubble Content */}
+            {/* Bubble Container with Hover Telemetry Card */}
             <div
+              onMouseEnter={() => msg.role === 'model' && setHoveredMessageId(msg.id)}
+              onMouseLeave={() => setHoveredMessageId(null)}
               style={{
+                position: 'relative',
                 maxWidth: '92%',
                 borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                 padding: '10px 14px',
@@ -594,6 +768,100 @@ export function AiAssistantModal({
                 boxShadow: msg.role === 'user' ? '0 2px 6px rgba(15,23,42,0.12)' : '0 1px 2px rgba(0,0,0,0.02)',
               }}
             >
+              {/* Floating Dark Hover Telemetry Card (Shown when hovering over response content) */}
+              <AnimatePresence>
+                {hoveredMessageId === msg.id && msg.role === 'model' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.97 }}
+                    transition={{ duration: 0.15 }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 'calc(100% + 6px)',
+                      left: 0,
+                      zIndex: 40,
+                      width: '280px',
+                      maxWidth: '90vw',
+                      backgroundColor: '#0f172a',
+                      color: '#f8fafc',
+                      borderRadius: '8px',
+                      border: '1px solid #334155',
+                      padding: '10px 12px',
+                      boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.4)',
+                      fontSize: '11px',
+                      lineHeight: 1.5,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1e293b', paddingBottom: '6px', marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600, color: '#38bdf8' }}>
+                        <Zap size={12} />
+                        <span>執行指標與模型資訊</span>
+                      </div>
+                      <span style={{ fontSize: '10px', color: '#94a3b8', backgroundColor: '#1e293b', padding: '1px 5px', borderRadius: '4px' }}>
+                        {msg.meta?.isAuto ? '智能模式' : '指定模式'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', gap: '4px 8px', fontSize: '11px' }}>
+                      <span style={{ color: '#94a3b8' }}>使用模型:</span>
+                      <span style={{ color: '#e2e8f0', fontWeight: 600, fontFamily: 'monospace' }}>
+                        {msg.meta?.model || 'gemini-3.6-flash'}
+                      </span>
+
+                      <span style={{ color: '#94a3b8' }}>回應耗時:</span>
+                      <span style={{ color: '#34d399', fontWeight: 500 }}>
+                        {msg.meta?.latencyMs ? `${msg.meta.latencyMs} ms` : '快取即時回覆'}
+                      </span>
+
+                      <span style={{ color: '#94a3b8' }}>Token 統計:</span>
+                      <span style={{ color: '#e2e8f0' }}>
+                        {msg.meta?.tokens ? (
+                          <span>
+                            共 <strong style={{ color: '#60a5fa' }}>{msg.meta.tokens.total}</strong> ({msg.meta.tokens.prompt} in / {msg.meta.tokens.output} out)
+                          </span>
+                        ) : (
+                          '--'
+                        )}
+                      </span>
+
+                      <span style={{ color: '#94a3b8' }}>容錯狀態:</span>
+                      <span style={{ color: msg.meta?.fallbackOccurred ? '#f59e0b' : '#34d399' }}>
+                        {msg.meta?.fallbackOccurred ? '已自動平滑備援切換' : '最優模型正常服務'}
+                      </span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Action / Command Badge Pill (Terminal style matching reference image) */}
+              {msg.actionBadge && (
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: '#0f172a',
+                    color: '#f8fafc',
+                    fontFamily: 'var(--font-mono, monospace), ui-monospace, monospace',
+                    fontSize: '11px',
+                    marginBottom: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                    maxWidth: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={msg.actionBadge}
+                >
+                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>$</span>
+                  <span style={{ color: '#e2e8f0' }}>{msg.actionBadge}</span>
+                </div>
+              )}
+
               {msg.error ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ef4444' }}>
                   <AlertTriangle size={15} />
@@ -755,6 +1023,77 @@ export function AiAssistantModal({
                         </motion.button>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+              {/* Message Footer (As shown in reference image: Copy button on left, timestamp • model • tokens on right) */}
+              {msg.role === 'model' && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    paddingTop: '6px',
+                    borderTop: '1px solid #e2e8f0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '11px',
+                    color: '#94a3b8',
+                    userSelect: 'none',
+                  }}
+                >
+                  {/* Left: Copy button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleCopyContent(msg.id, msg.content)
+                    }}
+                    title={copiedMessageId === msg.id ? '已複製內容至剪貼簿！' : '複製內容'}
+                    aria-label="複製內容"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      background: 'transparent',
+                      border: 'none',
+                      color: copiedMessageId === msg.id ? '#16a34a' : '#94a3b8',
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      borderRadius: '4px',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (copiedMessageId !== msg.id) e.currentTarget.style.color = '#475569'
+                    }}
+                    onMouseLeave={(e) => {
+                      if (copiedMessageId !== msg.id) e.currentTarget.style.color = '#94a3b8'
+                    }}
+                  >
+                    {copiedMessageId === msg.id ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedMessageId === msg.id && <span style={{ fontSize: '10px' }}>已複製</span>}
+                  </button>
+
+                  {/* Right: Timestamp • Model • Credits/Tokens */}
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontSize: '10.5px',
+                      color: '#94a3b8',
+                      cursor: 'help',
+                    }}
+                    title="滑鼠懸停於回應內容上方可檢視詳細指標"
+                  >
+                    <span>{msg.timestamp}</span>
+                    <span>•</span>
+                    <span>{msg.meta?.displayModel || 'Auto (3.6-flash)'}</span>
+                    <span>•</span>
+                    <span>
+                      {msg.meta?.tokens?.total
+                        ? `${(msg.meta.tokens.total / 1000).toFixed(1)}k tokens`
+                        : '0.3 credits'}
+                    </span>
                   </div>
                 </div>
               )}
