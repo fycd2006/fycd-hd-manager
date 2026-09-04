@@ -264,7 +264,7 @@ ${JSON.stringify(parsedRows, null, 2)}
 
     const ai = new GoogleGenAI({ apiKey })
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: process.env.GEMINI_MODEL || 'gemini-flash-latest',
       contents: [
         {
           role: 'user',
