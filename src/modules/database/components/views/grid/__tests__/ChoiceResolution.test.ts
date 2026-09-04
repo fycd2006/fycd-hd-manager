@@ -3,6 +3,7 @@
  */
 
 import { resolveChoiceString, parseSelectItems } from '../cells/utils'
+import { formatCellForClipboard } from '../GridView'
 
 describe('Choice Resolution & Raw ID Leak Prevention', () => {
   beforeEach(() => {
@@ -71,4 +72,35 @@ describe('Choice Resolution & Raw ID Leak Prevention', () => {
     const items = parseSelectItems(['opt_1', 'opt_unknown99'], options)
     expect(items).toEqual(['Alpha'])
   })
+
+  it('formats select cells for clipboard into readable text instead of raw UUID JSON', () => {
+    const selectField = {
+      id: 10,
+      name: '邀約狀態',
+      type: 'single_select',
+      options: {
+        choices: [
+          { id: '2c268bb4-ad70-4e2a-ac2e-9e8bde1d2496', name: '初一十五' },
+          { id: 'opt_regular', name: '常態出席' }
+        ]
+      }
+    } as any
+
+    // Copying raw UUID string
+    expect(formatCellForClipboard('2c268bb4-ad70-4e2a-ac2e-9e8bde1d2496', selectField)).toBe('初一十五')
+    
+    // Copying raw JSON array of UUIDs (as stored in TiDB database row data)
+    expect(formatCellForClipboard('["2c268bb4-ad70-4e2a-ac2e-9e8bde1d2496"]', selectField)).toBe('初一十五')
+    expect(formatCellForClipboard(['2c268bb4-ad70-4e2a-ac2e-9e8bde1d2496'], selectField)).toBe('初一十五')
+
+    // Boolean field
+    const boolField = { id: 11, name: '已完成', type: 'boolean' } as any
+    expect(formatCellForClipboard(true, boolField)).toBe('是')
+    expect(formatCellForClipboard(false, boolField)).toBe('否')
+
+    // Standard text
+    const textField = { id: 12, name: '姓名', type: 'text' } as any
+    expect(formatCellForClipboard('王大明', textField)).toBe('王大明')
+  })
 })
+

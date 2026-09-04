@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import prisma, { withDbRetry } from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
 import { triggerTableEvent } from '@/lib/pusher-server'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
@@ -10,6 +10,8 @@ import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCasc
 import { syncBiDirectionalLinkRow, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
 import { createTableRow } from '@/modules/database/services/createRow'
 import { safeJsonParse } from '@/lib/json-utils'
+
+const runDb = typeof withDbRetry === 'function' ? withDbRetry : async <T>(fn: () => Promise<T>): Promise<T> => fn()
 
 const READONLY_TYPES = new Set([
   'formula',
@@ -163,10 +165,10 @@ export async function POST(request: Request) {
     if (errorResponse) return errorResponse
 
     // 2. Fetch table fields & field map
-    const fields = await prisma.tableField.findMany({
+    const fields = await runDb(() => prisma.tableField.findMany({
       where: { tableId: tid, deletedAt: null },
       orderBy: { order: 'asc' },
-    })
+    }))
 
     if (fields.length === 0) {
       return NextResponse.json({ error: '此資料表尚未建立任何欄位' }, { status: 400 })
@@ -203,7 +205,7 @@ export async function POST(request: Request) {
           updatesByRow.set(u.rowId, list)
         }
 
-        await prisma.$transaction(async (tx) => {
+        await runDb(() => prisma.$transaction(async (tx) => {
           for (const [rowId, rowUpdates] of updatesByRow.entries()) {
             const row = await tx.tableRow.findUnique({
               where: { id: rowId, tableId: tid, deletedAt: null }
@@ -315,7 +317,7 @@ export async function POST(request: Request) {
 
             updatedRowIds.add(rowId)
           }
-        })
+        }))
 
         // Run single-level cascade recomputations for modified rows
         for (const rid of updatedRowIds) {
@@ -414,12 +416,12 @@ export async function POST(request: Request) {
     }
 
     // Fetch compact existing rows snapshot (up to 60 active rows)
-    const existingRows = await prisma.tableRow.findMany({
+    const existingRows = await runDb(() => prisma.tableRow.findMany({
       where: { tableId: tid, deletedAt: null },
       take: 60,
       orderBy: { order: 'asc' },
       select: { id: true, data: true }
-    })
+    }))
 
     // Compact row data: omit empty/null cells to drastically reduce token payload and speed up LLM processing
     const parsedRows = existingRows.map(r => {
@@ -680,6 +682,8 @@ ${contextGuidance}
       userFriendlyMsg = 'Google AI 伺服器目前尖峰忙線中 (503 High Demand)，已嘗試自動備援重試。請稍候 3~5 秒後再次點擊送出。'
     } else if (raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED')) {
       userFriendlyMsg = 'Google AI 免費額度呼叫頻率已達上限 (429 Rate Limit)，請稍候 10 秒後重試。'
+    } else if (raw.includes("Can't reach database server") || raw.includes('P1001') || raw.includes('databaseTable') || raw.includes('prisma') || raw.includes('PrismaClient')) {
+      userFriendlyMsg = '資料庫連線因閒置暫時中斷，系統已為您重置連線池，請再次點擊送出。'
     } else if (error?.message) {
       userFriendlyMsg = error.message
     }

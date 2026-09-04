@@ -6,6 +6,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ChevronRight, ChevronDown, Plus, Trash2, X, Copy } from 'lucide-react';
 import { TableField, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '@/modules/database/types';
 import { getOptionColor, parseSelectItems, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils';
+import { parseLatestCommentEntries } from './cells/LatestCommentModal';
+import { formatDateValue } from '@/modules/database/utils';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -25,6 +27,84 @@ export interface GroupBadge {
   bg?: string;
   color?: string;
   border?: string;
+}
+
+export function formatCellForClipboard(val: any, field?: TableField | null, allFields?: TableField[]): string {
+  if (val === null || val === undefined || val === '') return '';
+
+  if (field) {
+    if (field.type === 'boolean' || typeof val === 'boolean') {
+      return val ? '是' : '否';
+    }
+
+    if (field.type === 'single_select' || field.type === 'multiple_select') {
+      const items = parseSelectItems(val, field.options);
+      if (items.length > 0) {
+        return items.join(', ');
+      }
+      if (allFields && allFields.length > 0) {
+        for (const f of allFields) {
+          if (f.id === field.id) continue;
+          const fallback = parseSelectItems(val, f.options);
+          if (fallback.length > 0) return fallback.join(', ');
+        }
+      }
+      return '';
+    }
+
+    if (field.type === 'latest_comment') {
+      const entries = parseLatestCommentEntries(val);
+      if (entries.length > 0) {
+        const latest = entries[entries.length - 1];
+        return latest.content || '';
+      }
+      if (typeof val === 'string' && !val.trim().startsWith('[')) return val.trim();
+      return '';
+    }
+
+    if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') {
+      return formatDateValue(val);
+    }
+  }
+
+  if (typeof val === 'boolean') {
+    return val ? '是' : '否';
+  }
+
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && field) {
+          const items = parseSelectItems(parsed, field.options);
+          if (items.length > 0) return items.join(', ');
+        }
+      } catch {}
+    }
+  }
+
+  if (Array.isArray(val)) {
+    if (field && (field.type === 'single_select' || field.type === 'multiple_select')) {
+      const items = parseSelectItems(val, field.options);
+      if (items.length > 0) return items.join(', ');
+    }
+    return val
+      .map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return item.content || item.name || item.title || item.value || (item.id ? `ID: ${item.id}` : '');
+        }
+        return String(item);
+      })
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  if (typeof val === 'object' && val !== null) {
+    return val.name || val.title || val.value || val.content || Object.values(val).join(', ');
+  }
+
+  return String(val);
 }
 
 export function parseGroupValue(
@@ -823,7 +903,8 @@ export const GridView: React.FC<GridViewProps> = ({
             const fk = `field_${field.id}`;
             const hasK = (row as any).data && fk in (row as any).data;
             const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
-            return String(val ?? '').replace(/\t/g, ' ').replace(/\n/g, ' ');
+            const text = formatCellForClipboard(val, field, fields);
+            return text.replace(/\t/g, ' ').replace(/\n/g, ' ');
           });
           lines.push(rowCells.join('\t'));
         }
@@ -839,9 +920,21 @@ export const GridView: React.FC<GridViewProps> = ({
           const fk = `field_${field.id}`;
           const hasK = (row as any).data && fk in (row as any).data;
           const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
-          rowCells.push(String(val ?? '').replace(/\t/g, ' ').replace(/\n/g, ' '));
+          const text = formatCellForClipboard(val, field, fields);
+          rowCells.push(text.replace(/\t/g, ' ').replace(/\n/g, ' '));
         }
         lines.push(rowCells.join('\t'));
+      }
+    } else if (selectedCell) {
+      const [r, c] = selectedCell;
+      const row = rows[r];
+      const field = fields[c];
+      if (row && field) {
+        const fk = `field_${field.id}`;
+        const hasK = (row as any).data && fk in (row as any).data;
+        const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
+        const text = formatCellForClipboard(val, field, fields);
+        lines.push(text.replace(/\t/g, ' ').replace(/\n/g, ' '));
       }
     }
     const tsv = lines.join('\n');
@@ -849,7 +942,7 @@ export const GridView: React.FC<GridViewProps> = ({
       navigator.clipboard.writeText(tsv);
       showToast('已複製資料至剪貼簿');
     }
-  }, [selectedRowIds, selectionBounds, rows, fields, showToast]);
+  }, [selectedRowIds, selectionBounds, selectedCell, rows, fields, showToast]);
 
   const handleClearSelectionValues = useCallback(() => {
     setIsEditing(false);

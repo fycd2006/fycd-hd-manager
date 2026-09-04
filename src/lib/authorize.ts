@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import prisma, { withDbRetry } from '@/lib/prisma'
 import { getSessionUser, SessionUser } from '@/lib/auth'
 import { getRolePermissions, RolePermissions } from '@/lib/permissions'
 import { getCache, setCache } from '@/lib/redis'
+
+const runDb = typeof withDbRetry === 'function' ? withDbRetry : async <T>(fn: () => Promise<T>): Promise<T> => fn()
 
 export interface AuthorizationResult {
   user: SessionUser
@@ -25,7 +27,10 @@ export async function authorizeAction(
 ): Promise<{ errorResponse?: NextResponse; auth?: AuthorizationResult }> {
   let user = await getSessionUser()
   if (!user && process.env.NODE_ENV === 'development') {
-    const devUser = await prisma.user.findFirst()
+    const devUser = await runDb(() => prisma.user.findFirst({
+      where: { role: 'admin' },
+      select: { id: true, username: true, email: true, role: true }
+    }))
     if (devUser) {
       user = {
         id: devUser.id,
@@ -45,10 +50,10 @@ export async function authorizeAction(
 
   // Resolve via tableId if workspaceId not provided
   if (!resolvedWorkspaceId && options.tableId) {
-    const table = await prisma.databaseTable.findFirst({
+    const table = await runDb(() => prisma.databaseTable.findFirst({
       where: { id: options.tableId, deletedAt: null },
       include: { database: true }
-    })
+    }))
     if (!table) {
       return {
         errorResponse: NextResponse.json({ error: '找不到對應的資料表' }, { status: 404 })
@@ -73,9 +78,9 @@ export async function authorizeAction(
 
   // Resolve via databaseId if workspaceId not provided
   if (!resolvedWorkspaceId && options.databaseId) {
-    const db = await prisma.database.findUnique({
+    const db = await runDb(() => prisma.database.findUnique({
       where: { id: options.databaseId }
-    })
+    }))
     if (db?.workspaceId) {
       resolvedWorkspaceId = db.workspaceId
     }
@@ -92,14 +97,14 @@ export async function authorizeAction(
   let roleStr = await getCache<string>(cacheKey)
 
   if (!roleStr) {
-    const workspaceUser = await prisma.workspaceUser.findUnique({
+    const workspaceUser = await runDb(() => prisma.workspaceUser.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId: resolvedWorkspaceId,
           userId: user.id
         }
       }
-    })
+    }))
 
     if (!workspaceUser && user.role !== 'admin') {
       return {
