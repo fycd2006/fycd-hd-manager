@@ -263,19 +263,47 @@ ${JSON.stringify(parsedRows, null, 2)}
 4. 如果使用者的需求無法透過上述工具達成，或只是在打招呼、提問，請直接以繁體中文回答，不需要呼叫任何工具。`
 
     const ai = new GoogleGenAI({ apiKey })
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || 'gemini-flash-latest',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: `${systemPrompt}\n\n使用者指令: "${userPrompt.trim()}"` }]
+    const candidateModels = Array.from(
+      new Set([
+        process.env.GEMINI_MODEL,
+        'gemini-flash-latest',
+        'gemini-2.5-flash-lite',
+        'gemini-3.6-flash'
+      ].filter(Boolean) as string[])
+    )
+
+    let response: any = null
+    let lastError: any = null
+
+    for (const modelName of candidateModels) {
+      try {
+        response = await ai.models.generateContent({
+          model: modelName,
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\n使用者指令: "${userPrompt.trim()}"` }]
+            }
+          ],
+          config: {
+            tools: [{ functionDeclarations: tableTools }],
+            temperature: 0.1
+          }
+        })
+        if (response) break
+      } catch (err: any) {
+        lastError = err
+        console.warn(`[AI Table Agent] Model ${modelName} encountered error, trying next fallback:`, err?.message || err)
+        const errMsg = String(err?.message || '')
+        if (errMsg.includes('503') || errMsg.includes('429') || errMsg.includes('UNAVAILABLE')) {
+          await new Promise(res => setTimeout(res, 600))
         }
-      ],
-      config: {
-        tools: [{ functionDeclarations: tableTools }],
-        temperature: 0.1
       }
-    })
+    }
+
+    if (!response) {
+      throw lastError || new Error('所有 AI 備援模型目前均連線異常，請稍後再試。')
+    }
 
     const functionCalls = response.functionCalls
     if (!functionCalls || functionCalls.length === 0) {
@@ -382,8 +410,19 @@ ${JSON.stringify(parsedRows, null, 2)}
     })
   } catch (error: any) {
     console.error('[AI Table Agent Error]:', error)
+    let raw = String(error?.message || '')
+    let userFriendlyMsg = 'AI 處理請求時發生錯誤，請稍後再試。'
+
+    if (raw.includes('503') || raw.includes('high demand') || raw.includes('UNAVAILABLE')) {
+      userFriendlyMsg = 'Google AI 伺服器目前尖峰忙線中 (503 High Demand)，已嘗試自動備援重試。請稍候 3~5 秒後再次點擊送出。'
+    } else if (raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED')) {
+      userFriendlyMsg = 'Google AI 免費額度呼叫頻率已達上限 (429 Rate Limit)，請稍候 10 秒後重試。'
+    } else if (error?.message) {
+      userFriendlyMsg = error.message
+    }
+
     return NextResponse.json({
-      error: error.message || 'AI 處理請求時發生錯誤，請稍後再試。'
+      error: userFriendlyMsg
     }, { status: 500 })
   }
 }
