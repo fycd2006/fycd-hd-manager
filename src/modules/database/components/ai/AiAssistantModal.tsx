@@ -16,10 +16,13 @@ import {
   Plus,
   Table,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Pin,
+  PinOff
 } from 'lucide-react'
 import { getSocketId } from '@/lib/pusher-client'
 import type { DiffPreviewData } from './AiDiffModal'
+import { useOptionalTableContext } from '@/modules/database/context/TableContext'
 
 export interface AiAssistantModalProps {
   tableId: number | null
@@ -28,6 +31,7 @@ export interface AiAssistantModalProps {
   onApplySuccess?: () => void
   fetchTableData?: (tableId: number) => Promise<void>
   addToast?: (msg: string, type: 'success' | 'error' | 'info') => void
+  selectedRowIds?: number[]
 }
 
 export interface ChatMessage {
@@ -75,12 +79,33 @@ export function AiAssistantModal({
   onApplySuccess,
   fetchTableData,
   addToast = () => {},
+  selectedRowIds = [],
 }: AiAssistantModalProps) {
+  const tableCtx = useOptionalTableContext()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null)
   const [isPanelExpanded, setIsPanelExpanded] = useState(false)
+  const [isDocked, setIsDocked] = useState(true)
+  const [clearSelectionFocus, setClearSelectionFocus] = useState(false)
+
+  // Active selected rows priority: prop selectedRowIds -> tableCtx.selectedRow
+  const activeSelectedRowIds: number[] = React.useMemo(() => {
+    if (clearSelectionFocus) return []
+    if (selectedRowIds && selectedRowIds.length > 0) return selectedRowIds
+    if (tableCtx?.selectedRow?.id) return [tableCtx.selectedRow.id]
+    return []
+  }, [clearSelectionFocus, selectedRowIds, tableCtx?.selectedRow?.id])
+
+  // If a new row is selected in the table, re-enable focus
+  const prevSelectedRowIdRef = useRef<number | null | undefined>(tableCtx?.selectedRow?.id)
+  useEffect(() => {
+    if (tableCtx?.selectedRow?.id !== prevSelectedRowIdRef.current) {
+      prevSelectedRowIdRef.current = tableCtx?.selectedRow?.id
+      setClearSelectionFocus(false)
+    }
+  }, [tableCtx?.selectedRow?.id])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -153,6 +178,10 @@ export function AiAssistantModal({
           userPrompt: textToSend,
           messages: updatedHistory.map(m => ({ role: m.role, content: m.content })),
           mode: 'dry_run',
+          context: {
+            selectedRowIds: activeSelectedRowIds.length > 0 ? activeSelectedRowIds : undefined,
+            activeViewName: tableCtx?.views?.find(v => v.id === tableCtx?.activeViewId)?.name || (tableCtx?.currentView ? String(tableCtx.currentView) : undefined),
+          },
         }),
       })
 
@@ -275,15 +304,16 @@ export function AiAssistantModal({
         bottom: 0,
         left: 0,
         zIndex: 99999999,
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
-        backdropFilter: 'blur(3px)',
-        WebkitBackdropFilter: 'blur(3px)',
+        backgroundColor: isDocked ? 'transparent' : 'rgba(15, 23, 42, 0.4)',
+        backdropFilter: isDocked ? 'none' : 'blur(3px)',
+        WebkitBackdropFilter: isDocked ? 'none' : 'blur(3px)',
+        pointerEvents: isDocked ? 'none' : 'auto',
         display: 'flex',
         justifyContent: 'flex-end',
         transition: 'all 0.2s ease',
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !loading && !applyingMessageId) onClose()
+        if (!isDocked && e.target === e.currentTarget && !loading && !applyingMessageId) onClose()
       }}
     >
       {/* Gemini Side Drawer / Panel */}
@@ -293,9 +323,11 @@ export function AiAssistantModal({
           maxWidth: '100%',
           height: '100%',
           backgroundColor: '#ffffff',
-          boxShadow: '-6px 0 25px rgba(0, 0, 0, 0.15)',
+          boxShadow: isDocked ? '-4px 0 25px rgba(0, 0, 0, 0.12)' : '-6px 0 25px rgba(0, 0, 0, 0.15)',
+          borderLeft: '1px solid #e2e8f0',
           display: 'flex',
           flexDirection: 'column',
+          pointerEvents: 'auto',
           transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
           animation: 'geminiPanelSlide 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
@@ -351,6 +383,32 @@ export function AiAssistantModal({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* Dock / Pin Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setIsDocked(prev => !prev)}
+              title={isDocked ? '目前為側邊欄模式 (不遮蔽左側表格，可邊看邊問) - 點擊切換為遮罩對話框' : '目前為遮罩對話框 - 點擊釘選為側邊欄 (邊看邊問)'}
+              style={{
+                background: isDocked ? '#f0fdf4' : '#f8fafc',
+                border: isDocked ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '6px 9px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '12px',
+                color: isDocked ? '#166534' : '#475569',
+                fontWeight: 500,
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = isDocked ? '#dcfce7' : '#f1f5f9')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isDocked ? '#f0fdf4' : '#f8fafc')}
+            >
+              {isDocked ? <Pin size={13} /> : <PinOff size={13} />}
+              <span>{isDocked ? '已釘選側欄' : '浮動'}</span>
+            </button>
+
             {/* New Chat Button */}
             <button
               type="button"
@@ -748,6 +806,54 @@ export function AiAssistantModal({
             gap: '8px',
           }}
         >
+          {/* Active Selection Context Pill */}
+          {activeSelectedRowIds.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '5px 12px',
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                fontSize: '12px',
+                color: '#166534',
+                animation: 'fadeIn 0.15s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <CheckCircle2 size={13} color="#16a34a" />
+                <span>
+                  <strong>已鎖定選取範圍：</strong>
+                  {activeSelectedRowIds.length === 1
+                    ? `資料列 #${activeSelectedRowIds[0]}`
+                    : `共 ${activeSelectedRowIds.length} 筆選取列 (#${activeSelectedRowIds.slice(0, 3).join(', #')}${activeSelectedRowIds.length > 3 ? '...' : ''})`}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClearSelectionFocus(true)}
+                title="取消限定，對全表操作"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#15803d',
+                  padding: '2px 4px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  fontSize: '11px',
+                }}
+              >
+                <span>取消鎖定</span>
+                <X size={12} />
+              </button>
+            </div>
+          )}
+
           <div
             style={{
               position: 'relative',

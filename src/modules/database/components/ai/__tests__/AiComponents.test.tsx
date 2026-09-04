@@ -158,4 +158,34 @@ describe('AiAssistantModal & Components', () => {
     fireEvent.click(screen.getByText('確認套用變更'))
     expect(onConfirm).toHaveBeenCalledTimes(1)
   })
+
+  it('renders AiAssistantModal in docked mode and displays selection pill', () => {
+    const onClose = jest.fn()
+    render(
+      <AiAssistantModal
+        tableId={1}
+        isOpen={true}
+        onClose={onClose}
+        selectedRowIds={[101, 102]}
+      />
+    )
+
+    // Verify docked toggle exists
+    const dockBtn = screen.getByText('已釘選側欄')
+    expect(dockBtn).toBeInTheDocument()
+
+    // Toggle to floating modal mode
+    fireEvent.click(dockBtn)
+    expect(screen.getByText('浮動')).toBeInTheDocument()
+
+    // Verify selection pill displays
+    expect(screen.getByText(/已鎖定選取範圍/i)).toBeInTheDocument()
+    expect(screen.getByText(/共 2 筆選取列/i)).toBeInTheDocument()
+
+    // Cancel selection focus
+    const cancelBtn = screen.getByText('取消鎖定')
+    fireEvent.click(cancelBtn)
+    expect(screen.queryByText(/已鎖定選取範圍/i)).not.toBeInTheDocument()
+  })
 })
+

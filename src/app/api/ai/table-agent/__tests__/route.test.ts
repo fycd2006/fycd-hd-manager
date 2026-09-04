@@ -574,4 +574,52 @@ describe('POST /api/ai/table-agent', () => {
       newValue: '已於今日下午完成簽核',
     })
   })
+
+  it('injects selection context into model systemPrompt when context.selectedRowIds is provided', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '姓名', type: 'text', order: 0 },
+      { id: 2, name: '狀態', type: 'text', order: 1 },
+    ])
+    ;(prisma.tableRow.findMany as jest.Mock).mockResolvedValue([
+      { id: 201, data: JSON.stringify({ field_1: '王小明', field_2: '進行中' }) },
+      { id: 202, data: JSON.stringify({ field_1: '陳美麗', field_2: '待處理' }) },
+    ])
+
+    mockGenerateContent.mockResolvedValue({
+      functionCalls: [
+        {
+          name: 'update_cells',
+          args: {
+            reason: '將選取的資料列狀態改為已完成',
+            updates: [{ rowId: 202, fieldKey: 'field_2', value: '已完成' }],
+          },
+        },
+      ],
+    })
+
+    const req = new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        userPrompt: '把選中的這筆改為已完成',
+        mode: 'dry_run',
+        context: {
+          selectedRowIds: [202],
+          activeFieldKey: 'field_2',
+        },
+      }),
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+
+    expect(mockGenerateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          systemInstruction: expect.stringContaining('使用者當前在畫面中框選/鎖定的目標資料列 (共 1 列)'),
+        }),
+      })
+    )
+  })
 })
+

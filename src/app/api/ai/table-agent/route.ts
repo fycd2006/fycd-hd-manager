@@ -151,7 +151,7 @@ const tableTools: any[] = [
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { tableId, userPrompt, messages = [], mode = 'dry_run', confirmedAction, socketId } = body
+    const { tableId, userPrompt, messages = [], mode = 'dry_run', confirmedAction, socketId, context } = body
     const tid = Number(tableId)
 
     if (isNaN(tid)) {
@@ -455,10 +455,28 @@ export async function POST(request: Request) {
         isReadOnly: READONLY_TYPES.has(f.type),
         optionsChoices: choicesList.map((c: any) => ({
           id: c.id,
-          name: c.name || c.label || c.value
+                        name: c.name || c.label || c.value
         }))
       }
     })
+
+    let contextGuidance = ''
+    if (context?.selectedRowIds && Array.isArray(context.selectedRowIds) && context.selectedRowIds.length > 0) {
+      const selectedIdSet = new Set(context.selectedRowIds.map((id: any) => Number(id)))
+      const matchedRows = parsedRows.filter(r => selectedIdSet.has(r.id))
+      if (matchedRows.length > 0) {
+        contextGuidance += `\n【使用者當前在畫面中框選/鎖定的目標資料列 (共 ${matchedRows.length} 列)】：\n${JSON.stringify(matchedRows)}\n特別規則：當使用者的指令提及「選取的」、「這幾筆」、「被勾選的」、「此列」或未特別指定範圍但上下文暗示當前項目時，請優先且僅針對上述選取的資料列進行操作。\n`
+      }
+    }
+    if (context?.activeFieldKey) {
+      const targetF = fieldMap.get(context.activeFieldKey)
+      if (targetF) {
+        contextGuidance += `\n【使用者目前游標聚焦的欄位】：${targetF.name} (${context.activeFieldKey})\n`
+      }
+    }
+    if (context?.activeViewName) {
+      contextGuidance += `\n【使用者當前檢視表 (View)】：${context.activeViewName}\n`
+    }
 
     const systemPrompt = `你是一個專業的高效資料庫自動化 AI 助理。
 欄位定義 (Schema):
@@ -466,6 +484,7 @@ ${JSON.stringify(schemaDetails)}
 
 資料快照 (id 為 rowId，欄位對應 fieldKey):
 ${JSON.stringify(parsedRows)}
+${contextGuidance}
 
 【操作原則】
 1. 請嚴格根據使用者指令呼叫最適當的工具 (update_cells, create_rows, 或 delete_rows)。

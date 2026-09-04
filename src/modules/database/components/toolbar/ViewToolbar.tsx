@@ -83,6 +83,7 @@ interface ViewToolbarProps {
   tableId?: number | null
   fetchTableData?: (tableId: number) => Promise<void>
   addToast?: (message: string, type: 'success' | 'error' | 'info') => void
+  selectedRowIds?: number[]
 }
 
 export function ViewToolbar({
@@ -133,6 +134,7 @@ export function ViewToolbar({
   tableId,
   fetchTableData,
   addToast,
+  selectedRowIds,
 }: ViewToolbarProps) {
   const { t } = useI18n()
 
@@ -1116,6 +1118,7 @@ export function ViewToolbar({
         onClose={() => setShowAiModal(false)}
         fetchTableData={fetchTableData}
         addToast={addToast}
+        selectedRowIds={selectedRowIds}
       />
 
       {/* View Switcher Bottom Sheet / Popover Portal */}
