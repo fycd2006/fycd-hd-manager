@@ -216,20 +216,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '請輸入指令內容' }, { status: 400 })
     }
 
-    // Fetch existing rows snapshot (up to 200 rows)
+    // Fetch compact existing rows snapshot (up to 60 active rows)
     const existingRows = await prisma.tableRow.findMany({
       where: { tableId: tid, deletedAt: null },
-      take: 200,
+      take: 60,
       orderBy: { order: 'asc' },
-      select: { id: true, data: true, order: true }
+      select: { id: true, data: true }
     })
 
+    // Compact row data: omit empty/null cells to drastically reduce token payload and speed up LLM processing
     const parsedRows = existingRows.map(r => {
       const dataObj = typeof r.data === 'string' ? JSON.parse(r.data) : (r.data as any || {})
-      return { id: r.id, ...dataObj }
+      const compactRow: Record<string, any> = { id: r.id }
+      for (const [k, v] of Object.entries(dataObj)) {
+        if (v !== null && v !== undefined && v !== '') {
+          compactRow[k] = v
+        }
+      }
+      return compactRow
     })
 
-    // Prepare clean schema explanation for the model
+    // Prepare clean, compact schema explanation
     const schemaDetails = fields.map(f => {
       let choicesList: any[] = []
       if (f.type === 'single_select' || f.type === 'multiple_select') {
@@ -250,11 +257,11 @@ export async function POST(request: Request) {
     })
 
     const systemPrompt = `你是一個專業的高效資料庫自動化 AI 助理。
-使用者的資料表欄位定義 (Schema) 如下：
-${JSON.stringify(schemaDetails, null, 2)}
+欄位定義 (Schema):
+${JSON.stringify(schemaDetails)}
 
-現有資料列 (最多 200 筆快照，id 代表 rowId，欄位對應 fieldKey)：
-${JSON.stringify(parsedRows, null, 2)}
+資料快照 (id 為 rowId，欄位對應 fieldKey):
+${JSON.stringify(parsedRows)}
 
 【操作原則】
 1. 請嚴格根據使用者指令呼叫最適當的工具 (update_cells, create_rows, 或 delete_rows)。
@@ -266,8 +273,8 @@ ${JSON.stringify(parsedRows, null, 2)}
     const candidateModels = Array.from(
       new Set([
         process.env.GEMINI_MODEL,
-        'gemini-flash-latest',
-        'gemini-2.5-flash-lite',
+        'gemini-3.1-flash-lite-preview',
+        'gemini-3.5-flash',
         'gemini-3.6-flash'
       ].filter(Boolean) as string[])
     )
