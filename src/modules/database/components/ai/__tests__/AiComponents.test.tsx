@@ -171,12 +171,12 @@ describe('AiAssistantModal & Components', () => {
     )
 
     // Verify docked toggle exists
-    const dockBtn = screen.getByText('已釘選側欄')
+    const dockBtn = screen.getByTitle('已釘選側欄')
     expect(dockBtn).toBeInTheDocument()
 
     // Toggle to floating modal mode
     fireEvent.click(dockBtn)
-    expect(screen.getByText('浮動')).toBeInTheDocument()
+    expect(screen.getByTitle('浮動')).toBeInTheDocument()
 
     // Verify selection pill displays
     expect(screen.getByText(/已鎖定選取範圍/i)).toBeInTheDocument()

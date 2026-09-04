@@ -338,7 +338,7 @@ export function AiAssistantModal({
         overflow: 'hidden',
       }}
     >
-      {/* Top Header (Aligned with 52px Toolbar) */}
+      {/* Top Header (Aligned with 52px Toolbar, Gemini minimal style) */}
       <div
         style={{
           height: '52px',
@@ -355,88 +355,65 @@ export function AiAssistantModal({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '8px',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            }}
-          >
-            <GeminiSparkleIcon size={16} isSpinning={loading} />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>
-              Gemini
-            </span>
-            <span
-              style={{
-                fontSize: '10.5px',
-                fontWeight: 600,
-                padding: '1px 5px',
-                borderRadius: '5px',
-                background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
-                color: '#6366f1',
-                border: '1px solid #e0e7ff',
-              }}
-            >
-              表格助理
-            </span>
-          </div>
+          <GeminiSparkleIcon size={18} isSpinning={loading} />
+          <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b', letterSpacing: '-0.2px' }}>
+            Gemini
+          </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {/* Dock / Pin Toggle Button */}
-          <button
-            type="button"
-            onClick={handleToggleDock}
-            title={isDocked ? '切換為浮動遮罩對話框' : '釘選為右側邊欄 (邊看表邊對話，不遮蔽表格)'}
-            style={{
-              background: isDocked ? '#f0fdf4' : '#f8fafc',
-              border: isDocked ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
-              borderRadius: '6px',
-              padding: '4px 6px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              fontSize: '11px',
-              color: isDocked ? '#166534' : '#475569',
-              fontWeight: 500,
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {isDocked ? <Pin size={11} /> : <PinOff size={11} />}
-            <span>{isDocked ? '已釘選側欄' : '浮動'}</span>
-          </button>
-
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
           {/* New Chat Button */}
           <button
             type="button"
             onClick={handleNewChat}
-            title="開啟新對話 (重置上下文)"
+            title="新對話"
+            aria-label="新對話"
             style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: 'transparent',
+              border: 'none',
               borderRadius: '6px',
-              padding: '4px 6px',
+              width: '30px',
+              height: '30px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '3px',
-              fontSize: '11px',
-              color: '#475569',
-              fontWeight: 500,
+              justifyContent: 'center',
+              color: '#64748b',
               transition: 'all 0.15s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#1e293b'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
           >
-            <RotateCcw size={11} />
-            <span>新對話</span>
+            <RotateCcw size={15} />
+          </button>
+
+          {/* Dock / Pin Toggle Button */}
+          <button
+            type="button"
+            onClick={handleToggleDock}
+            title={isDocked ? '已釘選側欄' : '浮動'}
+            aria-label={isDocked ? '已釘選側欄' : '浮動'}
+            style={{
+              background: isDocked ? '#f0fdf4' : 'transparent',
+              border: isDocked ? '1px solid #bbf7d0' : 'none',
+              borderRadius: '6px',
+              width: '30px',
+              height: '30px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: isDocked ? '#16a34a' : '#64748b',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!isDocked) { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#1e293b'; }
+            }}
+            onMouseLeave={(e) => {
+              if (!isDocked) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b'; }
+            }}
+          >
+            {isDocked ? <Pin size={15} /> : <PinOff size={15} />}
           </button>
 
           {/* Expand / Narrow Width toggle */}
@@ -444,19 +421,24 @@ export function AiAssistantModal({
             type="button"
             onClick={handleToggleExpand}
             title={isPanelExpanded ? '縮小側欄 (360px)' : '加寬側欄 (460px)'}
+            aria-label={isPanelExpanded ? '縮小側欄' : '加寬側欄'}
             style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: 'transparent',
+              border: 'none',
               cursor: 'pointer',
               color: '#64748b',
-              padding: '5px',
+              width: '30px',
+              height: '30px',
               borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'all 0.15s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#1e293b'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
           >
-            {isPanelExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            {isPanelExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
 
           {/* Close Button */}
@@ -464,19 +446,24 @@ export function AiAssistantModal({
             type="button"
             onClick={onClose}
             title="關閉側邊欄 (Esc)"
+            aria-label="關閉側邊欄"
             style={{
-              background: 'none',
+              background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               color: '#64748b',
-              padding: '5px',
+              width: '30px',
+              height: '30px',
               borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'all 0.15s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.color = '#1e293b'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#64748b'; }}
           >
-            <X size={16} />
+            <X size={17} />
           </button>
         </div>
       </div>
