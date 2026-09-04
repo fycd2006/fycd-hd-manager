@@ -338,69 +338,59 @@ export function AiAssistantModal({
         overflow: 'hidden',
       }}
     >
-      {/* Top Header */}
+      {/* Top Header (Aligned with 52px Toolbar) */}
       <div
         style={{
-          padding: '12px 18px',
-          borderBottom: '1px solid #edf2f7',
+          height: '52px',
+          minHeight: '52px',
+          maxHeight: '52px',
+          padding: '0 12px',
+          borderBottom: '1px solid #e2e8f0',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           background: '#ffffff',
+          boxSizing: 'border-box',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div
             style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '10px',
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
               backgroundColor: '#f8fafc',
               border: '1px solid #e2e8f0',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
             }}
           >
-            <GeminiSparkleIcon size={18} isSpinning={loading} />
+            <GeminiSparkleIcon size={16} isSpinning={loading} />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e293b' }}>
-                Gemini
-              </span>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  padding: '1px 6px',
-                  borderRadius: '6px',
-                  background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
-                  color: '#6366f1',
-                  border: '1px solid #e0e7ff',
-                }}
-              >
-                表格智慧助理
-              </span>
-              <span
-                style={{
-                  fontSize: '10.5px',
-                  color: '#94a3b8',
-                  padding: '1px 5px',
-                  borderRadius: '4px',
-                  backgroundColor: '#f1f5f9',
-                  fontWeight: 500,
-                }}
-              >
-                2.0 Flash
-              </span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#1e293b' }}>
+              Gemini
+            </span>
+            <span
+              style={{
+                fontSize: '10.5px',
+                fontWeight: 600,
+                padding: '1px 5px',
+                borderRadius: '5px',
+                background: 'linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%)',
+                color: '#6366f1',
+                border: '1px solid #e0e7ff',
+              }}
+            >
+              表格助理
+            </span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           {/* Dock / Pin Toggle Button */}
           <button
             type="button"
@@ -409,19 +399,19 @@ export function AiAssistantModal({
             style={{
               background: isDocked ? '#f0fdf4' : '#f8fafc',
               border: isDocked ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
-              borderRadius: '8px',
-              padding: '5px 8px',
+              borderRadius: '6px',
+              padding: '4px 6px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              fontSize: '12px',
+              gap: '3px',
+              fontSize: '11px',
               color: isDocked ? '#166534' : '#475569',
               fontWeight: 500,
               transition: 'all 0.15s ease',
             }}
           >
-            {isDocked ? <Pin size={12} /> : <PinOff size={12} />}
+            {isDocked ? <Pin size={11} /> : <PinOff size={11} />}
             <span>{isDocked ? '已釘選側欄' : '浮動'}</span>
           </button>
 
@@ -433,19 +423,19 @@ export function AiAssistantModal({
             style={{
               background: '#f8fafc',
               border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              padding: '5px 8px',
+              borderRadius: '6px',
+              padding: '4px 6px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '4px',
-              fontSize: '12px',
+              gap: '3px',
+              fontSize: '11px',
               color: '#475569',
               fontWeight: 500,
               transition: 'all 0.15s ease',
             }}
           >
-            <RotateCcw size={12} />
+            <RotateCcw size={11} />
             <span>新對話</span>
           </button>
 
@@ -453,40 +443,40 @@ export function AiAssistantModal({
           <button
             type="button"
             onClick={handleToggleExpand}
-            title={isPanelExpanded ? '縮小側欄 (460px)' : '加寬側欄 (620px)'}
+            title={isPanelExpanded ? '縮小側欄 (360px)' : '加寬側欄 (460px)'}
             style={{
               background: '#f8fafc',
               border: '1px solid #e2e8f0',
               cursor: 'pointer',
               color: '#64748b',
-              padding: '5px 7px',
-              borderRadius: '8px',
+              padding: '5px',
+              borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            {isPanelExpanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+            {isPanelExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
           </button>
 
           {/* Close Button */}
           <button
             type="button"
             onClick={onClose}
-            title="關閉 (Esc)"
+            title="關閉側邊欄 (Esc)"
             style={{
               background: 'none',
               border: 'none',
               cursor: 'pointer',
               color: '#64748b',
               padding: '5px',
-              borderRadius: '8px',
+              borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <X size={17} />
+            <X size={16} />
           </button>
         </div>
       </div>
@@ -536,34 +526,33 @@ export function AiAssistantModal({
             </motion.div>
 
             <div>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>
+              <h3 style={{ margin: 0, fontSize: '14.5px', fontWeight: 700, color: '#0f172a' }}>
                 今天想如何調整資料表？
               </h3>
-              <p style={{ margin: '6px 0 0 0', fontSize: '12.5px', color: '#64748b', lineHeight: 1.5, maxWidth: '340px' }}>
+              <p style={{ margin: '4px 0 0 0', fontSize: '11.5px', color: '#64748b', lineHeight: 1.4, maxWidth: '300px' }}>
                 Gemini 可以協助批次修改儲存格、自動補齊、填寫留言紀錄或快速統計。
               </p>
             </div>
 
-            {/* Quick Inspiration Chips */}
-            <div style={{ width: '100%', marginTop: '6px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', textAlign: 'left', marginBottom: '8px', paddingLeft: '4px' }}>
+            <div style={{ width: '100%', marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px', textAlign: 'left' }}>
                 常用範例提示詞：
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {PRESET_PROMPTS.map((prompt, idx) => (
                   <motion.button
                     key={idx}
                     type="button"
-                    whileHover={{ y: -1.5, scale: 1.01 }}
+                    whileHover={{ y: -1, scale: 1.005 }}
                     whileTap={{ scale: 0.99 }}
                     onClick={() => handleSendMessage(prompt)}
                     style={{
                       background: '#f8fafc',
                       border: '1px solid #e2e8f0',
-                      borderRadius: '10px',
-                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
                       textAlign: 'left',
-                      fontSize: '12.5px',
+                      fontSize: '11.5px',
                       color: '#334155',
                       cursor: 'pointer',
                       display: 'flex',
@@ -574,7 +563,7 @@ export function AiAssistantModal({
                     }}
                   >
                     <span>{prompt}</span>
-                    <ChevronRight size={13} color="#94a3b8" />
+                    <ChevronRight size={12} color="#94a3b8" />
                   </motion.button>
                 ))}
               </div>
@@ -973,7 +962,7 @@ export function AiAssistantModal({
           top: 0,
           right: 0,
           bottom: 0,
-          width: `${sidebarWidth || (isPanelExpanded ? 620 : 460)}px`,
+          width: `${sidebarWidth || (isPanelExpanded ? 460 : 360)}px`,
           zIndex: 25,
           display: 'flex',
           flexDirection: 'column',
@@ -1016,7 +1005,7 @@ export function AiAssistantModal({
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
         style={{
-          width: isPanelExpanded ? '620px' : '460px',
+          width: isPanelExpanded ? '460px' : '360px',
           maxWidth: '100%',
           height: '100%',
           backgroundColor: '#ffffff',

@@ -219,7 +219,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  const aiWidth = !isMobile && isAiOpen && isAiDocked ? (isAiExpanded ? 620 : 460) : 0
+  const aiWidth = !isMobile && isAiOpen && isAiDocked ? (isAiExpanded ? 460 : 360) : 0
 
   return (
     <>

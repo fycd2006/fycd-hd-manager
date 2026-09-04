@@ -721,36 +721,65 @@ export function ViewToolbar({
         </nav>
       ) : (
         /* Desktop Top Header Toolbar (>= 768px) */
-        <header className="layout__col-2-1 header" ref={headerToolbarRef} style={{ height: '52px', minHeight: '52px', maxHeight: '52px', display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', boxSizing: 'border-box', zIndex: 1000, overflowX: 'auto', overflowY: 'visible' }}>
-          {/* Sidebar Toggle Button (Shown only when sidebar is collapsed) */}
-          {isSidebarCollapsed && (
-            <button
-              type="button"
-              title={t('nav.expandSidebar') || '展開側邊欄'}
-              onClick={() => setIsSidebarCollapsed(false)}
-              style={{
-                border: 'none',
-                background: '#f0fdf4',
-                color: '#059669',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px',
-                borderRadius: '6px',
-                marginRight: '8px',
-                flexShrink: 0,
-                transition: 'all 0.15s ease',
-              }}
-              className="hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
-            >
-              <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
-            </button>
-          )}
+        <header
+          className="layout__col-2-1 header"
+          ref={headerToolbarRef}
+          style={{
+            height: '52px',
+            minHeight: '52px',
+            maxHeight: '52px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 10px 0 12px',
+            borderBottom: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-secondary)',
+            boxSizing: 'border-box',
+            zIndex: 1000,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Left scrollable tool actions */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              minWidth: 0,
+              flex: '1 1 auto',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+            {/* Sidebar Toggle Button (Shown only when sidebar is collapsed) */}
+            {isSidebarCollapsed && (
+              <button
+                type="button"
+                title={t('nav.expandSidebar') || '展開側邊欄'}
+                onClick={() => setIsSidebarCollapsed(false)}
+                style={{
+                  border: 'none',
+                  background: '#f0fdf4',
+                  color: '#059669',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '6px',
+                  marginRight: '8px',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease',
+                }}
+                className="hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
+              >
+                <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
+              </button>
+            )}
 
-          <ul className="header__filter" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-            <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+            <ul className="header__filter" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
               <a 
                 className="header__filter-link active" 
                 data-highlight="views"
@@ -1013,10 +1042,26 @@ export function ViewToolbar({
                 <span>{t('toolbar.redo')}</span>
               </button>
             </li>
+          </ul>
+          </div>
 
-            <li className="header__filter-item header__filter-item--right">
+          {/* Right pinned action items (Search + AI 助手 + LangPicker) - NEVER clipped */}
+          <ul
+            className="header__filter"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              margin: 0,
+              padding: 0,
+              listStyle: 'none',
+              flexShrink: 0,
+              marginLeft: 'auto',
+              gap: '6px',
+            }}
+          >
+            <li className="header__filter-item" style={{ margin: 0 }}>
               <div className="header__search" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Search size={14} style={{ position: 'absolute', left: '12px', color: '#64748b', pointerEvents: 'none' }} />
+                <Search size={14} style={{ position: 'absolute', left: '10px', color: '#64748b', pointerEvents: 'none' }} />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -1025,25 +1070,27 @@ export function ViewToolbar({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{ 
-                    width: searchQuery ? '240px' : '200px', 
-                    padding: '7px 28px 7px 32px', 
-                    borderRadius: '10px', 
+                    width: searchQuery ? '170px' : '130px', 
+                    minWidth: '90px',
+                    maxWidth: '170px',
+                    padding: '6px 24px 6px 28px', 
+                    borderRadius: '8px', 
                     border: '1px solid #cbd5e1', 
-                    fontSize: '13px', 
+                    fontSize: '12px', 
                     backgroundColor: '#ffffff',
                     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                     outline: 'none',
-                    boxShadow: '0 1px 3px rgba(15,23,42,0.05)'
+                    boxShadow: '0 1px 2px rgba(15,23,42,0.04)'
                   }}
                   onFocus={(e) => {
                     e.currentTarget.style.borderColor = '#3F6212';
-                    e.currentTarget.style.boxShadow = '0 0 0 3.5px rgba(63, 98, 18,0.14)';
-                    e.currentTarget.style.width = '240px';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)';
+                    e.currentTarget.style.width = '170px';
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = '#cbd5e1';
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(15,23,42,0.05)';
-                    if (!searchQuery) e.currentTarget.style.width = '200px';
+                    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04)';
+                    if (!searchQuery) e.currentTarget.style.width = '130px';
                   }}
                 />
                 {searchQuery ? (
@@ -1076,7 +1123,7 @@ export function ViewToolbar({
             </li>
 
             {/* AI Assistant Button */}
-            <li className="header__filter-item" style={{ position: 'relative', marginLeft: '6px', display: 'flex', alignItems: 'center' }}>
+            <li className="header__filter-item" style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
               <button
                 type="button"
                 onClick={handleToggleAi}
@@ -1084,25 +1131,26 @@ export function ViewToolbar({
                 style={{
                   background: isAiActive ? 'linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)' : '#f5f3ff',
                   border: isAiActive ? 'none' : '1px solid #ddd6fe',
-                  padding: '6px 12px',
-                  borderRadius: '9px',
+                  padding: '5px 10px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   color: isAiActive ? '#ffffff' : '#7c3aed',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '12.5px',
+                  gap: '5px',
+                  fontSize: '12px',
                   fontWeight: 600,
-                  boxShadow: isAiActive ? '0 2px 8px rgba(124, 58, 237, 0.3)' : '0 1px 2px rgba(124, 58, 237, 0.05)',
+                  whiteSpace: 'nowrap',
+                  boxShadow: isAiActive ? '0 2px 6px rgba(124, 58, 237, 0.25)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
-                <Sparkles size={14} />
+                <Sparkles size={13} />
                 <span>AI 助手</span>
               </button>
             </li>
 
-            <li className="header__filter-item" style={{ position: 'relative', marginLeft: '4px', display: 'flex', alignItems: 'center' }}>
+            <li className="header__filter-item" style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
               <LangPicker align="right" variant="toolbar" />
             </li>
 
