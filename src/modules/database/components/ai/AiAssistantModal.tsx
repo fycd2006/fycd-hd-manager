@@ -28,6 +28,7 @@ import { getSocketId } from '@/lib/pusher-client'
 import type { DiffPreviewData } from './AiDiffModal'
 import { useOptionalTableContext } from '@/modules/database/context/TableContext'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
+import { MarkdownRenderer } from './MarkdownRenderer'
 
 export interface AiAssistantModalProps {
   tableId: number | null
@@ -867,8 +868,10 @@ export function AiAssistantModal({
                   <AlertTriangle size={15} />
                   <span>{msg.content}</span>
                 </div>
-              ) : (
+              ) : msg.role === 'user' ? (
                 <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</div>
+              ) : (
+                <MarkdownRenderer content={msg.content} />
               )}
 
               {/* Diff Preview Card (Double-Bezel Architecture) */}

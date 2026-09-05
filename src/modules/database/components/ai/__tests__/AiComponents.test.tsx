@@ -14,6 +14,11 @@ jest.mock('@/lib/pusher-client', () => ({
   getSocketId: jest.fn().mockReturnValue('mock-socket-id'),
 }))
 
+// Mock MarkdownRenderer for Jest environment
+jest.mock('../MarkdownRenderer', () => ({
+  MarkdownRenderer: ({ content }: { content: string }) => <div>{content}</div>,
+}))
+
 describe('AiAssistantModal & Components', () => {
   const originalFetch = global.fetch
 
