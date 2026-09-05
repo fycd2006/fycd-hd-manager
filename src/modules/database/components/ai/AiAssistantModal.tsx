@@ -32,6 +32,7 @@ import type { DiffPreviewData } from './AiDiffModal'
 import { useOptionalTableContext } from '@/modules/database/context/TableContext'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 import { MarkdownRenderer } from './MarkdownRenderer'
+import { generateSmartPresets, CATEGORY_BADGES } from './smartPresets'
 
 export interface AiAssistantModalProps {
   tableId: number | null
@@ -83,13 +84,6 @@ export const MODEL_OPTIONS = [
   { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite', badge: '輕量極速', desc: '超輕量高吞吐，適合極簡資料分析' },
 ] as const
 
-const PRESET_PROMPTS = [
-  '將所有尚未填寫組別的列設為「建興組」',
-  '找出並列出電話號碼格式有誤的列',
-  '新增一筆姓名為「新成員」、組別為「大安組」的資料',
-  '刪除狀態為「已結案」的資料列',
-  '統計這張表格目前的總人數與各組別分佈',
-]
 
 // Gemini 4-pointed Sparkle SVG icon with official Google gradient
 function GeminiSparkleIcon({ size = 20, isSpinning = false }: { size?: number; isSpinning?: boolean }) {
@@ -251,6 +245,16 @@ export function AiAssistantModal({
     if (tableCtx?.selectedRow?.id) return [tableCtx.selectedRow.id]
     return []
   }, [clearSelectionFocus, selectedRowIds, tableCtx?.selectedRow?.id])
+
+  // Intelligently generated presets based on active table fields, choices, and selection
+  const dynamicPresets = React.useMemo(() => {
+    return generateSmartPresets({
+      table: tableCtx?.activeTable,
+      fields: tableCtx?.fields,
+      rows: tableCtx?.rows,
+      selectedRowIds: activeSelectedRowIds,
+    })
+  }, [tableCtx?.activeTable, tableCtx?.fields, tableCtx?.rows, activeSelectedRowIds])
 
   // If a new row is selected in the table, re-enable focus
   const prevSelectedRowIdRef = useRef<number | null | undefined>(tableCtx?.selectedRow?.id)
@@ -852,36 +856,65 @@ export function AiAssistantModal({
 
             <div style={{ width: '100%', marginTop: '2px' }}>
               <div style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', marginBottom: '6px', textAlign: 'left' }}>
-                常用範例提示詞：
+                {activeSelectedRowIds.length > 0 ? (
+                  <span style={{ color: '#15803d' }}>🎯 針對選取的 {activeSelectedRowIds.length} 筆項目，推薦快捷操作：</span>
+                ) : tableCtx?.activeTable?.name ? (
+                  <span>依據【{tableCtx.activeTable.name}】推薦操作：</span>
+                ) : (
+                  <span>推薦快捷操作：</span>
+                )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                {PRESET_PROMPTS.map((prompt, idx) => (
-                  <motion.button
-                    key={idx}
-                    type="button"
-                    whileHover={{ y: -1, scale: 1.005 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => handleSendMessage(prompt)}
-                    style={{
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      padding: '6px 10px',
-                      textAlign: 'left',
-                      fontSize: '11.5px',
-                      color: '#334155',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s ease',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-                    }}
-                  >
-                    <span>{prompt}</span>
-                    <ChevronRight size={12} color="#94a3b8" />
-                  </motion.button>
-                ))}
+                {dynamicPresets.map((preset, idx) => {
+                  const badgeInfo = CATEGORY_BADGES[preset.category] || CATEGORY_BADGES.general
+                  return (
+                    <motion.button
+                      key={idx}
+                      type="button"
+                      whileHover={{ y: -1, scale: 1.005 }}
+                      whileTap={{ scale: 0.99 }}
+                      onClick={() => handleSendMessage(preset.prompt)}
+                      style={{
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        textAlign: 'left',
+                        fontSize: '11.5px',
+                        color: '#334155',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                        transition: 'all 0.15s ease',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            fontSize: '9.5px',
+                            fontWeight: 600,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            color: badgeInfo.color,
+                            backgroundColor: badgeInfo.bg,
+                            border: `1px solid ${badgeInfo.color}30`,
+                            lineHeight: '14px',
+                          }}
+                        >
+                          {badgeInfo.badge}
+                        </span>
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {preset.prompt}
+                        </span>
+                      </div>
+                      <ChevronRight size={12} color="#94a3b8" style={{ flexShrink: 0 }} />
+                    </motion.button>
+                  )
+                })}
               </div>
             </div>
           </div>

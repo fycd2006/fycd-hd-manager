@@ -5,6 +5,9 @@ import { Sparkles, ArrowRight, Loader2, X, Lightbulb } from 'lucide-react';
 import { getSocketId } from '@/lib/pusher-client';
 import type { DiffPreviewData } from './AiDiffModal';
 
+import { useOptionalTableContext } from '@/modules/database/context/TableContext';
+import { generateSmartPresets, CATEGORY_BADGES } from './smartPresets';
+
 interface AiAssistantBarProps {
   tableId: number | null;
   isOpen: boolean;
@@ -13,17 +16,19 @@ interface AiAssistantBarProps {
   addToast: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
-const PRESET_PROMPTS = [
-  '將所有尚未填寫組別的列設為「建興組」',
-  '檢查並列出所有電話號碼格式不符合 10 碼的資料列',
-  '將狀態為「已結案」且日期超過一個月的資料列刪除',
-  '新增一筆姓名為「新成員」、組別為「大安組」的測試資料',
-];
-
 export function AiAssistantBar({ tableId, isOpen, onClose, onShowDiff, addToast }: AiAssistantBarProps) {
+  const tableCtx = useOptionalTableContext();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const dynamicPresets = React.useMemo(() => {
+    return generateSmartPresets({
+      table: tableCtx?.activeTable,
+      fields: tableCtx?.fields,
+      rows: tableCtx?.rows,
+    });
+  }, [tableCtx?.activeTable, tableCtx?.fields, tableCtx?.rows]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -205,27 +210,47 @@ export function AiAssistantBar({ tableId, isOpen, onClose, onShowDiff, addToast 
           <Lightbulb size={13} />
           <span>範例：</span>
         </div>
-        {PRESET_PROMPTS.map((p, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => setPrompt(p)}
-            style={{
-              background: '#ffffff',
-              border: '1px solid #e9d5ff',
-              borderRadius: '6px',
-              padding: '2px 8px',
-              fontSize: '12px',
-              color: '#6d28d9',
-              cursor: 'pointer',
-              transition: 'background 0.1s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f3ff')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-          >
-            {p}
-          </button>
-        ))}
+        {dynamicPresets.slice(0, 4).map((p, idx) => {
+          const badgeInfo = CATEGORY_BADGES[p.category] || CATEGORY_BADGES.general;
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setPrompt(p.prompt)}
+              style={{
+                background: '#ffffff',
+                border: '1px solid #e9d5ff',
+                borderRadius: '6px',
+                padding: '2px 8px',
+                fontSize: '12px',
+                color: '#6d28d9',
+                cursor: 'pointer',
+                transition: 'all 0.1s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f3ff')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
+            >
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: 600,
+                  padding: '1px 4px',
+                  borderRadius: '4px',
+                  color: badgeInfo.color,
+                  backgroundColor: badgeInfo.bg,
+                  border: `1px solid ${badgeInfo.color}25`,
+                  lineHeight: '12px',
+                }}
+              >
+                {badgeInfo.badge}
+              </span>
+              <span>{p.label || p.prompt}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
