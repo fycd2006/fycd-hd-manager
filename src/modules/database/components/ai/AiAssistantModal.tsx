@@ -23,6 +23,9 @@ import {
   Zap,
   Copy,
   ChevronDown,
+  Mic,
+  MicOff,
+  Sparkles,
 } from 'lucide-react'
 import { getSocketId } from '@/lib/pusher-client'
 import type { DiffPreviewData } from './AiDiffModal'
@@ -65,9 +68,11 @@ export interface ChatMessage {
   content: string
   diff?: DiffPreviewData | null
   applied?: boolean
+  rolledBack?: boolean
   error?: string | null
   timestamp: string
   actionBadge?: string
+  suggestedActions?: string[]
   meta?: ChatMessageMeta
 }
 
@@ -135,10 +140,87 @@ export function AiAssistantModal({
   const [inputValue, setInputValue] = useState('')
   const [loading, setLoading] = useState(false)
   const [applyingMessageId, setApplyingMessageId] = useState<string | null>(null)
+  const [rollingBackMessageId, setRollingBackMessageId] = useState<string | null>(null)
   const [selectedModel, setSelectedModel] = useState<string>('auto')
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false)
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null)
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const [isListening, setIsListening] = useState(false)
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false)
+  const recognitionRef = useRef<any>(null)
+
+  const STORAGE_KEY = tableId ? `fycd_ai_chat_history_${tableId}` : null
+
+  // 1. Detect Web Speech API support
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      setIsSpeechSupported(Boolean(SpeechRecognition))
+    }
+  }, [])
+
+  // 2. Restore chat history from localStorage on tableId mount
+  useEffect(() => {
+    if (!STORAGE_KEY || typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed)
+        }
+      }
+    } catch {}
+  }, [STORAGE_KEY])
+
+  // 3. Persist chat history to localStorage on messages update
+  useEffect(() => {
+    if (!STORAGE_KEY || typeof window === 'undefined') return
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-30)))
+      }
+    } catch {}
+  }, [messages, STORAGE_KEY])
+
+  const handleToggleSpeech = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop() } catch {}
+      }
+      setIsListening(false)
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      addToast('您的瀏覽器不支援語音輸入，建議使用 Chrome 或 Edge。', 'info')
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.lang = 'zh-TW'
+      recognition.continuous = false
+      recognition.interimResults = false
+
+      recognition.onstart = () => setIsListening(true)
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0]?.[0]?.transcript
+        if (transcript) {
+          setInputValue(prev => prev ? `${prev.trim()} ${transcript}` : transcript)
+          setTimeout(() => inputRef.current?.focus(), 50)
+        }
+      }
+      recognition.onerror = () => setIsListening(false)
+      recognition.onend = () => setIsListening(false)
+
+      recognitionRef.current = recognition
+      recognition.start()
+    } catch {
+      setIsListening(false)
+    }
+  }
 
   const handleCopyContent = (msgId: string, content: string) => {
     if (!content) return
@@ -209,8 +291,11 @@ export function AiAssistantModal({
 
   if (!isOpen) return null
 
-  // Reset conversation to initial state
+  // Reset conversation to initial state and clear stored chat history
   const handleNewChat = () => {
+    if (STORAGE_KEY && typeof window !== 'undefined') {
+      try { localStorage.removeItem(STORAGE_KEY) } catch {}
+    }
     setMessages([])
     setInputValue('')
     setLoading(false)
@@ -284,6 +369,12 @@ export function AiAssistantModal({
           ? `delete_rows (${data.deletedRows?.length || 0} 列)`
           : `run_diff: ${data.action || 'plan'}`
 
+        const defaultSuggestions = data.action === 'update_cells'
+          ? ['檢視本次修改列', '統計更新後的分佈狀況']
+          : data.action === 'create_rows'
+          ? ['檢查新建立的資料', '為新成員分配組別']
+          : ['查看剩餘資料統計', '產生進度摘要']
+
         setMessages(prev => [
           ...prev,
           {
@@ -294,6 +385,7 @@ export function AiAssistantModal({
             applied: false,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             actionBadge,
+            suggestedActions: data.suggestedActions || defaultSuggestions,
             meta: data.meta,
           },
         ])
@@ -306,6 +398,7 @@ export function AiAssistantModal({
             content: data.message || '完成指令分析。',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             actionBadge: data.actionPayload ? `$ ${data.actionPayload.name}` : undefined,
+            suggestedActions: data.suggestedActions,
             meta: data.meta,
           },
         ])
@@ -377,6 +470,70 @@ export function AiAssistantModal({
       addToast(err?.message || '套用變更發生錯誤', 'error')
     } finally {
       setApplyingMessageId(null)
+    }
+  }
+
+  const handleRollbackDiff = async (messageId: string, diff: DiffPreviewData) => {
+    if (!tableId || !diff.changes || diff.changes.length === 0) return
+    setRollingBackMessageId(messageId)
+
+    try {
+      const socketId = getSocketId()
+      const reversedUpdates = diff.changes.map(c => ({
+        rowId: c.rowId,
+        fieldKey: c.fieldKey,
+        value: c.oldValue === '(空白)' ? null : c.oldValue
+      }))
+
+      const res = await fetch('/api/ai/table-agent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(socketId ? { 'x-socket-id': socketId } : {}),
+        },
+        body: JSON.stringify({
+          tableId,
+          mode: 'execute',
+          confirmedAction: {
+            name: 'update_cells',
+            args: {
+              reason: `復原先前操作：${diff.reason || '復原儲存格變更'}`,
+              updates: reversedUpdates
+            }
+          },
+          socketId,
+        }),
+      })
+
+      const result = await res.json()
+
+      if (res.ok) {
+        addToast('已成功復原先前的資料變更！', 'success')
+
+        setMessages(prev =>
+          prev.map(m => (m.id === messageId ? { ...m, applied: false, rolledBack: true } : m))
+        )
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `sys-${Date.now()}`,
+            role: 'model',
+            content: `↶ 已成功復原「${diff.reason || '先前變更'}」中修改的 ${diff.changes?.length || 0} 筆儲存格數值。`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            actionBadge: `$ rollback_cells (${diff.changes?.length || 0} cells restored)`,
+          },
+        ])
+
+        if (fetchTableData) await fetchTableData(tableId)
+        if (onApplySuccess) onApplySuccess()
+      } else {
+        addToast(result.error || '復原變更失敗', 'error')
+      }
+    } catch (err: any) {
+      addToast(err?.message || '復原發生錯誤', 'error')
+    } finally {
+      setRollingBackMessageId(null)
     }
   }
 
@@ -985,8 +1142,55 @@ export function AiAssistantModal({
                       </div>
                     )}
 
-                    {/* Apply Button */}
-                    {!msg.applied && (
+                    {/* Applied / Rollback Buttons */}
+                    {msg.applied ? (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                        <div style={{ fontSize: '11px', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle2 size={12} />
+                          <span>已套用至資料庫</span>
+                        </div>
+                        {msg.diff.action === 'update_cells' && msg.diff.changes && (
+                          <motion.button
+                            type="button"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleRollbackDiff(msg.id, msg.diff!)}
+                            disabled={rollingBackMessageId === msg.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              border: '1px solid #fde68a',
+                              background: '#fef3c7',
+                              color: '#b45309',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: rollingBackMessageId === msg.id ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                            }}
+                          >
+                            {rollingBackMessageId === msg.id ? (
+                              <>
+                                <Loader2 size={11} className="animate-spin" />
+                                <span>復原中...</span>
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw size={11} />
+                                <span>復原此變更 (Undo)</span>
+                              </>
+                            )}
+                          </motion.button>
+                        )}
+                      </div>
+                    ) : msg.rolledBack ? (
+                      <div style={{ fontSize: '11px', color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                        <RotateCcw size={11} />
+                        <span>已復原為先前數值</span>
+                      </div>
+                    ) : (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                         <div style={{ fontSize: '11px', color: '#64748b' }}>
                           預計修改 <span style={{ fontWeight: 700, color: '#3b82f6' }}><SlidingNumber number={msg.diff.changes?.length || 0} /></span> 個儲存格
@@ -1029,6 +1233,38 @@ export function AiAssistantModal({
                   </div>
                 </div>
               )}
+              {/* Smart Follow-up Action Suggestion Pills */}
+              {msg.suggestedActions && msg.suggestedActions.length > 0 && !loading && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '10px' }}>
+                  {msg.suggestedActions.map((action, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendMessage(action)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        borderRadius: '12px',
+                        border: '1px solid #e0e7ff',
+                        backgroundColor: '#eef2ff',
+                        color: '#4338ca',
+                        fontSize: '11px',
+                        fontWeight: 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e0e7ff' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#eef2ff' }}
+                    >
+                      <Sparkles size={11} color="#6366f1" />
+                      <span>{action}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Message Footer (As shown in reference image: Copy button on left, timestamp • model • tokens on right) */}
               {msg.role === 'model' && (
                 <div
@@ -1239,6 +1475,41 @@ export function AiAssistantModal({
               paddingBottom: '6px',
             }}
           />
+
+          {/* Web Speech Voice Input Button */}
+          {isSpeechSupported && (
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleToggleSpeech}
+              style={{
+                width: '30px',
+                height: '30px',
+                borderRadius: '50%',
+                border: 'none',
+                background: isListening ? '#fee2e2' : '#f1f5f9',
+                color: isListening ? '#ef4444' : '#64748b',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                transition: 'all 0.15s ease',
+                boxShadow: isListening ? '0 0 0 3px rgba(239, 68, 68, 0.25)' : 'none',
+              }}
+              title={isListening ? '正在聆聽語音...（點擊停止）' : '語音輸入 (繁體中文)'}
+              aria-label={isListening ? '停止語音輸入' : '語音輸入'}
+            >
+              {isListening ? (
+                <motion.div animate={{ scale: [1, 1.25, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}>
+                  <Mic size={14} color="#ef4444" />
+                </motion.div>
+              ) : (
+                <Mic size={14} />
+              )}
+            </motion.button>
+          )}
 
           <motion.button
             type="button"

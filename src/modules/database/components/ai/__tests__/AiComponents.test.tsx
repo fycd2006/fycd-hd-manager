@@ -25,6 +25,9 @@ describe('AiAssistantModal & Components', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     global.fetch = jest.fn()
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear()
+    }
   })
 
   afterAll(() => {
@@ -253,7 +256,7 @@ describe('AiAssistantModal & Components', () => {
     })
 
     // 3. Verify footer elements (copy button, displayModel, and token count)
-    expect(screen.getByTitle('複製內容')).toBeInTheDocument()
+    expect(screen.getAllByTitle('複製內容').length).toBeGreaterThan(0)
     expect(screen.getByText('Auto (3.6-flash)')).toBeInTheDocument()
     expect(screen.getByText('1.3k tokens')).toBeInTheDocument()
 
@@ -268,6 +271,130 @@ describe('AiAssistantModal & Components', () => {
     // Leave hover
     fireEvent.mouseLeave(messageContent.parentElement!)
   })
+
+  it('supports applying diff, one-click rollback (Undo), and smart suggestions', async () => {
+    const onClose = jest.fn()
+    const addToast = jest.fn()
+
+    const mockDiff = {
+      type: 'diff_preview',
+      action: 'update_cells',
+      reason: '批次調整組別',
+      changes: [
+        { rowId: 5, rowTitle: '張三', fieldKey: 'field_1', fieldName: '組別', oldValue: '大安組', newValue: '建興組' },
+      ],
+      actionPayload: { name: 'update_cells', args: {} },
+      suggestedActions: ['統計建興組人數', '查看大安組剩餘成員'],
+    }
+
+    ;(global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockDiff,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, summary: '已套用至資料庫' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, summary: '已成功復原' }),
+      })
+
+    render(
+      <AiAssistantModal
+        tableId={42}
+        isOpen={true}
+        onClose={onClose}
+        addToast={addToast}
+      />
+    )
+
+    // 1. Send query to get diff with suggestions
+    const textarea = screen.getByPlaceholderText(/向 Gemini 詢問或描述你想修改的資料/i)
+    fireEvent.change(textarea, { target: { value: '把張三改為建興組' } })
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
+
+    await waitFor(() => {
+      expect(screen.getByText(/變更規劃：批次調整組別/i)).toBeInTheDocument()
+      expect(screen.getByText('統計建興組人數')).toBeInTheDocument()
+      expect(screen.getByText('查看大安組剩餘成員')).toBeInTheDocument()
+    })
+
+    // 2. Click Apply
+    const applyBtn = screen.getByText('確認套用變更')
+    fireEvent.click(applyBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('已套用至資料庫')).toBeInTheDocument()
+      expect(screen.getByText(/復原此變更 \(Undo\)/i)).toBeInTheDocument()
+    })
+
+    // 3. Click Rollback (Undo)
+    const undoBtn = screen.getByText(/復原此變更 \(Undo\)/i)
+    fireEvent.click(undoBtn)
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/ai/table-agent', expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"reason":"復原先前操作：批次調整組別"'),
+      }))
+      expect(screen.getByText(/已成功復原「批次調整組別」/i)).toBeInTheDocument()
+    })
+  })
+
+  it('handles voice speech input toggle and localStorage persistence', async () => {
+    const onClose = jest.fn()
+
+    // Mock SpeechRecognition in window
+    const mockStart = jest.fn()
+    const mockStop = jest.fn()
+    ;(window as any).webkitSpeechRecognition = jest.fn().mockImplementation(() => ({
+      start: mockStart,
+      stop: mockStop,
+      lang: '',
+      onstart: null,
+      onresult: null,
+      onerror: null,
+      onend: null,
+    }))
+
+    // Seed localStorage
+    const savedMessages = [
+      { id: 'msg-1', role: 'user', content: '先前的紀錄', timestamp: '10:00 AM' },
+      { id: 'msg-2', role: 'model', content: '這是歷史回答', timestamp: '10:01 AM' },
+    ]
+    localStorage.setItem('fycd_ai_chat_history_99', JSON.stringify(savedMessages))
+
+    render(
+      <AiAssistantModal
+        tableId={99}
+        isOpen={true}
+        onClose={onClose}
+      />
+    )
+
+    // 1. Verify restored messages from localStorage
+    expect(screen.getByText('先前的紀錄')).toBeInTheDocument()
+    expect(screen.getByText('這是歷史回答')).toBeInTheDocument()
+
+    // 2. Verify voice mic button is rendered and functional
+    const micBtn = screen.getByTitle(/語音輸入 \(繁體中文\)/i)
+    expect(micBtn).toBeInTheDocument()
+
+    fireEvent.click(micBtn)
+    expect(mockStart).toHaveBeenCalledTimes(1)
+
+    // 3. Click New Chat to clear localStorage
+    const newChatBtn = screen.getByTitle('新對話')
+    fireEvent.click(newChatBtn)
+
+    expect(screen.queryByText('先前的紀錄')).not.toBeInTheDocument()
+    expect(localStorage.getItem('fycd_ai_chat_history_99')).toBeNull()
+
+    delete (window as any).webkitSpeechRecognition
+  })
 })
+
 
 

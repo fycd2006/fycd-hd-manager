@@ -562,7 +562,8 @@ ${contextGuidance}
    - number (數字) / rating (評分)：請填入數值。
    - link_row (關聯資料)：請填入目標關聯列的 ID 數字陣列（例如 [1, 2]）。
    - isReadOnly: true 之欄位（formula 公式、autonumber 自動編號、lookup、rollup、count、建立/修改時間等）：為系統自動運算的唯讀欄位，嚴禁直接修改！若使用者要求修改公式或計算結果，請改為修改該公式所引用的原始資料欄位。
-5. 如果使用者的需求無法透過上述工具達成，或只是在打招呼、提問、統計分析，請直接以繁體中文回答，不需要呼叫任何工具。`
+5. 如果使用者的需求無法透過上述工具達成，或只是在打招呼、提問、統計分析，請直接以繁體中文回答，不需要呼叫任何工具。
+6. 智慧後續操作建議：在純文字回覆結尾，若有適合使用者接續執行的操作，請另起一行以「[SUGGESTIONS]: 建議操作1 | 建議操作2 | 建議操作3」格式提供 2~3 個簡明實用的繁體中文建議操作（例如：將空白負責人補齊 | 篩選進行中的資料列 | 產生進度摘要報告）。`
 
     const ai = new GoogleGenAI({ apiKey })
     const defaultModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite-preview']
@@ -654,9 +655,18 @@ ${contextGuidance}
 
     const functionCalls = response.functionCalls
     if (!functionCalls || functionCalls.length === 0) {
+      let cleanMessage = response.text || 'AI 無法從您的指令識別需要執行的資料表變更操作，請嘗試更具體的描述。'
+      let suggestedActions: string[] = []
+      const suggestMatch = cleanMessage.match(/\[SUGGESTIONS\]:\s*(.*)/i)
+      if (suggestMatch) {
+        suggestedActions = suggestMatch[1].split('|').map((s: string) => s.trim()).filter(Boolean)
+        cleanMessage = cleanMessage.replace(/\[SUGGESTIONS\]:\s*.*$/im, '').trim()
+      }
+
       return NextResponse.json({
         type: 'text_reply',
-        message: response.text || 'AI 無法從您的指令識別需要執行的資料表變更操作，請嘗試更具體的描述。',
+        message: cleanMessage,
+        suggestedActions: suggestedActions.length > 0 ? suggestedActions : undefined,
         actionPayload: null,
         meta
       })
