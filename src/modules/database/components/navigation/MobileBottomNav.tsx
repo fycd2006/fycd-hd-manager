@@ -494,8 +494,8 @@ export default function MobileBottomNav({
           className="ui-ux-mobile-bottom-nav-portal"
           style={{
             position: 'fixed',
-            bottom: '24px',
-            right: '24px',
+            bottom: 'calc(54px + env(safe-area-inset-bottom) + 14px)',
+            right: '16px',
             transform: `translate(${bubblePos.x}px, ${bubblePos.y}px)`,
             zIndex: 15000,
             pointerEvents: 'auto',
@@ -655,7 +655,7 @@ export default function MobileBottomNav({
           className="ui-ux-mobile-bottom-nav-portal"
           style={{
             position: 'fixed',
-            bottom: '16px',
+            bottom: 'calc(54px + env(safe-area-inset-bottom) + 12px)',
             left: '50%',
             transform: `translate(calc(-50% + ${position.x}px), ${position.y}px)`,
             width: 'calc(100% - 24px)',

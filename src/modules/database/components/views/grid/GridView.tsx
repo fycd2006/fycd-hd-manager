@@ -2195,7 +2195,7 @@ export const GridView: React.FC<GridViewProps> = ({
             setCellContextMenu({ x: e.clientX, y: e.clientY });
           }
         }}
-        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative', background: '#fafaf9', paddingBottom: isMobile ? 'calc(48px + 54px + env(safe-area-inset-bottom) + 20px)' : '48px' }}
+        style={{ flex: 1, overflow: 'auto', width: '100%', minHeight: 0, position: 'relative', background: '#fafaf9', paddingBottom: '48px' }}
       >
         <div style={{ minWidth: '100%', width: `${totalTableWidth}px`, display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
           {/* 1. Header (Sticky Top: 0 inside unified scroll container) */}
@@ -2696,7 +2696,7 @@ export const GridView: React.FC<GridViewProps> = ({
         }}
         style={{
           position: 'absolute',
-          bottom: isMobile ? 'calc(54px + env(safe-area-inset-bottom))' : 0,
+          bottom: 0,
           left: 0,
           right: 0,
           zIndex: 36,
@@ -2782,7 +2782,7 @@ export const GridView: React.FC<GridViewProps> = ({
         <div
           style={{
             position: 'absolute',
-            bottom: isMobile ? 'calc(54px + env(safe-area-inset-bottom) + 20px)' : '24px',
+            bottom: '24px',
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 60,
@@ -2970,7 +2970,7 @@ export const GridView: React.FC<GridViewProps> = ({
         <div
           style={{
             position: 'absolute',
-            bottom: isMobile ? 'calc(58px + 54px + env(safe-area-inset-bottom))' : '58px',
+            bottom: '58px',
             right: '24px',
             zIndex: 45,
             display: 'flex',
