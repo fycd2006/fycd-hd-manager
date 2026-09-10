@@ -339,7 +339,7 @@ export function ViewToolbar({
             overflowY: 'hidden',
             WebkitOverflowScrolling: 'touch',
             scrollbarWidth: 'none',
-            zIndex: 99999999,
+            zIndex: 12000,
             boxSizing: 'border-box',
           }}
         >

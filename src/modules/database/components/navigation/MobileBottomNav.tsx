@@ -480,7 +480,7 @@ export default function MobileBottomNav({
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 99999990,
+            zIndex: 14990,
             backgroundColor: isDark ? 'rgba(15, 23, 42, 0.35)' : 'rgba(15, 23, 42, 0.18)',
             backdropFilter: 'blur(3px)',
             pointerEvents: 'auto'
@@ -497,7 +497,7 @@ export default function MobileBottomNav({
             bottom: '24px',
             right: '24px',
             transform: `translate(${bubblePos.x}px, ${bubblePos.y}px)`,
-            zIndex: 2147483647,
+            zIndex: 15000,
             pointerEvents: 'auto',
             display: 'flex',
             touchAction: 'none',
@@ -556,7 +556,7 @@ export default function MobileBottomNav({
                   transition: `all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)`,
                   transitionDelay: isBubbleMenuOpen ? `${idx * 35}ms` : '0ms',
                   pointerEvents: isBubbleMenuOpen ? 'auto' : 'none',
-                  zIndex: 99999995
+                  zIndex: 15100
                 }}
                 title={item.label}
               >
@@ -661,7 +661,7 @@ export default function MobileBottomNav({
             width: 'calc(100% - 24px)',
             maxWidth: '440px',
             height: '58px',
-            zIndex: 2147483647,
+            zIndex: 15000,
             backgroundColor: isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -929,7 +929,6 @@ export default function MobileBottomNav({
         onClose={() => setShowDbModal(false)}
         isDark={isDark}
         maxHeight="85vh"
-        zIndex={1050}
       >
         <div
           style={{

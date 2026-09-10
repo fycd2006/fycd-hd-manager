@@ -106,6 +106,156 @@ export default function RowEditModal({
     return <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Τ</span>
   }
 
+  const renderHeader = (showCollapseButton = false) => (
+    <div className="row-edit-modal-header" style={{ padding: isMobile ? '14px 16px 12px' : '24px 32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+        <h2 style={{ margin: 0, fontSize: isMobile ? '17px' : '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {rowTitle}
+        </h2>
+        {rowIndex !== undefined && totalRows !== undefined && (
+          <span style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 8px', borderRadius: '12px', fontWeight: 500, flexShrink: 0 }}>
+            {rowIndex + 1} / {totalRows}
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '2px', gap: '2px' }}>
+          <button
+            type="button"
+            onClick={onNavigatePrevious}
+            disabled={!onNavigatePrevious || rowIndex === 0}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: (onNavigatePrevious && rowIndex !== 0) ? '#475569' : '#cbd5e1',
+              cursor: (onNavigatePrevious && rowIndex !== 0) ? 'pointer' : 'default',
+              padding: '4px 6px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title={t('rowEditModal.prevRow')}
+          >
+            <ChevronUp size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={onNavigateNext}
+            disabled={!onNavigateNext || (totalRows !== undefined && rowIndex === totalRows - 1)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: (onNavigateNext && totalRows !== undefined && rowIndex !== totalRows - 1) ? '#475569' : '#cbd5e1',
+              cursor: (onNavigateNext && totalRows !== undefined && rowIndex !== totalRows - 1) ? 'pointer' : 'default',
+              padding: '4px 6px',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title={t('rowEditModal.nextRow')}
+          >
+            <ChevronDown size={16} />
+          </button>
+        </div>
+
+        {showCollapseButton && !isMobile && (
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed(prev => !prev)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#64748b',
+              cursor: 'pointer',
+              padding: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: '6px',
+              transition: 'background 0.15s ease',
+            }}
+            className="hover:bg-slate-100"
+            title={isSidebarCollapsed ? t('rowEditModal.expandComments') : t('rowEditModal.collapseComments')}
+          >
+            {isSidebarCollapsed ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: '#64748b',
+            cursor: 'pointer',
+            padding: '6px',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+          className="hover:bg-slate-100"
+          title={t('rowEditModal.close')}
+        >
+          <X size={20} />
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderMobileTabs = () => (
+    <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', padding: '0 12px', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setMobileTab('form')}
+        style={{
+          flex: 1,
+          padding: '10px 0',
+          fontWeight: mobileTab === 'form' ? 700 : 500,
+          color: mobileTab === 'form' ? '#EA580C' : '#64748b',
+          borderBottom: mobileTab === 'form' ? '2.5px solid #EA580C' : '2.5px solid transparent',
+          background: 'none',
+          borderLeft: 'none',
+          borderRight: 'none',
+          borderTop: 'none',
+          cursor: 'pointer',
+          fontSize: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px'
+        }}
+      >
+        <FileText size={15} />
+        <span>{t('rowEditModal.detailsTab')}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setMobileTab('comments')}
+        style={{
+          flex: 1,
+          padding: '10px 0',
+          fontWeight: mobileTab === 'comments' ? 700 : 500,
+          color: mobileTab === 'comments' ? '#EA580C' : '#64748b',
+          borderBottom: mobileTab === 'comments' ? '2.5px solid #EA580C' : '2.5px solid transparent',
+          background: 'none',
+          borderLeft: 'none',
+          borderRight: 'none',
+          borderTop: 'none',
+          cursor: 'pointer',
+          fontSize: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px'
+        }}
+      >
+        <MessageSquare size={15} />
+        <span>{t('rowEditModal.commentsTab', { count: activityLog.length })}</span>
+      </button>
+    </div>
+  )
+
   if (!show || !row) return null
 
   return (
@@ -118,20 +268,23 @@ export default function RowEditModal({
       <div
         className="row-edit-modal row-edit-modal-card animate-in zoom-in-95 duration-150"
         style={{
-          width: isSidebarCollapsed ? '720px' : '1040px',
-          maxWidth: '96vw',
-          height: '800px',
-          maxHeight: '92vh',
+          width: isMobile ? '100vw' : (isSidebarCollapsed ? '720px' : '1040px'),
+          maxWidth: isMobile ? '100vw' : '96vw',
+          height: isMobile ? '100dvh' : '800px',
+          maxHeight: isMobile ? '100dvh' : '92vh',
           backgroundColor: '#ffffff',
-          borderRadius: '12px',
+          borderRadius: isMobile ? '0px' : '12px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           display: 'flex',
-          flexDirection: 'row',
+          flexDirection: isMobile ? 'column' : 'row',
           overflow: 'hidden',
-          border: '1px solid #e2e8f0',
+          border: isMobile ? 'none' : '1px solid #e2e8f0',
           transition: 'width 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
+        {isMobile && renderHeader(false)}
+        {isMobile && renderMobileTabs()}
+
         <div 
           className="row-edit-modal-left" 
           style={{ 
@@ -139,158 +292,13 @@ export default function RowEditModal({
             display: (isMobile && mobileTab !== 'form') ? 'none' : 'flex', 
             flexDirection: 'column', 
             height: '100%', 
+            minHeight: 0,
             minWidth: 0, 
             background: '#ffffff', 
             transition: 'flex 0.25s ease' 
           }}
         >
-          <div className="row-edit-modal-header" style={{ padding: isMobile ? '16px 18px 12px' : '24px 32px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #f1f5f9' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden' }}>
-              <h2 style={{ margin: 0, fontSize: isMobile ? '18px' : '22px', fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {rowTitle}
-              </h2>
-              {rowIndex !== undefined && totalRows !== undefined && (
-                <span style={{ fontSize: '12px', color: '#64748b', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 8px', borderRadius: '12px', fontWeight: 500, flexShrink: 0 }}>
-                  {rowIndex + 1} / {totalRows}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '2px', gap: '2px' }}>
-                <button
-                  type="button"
-                  onClick={onNavigatePrevious}
-                  disabled={!onNavigatePrevious || rowIndex === 0}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: (onNavigatePrevious && rowIndex !== 0) ? '#475569' : '#cbd5e1',
-                    cursor: (onNavigatePrevious && rowIndex !== 0) ? 'pointer' : 'default',
-                    padding: '4px 6px',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={t('rowEditModal.prevRow')}
-                >
-                  <ChevronUp size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={onNavigateNext}
-                  disabled={!onNavigateNext || (totalRows !== undefined && rowIndex === totalRows - 1)}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: (onNavigateNext && totalRows !== undefined && rowIndex !== totalRows - 1) ? '#475569' : '#cbd5e1',
-                    cursor: (onNavigateNext && totalRows !== undefined && rowIndex !== totalRows - 1) ? 'pointer' : 'default',
-                    padding: '4px 6px',
-                    borderRadius: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={t('rowEditModal.nextRow')}
-                >
-                  <ChevronDown size={16} />
-                </button>
-              </div>
-
-              {!isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#64748b',
-                    cursor: 'pointer',
-                    padding: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderRadius: '6px',
-                    transition: 'background 0.15s ease',
-                  }}
-                  className="hover:bg-slate-100"
-                  title={isSidebarCollapsed ? t('rowEditModal.expandComments') : t('rowEditModal.collapseComments')}
-                >
-                  {isSidebarCollapsed ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={onClose}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#64748b',
-                  cursor: 'pointer',
-                  padding: '6px',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                className="hover:bg-slate-100"
-                title={t('rowEditModal.close')}
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          {isMobile && (
-            <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', padding: '0 12px' }}>
-              <button
-                type="button"
-                onClick={() => setMobileTab('form')}
-                style={{
-                  flex: 1,
-                  padding: '10px 0',
-                  fontWeight: mobileTab === 'form' ? 700 : 500,
-                  color: mobileTab === 'form' ? '#EA580C' : '#64748b',
-                  borderBottom: mobileTab === 'form' ? '2.5px solid #EA580C' : '2.5px solid transparent',
-                  background: 'none',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-                  borderTop: 'none',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <FileText size={15} />
-                <span>{t('rowEditModal.detailsTab')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileTab('comments')}
-                style={{
-                  flex: 1,
-                  padding: '10px 0',
-                  fontWeight: mobileTab === 'comments' ? 700 : 500,
-                  color: mobileTab === 'comments' ? '#EA580C' : '#64748b',
-                  borderBottom: mobileTab === 'comments' ? '2.5px solid #EA580C' : '2.5px solid transparent',
-                  background: 'none',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-                  borderTop: 'none',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <MessageSquare size={15} />
-                <span>{t('rowEditModal.commentsTab', { count: activityLog.length })}</span>
-              </button>
-            </div>
-          )}
+          {!isMobile && renderHeader(true)}
 
           <div className="row-edit-modal-form-body" style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '16px 18px 24px' : '24px 32px 32px' }}>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -343,7 +351,7 @@ export default function RowEditModal({
                             background: '#ffffff',
                             border: '1px solid #cbd5e1',
                             borderRadius: '8px',
-                            fontSize: '13px',
+                            fontSize: isMobile ? '16px' : '13px',
                             color: '#0f172a',
                             wordBreak: 'break-all',
                             outline: 'none',
@@ -392,7 +400,7 @@ export default function RowEditModal({
                             background: '#ffffff',
                             border: '1px solid #cbd5e1',
                             borderRadius: '8px',
-                            fontSize: '14px',
+                            fontSize: isMobile ? '16px' : '14px',
                             fontFamily: field.type === 'number' ? 'monospace' : 'inherit',
                             color: '#0f172a',
                             outline: 'none',
@@ -409,17 +417,27 @@ export default function RowEditModal({
         </div>
 
         {/* Right Section: Activity Log & Comments Sidebar */}
-        {!isSidebarCollapsed && (
-          <div className="row-edit-modal-right" style={{ flex: '0 0 38%', display: 'flex', flexDirection: 'column', height: '100%', minWidth: 0 }}>
-            <RowCommentsPanel
-              tableId={row.tableId}
-              rowId={row.id}
-              activityLog={activityLog}
-              onUpdateActivityLog={(logs) => setActivityLog(logs)}
-              readOnly={readOnly}
-            />
-          </div>
-        )}
+        <div
+          className="row-edit-modal-right"
+          style={{
+            flex: isMobile ? '1 1 100%' : '0 0 38%',
+            display: isMobile
+              ? (mobileTab === 'comments' ? 'flex' : 'none')
+              : (!isSidebarCollapsed ? 'flex' : 'none'),
+            flexDirection: 'column',
+            height: '100%',
+            minHeight: 0,
+            minWidth: 0
+          }}
+        >
+          <RowCommentsPanel
+            tableId={row.tableId}
+            rowId={row.id}
+            activityLog={activityLog}
+            onUpdateActivityLog={(logs) => setActivityLog(logs)}
+            readOnly={readOnly}
+          />
+        </div>
       </div>
     </ModalOverlay>
   )

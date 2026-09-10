@@ -33,7 +33,7 @@ export default function ModalOverlay({
   show,
   onClose,
   children,
-  zIndex = 999999,
+  zIndex = 50000,
   blur = true,
   lockScroll = true,
   closeOnEscape = true,

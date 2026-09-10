@@ -285,7 +285,15 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
               inputRef.current.setSelectionRange(len, len);
             } catch {}
           } else if (typeof (inputRef.current as any).select === 'function' && field.type !== 'single_select' && field.type !== 'multiple_select') {
-            (inputRef.current as any).select();
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            if (isMobile) {
+              const valLen = inputRef.current.value ? inputRef.current.value.length : 0;
+              try {
+                inputRef.current.setSelectionRange(valLen, valLen);
+              } catch {}
+            } else {
+              (inputRef.current as any).select();
+            }
           }
         }
       }, 30);
@@ -1490,6 +1498,11 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
           type={inputType}
           inputMode={field.type === 'number' ? 'decimal' : undefined}
           value={localVal}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.stopPropagation()}
           onChange={(e) => {
             const nextVal = e.target.value;
             setLocalVal(nextVal);
@@ -1565,7 +1578,10 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
             boxShadow: 'inset 0 0 0 2px #3F6212',
             outline: 'none',
             background: '#ffffff',
-            fontSize: '13px',
+            userSelect: 'text',
+            WebkitUserSelect: 'text',
+            touchAction: 'auto',
+            fontSize: typeof window !== 'undefined' && window.innerWidth < 768 ? '16px' : '13px',
             fontFamily: field.type === 'number' ? 'monospace' : 'inherit',
             textAlign: field.type === 'number' ? 'right' : 'left',
             padding: '0 8px',
@@ -2143,6 +2159,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         }
       }}
       onContextMenu={(e) => {
+        if (isEditing) return;
         e.preventDefault();
         onContextMenu?.(e);
       }}
@@ -2210,8 +2227,9 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         height: 'var(--row-height, 32px)',
         maxHeight: 'var(--row-height, 32px)',
         overflow: 'hidden',
-        userSelect: 'none',
-        touchAction: 'manipulation',
+        userSelect: isEditing ? 'text' : 'none',
+        WebkitUserSelect: isEditing ? 'text' : 'none',
+        touchAction: isEditing ? 'auto' : 'manipulation',
         zIndex: isEditing ? 100 : (isPrimary ? 14 : (isSelected || isInRange ? 10 : undefined))
       }}
       className={`grid-view__column ${isSelected || isInRange ? 'active' : ''}`}

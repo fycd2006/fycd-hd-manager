@@ -27,7 +27,7 @@ export default function BottomSheet({
   children,
   title,
   maxHeight = '85vh',
-  zIndex = 1050,
+  zIndex = 50000,
   isDark = false,
   className = '',
   style,

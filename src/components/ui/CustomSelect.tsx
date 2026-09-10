@@ -47,20 +47,23 @@ export function CustomSelect({
       const rect = triggerRef.current.getBoundingClientRect()
       const spaceBelow = window.innerHeight - rect.bottom
       const dropdownHeight = 200
+      const winW = typeof window !== 'undefined' ? window.innerWidth : 400
+      const dropdownWidth = Math.min(Math.max(rect.width, 150), Math.max(150, winW - 16))
+      const clampedLeft = Math.max(8, Math.min(rect.left, winW - dropdownWidth - 8))
 
       if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
         // Render above trigger
         setPopoverCoords({
           bottom: window.innerHeight - rect.top + 4,
-          left: rect.left,
-          width: Math.max(rect.width, 150),
+          left: clampedLeft,
+          width: dropdownWidth,
         })
       } else {
         // Render below trigger
         setPopoverCoords({
           top: rect.bottom + 4,
-          left: rect.left,
-          width: Math.max(rect.width, 150),
+          left: clampedLeft,
+          width: dropdownWidth,
         })
       }
       setIsOpen(true)
@@ -165,7 +168,7 @@ export function CustomSelect({
               style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 2147483640,
+                zIndex: 70000,
                 backgroundColor: 'transparent',
                 pointerEvents: 'auto',
               }}
@@ -193,7 +196,7 @@ export function CustomSelect({
                   borderRadius: '10px',
                   border: '1px solid #E7E5E4',
                   boxShadow: '0 12px 28px -4px rgba(28, 25, 23, 0.12), 0 0 0 1px rgba(0,0,0,0.03)',
-                  zIndex: 2147483645,
+                  zIndex: 70005,
                   padding: '4px',
                   maxHeight: '220px',
                   overflowY: 'auto',
