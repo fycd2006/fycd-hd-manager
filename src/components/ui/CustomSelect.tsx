@@ -168,7 +168,7 @@ export function CustomSelect({
               style={{
                 position: 'fixed',
                 inset: 0,
-                zIndex: 70000,
+                zIndex: 999999,
                 backgroundColor: 'transparent',
                 pointerEvents: 'auto',
               }}
@@ -196,7 +196,7 @@ export function CustomSelect({
                   borderRadius: '10px',
                   border: '1px solid #E7E5E4',
                   boxShadow: '0 12px 28px -4px rgba(28, 25, 23, 0.12), 0 0 0 1px rgba(0,0,0,0.03)',
-                  zIndex: 70005,
+                  zIndex: 1000000,
                   padding: '4px',
                   maxHeight: '220px',
                   overflowY: 'auto',
