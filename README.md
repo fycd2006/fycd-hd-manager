@@ -33,11 +33,13 @@ npm install
 cp .env.example .env.local
 ```
 
-### 2. 資料庫 Migration
+### 2. 建立資料庫結構
+本專案沒有 `prisma/migrations`，結構由 `prisma db push` 依 `prisma/schema.prisma` 同步。只對**空的開發資料庫**執行：
 ```bash
-npx prisma generate
-npx prisma migrate deploy
+npx prisma db push
 ```
+
+> ⚠️ 不要對有資料的資料庫加 `--accept-data-loss`。`npm run build` 內含這個旗標，只在部署流程使用。
 
 ### 3. 啟動伺服器
 ```bash
@@ -54,9 +56,14 @@ npm run dev
 |---|:---:|---|
 | `DATABASE_URL` | 是 | TiDB / MySQL 資料庫連線字串 (`mysql://...`) |
 | `SESSION_SECRET` | 是 | 使用者 Session 加密金鑰 (至少 32 字元) |
+| `NEXT_PUBLIC_APP_URL` | 否 | 網站對外網址，預設 `http://localhost:3000` |
 | `REDIS_URL` | 否 | Redis 連線字串 (用於限流與快取，無則自動降級) |
-| `CRON_SECRET` | 否 | 排程維護端點驗證 Token |
-| `PUSHER_*` | 否 | Pusher 即時廣播服務金鑰與叢集設定 |
+| `CRON_SECRET` | 否 | 排程維護端點驗證 Token（未設定時排程端點拒絕執行） |
+| `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER` | 否 | Pusher 即時廣播（未設齊時不廣播） |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | 否 | AI 資料表助理 |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | 否 | 寄送密碼重設信 |
+
+完整範本與說明見 [`.env.example`](.env.example)。
 
 ---
 
@@ -78,14 +85,18 @@ npm run dev
 | 指令 | 說明 |
 |---|---|
 | `npm run dev` | 啟動本機開發伺服器 (Webpack 模式) |
-| `npx tsc --noEmit` | 全專案 TypeScript 型別檢核 (0 Error 保證) |
-| `npm run test` | 執行 Jest 單元與整合測試 (37 Suites / 292 Tests) |
-| `npm run build` | 正式環境建置 (自動執行 Prisma Generate 與 Migration) |
-| `npm run migrate:dev` | 開發環境：產生並套用新 Migration |
+| `npm run verify` | 提交前完整驗證：typecheck → lint 錯誤 → Jest → `build:check`（CI 也跑這個） |
+| `npm run typecheck` | 全專案 TypeScript 型別檢核 |
+| `npm run lint` | ESLint（舊錯誤凍結在 `eslint-suppressions.json`，新錯誤會失敗） |
+| `npm test` | 執行 Jest 測試（單檔 `npx jest <路徑>`） |
+| `npm run build:check` | 只編譯、不碰資料庫的建置檢查 |
+| `npm run build` | 部署用建置：`prisma generate` → `prisma db push --accept-data-loss` → `next build`。**會改動 `DATABASE_URL` 指向的資料庫，本機不要執行** |
+
+第一次 clone 後執行 `git config core.hooksPath .githooks`，commit 前會自動跑 `npm run verify`。
 
 ---
 
 ## 📚 延伸架構與開發指引
 
-- **完整架構設計與資料流**：[`src/modules/database/ARCHITECTURE.md`](file:///src/modules/database/ARCHITECTURE.md)
-- **開發者擴充指南與 Hooks 範例**：[`src/modules/database/QUICK_START.md`](file:///src/modules/database/QUICK_START.md)
+- **完整架構設計與資料流**：[`src/modules/database/ARCHITECTURE.md`](src/modules/database/ARCHITECTURE.md)
+- **開發者擴充指南與 Hooks 範例**：[`src/modules/database/QUICK_START.md`](src/modules/database/QUICK_START.md)
