@@ -11,6 +11,9 @@ import { EmailFieldType } from './EmailFieldType'
 import { UrlFieldType } from './UrlFieldType'
 import { PhoneNumberFieldType } from './PhoneNumberFieldType'
 import { DurationFieldType } from './DurationFieldType'
+import { LinkRowFieldType } from './LinkRowFieldType'
+import { CollaboratorsFieldType } from './CollaboratorsFieldType'
+import { AttachmentFieldType } from './AttachmentFieldType'
 import { LatestCommentFieldType, parseLatestCommentEntries, type CommentLogEntry } from './LatestCommentFieldType'
 
 // Initialize the core registry with built-in types
@@ -29,11 +32,11 @@ export function initializeFieldRegistry() {
   FieldRegistry.register(new UrlFieldType())
   FieldRegistry.register(new PhoneNumberFieldType(), 'phone')
   FieldRegistry.register(new DurationFieldType())
+  FieldRegistry.register(new LinkRowFieldType())
+  FieldRegistry.register(new CollaboratorsFieldType(), 'collaborator')
+  FieldRegistry.register(new AttachmentFieldType(), 'file')
   FieldRegistry.register(new LatestCommentFieldType())
   
-  // Aliases for canonical types registered in later tasks
-  FieldRegistry.registerAlias('collaborator', 'collaborators')
-  FieldRegistry.registerAlias('file', 'attachment')
 
   // Future types to implement:
   // LinkRowFieldType

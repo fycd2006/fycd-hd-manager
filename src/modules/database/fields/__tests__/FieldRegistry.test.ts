@@ -16,6 +16,8 @@ it.each([
   ['collaborator', 'collaborators'],
   ['file', 'attachment'],
 ])('alias %s resolves to %s', (alias, canonical) => {
+  expect(FieldRegistry.isRegistered(canonical)).toBe(true)
+  expect(FieldRegistry.get(alias).readOnly).toBe(false)
   expect(FieldRegistry.get(alias)).toBe(FieldRegistry.get(canonical))
 })
 
