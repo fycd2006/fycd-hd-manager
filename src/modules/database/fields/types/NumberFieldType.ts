@@ -1,18 +1,37 @@
 import { FieldType, FieldValidationResult } from '../FieldType'
 
+const NUMBER_PATTERN = /^-?\d+(\.\d+)?(e-?\d+)?$/i
+
+/** Parses user-typed numeric text. `null` means empty; `'invalid'` means unparseable. */
+export function parseNumberText(raw: unknown): number | null | 'invalid' {
+  if (raw === null || raw === undefined) return null
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 'invalid'
+  if (typeof raw !== 'string') return 'invalid'
+
+  const text = raw
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/．/g, '.')
+    .replace(/－/g, '-')
+    .replace(/[,，\s]/g, '')
+  if (text === '') return null
+  if (!NUMBER_PATTERN.test(text)) return 'invalid'
+
+  const num = Number(text)
+  return Number.isFinite(num) ? num : 'invalid'
+}
+
 export class NumberFieldType implements FieldType {
   readonly type = 'number'
   readonly name = '數字'
   readonly readOnly = false
 
   validateValue(value: any, options: any): FieldValidationResult {
-    if (value === null || value === undefined || value === '') {
-      return { valid: true, parsedValue: null }
-    }
-    
-    const numVal = Number(value)
-    if (isNaN(numVal)) {
+    const numVal = parseNumberText(value)
+    if (numVal === 'invalid') {
       return { valid: false, code: 'invalid_number', error: '必須是有效的數字' }
+    }
+    if (numVal === null) {
+      return { valid: true, parsedValue: null }
     }
 
     if (options) {
