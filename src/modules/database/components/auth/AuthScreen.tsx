@@ -1,18 +1,25 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Eye, EyeOff, Lock, User as UserIcon, Mail, ArrowRight, ArrowLeft, KeyRound, CheckCircle2, ShieldCheck } from 'lucide-react'
+import React, { useEffect, useId, useState } from 'react'
+import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'motion/react'
+import { Eye, EyeOff, Lock, User as UserIcon, Mail, ArrowRight, ArrowLeft, KeyRound, type LucideIcon } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { FycdLogo } from '@/components/brand/FycdLogo'
+import styles from './AuthScreen.module.css'
+
+type AuthMode = 'login' | 'register' | 'forgot-password' | 'reset-password'
 
 interface AuthScreenProps {
-  authMode: 'login' | 'register' | 'forgot-password' | 'reset-password'
+  authMode: AuthMode
   authUsername: string
   authEmail: string
   authPassword: string
   resetToken?: string
   errorMessage?: string | null
-  onAuthModeChange: (mode: 'login' | 'register' | 'forgot-password' | 'reset-password') => void
+  /** 登入／註冊成功、品牌載入層即將覆蓋時為 true：卡片淡出且不再接受送出 */
+  leaving?: boolean
+  onAuthModeChange: (mode: AuthMode) => void
   onAuthUsernameChange: (value: string) => void
   onAuthEmailChange: (value: string) => void
   onAuthPasswordChange: (value: string) => void
@@ -22,19 +29,69 @@ interface AuthScreenProps {
   onResetPassword?: (newPassword: string) => Promise<{ ok: boolean; message?: string; error?: string }>
 }
 
+const EASE_OUT: [number, number, number, number] = [0.2, 0.8, 0.2, 1]
+
+interface FieldProps {
+  label: string
+  icon: LucideIcon
+  type: string
+  placeholder: string
+  value: string
+  onChange: (value: string) => void
+  disabled: boolean
+  autoComplete?: string
+  labelAction?: React.ReactNode
+  reveal?: { shown: boolean; onToggle: () => void }
+}
+
+function Field({ label, icon: Icon, type, placeholder, value, onChange, disabled, autoComplete, labelAction, reveal }: FieldProps) {
+  const inputType = reveal ? (reveal.shown ? 'text' : 'password') : type
+  const inputId = useId()
+  return (
+    <div className={styles.field}>
+      <div className={styles.labelRow}>
+        <label htmlFor={inputId} className={styles.label}>{label}</label>
+        {labelAction}
+      </div>
+      <div className={styles.inputWrap}>
+        <Icon size={16} className={styles.iconLeft} aria-hidden="true" />
+        <input
+          id={inputId}
+          className={`${styles.input} ${reveal ? styles.withToggle : ''}`}
+          type={inputType}
+          placeholder={placeholder}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          autoComplete={autoComplete}
+          required
+          disabled={disabled}
+        />
+        {reveal && (
+          <button
+            type="button"
+            className={styles.toggle}
+            onClick={reveal.onToggle}
+            aria-label={reveal.shown ? '隱藏密碼' : '顯示密碼'}
+          >
+            {reveal.shown ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /**
- * Design Read:
- * "Reading this as: Auth Card for FYCD HD Manager enterprise workspace,
- * with Linear-style minimalist & high-contrast aesthetics, custom brand logo,
- * clear password toggle, in-app self-service forgot & reset password flow."
+ * 登入卡片：FYCD HD 品牌字標、沉穩極簡的米白底與白色卡片，
+ * 進場、模式切換、錯誤提示皆有對應動畫（尊重 prefers-reduced-motion）。
  */
 export default function AuthScreen({
   authMode,
   authUsername,
   authEmail,
   authPassword,
-  resetToken,
   errorMessage,
+  leaving = false,
   onAuthModeChange,
   onAuthUsernameChange,
   onAuthEmailChange,
@@ -45,18 +102,28 @@ export default function AuthScreen({
   onResetPassword
 }: AuthScreenProps) {
   const { t } = useI18n()
+  const reduceMotion = useReducedMotion()
+  const shake = useAnimationControls()
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  
+
   // Reset password states
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [localError, setLocalError] = useState<string | null>(null)
 
+  const activeError = localError || errorMessage
+
+  useEffect(() => {
+    if (activeError && !reduceMotion) {
+      shake.start({ x: [0, -6, 6, -3, 3, 0], transition: { duration: 0.35 } })
+    }
+  }, [activeError, reduceMotion, shake])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (submitting) return
+    if (submitting || leaving) return
     setLocalError(null)
 
     if (authMode === 'forgot-password') {
@@ -131,663 +198,224 @@ export default function AuthScreen({
     }
   }
 
-  const activeError = localError || errorMessage
+  const backToLogin = () => {
+    setLocalError(null)
+    onAuthModeChange('login')
+  }
+
+  const disabled = submitting || leaving
+
+  const submitLabel =
+    authMode === 'forgot-password' ? t('auth.verifyAndReset')
+    : authMode === 'reset-password' ? t('auth.resetPasswordBtn')
+    : authMode === 'login' ? t('auth.loginTitle')
+    : t('auth.registerTitle')
+
+  const subtitle =
+    authMode === 'forgot-password' ? t('auth.forgotPasswordTitle')
+    : authMode === 'reset-password' ? t('auth.resetPasswordTitle')
+    : t('auth.systemTitle')
+
+  const cardTransition = reduceMotion
+    ? { duration: 0 }
+    : { duration: leaving ? 0.25 : 0.45, ease: EASE_OUT }
+
+  const swap = reduceMotion
+    ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0 } }
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -8 },
+        transition: { duration: 0.2, ease: EASE_OUT },
+      }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: '#ffffff',
-      fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      padding: '20px',
-      boxSizing: 'border-box'
-    }}>
-      {/* Container Card */}
-      <div style={{
-        width: '100%',
-        maxWidth: '440px',
-        backgroundColor: '#ffffff',
-        borderRadius: '24px',
-        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.06)',
-        padding: '36px 32px',
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        position: 'relative'
-      }}>
-        {/* Language Picker in top right */}
-        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
-          <LangPicker align="right" variant="subtle" />
-        </div>
-
-        {/* Brand / Logo Header */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '24px',
-          textAlign: 'center'
-        }}>
-          <img 
-            src="/logo.png" 
-            alt="FYCD HD Manager Logo" 
-            style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e4e4e7', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} 
-          />
-          <h1 style={{
-            fontSize: '22px',
-            fontWeight: 800,
-            color: 'var(--brand-orange-main, #EA580C)',
-            letterSpacing: '-0.03em',
-            lineHeight: 1.2,
-            margin: '4px 0 0 0'
-          }}>
-            FYCD HD Manager
-          </h1>
-          <p style={{
-            color: '#71717a',
-            fontSize: '13.5px',
-            margin: 0,
-            fontWeight: 500
-          }}>
-            {authMode === 'forgot-password'
-              ? t('auth.forgotPasswordTitle')
-              : authMode === 'reset-password'
-              ? t('auth.resetPasswordTitle')
-              : t('auth.systemTitle')}
-          </p>
-        </div>
-
-        {/* Error Message Toast */}
-        {activeError && (
-          <div style={{
-            width: '100%',
-            backgroundColor: '#fef2f2',
-            border: '1px solid #fca5a5',
-            color: '#991b1b',
-            padding: '12px 16px',
-            borderRadius: '12px',
-            fontSize: '13px',
-            marginBottom: '20px',
-            fontWeight: 600,
-            boxSizing: 'border-box',
-            textAlign: 'center'
-          }}>
-            {activeError}
+    <div className={styles.page}>
+      <motion.div className={styles.shell} animate={shake}>
+        <motion.div
+          className={styles.card}
+          layout={!reduceMotion}
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={leaving ? { opacity: 0, scale: 0.98, y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+          transition={cardTransition}
+        >
+          <div className={styles.langPicker}>
+            <LangPicker align="right" variant="subtle" />
           </div>
-        )}
 
-        {/* ========================================================================= */}
-        {/* FORGOT PASSWORD VIEW (雙重身分核對) */}
-        {/* ========================================================================= */}
-        {authMode === 'forgot-password' && (
-          <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <p style={{ fontSize: '13px', color: '#52525b', lineHeight: 1.5, margin: '0 0 4px 0', textAlign: 'center' }}>
-              {t('auth.forgotPasswordDesc')}
-            </p>
+          {/* Brand / Logo Header */}
+          <motion.div layout={!reduceMotion ? 'position' : false} className={styles.brand}>
+            <h1 className={styles.srOnly}>FYCD HD Manager</h1>
+            <FycdLogo variant="full" animated height={44} />
+            <p className={styles.subtitle}>{subtitle}</p>
+          </motion.div>
 
-            {/* Username Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.usernameLabel')}</label>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <UserIcon size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type="text"
-                  placeholder={t('auth.enterUsername')}
-                  value={authUsername}
-                  onChange={e => onAuthUsernameChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 14px 0 40px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e4e4e7',
-                    borderRadius: '12px',
-                    color: '#09090b',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#3F6212'
-                    e.currentTarget.style.backgroundColor = '#ffffff'
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e4e4e7'
-                    e.currentTarget.style.backgroundColor = '#f8fafc'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                  required
-                  disabled={submitting}
-                />
-              </div>
-            </div>
-
-            {/* Email Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.emailLabel')}</label>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type="email"
-                  placeholder={t('auth.enterEmail')}
-                  value={authEmail}
-                  onChange={e => onAuthEmailChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 14px 0 40px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e4e4e7',
-                    borderRadius: '12px',
-                    color: '#09090b',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#3F6212'
-                    e.currentTarget.style.backgroundColor = '#ffffff'
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e4e4e7'
-                    e.currentTarget.style.backgroundColor = '#f8fafc'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                  required
-                  disabled={submitting}
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                width: '100%',
-                height: '44px',
-                backgroundColor: '#3F6212',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: 700,
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '4px',
-                boxShadow: '0 4px 14px rgba(63, 98, 18, 0.25)',
-                transition: 'all 0.15s ease',
-                opacity: submitting ? 0.7 : 1
-              }}
-            >
-              {submitting ? t('notifications.processing') : t('auth.verifyAndReset')}
-            </button>
-
-            <div style={{ textAlign: 'center', marginTop: '8px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setLocalError(null)
-                  onAuthModeChange('login')
-                }}
-                style={{
-                  color: '#52525b',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
+          {/* Error Message */}
+          <AnimatePresence initial={false}>
+            {activeError && (
+              <motion.div
+                key="error"
+                className={styles.error}
+                role="alert"
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                animate={reduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.22, ease: EASE_OUT }}
               >
-                <ArrowLeft size={14} />
-                <span>{t('auth.backToLogin')}</span>
-              </button>
-            </div>
-          </form>
-        )}
+                <div className={styles.errorInner}>{activeError}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* ========================================================================= */}
-        {/* RESET PASSWORD VIEW */}
-        {/* ========================================================================= */}
-        {authMode === 'reset-password' && (
-          <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <p style={{ fontSize: '13px', color: '#52525b', lineHeight: 1.5, margin: '0 0 4px 0', textAlign: 'center' }}>
-              {t('auth.resetPasswordDesc')}
-            </p>
-
-            {/* New Password */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.newPasswordLabel')}</label>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <KeyRound size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder={t('auth.enterNewPassword')}
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 40px 0 40px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e4e4e7',
-                    borderRadius: '12px',
-                    color: '#09090b',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  required
-                  disabled={submitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Confirm New Password */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.confirmPasswordLabel')}</label>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder={t('auth.enterConfirmPassword')}
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 40px 0 40px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e4e4e7',
-                    borderRadius: '12px',
-                    color: '#09090b',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  required
-                  disabled={submitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
-                >
-                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                width: '100%',
-                height: '44px',
-                backgroundColor: '#3F6212',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: 700,
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '6px',
-                boxShadow: '0 4px 14px rgba(63, 98, 18, 0.25)',
-                transition: 'all 0.15s ease',
-                opacity: submitting ? 0.7 : 1
-              }}
-            >
-              {submitting ? t('notifications.processing') : t('auth.resetPasswordBtn')}
-            </button>
-
-            <div style={{ textAlign: 'center', marginTop: '8px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setLocalError(null)
-                  onAuthModeChange('login')
-                }}
-                style={{
-                  color: '#52525b',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <ArrowLeft size={14} />
-                <span>{t('auth.backToLogin')}</span>
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ========================================================================= */}
-        {/* LOGIN & REGISTER VIEW */}
-        {/* ========================================================================= */}
-        {(authMode === 'login' || authMode === 'register') && (
-          <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            
-            {/* Username Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>
-                {authMode === 'login' ? t('auth.usernameOrEmailLabel') : t('auth.usernameLabel')}
-              </label>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <UserIcon size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type="text"
-                  placeholder={authMode === 'login' ? t('auth.enterUsernameOrEmail') : t('auth.enterUsername')}
-                  value={authUsername}
-                  onChange={e => onAuthUsernameChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 14px 0 40px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e4e4e7',
-                    borderRadius: '12px',
-                    color: '#09090b',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#3F6212'
-                    e.currentTarget.style.backgroundColor = '#ffffff'
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e4e4e7'
-                    e.currentTarget.style.backgroundColor = '#f8fafc'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                  required
-                  disabled={submitting}
-                />
-              </div>
-            </div>
-
-            {/* Email Input (Register only) */}
-            {authMode === 'register' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.emailLabel')}</label>
-                <div style={{ position: 'relative', width: '100%' }}>
-                  <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                  <input
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.form key={authMode} onSubmit={handleSubmit} className={styles.form} {...swap}>
+              {authMode === 'forgot-password' && (
+                <>
+                  {/* 雙重身分核對 */}
+                  <p className={styles.desc}>{t('auth.forgotPasswordDesc')}</p>
+                  <Field
+                    label={t('auth.usernameLabel')}
+                    icon={UserIcon}
+                    type="text"
+                    placeholder={t('auth.enterUsername')}
+                    value={authUsername}
+                    onChange={onAuthUsernameChange}
+                    autoComplete="username"
+                    disabled={disabled}
+                  />
+                  <Field
+                    label={t('auth.emailLabel')}
+                    icon={Mail}
                     type="email"
                     placeholder={t('auth.enterEmail')}
                     value={authEmail}
-                    onChange={e => onAuthEmailChange(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: '42px',
-                      padding: '0 14px 0 40px',
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #e4e4e7',
-                      borderRadius: '12px',
-                      color: '#09090b',
-                      fontSize: '13.5px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      transition: 'all 0.15s ease'
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#3F6212'
-                      e.currentTarget.style.backgroundColor = '#ffffff'
-                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = '#e4e4e7'
-                      e.currentTarget.style.backgroundColor = '#f8fafc'
-                      e.currentTarget.style.boxShadow = 'none'
-                    }}
-                    required
-                    disabled={submitting}
+                    onChange={onAuthEmailChange}
+                    autoComplete="email"
+                    disabled={disabled}
                   />
-                </div>
-              </div>
-            )}
-
-            {/* Password Input with Show/Hide Toggle & Forgot Password Link */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: 600, color: '#3f3f46' }}>{t('auth.passwordLabel')}</label>
-                {authMode === 'login' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLocalError(null)
-                      onAuthModeChange('forgot-password')
-                    }}
-                    style={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      color: '#EA580C',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: 0,
-                      textDecoration: 'none'
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                    onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
-                  >
-                    {t('auth.forgotPassword')}
-                  </button>
-                )}
-              </div>
-              <div style={{ position: 'relative', width: '100%' }}>
-                <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder={t('auth.enterPassword')}
-                  value={authPassword}
-                  onChange={e => onAuthPasswordChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    height: '42px',
-                    padding: '0 40px 0 40px',
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e4e4e7',
-                    borderRadius: '12px',
-                    color: '#09090b',
-                    fontSize: '13.5px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#3F6212'
-                    e.currentTarget.style.backgroundColor = '#ffffff'
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)'
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e4e4e7'
-                    e.currentTarget.style.backgroundColor = '#f8fafc'
-                    e.currentTarget.style.boxShadow = 'none'
-                  }}
-                  required
-                  disabled={submitting}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94a3b8',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                width: '100%',
-                height: '44px',
-                backgroundColor: '#3F6212',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '14px',
-                fontWeight: 700,
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '6px',
-                boxShadow: '0 4px 14px rgba(63, 98, 18, 0.25)',
-                transition: 'all 0.15s ease',
-                opacity: submitting ? 0.7 : 1
-              }}
-              onMouseEnter={(e) => {
-                if (!submitting) {
-                  e.currentTarget.style.backgroundColor = '#2d470d'
-                  e.currentTarget.style.transform = 'translateY(-1px)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!submitting) {
-                  e.currentTarget.style.backgroundColor = '#3F6212'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                }
-              }}
-            >
-              {submitting ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#74C643', display: 'inline-block' }} />
-                  <span style={{ width: '14px', height: '2px', backgroundColor: '#EA580C', borderRadius: '1px' }} />
-                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#F97316', display: 'inline-block' }} />
-                  <span style={{ marginLeft: '4px' }}>{t('notifications.processing')}</span>
-                </span>
-              ) : authMode === 'login' ? (
-                <>
-                  <span>{t('auth.loginTitle')}</span>
-                  <ArrowRight size={16} />
-                </>
-              ) : (
-                <>
-                  <span>{t('auth.registerTitle')}</span>
-                  <ArrowRight size={16} />
                 </>
               )}
-            </button>
-          </form>
-        )}
 
-        {/* Mode Switcher Link (Login <-> Register) */}
-        {(authMode === 'login' || authMode === 'register') && (
-          <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: '#71717a' }}>
-            {authMode === 'login' ? (
-              <span>
-                {t('auth.noAccountPrompt')}{' '}
-                <button
-                  type="button"
-                  onClick={() => onAuthModeChange('register')}
-                  style={{
-                    color: '#18181B',
-                    fontWeight: 700,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    textDecoration: 'underline'
-                  }}
-                >
-                  {t('auth.registerNow')}
-                </button>
-              </span>
-            ) : (
-              <span>
-                {t('auth.hasAccountPrompt')}{' '}
-                <button
-                  type="button"
-                  onClick={() => onAuthModeChange('login')}
-                  style={{
-                    color: '#18181B',
-                    fontWeight: 700,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 0,
-                    textDecoration: 'underline'
-                  }}
-                >
-                  {t('auth.loginNow')}
-                </button>
-              </span>
-            )}
-          </div>
-        )}
+              {authMode === 'reset-password' && (
+                <>
+                  <p className={styles.desc}>{t('auth.resetPasswordDesc')}</p>
+                  <Field
+                    label={t('auth.newPasswordLabel')}
+                    icon={KeyRound}
+                    type="password"
+                    placeholder={t('auth.enterNewPassword')}
+                    value={newPassword}
+                    onChange={setNewPassword}
+                    autoComplete="new-password"
+                    disabled={disabled}
+                    reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword) }}
+                  />
+                  <Field
+                    label={t('auth.confirmPasswordLabel')}
+                    icon={Lock}
+                    type="password"
+                    placeholder={t('auth.enterConfirmPassword')}
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    autoComplete="new-password"
+                    disabled={disabled}
+                    reveal={{ shown: showConfirmPassword, onToggle: () => setShowConfirmPassword(!showConfirmPassword) }}
+                  />
+                </>
+              )}
 
-      </div>
+              {(authMode === 'login' || authMode === 'register') && (
+                <>
+                  <Field
+                    label={authMode === 'login' ? t('auth.usernameOrEmailLabel') : t('auth.usernameLabel')}
+                    icon={UserIcon}
+                    type="text"
+                    placeholder={authMode === 'login' ? t('auth.enterUsernameOrEmail') : t('auth.enterUsername')}
+                    value={authUsername}
+                    onChange={onAuthUsernameChange}
+                    autoComplete="username"
+                    disabled={disabled}
+                  />
+                  {authMode === 'register' && (
+                    <Field
+                      label={t('auth.emailLabel')}
+                      icon={Mail}
+                      type="email"
+                      placeholder={t('auth.enterEmail')}
+                      value={authEmail}
+                      onChange={onAuthEmailChange}
+                      autoComplete="email"
+                      disabled={disabled}
+                    />
+                  )}
+                  <Field
+                    label={t('auth.passwordLabel')}
+                    icon={Lock}
+                    type="password"
+                    placeholder={t('auth.enterPassword')}
+                    value={authPassword}
+                    onChange={onAuthPasswordChange}
+                    autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                    disabled={disabled}
+                    reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword) }}
+                    labelAction={authMode === 'login' && (
+                      <button
+                        type="button"
+                        className={`${styles.linkBtn} ${styles.forgotLink}`}
+                        onClick={() => {
+                          setLocalError(null)
+                          onAuthModeChange('forgot-password')
+                        }}
+                      >
+                        {t('auth.forgotPassword')}
+                      </button>
+                    )}
+                  />
+                </>
+              )}
+
+              <button type="submit" className={styles.primaryBtn} aria-busy={submitting}>
+                {submitting ? (
+                  <>
+                    <span className={styles.spinner} aria-hidden="true" />
+                    <span>{t('notifications.processing')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{submitLabel}</span>
+                    {(authMode === 'login' || authMode === 'register') && (
+                      <ArrowRight size={16} className={styles.arrow} aria-hidden="true" />
+                    )}
+                  </>
+                )}
+              </button>
+
+              {(authMode === 'forgot-password' || authMode === 'reset-password') && (
+                <div className={styles.center}>
+                  <button type="button" className={styles.linkBtn} onClick={backToLogin}>
+                    <ArrowLeft size={14} aria-hidden="true" />
+                    <span>{t('auth.backToLogin')}</span>
+                  </button>
+                </div>
+              )}
+            </motion.form>
+          </AnimatePresence>
+
+          {/* Mode Switcher Link (Login <-> Register) */}
+          {(authMode === 'login' || authMode === 'register') && (
+            <motion.div layout={!reduceMotion ? 'position' : false} className={styles.switcher}>
+              {authMode === 'login' ? t('auth.noAccountPrompt') : t('auth.hasAccountPrompt')}{' '}
+              <button
+                type="button"
+                className={`${styles.linkBtn} ${styles.switcherLink}`}
+                onClick={() => onAuthModeChange(authMode === 'login' ? 'register' : 'login')}
+              >
+                {authMode === 'login' ? t('auth.registerNow') : t('auth.loginNow')}
+              </button>
+            </motion.div>
+          )}
+        </motion.div>
+      </motion.div>
     </div>
   )
 }
