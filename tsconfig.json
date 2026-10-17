@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "tmp_baserow_ref", ".baserow_src", "baserow_backup"]
+  "exclude": ["node_modules", "tmp_baserow_ref", ".baserow_src", "baserow_backup", ".claude/worktrees"]
 }
