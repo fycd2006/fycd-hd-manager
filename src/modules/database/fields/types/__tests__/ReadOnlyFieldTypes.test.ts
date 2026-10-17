@@ -9,6 +9,6 @@ describe.each([...READ_ONLY_FIELD_TYPES])('%s', (type) => {
     expect(t.validateValue('x', null)).toMatchObject({ valid: false, code: 'read_only' })
   })
   it('has the expected default value', () => {
-    expect(FieldRegistry.get(type).getDefaultValue(null)).toEqual(type === 'latest_comment' ? [] : null)
+    expect(FieldRegistry.get(type).getDefaultValue(null)).toBeNull()
   })
 })

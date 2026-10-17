@@ -16,7 +16,7 @@ import { invalidateMasterViewCacheForTable } from '@/modules/database/services/m
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 
 /** Field types that can never be written through a public form submission. */
-export const FORM_READONLY_TYPES = ['link_row', ...READ_ONLY_FIELD_TYPES] as const
+export const FORM_READONLY_TYPES = ['link_row', 'latest_comment', ...READ_ONLY_FIELD_TYPES] as const
 
 interface FieldShape {
   id: number

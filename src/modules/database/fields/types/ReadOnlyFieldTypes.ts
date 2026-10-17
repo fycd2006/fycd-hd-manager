@@ -13,7 +13,6 @@ export const READ_ONLY_FIELD_TYPES = [
   'last_modified_on',
   'last_modified_by',
   'edit_row_link',
-  'latest_comment',
 ] as const
 
 class ReadOnlyFieldType implements FieldType {
@@ -34,7 +33,6 @@ class ReadOnlyFieldType implements FieldType {
   }
 }
 
-// latest_comment is registered separately (LatestCommentFieldType) because its default value is [].
 export const READ_ONLY_FIELD_TYPE_INSTANCES: FieldType[] = [
   new ReadOnlyFieldType('formula', '公式'),
   new ReadOnlyFieldType('lookup', '查閱'),
