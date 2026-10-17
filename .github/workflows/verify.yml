@@ -1,0 +1,37 @@
+name: Verify
+
+# 與本機 `npm run verify` 相同：typecheck → lint 錯誤 → jest → build:check。
+# build:check 不跑 prisma db push，不會碰資料庫；這裡也不提供真的 DATABASE_URL。
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: npm run verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # 僅供 prisma generate／next build 解析設定用的佔位值，不會連線
+      DATABASE_URL: mysql://ci:ci@127.0.0.1:4000/ci
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run verify
