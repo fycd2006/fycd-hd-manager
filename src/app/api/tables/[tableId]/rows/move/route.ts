@@ -77,6 +77,9 @@ export async function POST(
       if (!rowObj.clientId || !rowObj.sourceRowId) {
         return NextResponse.json({ error: '移動資料缺少 clientId 或 sourceRowId' }, { status: 400 })
       }
+      if (!Number.isInteger(Number(rowObj.sourceRowId))) {
+        return NextResponse.json({ error: '無效的 sourceRowId' }, { status: 400 })
+      }
 
       const rowData: Record<string, any> = {}
       for (let i = 0; i < targetFields.length; i++) {
@@ -111,8 +114,19 @@ export async function POST(
         clientId: rowObj.clientId,
         data: rowData,
         order: typeof rowObj.order === 'number' ? rowObj.order : 0,
-        sourceRowId: rowObj.sourceRowId
+        sourceRowId: Number(rowObj.sourceRowId)
       })
+    }
+
+    // sourceRowId comes from the client: every one must be a live row of the source table,
+    // otherwise an editor could hard-delete rows of any workspace by id
+    const sourceRowIds = [...new Set(parsedRowsData.map(r => r.sourceRowId))]
+    const ownedSourceRows = await prisma.tableRow.findMany({
+      where: { id: { in: sourceRowIds }, tableId: sourceTableIdNum, deletedAt: null },
+      select: { id: true }
+    })
+    if (ownedSourceRows.length !== sourceRowIds.length) {
+      return NextResponse.json({ error: '部分來源資料列不存在或不屬於來源表格' }, { status: 404 })
     }
 
     // Step 3: Insert Target and Delete Source (Sequential)
@@ -202,7 +216,7 @@ export async function POST(
     // Step 4: Delete source rows sequentially
     for (const row of parsedRowsData) {
       try {
-        await prisma.tableRow.delete({ where: { id: row.sourceRowId } })
+        await prisma.tableRow.deleteMany({ where: { id: row.sourceRowId, tableId: sourceTableIdNum } })
       } catch (err) {
         // Fallback: log to MoveOperationLog
         await prisma.moveOperationLog.create({

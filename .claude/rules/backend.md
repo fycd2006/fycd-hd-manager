@@ -26,3 +26,4 @@ paths:
 
 （格式：`- 根因 → 以後做法`，一到兩行，必須可執行）
 - 欄位 PATCH／DELETE 依 URL `tableId` 授權，卻只用 `where: { id: fid }` 讀寫欄位，可跨工作區改刪別人的欄位 → 巢狀路由（`[tableId]/.../[xxxId]`）讀寫子資源時，`where` 必須同時帶 `tableId`，或查出後比對 `record.tableId === tid`，不符回 404
+- `rows/move` 只授權來源與目標表，卻直接用前端給的 `sourceRowId` 執行 `delete({ where: { id } })`，可硬刪任何工作區的資料列 → body 裡帶的子資源 id（rowId、fieldId 等）在任何寫入前先用 `findMany({ where: { id: { in }, tableId, deletedAt: null } })` 確認全數屬於已授權的表，數量不符回 404；刪除也帶 `tableId`
