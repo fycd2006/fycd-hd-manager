@@ -26,4 +26,5 @@ paths:
 
 （格式：`- 根因 → 以後做法`，一到兩行，必須可執行）
 - 欄位 PATCH／DELETE 依 URL `tableId` 授權，卻只用 `where: { id: fid }` 讀寫欄位，可跨工作區改刪別人的欄位 → 巢狀路由（`[tableId]/.../[xxxId]`）讀寫子資源時，`where` 必須同時帶 `tableId`，或查出後比對 `record.tableId === tid`，不符回 404
+- `workspaces/[id]/members` 與 `accept-invite` 只用 `getSessionUser()` 確認登入、沒檢查工作區角色，任何人可把自己加成任一工作區 admin → 帶 `workspaceId` 的路由一律先 `authorizeAction({ workspaceId, action })`（成員管理用 `canManageMembers`）；用 id 刪子資源時改 `deleteMany({ where: { id, workspaceId } })`，`count === 0` 回 404；改或移除成員角色後呼叫 `invalidateWorkspaceRoleCache`
 - `rows/move` 只授權來源與目標表，卻直接用前端給的 `sourceRowId` 執行 `delete({ where: { id } })`，可硬刪任何工作區的資料列 → body 裡帶的子資源 id（rowId、fieldId 等）在任何寫入前先用 `findMany({ where: { id: { in }, tableId, deletedAt: null } })` 確認全數屬於已授權的表，數量不符回 404；刪除也帶 `tableId`

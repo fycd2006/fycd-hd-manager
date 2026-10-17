@@ -190,7 +190,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
     }
     const inviteUrl = `${window.location.origin}/workspace-invitation?workspaceId=${workspace.id}&wsId=${workspace.id}`
     navigator.clipboard.writeText(inviteUrl)
-    onToast('已複製工作區邀請連結至剪貼簿！', 'success')
+    onToast('已複製邀請連結！只有已用 Email 邀請的人能透過此連結加入', 'success')
   }
 
   // Update Member Role

@@ -333,9 +333,6 @@
   "src/app/api/workspaces/[id]/members/route.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 4
-    },
-    "prefer-const": {
-      "count": 2
     }
   },
   "src/app/api/workspaces/route.ts": {

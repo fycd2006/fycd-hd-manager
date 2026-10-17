@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
+import { invalidateWorkspaceRoleCache } from '@/lib/authorize'
 
 export async function POST(
   request: Request,
@@ -51,24 +52,25 @@ export async function POST(
       }
     })
 
-    const assignedRole = pendingInvite ? pendingInvite.role : 'editor'
+    // Joining requires an invitation addressed to this user's email; workspace ids are sequential
+    if (!pendingInvite) {
+      return NextResponse.json({ error: '找不到寄給您的邀請，請聯絡工作區管理員' }, { status: 403 })
+    }
 
     // Add user as workspace member
     await prisma.workspaceUser.create({
       data: {
         workspaceId,
         userId: activeUser.id,
-        role: assignedRole,
+        role: pendingInvite.role,
         twoFactor: false
       }
     })
 
-    // Clean up invitation if found
-    if (pendingInvite) {
-      await prisma.workspaceInvitation.delete({
-        where: { id: pendingInvite.id }
-      })
-    }
+    await prisma.workspaceInvitation.delete({
+      where: { id: pendingInvite.id }
+    })
+    await invalidateWorkspaceRoleCache(workspaceId, activeUser.id)
 
     return NextResponse.json({
       message: `已成功加入工作區「${workspace.name}」`,
