@@ -5,35 +5,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Pure white background as requested */
-  background: #ffffff;
+  /* 品牌暖米白底，與登入頁一致 */
+  background: #f5f0e6;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 250ms ease-in-out;
-}
-
-/* Ensure background remains white */
-:global(.theme-dark) .overlay {
-  background: #ffffff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :global(:not(.theme-light)) .overlay {
-    background: #ffffff;
-  }
-}
-
-.overlay.phase-enter {
-  opacity: 1;
-  pointer-events: all;
   transition: opacity 250ms ease-out;
 }
 
-.overlay.phase-scan {
-  opacity: 1;
-  pointer-events: all;
-}
-
+.overlay.phase-enter,
+.overlay.phase-scan,
 .overlay.phase-breathing {
   opacity: 1;
   pointer-events: all;
@@ -41,34 +21,59 @@
 
 .overlay.phase-exit {
   opacity: 0;
+  transform: scale(1.04);
   pointer-events: none;
-  transition: opacity 350ms ease-in-out;
+  transition:
+    opacity 400ms ease,
+    transform 400ms ease;
 }
 
-/* The container holding the logo */
 .logoContainer {
-  position: relative;
-  width: min(78vw, 520px);
-  height: auto;
-  aspect-ratio: 1 / 1;
+  width: min(72vw, 420px);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 36px;
 }
 
-.brandLogo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  /* Ensure it is sharp */
-  image-rendering: -webkit-optimize-contrast;
+/* 不定進度條：橄欖綠底軌＋橘色滑塊 */
+.progress {
+  position: relative;
+  width: 120px;
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgba(57, 69, 43, 0.15);
 }
 
+.progress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: 2px;
+  background: #f58220;
+  animation: progressSlide 1.2s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
+}
 
+@keyframes progressSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
 
-/* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
-  .overlay {
+  .overlay,
+  .overlay.phase-exit {
+    transform: none;
     transition: opacity 200ms linear;
+  }
+
+  .progress::after {
+    animation: none;
+    transform: translateX(75%);
   }
 }
