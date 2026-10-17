@@ -1,6 +1,4 @@
-jest.mock('@/lib/prisma', () => ({ __esModule: true, default: {} }))
-
-import { prepareCellWrites, prepareBatchCellWrites, mergeChoicesIntoOptions, formatRejection, type FieldMeta } from '../cellWrite'
+import { prepareCellWrites, prepareBatchCellWrites, mergeChoicesIntoOptions, applyChoiceRemap, formatRejection, type FieldMeta } from '../cellWrite'
 
 const fields: FieldMeta[] = [
   { id: 1, name: '名稱', type: 'text', options: null },
@@ -9,6 +7,7 @@ const fields: FieldMeta[] = [
   { id: 4, name: '類別', type: 'single_select', options: { choices: [{ id: 'a', name: '蔬菜' }] } },
   { id: 5, name: '留言', type: 'latest_comment', options: null },
   { id: 6, name: '怪', type: 'no_such_type', options: null },
+  { id: 7, name: '標籤', type: 'multiple_select', options: { choices: [] } },
 ]
 
 describe('prepareCellWrites', () => {
@@ -89,5 +88,22 @@ describe('mergeChoicesIntoOptions', () => {
   })
   it('skips names that already exist, case-insensitively', () => {
     expect(mergeChoicesIntoOptions({ choices: [{ id: 'a', name: 'sweet' }] }, add)).toEqual({ choices: [{ id: 'a', name: 'sweet' }, add[1]] })
+  })
+})
+
+describe('applyChoiceRemap', () => {
+  const remap = { 4: { new: 'old' }, 7: { new: 'old' } }
+  it('remaps single and multi select values and leaves others alone', () => {
+    const data = { field_1: 'new', field_4: 'new', field_7: JSON.stringify(['new', 'x']) }
+    const out = applyChoiceRemap(data, fields, remap)
+    expect(out).toEqual({ field_1: 'new', field_4: 'old', field_7: JSON.stringify(['old', 'x']) })
+    expect(data.field_4).toBe('new')
+  })
+  it('dedupes multi values that already contain the existing id', () => {
+    const out = applyChoiceRemap({ field_7: JSON.stringify(['old', 'new', 'x']) }, fields, remap)
+    expect(out.field_7).toBe(JSON.stringify(['old', 'x']))
+  })
+  it('leaves non-remapped ids untouched', () => {
+    expect(applyChoiceRemap({ field_4: 'a' }, fields, remap)).toEqual({ field_4: 'a' })
   })
 })

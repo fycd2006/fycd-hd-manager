@@ -1,9 +1,8 @@
 import { randomUUID } from 'crypto'
 import { FieldRegistry } from '../fields/types'
 import type { RejectCode } from '../fields/FieldType'
-import { extractChoices, resolveChoices, type SelectChoice } from '../fields/types/selectChoices'
+import { DEFAULT_COLORS, extractChoices, resolveChoices, type SelectChoice } from '../fields/types/selectChoices'
 import { parseLatestCommentEntries } from '../fields/types/LatestCommentFieldType'
-import { DEFAULT_COLORS } from './selectFieldMigration'
 
 export interface FieldMeta {
   id: number
@@ -61,6 +60,39 @@ export function mergeChoicesIntoOptions(options: unknown, additions: SelectChoic
     if (Array.isArray(base[k])) return { ...base, [k]: [...(base[k] as unknown[]), ...fresh] }
   }
   return { ...base, choices: fresh }
+}
+
+/**
+ * Replaces ids of choices that were dropped as duplicates (see applyOptionAdditions)
+ * with the ids that already exist. Returns a new object; other fields are untouched.
+ */
+export function applyChoiceRemap(
+  data: Record<string, unknown>,
+  fields: FieldMeta[],
+  remap: Record<number, Record<string, string>>,
+): Record<string, unknown> {
+  const out = { ...data }
+  for (const f of fields) {
+    const map = remap[f.id]
+    const key = `field_${f.id}`
+    if (!map || !(key in out)) continue
+    const v = out[key]
+    const type = FieldRegistry.get(f.type).type
+    if (type === 'single_select' && typeof v === 'string' && v in map) {
+      out[key] = map[v]
+    } else if (type === 'multiple_select' && typeof v === 'string') {
+      let ids: unknown
+      try {
+        ids = JSON.parse(v)
+      } catch {
+        continue
+      }
+      if (!Array.isArray(ids)) continue
+      const mapped = ids.map((id) => (typeof id === 'string' && id in map ? map[id] : id))
+      out[key] = JSON.stringify(mapped.filter((id, i) => mapped.indexOf(id) === i))
+    }
+  }
+  return out
 }
 
 export function formatRejection(fieldName: string, r: CellRejection): string {

@@ -1,6 +1,9 @@
 import prisma from '@/lib/prisma'
 import { safeJsonParse } from '@/lib/json-utils'
 import { randomUUID } from 'crypto'
+import { DEFAULT_COLORS } from '../fields/types/selectChoices'
+
+export { DEFAULT_COLORS }
 
 export interface FieldMeta {
   id: number
@@ -14,10 +17,6 @@ export interface RowMeta {
   tableId: number
   data: Record<string, any>
 }
-
-export const DEFAULT_COLORS = [
-  'gray', 'blue', 'green', 'orange', 'red', 'yellow', 'cyan', 'purple', 'pink'
-]
 
 /**
  * Migrates single_select / multiple_select legacy text values into UUID choices

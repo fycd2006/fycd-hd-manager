@@ -97,3 +97,7 @@ export function choiceLabel(choice: RawChoice | undefined): string {
   if (typeof choice === 'string') return choice
   return str(choice.name) || str(choice.value)
 }
+
+export const DEFAULT_COLORS = [
+  'gray', 'blue', 'green', 'orange', 'red', 'yellow', 'cyan', 'purple', 'pink'
+]
