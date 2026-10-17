@@ -17,6 +17,14 @@ FYCD HD Manager (北科伙食團資料庫管理系統): a Baserow/Airtable-style
 - `npx playwright test e2e/`: Playwright specs (no playwright config committed)
 - `npm run build`: runs `prisma generate && prisma db push --accept-data-loss && next build`. **This pushes the schema to whatever `DATABASE_URL` points at and can drop data.** Don't run it against a shared DB just to check compilation; use `npx tsc --noEmit`. (`todo.md` says this was switched to `prisma migrate`, but `package.json` still uses `db push` and there is no `prisma/migrations/`. The README's `npm run migrate:dev` doesn't exist either.)
 
+## 驗證規則
+
+- 任何改動完成前必須跑 `npm run verify`（typecheck → lint → jest → `build:check`）並全部通過。失敗就自己修到通過；通過前不可說「完成」。
+- 不可為了通過而刪除、跳過（`.skip`/`.only`）或弱化測試與斷言。
+- `build:check` 只編譯、不碰資料庫；不要用 `npm run build` 代替。
+- ESLint 舊錯誤凍結在 `eslint-suppressions.json`，新錯誤一律算失敗。修掉舊錯誤後跑 `npx eslint . --prune-suppressions` 更新它；不可用 `--suppress-*` 壓掉新錯誤。
+- Hooks（`.claude/settings.json`）：編輯後自動對該檔 `eslint --fix` 並回報剩餘錯誤；`git commit` 前自動跑 `verify`，失敗會擋下。人手動 commit 由 `.githooks/pre-commit` 把關（每個 clone 執行一次 `git config core.hooksPath .githooks`）。
+
 Required env (`.env.local`): `DATABASE_URL`, `SESSION_SECRET` (≥32 chars). Optional: `REDIS_URL`, `CRON_SECRET`, `PUSHER_*`. There is no `.env.example` despite the README.
 
 ## Architecture

@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "npx jest",
+    "typecheck": "tsc --noEmit",
+    "build:check": "node scripts/build-check.mjs",
+    "verify": "npm run typecheck && npm run lint -- --quiet && npm test && npm run build:check",
     "postinstall": "prisma generate"
   },
   "dependencies": {
