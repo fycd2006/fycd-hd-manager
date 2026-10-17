@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "tmp_baserow_ref/**",
     ".baserow_src/**",
+    // App-managed git worktrees nested in the checkout (each verifies itself).
+    ".claude/worktrees/**",
   ]),
 ]);
 
