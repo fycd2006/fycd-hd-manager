@@ -4,8 +4,9 @@ export interface SelectChoice {
   color?: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- callers read choice members directly
-export function extractChoices(options: unknown): any[] {
+export type RawChoice = string | Record<string, unknown>
+
+export function extractChoices(options: unknown): RawChoice[] {
   if (!options) return []
   let opts: unknown = options
   if (typeof opts === 'string') {
@@ -89,4 +90,10 @@ export function resolveChoices(
     }
   }
   return { ids, unknown }
+}
+
+export function choiceLabel(choice: RawChoice | undefined): string {
+  if (!choice) return ''
+  if (typeof choice === 'string') return choice
+  return str(choice.name) || str(choice.value)
 }
