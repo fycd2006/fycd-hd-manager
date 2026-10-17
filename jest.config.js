@@ -5,7 +5,9 @@ const createJestConfig = nextJest({
 })
 
 const customJestConfig = {
-  testMatch: ['<rootDir>/src/**/__tests__/**/*.[jt]s?(x)'],
+  // roots 是路徑不是 glob：Windows 上 <rootDir> 含 `\.claude` 時，放進 glob 會被當成跳脫字元而比對不到任何測試
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.[jt]s?(x)'],
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/.baserow_src/',
