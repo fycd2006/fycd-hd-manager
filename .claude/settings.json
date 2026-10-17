@@ -19,15 +19,6 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(git commit*)",
-            "command": "PATH=\"$PATH:/c/Program Files/nodejs\" node \"$(git rev-parse --show-toplevel)/.claude/hooks/pre-commit-verify.mjs\"",
-            "timeout": 900,
-            "onFailure": "block",
-            "statusMessage": "npm run verify"
-          },
-          {
-            "type": "command",
-            "if": "PowerShell(git commit*)",
             "command": "PATH=\"$PATH:/c/Program Files/nodejs\" node \"$(git rev-parse --show-toplevel)/.claude/hooks/pre-commit-verify.mjs\"",
             "timeout": 900,
             "onFailure": "block",

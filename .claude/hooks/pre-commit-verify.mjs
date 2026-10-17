@@ -3,9 +3,10 @@ import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-// The settings `if` filter is best-effort and also fires on commands it cannot parse; re-check here.
+// The hook fires on every Bash/PowerShell call (a settings `if` filter misses forms like `git -C dir commit`),
+// so this regex is the only filter: `git`, optional global options, then the `commit` subcommand.
 const command = JSON.parse(readFileSync(0, 'utf8')).tool_input?.command ?? ''
-if (!/\bgit\b[^\n|;&]*\bcommit\b/.test(command)) process.exit(0)
+if (!/\bgit(\s+(-C|-c)\s+\S+|\s+--?[\w-]+(=\S+)?)*\s+commit\b/.test(command)) process.exit(0)
 
 const root = path.resolve(import.meta.dirname, '..', '..')
 try {
