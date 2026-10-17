@@ -22,3 +22,4 @@ paths:
 ## 錯誤紀錄
 
 （格式：`- 根因 → 以後做法`，一到兩行，必須可執行）
+- GridView 分組時畫面順序和 `rows` 順序不同，選取範圍卻用 `rows` 索引取 min..max、換列用 ±1，Delete／貼上／填滿／刪列會動到其他分組或收合的列 → 列範圍和上下列一律走 `orderedRowIndices`／`rowsOnScreenBetween`（畫面順序），首尾列用 `firstRowOnScreen`／`lastRowOnScreen`，不要寫 `rows[r]` 搭配 `r++` 或 `rows.length - 1`
