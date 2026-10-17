@@ -1,0 +1,45 @@
+name: Claude Code Review
+
+# 依 https://code.claude.com/docs/en/github-actions 的 code-review 範例。
+# Claude 在 PR 上留 inline 評論（沒發現問題就留一則摘要）；它是建議，不是必要檢查，
+# 擋合併的是 verify.yml。
+# 需要：repo 安裝 Claude GitHub App，並設定 CLAUDE_CODE_OAUTH_TOKEN secret（`claude setup-token` 產生）。
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # fork 來的 PR 拿不到 secret，只審同 repo 的分支
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    env:
+      HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: 尚未設定 CLAUDE_CODE_OAUTH_TOKEN，略過審查
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::notice::CLAUDE_CODE_OAUTH_TOKEN 未設定，略過 Claude 審查"
+
+      - uses: actions/checkout@v6
+        if: env.HAS_TOKEN == 'true'
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        if: env.HAS_TOKEN == 'true'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
+          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
