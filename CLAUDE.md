@@ -31,6 +31,20 @@ FYCD HD Manager（北科伙食團資料庫管理系統）：類 Airtable／Baser
 - 最小改動：只改需求要求的部分，符合既有風格，不順手重構；只清理自己造成的未使用程式碼。
 - 用可驗證的成功條件推進：修 bug 先寫重現測試，重構前後測試都要通過。
 
+## 開發流程分流
+
+- **小修改**（單檔、<20 行、不影響其他模組）：直接實作並 verify，不走 brainstorm。此規則優先於 Superpowers 的預設流程。
+- **新功能或跨多檔改動**：走 Superpowers 完整流程（brainstorm → 計畫 → TDD），commit 前交給 `reviewer` 子代理審查；改到 `services/`、`src/lib/authorize.ts`、`src/proxy.ts`、`api-handler.ts` 或原生 SQL 時，以 model `opus` 呼叫 reviewer。
+- **修 bug**：用 `/bugfix`。**新增欄位型別**：用 `/new-field-type`。
+- 不確定屬於哪一類，先問使用者。
+- 搜尋定位程式碼優先用 `explorer` 子代理（haiku），不要用內建 Explore（跑主模型，較貴）。
+
+## 提醒使用者（我無法自己執行這些指令）
+
+- 一個功能完成並 commit 後，提醒是否 `/clear`。
+- context 用量過半時提醒 `/compact`（使用者狀態列會顯示百分比）；實作到一半時不建議壓縮。
+- 使用者要暫停或換任務時，先用 `/handoff` 更新 `PROGRESS.md`。
+
 ## 錯誤紀錄
 
 每修完一個 bug，在對應的 `.claude/rules/<領域>.md`「錯誤紀錄」段落加一行，跨領域的記在下方。格式 `- 根因 → 以後做法`，必須具體可執行（例：「改 `schema.prisma` 前先確認 `schemaService` 建的 generated column 不會被 `db push` 刪掉」），不寫「注意資料庫」這類空話。單一段落超過 15 條時合併重複項。
@@ -40,12 +54,13 @@ FYCD HD Manager（北科伙食團資料庫管理系統）：類 Airtable／Baser
 ## 進度交接
 
 - 開始新工作前先讀 `PROGRESS.md`。
-- 使用者要暫停或換任務前，先更新 `PROGRESS.md`（目前進度、已做的決定、下一步、待辦），保持 40 行以內。
+- 使用者要暫停或換任務前，用 `/handoff` 更新 `PROGRESS.md`（目前進度、已做的決定、下一步、待辦），保持 40 行以內。
 
 ## 文件索引
 
 - `PROGRESS.md`：目前進度、決定與待辦
 - `.claude/rules/backend.md`／`frontend.md`／`testing.md`：各領域規則與錯誤紀錄（依路徑自動載入）
+- `.claude/agents/`（explorer、reviewer）、`.claude/skills/`（bugfix、new-field-type、handoff）
 - `docs/architecture-decisions/001-dynamic-fields-storage.md`：為何用 JSON 存資料列而非 DDL
 - `docs/architecture-decisions/002-cross-table-master-view-architecture.md`：跨表總表（master view）架構
 - `src/modules/database/ARCHITECTURE.md`／`QUICK_START.md`：前端模組結構與 hooks 使用方式
