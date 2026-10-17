@@ -16,7 +16,7 @@ jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     rowComment: { findMany: jest.fn() },
-    tableRow: { findUnique: jest.fn() },
+    tableRow: { findFirst: jest.fn() },
     $transaction: jest.fn(),
   },
 }))
@@ -36,6 +36,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   ;(authorizeAction as jest.Mock).mockResolvedValue(allow())
   ;(prisma.rowComment.findMany as jest.Mock).mockResolvedValue([])
+  ;(prisma.tableRow.findFirst as jest.Mock).mockResolvedValue({ createdAt: new Date('2026-01-01T00:00:00Z'), updatedAt: new Date('2026-01-01T00:00:00Z') })
   ;(prisma.$transaction as jest.Mock).mockImplementation(async (fn) => fn(tx))
   tx.tableRow.findFirst.mockResolvedValue({ id: 30 })
   tx.rowComment.create.mockImplementation(async ({ data }) => ({ id: 1, ...data }))
@@ -55,7 +56,7 @@ describe('GET /api/tables/[tableId]/rows/comments', () => {
   it('prepends a synthetic creation entry when the row has no history comments', async () => {
     const createdAt = new Date('2026-02-01T00:00:00Z')
     ;(prisma.rowComment.findMany as jest.Mock).mockResolvedValue([{ id: 5, content: 'hi' }])
-    ;(prisma.tableRow.findUnique as jest.Mock).mockResolvedValue({ createdAt, updatedAt: createdAt })
+    ;(prisma.tableRow.findFirst as jest.Mock).mockResolvedValue({ createdAt, updatedAt: createdAt })
 
     const body = await (await list('?rowId=30')).json()
 
@@ -70,7 +71,8 @@ describe('GET /api/tables/[tableId]/rows/comments', () => {
     const body = await (await list('?rowId=30')).json()
 
     expect(body).toEqual([{ id: 5, content: '[HISTORY] 修改了欄位' }])
-    expect(prisma.tableRow.findUnique).not.toHaveBeenCalled()
+    // the row lookup always runs now: it scopes rowId to the authorized table (see route.scope.test.ts)
+    expect(prisma.tableRow.findFirst).toHaveBeenCalledWith({ where: { id: 30, tableId: 10 }, select: { createdAt: true, updatedAt: true } })
   })
 
   it('returns 400 for a missing or invalid rowId', async () => {
