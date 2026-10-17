@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { authorizeAction, invalidateWorkspaceRoleCache } from '@/lib/authorize'
 
 // GET /api/workspaces/[id]/members - Fetch members, invitations, and teams for a workspace
 export async function GET(
@@ -8,19 +8,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const activeUser = await getSessionUser()
-    if (!activeUser) {
-      return NextResponse.json({ error: '未授權，請先登入' }, { status: 401 })
-    }
-
     const { id } = await params
     const workspaceId = parseInt(id)
     if (isNaN(workspaceId)) {
       return NextResponse.json({ error: '無效的工作區 ID' }, { status: 400 })
     }
 
+    const { errorResponse } = await authorizeAction({ workspaceId, action: 'canViewData' })
+    if (errorResponse) return errorResponse
+
     // 1. Parallelize fetching workspace members, invitations, and teams
-    let [members, invitations, teams] = await Promise.all([
+    const [members, invitations, teams] = await Promise.all([
       prisma.workspaceUser.findMany({
         where: { workspaceId },
         include: {
@@ -48,33 +46,6 @@ export async function GET(
         orderBy: { createdAt: 'asc' }
       })
     ])
-
-    // If workspace has no explicit WorkspaceUser records yet, sync in 1 bulk insert
-    if (members.length === 0) {
-      const systemUsers = await prisma.user.findMany({ select: { id: true, role: true } })
-      if (systemUsers.length > 0) {
-        await prisma.workspaceUser.createMany({
-          data: systemUsers.map(u => ({
-            workspaceId,
-            userId: u.id,
-            role: u.role === 'admin' ? 'admin' : 'member',
-            twoFactor: false
-          })),
-          skipDuplicates: true
-        })
-
-        // Re-fetch updated members once
-        members = await prisma.workspaceUser.findMany({
-          where: { workspaceId },
-          include: {
-            user: {
-              select: { id: true, username: true, email: true, role: true }
-            }
-          },
-          orderBy: { createdAt: 'asc' }
-        })
-      }
-    }
 
     return NextResponse.json({
       members: members.map(m => ({
@@ -107,16 +78,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const activeUser = await getSessionUser()
-    if (!activeUser) {
-      return NextResponse.json({ error: '未授權，請先登入' }, { status: 401 })
-    }
-
     const { id } = await params
     const workspaceId = parseInt(id)
     if (isNaN(workspaceId)) {
       return NextResponse.json({ error: '無效的工作區 ID' }, { status: 400 })
     }
+
+    const { errorResponse, auth } = await authorizeAction({ workspaceId, action: 'canManageMembers' })
+    if (errorResponse) return errorResponse
+    const activeUser = auth!.user
 
     const body = await request.json()
     const { action, email, role, teamName, teamDescription } = body
@@ -226,13 +196,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const activeUser = await getSessionUser()
-    if (!activeUser) {
-      return NextResponse.json({ error: '未授權，請先登入' }, { status: 401 })
-    }
-
     const { id } = await params
     const workspaceId = parseInt(id)
+    if (isNaN(workspaceId)) {
+      return NextResponse.json({ error: '無效的工作區 ID' }, { status: 400 })
+    }
+
+    const { errorResponse } = await authorizeAction({ workspaceId, action: 'canManageMembers' })
+    if (errorResponse) return errorResponse
+
     const body = await request.json()
     const { userId, role } = body
 
@@ -254,6 +226,7 @@ export async function PATCH(
       where: { workspaceId_userId: { workspaceId, userId: parseInt(userId) } },
       data: { role }
     })
+    await invalidateWorkspaceRoleCache(workspaceId, parseInt(userId))
 
     return NextResponse.json(updated)
   } catch (error: any) {
@@ -267,13 +240,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const activeUser = await getSessionUser()
-    if (!activeUser) {
-      return NextResponse.json({ error: '未授權，請先登入' }, { status: 401 })
-    }
-
     const { id } = await params
     const workspaceId = parseInt(id)
+    if (isNaN(workspaceId)) {
+      return NextResponse.json({ error: '無效的工作區 ID' }, { status: 400 })
+    }
+
+    const { errorResponse } = await authorizeAction({ workspaceId, action: 'canManageMembers' })
+    if (errorResponse) return errorResponse
 
     const url = new URL(request.url)
     const userId = url.searchParams.get('userId')
@@ -295,20 +269,28 @@ export async function DELETE(
       await prisma.workspaceUser.delete({
         where: { workspaceId_userId: { workspaceId, userId: targetUserId } }
       })
+      await invalidateWorkspaceRoleCache(workspaceId, targetUserId)
       return NextResponse.json({ message: '成員已從工作區移除' })
     }
 
     if (inviteId) {
-      await prisma.workspaceInvitation.delete({
-        where: { id: parseInt(inviteId) }
+      // Scope by workspaceId so an admin of one workspace cannot revoke another workspace's invites
+      const { count } = await prisma.workspaceInvitation.deleteMany({
+        where: { id: parseInt(inviteId), workspaceId }
       })
+      if (count === 0) {
+        return NextResponse.json({ error: '找不到邀請' }, { status: 404 })
+      }
       return NextResponse.json({ message: '邀請已撤銷' })
     }
 
     if (teamId) {
-      await prisma.workspaceTeam.delete({
-        where: { id: parseInt(teamId) }
+      const { count } = await prisma.workspaceTeam.deleteMany({
+        where: { id: parseInt(teamId), workspaceId }
       })
+      if (count === 0) {
+        return NextResponse.json({ error: '找不到團隊' }, { status: 404 })
+      }
       return NextResponse.json({ message: '團隊已刪除' })
     }
 
