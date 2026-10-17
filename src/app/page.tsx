@@ -117,6 +117,7 @@ export default function Home() {
   const [gridLoading, setGridLoading] = useState(false)
   const [showBrandLoading, setShowBrandLoading] = useState<boolean>(false)
   const [workspaceReady, setWorkspaceReady] = useState(false)
+  const [authCovered, setAuthCovered] = useState(false)
   const [editingCell, setEditingCell] = useState<{ rowId: number; fieldKey: string } | null>(null)
   const [editingCellValue, setEditingCellValue] = useState('')
   const [editingFieldId, setEditingFieldId] = useState<number | null>(null)
@@ -191,7 +192,10 @@ export default function Home() {
       localStorage.setItem('fycd_intro_seen_desktop', 'true')
     }
     setShowBrandLoading(false)
+    setAuthCovered(false)
   }, [])
+
+  const handleBrandEntered = useCallback(() => setAuthCovered(true), [])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -877,9 +881,22 @@ export default function Home() {
   ])
 
   // Show unified App Shell skeleton during initial load & authentication check
+  // 三個分支的根都是 Fragment 且第 0 個子元素都是 brandOverlay，
+  // 登入後切換分支時 React 會保留同一個載入層實例，不會重新淡入造成閃爍
+  const brandOverlay = (
+    <FYCDBrandLoading
+      show={showBrandLoading}
+      workspaceReady={workspaceReady}
+      onExitComplete={handleExitComplete}
+      onEntered={handleBrandEntered}
+    />
+  )
+
   if (authState.authLoading) {
     const isDark = themeState.theme === 'dark'
     return (
+      <>
+      {brandOverlay}
       <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#fafafa' }}>
         {/* Top Brand Accent Line */}
         <div style={{
@@ -941,6 +958,7 @@ export default function Home() {
           }
         `}</style>
       </div>
+      </>
     )
   }
 
@@ -961,15 +979,12 @@ export default function Home() {
   if (!authState.currentUser) {
     return (
       <>
-        <FYCDBrandLoading
-          show={showBrandLoading}
-          workspaceReady={workspaceReady}
-          onExitComplete={handleExitComplete}
-        />
-        {!showBrandLoading && (
+        {brandOverlay}
+        {!authCovered && (
           <>
             <ToastContainer toasts={uiState.toasts} />
             <AuthScreen
+              leaving={showBrandLoading}
               authMode={authState.authMode}
               authUsername={authState.authUsername}
               authEmail={authState.authEmail}
@@ -992,6 +1007,7 @@ export default function Home() {
                   uiActions.addToast(`登入成功，歡迎回來！`, 'success')
                 } else {
                   setShowBrandLoading(false)
+                  setAuthCovered(false)
                   setAuthError(result.error || '登入失敗，請檢查帳號或密碼')
                   uiActions.addToast(result.error || '登入失敗，請檢查帳號或密碼', 'error')
                 }
@@ -1006,6 +1022,7 @@ export default function Home() {
                   authActions.setAuthPassword('')
                 } else {
                   setShowBrandLoading(false)
+                  setAuthCovered(false)
                   setAuthError(result.error || '註冊失敗')
                   uiActions.addToast(result.error || '註冊失敗', 'error')
                 }
@@ -1062,13 +1079,10 @@ export default function Home() {
   }
 
   return (
+    <>
+    {brandOverlay}
     <TableProvider value={tableContextValue}>
       <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning>
-        <FYCDBrandLoading
-          show={showBrandLoading}
-          workspaceReady={workspaceReady}
-          onExitComplete={handleExitComplete}
-        />
       <ToastContainer toasts={uiState.toasts} />
 
       <div className="layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -1359,5 +1373,6 @@ export default function Home() {
       />
     </div>
     </TableProvider>
+    </>
   )
 }
