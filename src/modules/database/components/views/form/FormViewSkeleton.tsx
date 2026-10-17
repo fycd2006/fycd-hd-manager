@@ -32,7 +32,7 @@ export const FormViewSkeleton: React.FC<FormViewSkeletonProps> = ({ loadingText 
           left: 0,
           right: 0,
           height: '2.5px',
-          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
           backgroundSize: '200% 100%',
           animation: 'fycdBarShimmer 2s ease-in-out infinite',
         }}
@@ -54,8 +54,8 @@ export const FormViewSkeleton: React.FC<FormViewSkeletonProps> = ({ loadingText 
       >
         {/* Form Banner / Header */}
         <div style={{ padding: '24px 28px', borderBottom: '1px solid #f1f5f9', backgroundColor: '#fafafa' }}>
-          <div style={{ width: '220px', height: '24px', borderRadius: '6px', backgroundColor: '#e2e8f0', marginBottom: '8px' }} />
-          <div style={{ width: '320px', height: '14px', borderRadius: '4px', backgroundColor: '#f1f5f9' }} />
+          <div className="fycd-skeleton" style={{ width: '220px', height: '24px', borderRadius: '6px', marginBottom: '8px' }} />
+          <div className="fycd-skeleton" style={{ width: '320px', height: '14px', borderRadius: '4px' }} />
         </div>
 
         {/* Form Inputs List */}
@@ -73,7 +73,6 @@ export const FormViewSkeleton: React.FC<FormViewSkeletonProps> = ({ loadingText 
                   borderRadius: '6px',
                   backgroundColor: '#f8fafc',
                   border: '1px solid #e2e8f0',
-                  animation: `fycdRowPulse 1.8s ease-in-out ${idx * 0.1}s infinite alternate`,
                 }}
               />
             </div>

@@ -559,6 +559,40 @@
   }
 }
 
+/* ===== 骨架佔位共用 shimmer ===== */
+.fycd-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--skeleton-base, #eef0f2);
+}
+
+.fycd-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, var(--skeleton-shine, rgba(255, 255, 255, 0.65)) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: fycdSkeletonShimmer 1.4s ease-in-out infinite;
+}
+
+.theme-dark .fycd-skeleton {
+  --skeleton-base: #1f2937;
+  --skeleton-shine: rgba(255, 255, 255, 0.06);
+}
+
+@keyframes fycdSkeletonShimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fycd-skeleton::after {
+    animation: none;
+    display: none;
+  }
+}
+
 /* ===== Animate UI & Radix Sidebar Component System ===== */
 [data-sidebar="sidebar"] {
   display: flex !important;

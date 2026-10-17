@@ -27,7 +27,7 @@ export const GalleryViewSkeleton: React.FC<GalleryViewSkeletonProps> = ({ loadin
         style={{
           height: '2.5px',
           width: '100%',
-          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
           backgroundSize: '200% 100%',
           animation: 'fycdBarShimmer 2s ease-in-out infinite',
         }}
@@ -76,7 +76,6 @@ export const GalleryViewSkeleton: React.FC<GalleryViewSkeletonProps> = ({ loadin
               display: 'flex',
               flexDirection: 'column',
               boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-              animation: `fycdRowPulse 1.8s ease-in-out ${idx * 0.08}s infinite alternate`,
             }}
           >
             {/* Image Placeholder */}
@@ -91,10 +90,10 @@ export const GalleryViewSkeleton: React.FC<GalleryViewSkeletonProps> = ({ loadin
             {/* Card Info */}
             <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ width: `${60 + (idx % 4) * 10}%`, height: '14px', borderRadius: '4px', backgroundColor: '#cbd5e1' }} />
-              <div style={{ width: '40%', height: '11px', borderRadius: '3px', backgroundColor: '#e2e8f0' }} />
+              <div className="fycd-skeleton" style={{ width: '40%', height: '11px', borderRadius: '3px' }} />
               <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
-                <div style={{ width: '44px', height: '16px', borderRadius: '10px', backgroundColor: '#f1f5f9' }} />
-                <div style={{ width: '52px', height: '16px', borderRadius: '10px', backgroundColor: '#f1f5f9' }} />
+                <div className="fycd-skeleton" style={{ width: '44px', height: '16px', borderRadius: '10px' }} />
+                <div className="fycd-skeleton" style={{ width: '52px', height: '16px', borderRadius: '10px' }} />
               </div>
             </div>
           </div>
