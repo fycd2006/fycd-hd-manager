@@ -20,6 +20,8 @@
 - [ ] 確認 `npm run build` 的 `db push --accept-data-loss` 是否會刪掉 `schemaService` 建的 generated column（需可讀的 DB）
 - [ ] README 修正：`npm run migrate:dev` 不存在、缺 `.env.example`、漏列 GEMINI／RESEND 變數（需與 fycd2006 確認）
 - [ ] 重開 Claude app 讓 PATH 含 node 後，評估移除 hook 指令裡的 nodejs 備援路徑
-- [ ] 新工作階段實測 explorer／reviewer（子代理只在啟動時載入，本階段無法實測；CLI 也未登入）
+- [x] 實測 explorer（Haiku 5.5、無寫入工具）／reviewer（Sonnet 5.5、審查本分支未發現缺陷）
+- [ ] reviewer 低風險觀察：`git -C <dir> commit` 可能不觸發 commit hook 的 `if`，且 `.githooks/pre-commit` 在 Claude 中會跳過 → 評估移除 `if`、只靠腳本內 regex 過濾
+- [ ] `FieldRegistry.get()` 對未註冊型別 fail-open（不驗證、無預設、generated column 退回 VARCHAR(255)、無 log）→ 評估至少加 console.warn
 - [ ] 新工作階段用 `/memory` 確認 rules 依路徑載入、`/skills` 確認 9 個 skill 已停用
 - [ ] stylelint 在 CI 使用但不在 devDependencies
