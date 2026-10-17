@@ -1,30 +1,33 @@
 # PROGRESS
 
 ## 目前進度
-- 開發規範 5 階段全部完成，分支 `chore/dev-guardrails` 已 push，PR #1 open 等 fycd2006 審查：https://github.com/fycd2006/fycd-hd-manager/pull/1
-- 分支 `test/core-services`（從 `chore/dev-guardrails` 開）：核心服務補 51 個測試，並修正欄位 PATCH／DELETE 跨表越權（IDOR，回 404）。尚未 push。
+- PR #1–#6 已合併：開發規範、核心服務測試、CI verify、README／`.env.example`、Claude code review + 漏洞關卡 + next 16.4.2、commit hook 改在目標 worktree 驗證。
+- 待審 PR：`fix/members-authz`（members 補權限、accept-invite 需有邀請）、`fix/rows-move-scope`（rows/move 來源列限定來源表）、`test/api-routes`（除 forgot-password、members、move 外所有路由補測試）。
 
 ## 已做的決定
-- 驗證統一走 `npm run verify`；`build:check` 不碰資料庫，原 `npm run build`（部署用）不動。
-- ESLint 舊錯誤用 bulk suppressions 凍結，新錯誤一律失敗；不裝 Prettier，只用 `eslint --fix`。
-- Claude 的 commit 由 PreToolUse hook 跑 verify（腳本內 regex 判斷，含 `git -C`）；人手動 commit 由 `.githooks/pre-commit`。
-- 領域規則放 `.claude/rules/`（依路徑載入）；操作流程做成專案 skill（`/bugfix`、`/new-field-type`、`/handoff`）。
-- 子代理 explorer（haiku、唯讀）、reviewer（sonnet，核心／安全改動用 opus）；opusplan 不設為預設（Superpowers 規劃不在 plan mode）。
-- 9 個無關設計 skill 停用於個人 `.claude/settings.local.json`；狀態列在 `~/.claude/settings.json`。
-- 協作走分支 + PR。PR #1 合併前，新工作從 `chore/dev-guardrails` 開分支，才有 verify 與 hooks。
+- 驗證統一走 `npm run verify`；CI 也跑同一個指令（`verify.yml`）。`build:check` 不碰資料庫，`npm run build`（部署用）不動。
+- ESLint 舊錯誤用 bulk suppressions 凍結，新錯誤一律失敗；不裝 Prettier／stylelint。
+- AI 審查用 `anthropics/claude-code-action` + code-review plugin，認證用訂閱 token `CLAUDE_CODE_OAUTH_TOKEN`；只留評論不擋合併。
+- 漏洞關卡只擋 production critical；剩下的 high 來自 prisma 6，升 Prisma 7 後改擋 high。
+- 子代理 explorer（haiku）、reviewer（sonnet，核心／安全用 opus）；協作走分支 + PR。
 
 ## 下一步
-- 確認後 push `test/core-services` 並開 PR（base 視 PR #1 是否已合併決定）。
-- 同時追蹤 PR #1 的審查意見與 fycd2006 對 `npm run build` 的答覆。
+- 設定 main 分支保護（必要檢查 `npm run verify`、`npm audit (production)`）。
+- 安裝 Claude GitHub App，加 secret `CLAUDE_CODE_OAUTH_TOKEN`（`claude setup-token`）。
+- 審查並合併三個待審 PR；兩個 fix 分支都在 `.claude/rules/backend.md` 加錯誤紀錄，後合併的需解衝突。
 
 ## 待辦
-- [x] 補測試：rowValidation／createRow／欄位路由／trash／workspaces／authorize 跨工作區（51 案例）
-- [ ] 欄位 PATCH／DELETE 未擋已軟刪除欄位（可改回收站欄位、重複刪除會覆寫 deletedAt）→ 評估是否一併回 404
-- [ ] 前端 `services/trash.ts` 的 `restoreTrashItem` 用 PATCH，路由只有 POST（目前無人呼叫）；trash POST 找不到紀錄回 500 而非 404
-- [ ] 其餘 API 路由仍無測試（34 個中約 14 個有）
-- [ ] 確認 `npm run build` 的 `db push --accept-data-loss` 是否會刪掉 `schemaService` 建的 generated column（已在 PR #1 詢問）
-- [ ] `FieldRegistry.get()` 對未註冊型別 fail-open（不驗證、無預設、generated column 退回 VARCHAR(255)、無 log）→ 用 `/bugfix` 評估
-- [ ] README 修正：`npm run migrate:dev` 不存在、缺 `.env.example`、漏列 GEMINI／RESEND 變數（需與 fycd2006 確認）
-- [ ] 新工作階段用 `/memory` 確認 rules 依路徑載入、`/skills` 確認 9 個 skill 已停用
-- [ ] 重開 Claude app 讓 PATH 含 node 後，評估移除 hook 指令裡的 nodejs 備援路徑
-- [ ] stylelint 在 CI 使用但不在 devDependencies
+- [ ] **安全（待與 fycd2006 討論）**：`/api/auth/forgot-password` 回應直接帶 `resetToken`，知道帳號 + Email 即可重設任何人密碼；重設連結用 `origin` header 組成。前端 `page.tsx`／`AuthScreen` 依賴此流程
+- [ ] `rows/move` 搬移內容由前端提供而非從來源列讀取（來源列範圍已在 `fix/rows-move-scope` 修正）
+- [ ] **安全**：`rows/comments` GET 依 URL tableId 授權，但只用 `rowId` 查留言 → 可讀其他工作區留言（POST 有比對 tableId）
+- [ ] **安全**：通知「接受邀請」不檢查是否已處理 → 被移除的成員可用舊通知重新加入或恢復舊角色
+- [ ] 系統 admin 權限只看 session token 的 `role`，不回資料庫確認 → 被降級／刪除的 admin 最多 7 天仍有權限
+- [ ] `invitation-info` 公開且 id 連號 → 可列出所有工作區名稱與建立者帳號
+- [ ] login：帳號不存在與密碼錯誤回不同訊息（可列舉帳號）；接受明文密碼 fallback；500 回傳 `error.message`
+- [ ] profile 改密碼沒檢查密碼強度；`users/[id]` PATCH 的 role 沒白名單；members 預設角色 `'member'` 在 permissions 未定義（落到 viewer）
+- [ ] 升級 Prisma 7（清掉剩餘 production high 漏洞）
+- [ ] 欄位 PATCH／DELETE 未擋已軟刪除欄位 → 評估是否回 404
+- [ ] 前端 `restoreTrashItem` 用 PATCH，路由只有 POST；trash POST 找不到紀錄回 500
+- [ ] 確認 `npm run build` 的 `db push --accept-data-loss` 是否會刪 `schemaService` 建的 generated column（已在 PR #1 詢問）
+- [ ] `FieldRegistry.get()` 對未註冊型別 fail-open → 用 `/bugfix` 評估
+- [ ] E2E（`e2e/` 已有 Playwright spec 但無設定檔）與真資料庫整合測試：需先規劃
