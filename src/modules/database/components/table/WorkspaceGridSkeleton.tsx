@@ -34,7 +34,7 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
         style={{
           height: '2.5px',
           width: '100%',
-          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
           backgroundSize: '200% 100%',
           animation: 'fycdBarShimmer 2s ease-in-out infinite',
         }}
@@ -82,12 +82,12 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
           flexShrink: 0,
         }}
       >
-        <div style={{ width: '32px', height: '14px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
-        <div style={{ width: '160px', height: '14px', borderRadius: '4px', backgroundColor: '#cbd5e1' }} />
-        <div style={{ width: '140px', height: '14px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
-        <div style={{ width: '120px', height: '14px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
-        <div style={{ width: '150px', height: '14px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
-        <div style={{ flex: 1, height: '14px', borderRadius: '4px', backgroundColor: '#f1f5f9' }} />
+        <div className="fycd-skeleton" style={{ width: '32px', height: '14px', borderRadius: '4px' }} />
+        <div className="fycd-skeleton" style={{ width: '160px', height: '14px', borderRadius: '4px' }} />
+        <div className="fycd-skeleton" style={{ width: '140px', height: '14px', borderRadius: '4px' }} />
+        <div className="fycd-skeleton" style={{ width: '120px', height: '14px', borderRadius: '4px' }} />
+        <div className="fycd-skeleton" style={{ width: '150px', height: '14px', borderRadius: '4px' }} />
+        <div className="fycd-skeleton" style={{ flex: 1, height: '14px', borderRadius: '4px' }} />
       </div>
 
       {/* Skeleton Table Rows with staggered organic shimmer */}
@@ -103,10 +103,9 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
               backgroundColor: idx % 2 === 0 ? '#ffffff' : '#fafafa',
               padding: '0 12px',
               gap: '12px',
-              animation: `fycdRowPulse 1.8s ease-in-out ${idx * 0.12}s infinite alternate`,
             }}
           >
-            <div style={{ width: '32px', height: '12px', borderRadius: '3px', backgroundColor: '#f1f5f9' }} />
+            <div className="fycd-skeleton" style={{ width: '32px', height: '12px', borderRadius: '3px' }} />
             <div
               style={{
                 width: `${Math.round(160 * widthRatio)}px`,
@@ -124,8 +123,8 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
                 opacity: 0.8,
               }}
             />
-            <div style={{ width: '70px', height: '12px', borderRadius: '4px', backgroundColor: '#f1f5f9' }} />
-            <div style={{ width: '110px', height: '12px', borderRadius: '4px', backgroundColor: '#f1f5f9' }} />
+            <div className="fycd-skeleton" style={{ width: '70px', height: '12px', borderRadius: '4px' }} />
+            <div className="fycd-skeleton" style={{ width: '110px', height: '12px', borderRadius: '4px' }} />
             <div style={{ flex: 1 }} />
           </div>
         ))}

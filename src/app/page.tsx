@@ -55,6 +55,7 @@ import WorkspaceDashboard from '@/modules/database/components/dashboard/Workspac
 import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { FYCDBrandLoading } from '@/components/fycd/FYCDBrandLoading'
+import { FycdLogo } from '@/components/brand/FycdLogo'
 import {
   useAuthStore,
   useThemeStore,
@@ -888,7 +889,7 @@ export default function Home() {
           right: 0,
           height: '3px',
           zIndex: 50,
-          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
           backgroundSize: '200% 100%',
           animation: 'fycdTopBarShimmer 2s ease-in-out infinite'
         }} />
@@ -896,16 +897,12 @@ export default function Home() {
         {/* Sidebar Skeleton */}
         <div style={{ width: '240px', height: '100%', borderRight: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: isDark ? '#1e293b' : '#ffffff', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img
-              src="/logo.png"
-              alt="FYCD HD Logo"
-              style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #EA580C', boxShadow: '0 2px 6px rgba(234, 88, 12, 0.2)' }}
-            />
-            <div style={{ width: '110px', height: '16px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
+            <FycdLogo variant="icon" height={24} />
+            <div className="fycd-skeleton" style={{ width: '110px', height: '16px', borderRadius: '4px' }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
             {[85, 65, 75, 55, 80].map((w, i) => (
-              <div key={i} style={{ width: `${w}%`, height: '16px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#f1f5f9', opacity: 0.8 }} />
+              <div key={i} className="fycd-skeleton" style={{ width: `${w}%`, height: '16px', borderRadius: '4px' }} />
             ))}
           </div>
         </div>
@@ -914,22 +911,22 @@ export default function Home() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           {/* View Toolbar Skeleton */}
           <div style={{ height: '44px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '14px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
-            <div style={{ width: '110px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
-            <div style={{ width: '75px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#f1f5f9' }} />
-            <div style={{ width: '75px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#f1f5f9' }} />
+            <div className="fycd-skeleton" style={{ width: '110px', height: '22px', borderRadius: '6px' }} />
+            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
+            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
           </div>
 
           {/* Grid Skeleton */}
           <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: isDark ? '#0f172a' : '#ffffff' }}>
             <div style={{ display: 'flex', gap: '8px', height: '32px' }}>
               {[1, 2, 3, 4, 5].map(col => (
-                <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#cbd5e1', opacity: 0.7 }} />
+                <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
               ))}
             </div>
             {[1, 2, 3, 4, 5, 6, 7].map(row => (
               <div key={row} style={{ display: 'flex', gap: '8px', height: '34px' }}>
                 {[1, 2, 3, 4, 5].map(col => (
-                  <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#1e293b' : '#f8fafc' }} />
+                  <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
                 ))}
               </div>
             ))}
