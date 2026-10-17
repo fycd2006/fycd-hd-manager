@@ -1,0 +1,35 @@
+name: Dependency Audit
+
+# 只看 production 依賴（--omit=dev）。
+# critical 直接擋；high 先只列警告，因為剩下的 high 都來自 prisma 6，要升 Prisma 7 才能修。
+# 升級完成後把 --audit-level 改成 high。
+on:
+  # PR 不加 paths 篩選：這個檢查要能設為必要檢查，篩掉的 PR 會卡在等待中
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths: ['package.json', 'package-lock.json']
+  schedule:
+    - cron: '0 1 * * 1' # 每週一 09:00（台北），抓新公布的漏洞
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: npm audit (production)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 列出所有 production 漏洞
+        run: npm audit --omit=dev || true
+
+      - name: 有 critical 漏洞就失敗
+        run: npm audit --omit=dev --audit-level=critical

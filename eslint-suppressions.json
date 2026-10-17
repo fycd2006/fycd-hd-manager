@@ -9,11 +9,6 @@
       "count": 4
     }
   },
-  ".github/scripts/render-comment.js": {
-    "@typescript-eslint/no-require-imports": {
-      "count": 1
-    }
-  },
   "e2e/network-resilience-audit.spec.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 10
