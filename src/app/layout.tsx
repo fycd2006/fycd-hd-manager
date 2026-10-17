@@ -16,8 +16,9 @@ export const metadata: Metadata = {
   title: "FYCD HD Manager",
   description: "全功能雲端資料庫管理平台，提供動態資料表、多維檢視表（Grid / Kanban / Form）、Formula 公式庫、無障礙與高對比權限控管系統。",
   keywords: ["FYCD HD Manager", "Database", "NoCode", "Formula", "Workspace", "Grid View", "Kanban"],
+  // favicon.ico 由 app/ 檔案慣例輸出；向量圖示 app/icon.svg 需明確列出才會產生 <link>
   icons: {
-    icon: "/favicon.ico",
+    icon: { url: "/icon.svg", type: "image/svg+xml" },
     apple: "/logo.png",
   },
   appleWebApp: {

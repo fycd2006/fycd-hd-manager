@@ -6,6 +6,8 @@ import { FycdLogo } from '@/components/brand/FycdLogo';
 
 const SESSION_KEY = 'fycd_brand_loading_shown';
 const EXIT_DURATION_MS = 400;
+// FycdLogo 進場動畫總長約 1.4s（摺紙面延遲 0.7s＋0.7s）
+const MIN_VISIBLE_MS = 1500;
 
 interface FYCDBrandLoadingProps {
   show: boolean;
@@ -28,6 +30,9 @@ export const FYCDBrandLoading: React.FC<FYCDBrandLoadingProps> = ({
   const phaseRef = useRef<Phase>('hidden');
   const skipCalledRef = useRef(false);
   const enteredRef = useRef(false);
+  const startedAtRef = useRef(0);
+  const reducedMotionRef = useRef(false);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onEnteredRef = useRef(onEntered);
 
   useEffect(() => {
@@ -54,6 +59,10 @@ export const FYCDBrandLoading: React.FC<FYCDBrandLoadingProps> = ({
   const handleSkip = useCallback(() => {
     if (skipCalledRef.current) return;
     skipCalledRef.current = true;
+    if (exitTimerRef.current) {
+      clearTimeout(exitTimerRef.current);
+      exitTimerRef.current = null;
+    }
     setPhase('exit');
     try { sessionStorage.setItem(SESSION_KEY, 'true'); } catch {}
     setTimeout(() => {
@@ -96,7 +105,9 @@ export const FYCDBrandLoading: React.FC<FYCDBrandLoadingProps> = ({
       // Start the intro sequence
       skipCalledRef.current = false;
       setPhase('enter');
+      startedAtRef.current = Date.now();
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      reducedMotionRef.current = prefersReducedMotion;
 
       if (prefersReducedMotion) {
         notifyEntered();
@@ -131,23 +142,30 @@ export const FYCDBrandLoading: React.FC<FYCDBrandLoadingProps> = ({
   useEffect(() => {
     if (!mounted) return;
 
-    // Trigger exit when workspace is ready — NO artificial delay
+    // 工作區就緒後退場；但至少讓 Logo 進場動畫播完（reduced motion 不等）
     if (workspaceReady && show && phase !== 'hidden' && phase !== 'exit') {
-      if (skipCalledRef.current) return;
-      skipCalledRef.current = true;
+      if (skipCalledRef.current || exitTimerRef.current) return;
 
-      const exitSequence = () => {
+      const elapsed = Date.now() - startedAtRef.current;
+      const remaining = reducedMotionRef.current ? 0 : Math.max(0, MIN_VISIBLE_MS - elapsed);
+
+      exitTimerRef.current = setTimeout(() => {
+        exitTimerRef.current = null;
+        if (skipCalledRef.current) return;
+        skipCalledRef.current = true;
         setPhase('exit');
         try { sessionStorage.setItem(SESSION_KEY, 'true'); } catch {}
         setTimeout(() => {
           setPhase('hidden');
           onExitComplete?.();
         }, EXIT_DURATION_MS);
-      };
-
-      exitSequence();
+      }, remaining);
     }
   }, [workspaceReady, show, phase, mounted, onExitComplete]);
+
+  useEffect(() => () => {
+    if (exitTimerRef.current) clearTimeout(exitTimerRef.current);
+  }, []);
 
   if (!mounted || phase === 'hidden') return null;
 

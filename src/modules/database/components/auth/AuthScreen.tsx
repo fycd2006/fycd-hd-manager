@@ -231,6 +231,9 @@ export default function AuthScreen({
 
   return (
     <div className={styles.page}>
+      <div className={styles.langPicker}>
+        <LangPicker align="right" variant="subtle" />
+      </div>
       <motion.div className={styles.shell} animate={shake}>
         <motion.div
           className={styles.card}
@@ -239,10 +242,6 @@ export default function AuthScreen({
           animate={leaving ? { opacity: 0, scale: 0.98, y: 0 } : { opacity: 1, scale: 1, y: 0 }}
           transition={cardTransition}
         >
-          <div className={styles.langPicker}>
-            <LangPicker align="right" variant="subtle" />
-          </div>
-
           {/* Brand / Logo Header */}
           <motion.div layout={!reduceMotion ? 'position' : false} className={styles.brand}>
             <h1 className={styles.srOnly}>FYCD HD Manager</h1>

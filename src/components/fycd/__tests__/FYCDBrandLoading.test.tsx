@@ -70,6 +70,19 @@ describe('FYCDBrandLoading', () => {
     expect(onEntered.mock.invocationCallOrder[0]).toBeLessThan(onExitComplete.mock.invocationCallOrder[0])
   })
 
+  it('waits for the logo animation before exiting when workspace is already ready', () => {
+    const onExitComplete = jest.fn()
+    render(<FYCDBrandLoading show workspaceReady onExitComplete={onExitComplete} />)
+    act(() => {
+      jest.advanceTimersByTime(1000)
+    })
+    expect(onExitComplete).not.toHaveBeenCalled()
+    act(() => {
+      jest.advanceTimersByTime(1000)
+    })
+    expect(onExitComplete).toHaveBeenCalledTimes(1)
+  })
+
   it('Escape skips and completes', () => {
     const onExitComplete = jest.fn()
     render(<FYCDBrandLoading show workspaceReady={false} onExitComplete={onExitComplete} />)
