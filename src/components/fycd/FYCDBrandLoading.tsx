@@ -15,6 +15,8 @@ interface FYCDBrandLoadingProps {
   onExitComplete?: () => void;
   /** 進場淡入完成（含 reduced motion 與本 session 已播過的略過路徑）時呼叫一次 */
   onEntered?: () => void;
+  /** 為 true 時忽略「本 session 已播過」旗標（登入後的載入一律覆蓋畫面） */
+  replay?: boolean;
 }
 
 type Phase = 'hidden' | 'enter' | 'scan' | 'breathing' | 'exit';
@@ -23,7 +25,8 @@ export const FYCDBrandLoading: React.FC<FYCDBrandLoadingProps> = ({
   show,
   workspaceReady,
   onExitComplete,
-  onEntered
+  onEntered,
+  replay = false
 }) => {
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<Phase>('hidden');
@@ -95,7 +98,7 @@ export const FYCDBrandLoading: React.FC<FYCDBrandLoadingProps> = ({
       // Check sessionStorage — don't repeat in same session
       enteredRef.current = false;
       try {
-        if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+        if (!replay && sessionStorage.getItem(SESSION_KEY) === 'true') {
           notifyEntered();
           onExitComplete?.();
           return;
@@ -137,7 +140,7 @@ export const FYCDBrandLoading: React.FC<FYCDBrandLoadingProps> = ({
       // If the parent forcibly turns it off (e.g. error)
       setPhase('hidden');
     }
-  }, [show, mounted, notifyEntered]);
+  }, [show, mounted, notifyEntered, replay]);
 
   useEffect(() => {
     if (!mounted) return;

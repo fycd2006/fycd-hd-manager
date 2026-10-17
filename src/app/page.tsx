@@ -118,6 +118,7 @@ export default function Home() {
   const [showBrandLoading, setShowBrandLoading] = useState<boolean>(false)
   const [workspaceReady, setWorkspaceReady] = useState(false)
   const [authCovered, setAuthCovered] = useState(false)
+  const [brandReplay, setBrandReplay] = useState(false)
   const [editingCell, setEditingCell] = useState<{ rowId: number; fieldKey: string } | null>(null)
   const [editingCellValue, setEditingCellValue] = useState('')
   const [editingFieldId, setEditingFieldId] = useState<number | null>(null)
@@ -193,6 +194,7 @@ export default function Home() {
     }
     setShowBrandLoading(false)
     setAuthCovered(false)
+    setBrandReplay(false)
   }, [])
 
   const handleBrandEntered = useCallback(() => setAuthCovered(true), [])
@@ -889,6 +891,7 @@ export default function Home() {
       workspaceReady={workspaceReady}
       onExitComplete={handleExitComplete}
       onEntered={handleBrandEntered}
+      replay={brandReplay}
     />
   )
 
@@ -980,8 +983,8 @@ export default function Home() {
     return (
       <>
         {brandOverlay}
-        {!authCovered && (
-          <>
+        {/* 被品牌層覆蓋時只隱藏不卸載，登入失敗回來時保留卡片內部狀態 */}
+        <div style={authCovered ? { display: 'none' } : undefined}>
             <ToastContainer toasts={uiState.toasts} />
             <AuthScreen
               leaving={showBrandLoading}
@@ -1000,6 +1003,7 @@ export default function Home() {
               onAuthPasswordChange={authActions.setAuthPassword}
               onLogin={async (e) => {
                 setAuthError(null)
+                setBrandReplay(true)
                 setShowBrandLoading(true)
                 setWorkspaceReady(false)
                 const result = await authActions.login(authState.authUsername, authState.authPassword)
@@ -1008,12 +1012,14 @@ export default function Home() {
                 } else {
                   setShowBrandLoading(false)
                   setAuthCovered(false)
+                  setBrandReplay(false)
                   setAuthError(result.error || '登入失敗，請檢查帳號或密碼')
                   uiActions.addToast(result.error || '登入失敗，請檢查帳號或密碼', 'error')
                 }
               }}
               onRegister={async (e) => {
                 setAuthError(null)
+                setBrandReplay(true)
                 setShowBrandLoading(true)
                 setWorkspaceReady(false)
                 const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
@@ -1023,6 +1029,7 @@ export default function Home() {
                 } else {
                   setShowBrandLoading(false)
                   setAuthCovered(false)
+                  setBrandReplay(false)
                   setAuthError(result.error || '註冊失敗')
                   uiActions.addToast(result.error || '註冊失敗', 'error')
                 }
@@ -1058,8 +1065,7 @@ export default function Home() {
               }}
             />
 
-          </>
-        )}
+        </div>
       </>
     )
   }

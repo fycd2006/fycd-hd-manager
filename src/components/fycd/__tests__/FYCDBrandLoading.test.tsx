@@ -83,6 +83,14 @@ describe('FYCDBrandLoading', () => {
     expect(onExitComplete).toHaveBeenCalledTimes(1)
   })
 
+  it('replay ignores the session flag and still covers the screen', () => {
+    sessionStorage.setItem('fycd_brand_loading_shown', 'true')
+    const onExitComplete = jest.fn()
+    render(<FYCDBrandLoading show replay workspaceReady={false} onExitComplete={onExitComplete} />)
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(onExitComplete).not.toHaveBeenCalled()
+  })
+
   it('Escape skips and completes', () => {
     const onExitComplete = jest.fn()
     render(<FYCDBrandLoading show workspaceReady={false} onExitComplete={onExitComplete} />)
