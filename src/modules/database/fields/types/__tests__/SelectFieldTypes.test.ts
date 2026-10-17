@@ -25,9 +25,9 @@ describe('SingleSelectFieldType', () => {
     expect(res).toEqual({ valid: true, parsedValue: 'opt_2' })
   })
 
-  it('gracefully accepts new option string without rejecting', () => {
+  it('rejects unknown option string', () => {
     const res = type.validateValue('Ghost', options)
-    expect(res).toEqual({ valid: true, parsedValue: 'Ghost' })
+    expect(res).toEqual({ valid: false, code: 'unknown_option', error: '選項「Ghost」不存在' })
   })
 
   it('supports legacy options array', () => {
@@ -62,8 +62,8 @@ describe('MultipleSelectFieldType', () => {
     expect(res).toEqual({ valid: true, parsedValue: JSON.stringify(['opt_1', 'opt_2']) })
   })
 
-  it('gracefully accepts new option items without rejecting', () => {
+  it('rejects unknown option items', () => {
     const res = type.validateValue(['opt_1', 'Ghost'], options)
-    expect(res).toEqual({ valid: true, parsedValue: JSON.stringify(['opt_1', 'Ghost']) })
+    expect(res).toEqual({ valid: false, code: 'unknown_option', error: '選項「Ghost」不存在' })
   })
 })
