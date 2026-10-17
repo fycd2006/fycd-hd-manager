@@ -14,6 +14,7 @@ import { DurationFieldType } from './DurationFieldType'
 import { LinkRowFieldType } from './LinkRowFieldType'
 import { CollaboratorsFieldType } from './CollaboratorsFieldType'
 import { AttachmentFieldType } from './AttachmentFieldType'
+import { READ_ONLY_FIELD_TYPE_INSTANCES } from './ReadOnlyFieldTypes'
 import { LatestCommentFieldType, parseLatestCommentEntries, type CommentLogEntry } from './LatestCommentFieldType'
 
 // Initialize the core registry with built-in types
@@ -36,11 +37,7 @@ export function initializeFieldRegistry() {
   FieldRegistry.register(new CollaboratorsFieldType(), 'collaborator')
   FieldRegistry.register(new AttachmentFieldType(), 'file')
   FieldRegistry.register(new LatestCommentFieldType())
-  
-
-  // Future types to implement:
-  // LinkRowFieldType
-  // FormulaFieldType
+  READ_ONLY_FIELD_TYPE_INSTANCES.forEach((t) => FieldRegistry.register(t))
 }
 
 // Call it immediately so it's ready when imported

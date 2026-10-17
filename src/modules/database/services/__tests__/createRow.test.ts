@@ -94,7 +94,7 @@ describe('createTableRow', () => {
     tx.databaseTable.findUnique.mockResolvedValue({ id: 1, autonumberCounter: 7 })
     tx.databaseTable.update.mockResolvedValue({ autonumberCounter: 8 })
 
-    await createTableRow({ tableId: 1, input: { field_1: 999 }, username: 'alice' })
+    await createTableRow({ tableId: 1, input: {}, username: 'alice' })
 
     expect(tx.tableRow.findMany).not.toHaveBeenCalled()
     expect(tx.databaseTable.update).toHaveBeenCalledTimes(1)

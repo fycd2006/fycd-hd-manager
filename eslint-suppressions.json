@@ -893,7 +893,7 @@
   },
   "src/modules/database/fields/types/LatestCommentFieldType.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 5
+      "count": 4
     }
   },
   "src/modules/database/fields/types/MultipleSelectFieldType.ts": {

@@ -10,22 +10,13 @@ import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { FieldRegistry } from '@/modules/database/fields/types'
 import { validateRegisteredOrPassThrough } from '@/modules/database/fields/FieldRegistry'
+import { READ_ONLY_FIELD_TYPES } from '@/modules/database/fields/types/ReadOnlyFieldTypes'
 import { safeJsonParse } from '@/lib/json-utils'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 
 /** Field types that can never be written through a public form submission. */
-export const FORM_READONLY_TYPES = [
-  'link_row',
-  'autonumber',
-  'formula',
-  'lookup',
-  'rollup',
-  'created_on',
-  'last_modified_on',
-  'created_by',
-  'last_modified_by',
-] as const
+export const FORM_READONLY_TYPES = ['link_row', ...READ_ONLY_FIELD_TYPES] as const
 
 interface FieldShape {
   id: number
