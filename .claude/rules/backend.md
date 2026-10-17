@@ -28,3 +28,5 @@ paths:
 - 欄位 PATCH／DELETE 依 URL `tableId` 授權，卻只用 `where: { id: fid }` 讀寫欄位，可跨工作區改刪別人的欄位 → 巢狀路由（`[tableId]/.../[xxxId]`）讀寫子資源時，`where` 必須同時帶 `tableId`，或查出後比對 `record.tableId === tid`，不符回 404
 - `workspaces/[id]/members` 與 `accept-invite` 只用 `getSessionUser()` 確認登入、沒檢查工作區角色，任何人可把自己加成任一工作區 admin → 帶 `workspaceId` 的路由一律先 `authorizeAction({ workspaceId, action })`（成員管理用 `canManageMembers`）；用 id 刪子資源時改 `deleteMany({ where: { id, workspaceId } })`，`count === 0` 回 404；改或移除成員角色後呼叫 `invalidateWorkspaceRoleCache`
 - `rows/move` 只授權來源與目標表，卻直接用前端給的 `sourceRowId` 執行 `delete({ where: { id } })`，可硬刪任何工作區的資料列 → body 裡帶的子資源 id（rowId、fieldId 等）在任何寫入前先用 `findMany({ where: { id: { in }, tableId, deletedAt: null } })` 確認全數屬於已授權的表，數量不符回 404；刪除也帶 `tableId`
+- `rows/comments` GET 依 URL `tableId` 授權，卻只用 query 的 `rowId` 查留言，可讀其他工作區留言 → query string 帶的子資源 id 也要先 `findFirst({ where: { id, tableId } })` 確認屬於授權的表，找不到回 404，再讀關聯資料
+- 通知「接受邀請」把通知 payload 的 `workspaceId`／`role` 當授權依據每次 upsert，被移除者可用舊通知重新加入 → 成員資格只能來自現有成員或仍存在且 email 相符的 `WorkspaceInvitation`；已處理（`read`）的通知回 409，不覆寫既有角色

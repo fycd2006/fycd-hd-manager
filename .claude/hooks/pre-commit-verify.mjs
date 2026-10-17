@@ -10,6 +10,10 @@ const input = JSON.parse(readFileSync(0, 'utf8'))
 const hookRoot = path.resolve(import.meta.dirname, '..', '..')
 const dir = resolveCommitDir(input.tool_input?.command ?? '', input.cwd || hookRoot)
 if (dir === null) process.exit(0)
+if (!existsSync(dir)) {
+  process.stderr.write(`解析出的 commit 目錄 ${dir} 不存在，無法確認要驗證哪個 worktree，已阻擋 commit。改用 git -C <存在的絕對路徑> commit。\n`)
+  process.exit(2)
+}
 
 let root = hookRoot
 try {

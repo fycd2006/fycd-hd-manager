@@ -15,8 +15,8 @@ jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     notification: { findMany: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
-    workspaceUser: { upsert: jest.fn() },
-    workspaceInvitation: { deleteMany: jest.fn() },
+    workspaceUser: { findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn() },
+    workspaceInvitation: { findFirst: jest.fn(), delete: jest.fn(), deleteMany: jest.fn() },
   },
 }))
 
@@ -35,6 +35,8 @@ beforeEach(() => {
   jest.clearAllMocks()
   ;(getSessionUser as jest.Mock).mockResolvedValue(user)
   ;(prisma.notification.findFirst as jest.Mock).mockResolvedValue(invite)
+  ;(prisma.workspaceUser.findUnique as jest.Mock).mockResolvedValue(null)
+  ;(prisma.workspaceInvitation.findFirst as jest.Mock).mockResolvedValue({ id: 4, workspaceId: 5, role: 'editor' })
 })
 
 describe('GET /api/notifications', () => {
@@ -68,26 +70,27 @@ describe('POST /api/notifications', () => {
     expect(prisma.workspaceUser.upsert).not.toHaveBeenCalled()
   })
 
-  it('accepting an invite adds the user with the invited role and clears the role cache', async () => {
+  it('accepting a pending invite adds the user with the invited role and clears the role cache', async () => {
     const res = await act({ notificationId: 40, action: 'accept' })
 
     expect(res.status).toBe(200)
-    expect(prisma.workspaceUser.upsert).toHaveBeenCalledWith({
-      where: { workspaceId_userId: { workspaceId: 5, userId: 2 } },
-      update: { role: 'editor' },
-      create: { workspaceId: 5, userId: 2, role: 'editor' },
+    expect(prisma.workspaceInvitation.findFirst).toHaveBeenCalledWith({
+      where: { id: 4, workspaceId: 5, email: 'bob@example.com' },
     })
+    expect(prisma.workspaceUser.create).toHaveBeenCalledWith({ data: { workspaceId: 5, userId: 2, role: 'editor' } })
+    expect(prisma.workspaceUser.upsert).not.toHaveBeenCalled()
     expect(invalidateWorkspaceRoleCache).toHaveBeenCalledWith(5, 2)
-    expect(prisma.workspaceInvitation.deleteMany).toHaveBeenCalledWith({ where: { id: 4 } })
+    expect(prisma.workspaceInvitation.delete).toHaveBeenCalledWith({ where: { id: 4 } })
     expect(prisma.notification.update).toHaveBeenCalledWith({ where: { id: 40 }, data: { read: true } })
   })
 
-  it('declining removes the invitation without joining', async () => {
+  it('declining removes the invitation addressed to the user without joining', async () => {
     const res = await act({ notificationId: 40, action: 'decline' })
 
     expect(res.status).toBe(200)
     expect(prisma.workspaceUser.upsert).not.toHaveBeenCalled()
-    expect(prisma.workspaceInvitation.deleteMany).toHaveBeenCalledWith({ where: { id: 4 } })
+    expect(prisma.workspaceUser.create).not.toHaveBeenCalled()
+    expect(prisma.workspaceInvitation.deleteMany).toHaveBeenCalledWith({ where: { id: 4, email: 'bob@example.com' } })
   })
 
   it('marks other notifications as read', async () => {

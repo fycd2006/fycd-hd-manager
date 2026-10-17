@@ -9,6 +9,9 @@ const CD_RE = new RegExp(String.raw`(?:^|[;&|]\s*)\s*(?:cd|Set-Location|pushd)\s
 const DASH_C_RE = new RegExp(String.raw`(?:^|\s)-C\s+${ARG}`, 'g')
 
 const unquote = (s) => s.replace(/^(["'])(.*)\1$/, '$2')
+// Git Bash writes C:\dev as /c/dev; win32 path.resolve would read that as C:\c\dev.
+const toNative = (p) => (process.platform === 'win32' ? p.replace(/^\/([a-zA-Z])(?=\/|$)/, (_, d) => `${d.toUpperCase()}:/`) : p)
+const arg2path = (s) => toNative(unquote(s))
 
 function isGitCommit(command) {
   return COMMIT_RE.test(command)
@@ -20,8 +23,8 @@ function resolveCommitDir(command, cwd) {
   const match = COMMIT_RE.exec(command)
   if (!match) return null
   let dir = cwd
-  for (const [, arg] of command.slice(0, match.index).matchAll(CD_RE)) dir = path.resolve(dir, unquote(arg))
-  for (const [, arg] of match[1].matchAll(DASH_C_RE)) dir = path.resolve(dir, unquote(arg))
+  for (const [, arg] of command.slice(0, match.index).matchAll(CD_RE)) dir = path.resolve(dir, arg2path(arg))
+  for (const [, arg] of match[1].matchAll(DASH_C_RE)) dir = path.resolve(dir, arg2path(arg))
   return dir
 }
 

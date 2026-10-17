@@ -50,6 +50,16 @@ describe('resolveCommitDir', () => {
     )
   })
 
+  // Git Bash 路徑 /c/... 只在 win32 轉成磁碟路徑，其他平台照一般 POSIX 路徑解析
+  const win = process.platform === 'win32'
+  it.each([
+    ['git -C /c/dev/x commit -m x', 'C:\\dev\\x', '/c/dev/x'],
+    ['cd /c/dev/x && git commit -m x', 'C:\\dev\\x', '/c/dev/x'],
+    ['cd "/c/Program Files/x" && git commit -m x', 'C:\\Program Files\\x', '/c/Program Files/x'],
+  ])('Git Bash 路徑：%s', (command, winDir, posixDir) => {
+    expect(resolveCommitDir(command, cwd)).toBe(win ? winDir : posixDir)
+  })
+
   it('非 commit 指令回傳 null', () => {
     expect(resolveCommitDir('cd /repo/review && git status', cwd)).toBeNull()
   })

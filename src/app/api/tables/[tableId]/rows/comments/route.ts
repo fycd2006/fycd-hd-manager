@@ -22,6 +22,13 @@ export async function GET(
     const rid = parseInt(rowIdStr)
     if (isNaN(rid)) return NextResponse.json({ error: '無效的 Row ID' }, { status: 400 })
 
+    // Authorization is for the URL tableId, so the row must belong to that table
+    const rowMeta = await prisma.tableRow.findFirst({
+      where: { id: rid, tableId: tid },
+      select: { createdAt: true, updatedAt: true }
+    })
+    if (!rowMeta) return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
+
     const comments = await prisma.rowComment.findMany({
       where: { rowId: rid },
       include: {
@@ -37,21 +44,15 @@ export async function GET(
 
     const hasHistory = comments.some(c => c.content.startsWith('[HISTORY]'))
     if (!hasHistory) {
-      const rowMeta = await prisma.tableRow.findUnique({
-        where: { id: rid },
-        select: { createdAt: true, updatedAt: true }
-      })
-      if (rowMeta) {
-        const creationHistory = {
-          id: -999,
-          rowId: rid,
-          userId: 0,
-          content: '[HISTORY] 建立了此資料列',
-          createdAt: rowMeta.createdAt.toISOString(),
-          user: { username: '系統 (System)', role: 'admin' }
-        }
-        return NextResponse.json([creationHistory, ...comments])
+      const creationHistory = {
+        id: -999,
+        rowId: rid,
+        userId: 0,
+        content: '[HISTORY] 建立了此資料列',
+        createdAt: rowMeta.createdAt.toISOString(),
+        user: { username: '系統 (System)', role: 'admin' }
       }
+      return NextResponse.json([creationHistory, ...comments])
     }
 
     return NextResponse.json(comments)
