@@ -15,7 +15,7 @@ export interface RowMeta {
   data: Record<string, any>
 }
 
-const DEFAULT_COLORS = [
+export const DEFAULT_COLORS = [
   'gray', 'blue', 'green', 'orange', 'red', 'yellow', 'cyan', 'purple', 'pink'
 ]
 
