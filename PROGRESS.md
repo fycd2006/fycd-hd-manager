@@ -2,7 +2,7 @@
 
 ## 目前進度
 - 開發規範 5 階段全部完成，分支 `chore/dev-guardrails` 已 push，PR #1 open 等 fycd2006 審查：https://github.com/fycd2006/fycd-hd-manager/pull/1
-- 工作區乾淨，無未 commit 變更。
+- 分支 `test/core-services`（從 `chore/dev-guardrails` 開）：核心服務補 51 個測試，並修正欄位 PATCH／DELETE 跨表越權（IDOR，回 404）。尚未 push。
 
 ## 已做的決定
 - 驗證統一走 `npm run verify`；`build:check` 不碰資料庫，原 `npm run build`（部署用）不動。
@@ -14,11 +14,14 @@
 - 協作走分支 + PR。PR #1 合併前，新工作從 `chore/dev-guardrails` 開分支，才有 verify 與 hooks。
 
 ## 下一步
-- 補測試：`git switch -c test/core-services chore/dev-guardrails`，先寫 `src/modules/database/services/__tests__/rowValidation.test.ts`（每種欄位型別的合法／非法值），完成後 `npm run verify` 並 commit。
+- 確認後 push `test/core-services` 並開 PR（base 視 PR #1 是否已合併決定）。
 - 同時追蹤 PR #1 的審查意見與 fycd2006 對 `npm run build` 的答覆。
 
 ## 待辦
-- [ ] 補測試（依序）：`rowValidation` → `createRow` → `field` → fields API 權限 → `trash`／`workspace`（約 45 案例）
+- [x] 補測試：rowValidation／createRow／欄位路由／trash／workspaces／authorize 跨工作區（51 案例）
+- [ ] 欄位 PATCH／DELETE 未擋已軟刪除欄位（可改回收站欄位、重複刪除會覆寫 deletedAt）→ 評估是否一併回 404
+- [ ] 前端 `services/trash.ts` 的 `restoreTrashItem` 用 PATCH，路由只有 POST（目前無人呼叫）；trash POST 找不到紀錄回 500 而非 404
+- [ ] 其餘 API 路由仍無測試（34 個中約 14 個有）
 - [ ] 確認 `npm run build` 的 `db push --accept-data-loss` 是否會刪掉 `schemaService` 建的 generated column（已在 PR #1 詢問）
 - [ ] `FieldRegistry.get()` 對未註冊型別 fail-open（不驗證、無預設、generated column 退回 VARCHAR(255)、無 log）→ 用 `/bugfix` 評估
 - [ ] README 修正：`npm run migrate:dev` 不存在、缺 `.env.example`、漏列 GEMINI／RESEND 變數（需與 fycd2006 確認）

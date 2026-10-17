@@ -29,6 +29,9 @@ export const PATCH = withApiHandler<{ tableId: string; fieldId: string }, z.infe
     if (errorResponse) return errorResponse
 
     const oldField = await prisma.tableField.findUnique({ where: { id: fid } })
+    if (!oldField || oldField.tableId !== tid) {
+      return NextResponse.json({ error: '找不到欄位' }, { status: 404 })
+    }
 
     const updated = await prisma.tableField.update({
       where: { id: fid },
@@ -91,14 +94,18 @@ export const DELETE = withApiHandler<{ tableId: string; fieldId: string }>(
       return NextResponse.json({ error: '主要欄位（第一順位欄位）為系統核心欄位，禁止刪除' }, { status: 400 })
     }
 
+    const oldField = await prisma.tableField.findUnique({ where: { id: fid } })
+    if (!oldField || oldField.tableId !== tid) {
+      return NextResponse.json({ error: '找不到欄位' }, { status: 404 })
+    }
+
     await prisma.tableField.update({
       where: { id: fid },
       data: { deletedAt: new Date() }
     })
-    
+
     // Also drop index if it had one
-    const oldField = await prisma.tableField.findUnique({ where: { id: fid } })
-    if (oldField?.isIndexed) {
+    if (oldField.isIndexed) {
       await dropGeneratedColumn(fid).catch(err => console.error('[Schema DDL Error]', err))
     }
     

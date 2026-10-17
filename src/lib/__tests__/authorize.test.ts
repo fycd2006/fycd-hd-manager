@@ -75,8 +75,26 @@ describe('authorizeAction', () => {
     
     // Viewer should not be able to manage structure
     const result = await authorizeAction({ workspaceId: 1, action: 'canManageStructure' })
-    
+
     expect(result.errorResponse).toBeDefined()
     expect(result.errorResponse?.status).toBe(403)
+  })
+
+  it('should resolve workspace via tableId and block a member of another workspace', async () => {
+    ;(getSessionUser as jest.Mock).mockResolvedValue({ id: 1, role: 'user' })
+    ;(getCache as jest.Mock).mockResolvedValue(null)
+    // Table 20 lives in workspace B (id 2); user is only a member of workspace A
+    ;(prisma.databaseTable.findFirst as jest.Mock).mockResolvedValue({ id: 20, database: { workspaceId: 2 } })
+    ;(prisma.workspaceUser.findUnique as jest.Mock).mockImplementation(async ({ where }) =>
+      where.workspaceId_userId.workspaceId === 1 ? { role: 'admin' } : null
+    )
+
+    const result = await authorizeAction({ tableId: 20, action: 'canViewData' })
+
+    expect(prisma.workspaceUser.findUnique).toHaveBeenCalledWith({
+      where: { workspaceId_userId: { workspaceId: 2, userId: 1 } },
+    })
+    expect(result.errorResponse?.status).toBe(403)
+    expect(setCache).not.toHaveBeenCalled()
   })
 })
