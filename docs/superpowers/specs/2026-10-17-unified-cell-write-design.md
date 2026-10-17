@@ -109,7 +109,7 @@ export function prepareCellWrites(args: PrepareCellWritesInput): PrepareCellWrit
 
 ## 5. 前端配合（最小範圍）
 
-- 批次回應有 `rejected` 時，toast 顯示「已寫入 N 格，M 格未寫入」，點開可以看依代碼分組的原因；未寫入的格子短暫顯示紅框
+- 批次回應有 `rejected` 時，toast 顯示「已寫入 N 格，M 格未寫入：」加上最多兩種原因（現有 toast 元件不支援點開展開，所以直接列在訊息裡）；未寫入的格子短暫顯示紅框
 - `GridView` 的 `sanitizePastedVal` 只做 `trim`，不再自行判斷 number／boolean，判斷交給伺服器（修 C4）
 - 自動新增的選項透過既有的 `field-updated` 事件更新欄位設定，不另外做確認視窗
 
