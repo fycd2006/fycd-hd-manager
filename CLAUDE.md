@@ -50,6 +50,7 @@ FYCD HD Manager（北科伙食團資料庫管理系統）：類 Airtable／Baser
 每修完一個 bug，在對應的 `.claude/rules/<領域>.md`「錯誤紀錄」段落加一行，跨領域的記在下方。格式 `- 根因 → 以後做法`，必須具體可執行（例：「改 `schema.prisma` 前先確認 `schemaService` 建的 generated column 不會被 `db push` 刪掉」），不寫「注意資料庫」這類空話。單一段落超過 15 條時合併重複項。
 
 - `pre-commit-verify.mjs` 固定在 hook 所在 checkout 跑 verify，從其他 worktree commit 時驗證錯程式碼 → hook 要從 stdin 的 `cwd` 與命令裡的 `cd`／`git -C` 算出目標目錄（`commit-target.cjs`），再 `git rev-parse --show-toplevel` 定位；目標沒有 node_modules 就阻擋，不退回主 checkout
+- `npm run dev` 執行中時 commit，`build:check` 的 `prisma generate` 因 query engine DLL 被鎖而 EPERM 失敗 → commit 前先停掉 dev server（`preview_stop`）
 - app 建在 `.claude/worktrees/` 下的 worktree 被主 checkout 的 eslint／tsc 掃進來，舊錯誤不在 suppressions 裡，害主 checkout 的 verify 失敗 → `eslint.config.mjs` 的 globalIgnores 與 `tsconfig.json` 的 exclude 要包含 `.claude/worktrees`
 
 ## 進度交接
