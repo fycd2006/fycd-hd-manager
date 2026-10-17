@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { authorizeAction } from '@/lib/authorize'
 import { FieldRegistry } from '@/modules/database/fields/types'
+import { validateRegisteredOrPassThrough } from '@/modules/database/fields/FieldRegistry'
 import { triggerTableEvent } from '@/lib/pusher-server'
 
 export const dynamic = 'force-dynamic'
@@ -96,7 +97,7 @@ export async function POST(
           const rawValue = (rowObj.data && rowObj.data[sourceKey] !== undefined) ? rowObj.data[sourceKey] : rowObj[sourceKey]
           let fOpts = typeof targetF.options === 'string' ? JSON.parse(targetF.options) : (targetF.options || {})
           const fieldType = FieldRegistry.get(targetF.type)
-          const validateRes = fieldType.validateValue(rawValue, fOpts)
+          const validateRes = validateRegisteredOrPassThrough(fieldType, rawValue, fOpts)
 
           if (!validateRes.valid) {
             return NextResponse.json({ error: `欄位 [${targetF.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })

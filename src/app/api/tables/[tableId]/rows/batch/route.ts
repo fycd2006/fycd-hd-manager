@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { authorizeAction } from '@/lib/authorize'
 import { FieldRegistry } from '@/modules/database/fields/types'
+import { validateRegisteredOrPassThrough } from '@/modules/database/fields/FieldRegistry'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
 import { triggerTableEvent } from '@/lib/pusher-server'
@@ -63,7 +64,7 @@ export async function POST(
           const rawValue = (rowObj.data && rowObj.data[key] !== undefined) ? rowObj.data[key] : rowObj[key]
           let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
           const fieldType = FieldRegistry.get(f.type)
-          const validateRes = fieldType.validateValue(rawValue, fOpts)
+          const validateRes = validateRegisteredOrPassThrough(fieldType, rawValue, fOpts)
 
           if (!validateRes.valid) {
             return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
@@ -300,7 +301,7 @@ export async function PATCH(
           } else if (key in updateMap) {
             let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
             const fieldType = FieldRegistry.get(f.type)
-            const validateRes = fieldType.validateValue(updateMap[key], fOpts)
+            const validateRes = validateRegisteredOrPassThrough(fieldType, updateMap[key], fOpts)
             if (!validateRes.valid) {
               throw new Error(`欄位 [${f.name}] 驗證失敗: ${validateRes.error}`)
             }

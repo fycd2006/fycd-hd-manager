@@ -22,6 +22,7 @@ export function parseLatestCommentEntries(val: any): CommentLogEntry[] {
 export class LatestCommentFieldType implements FieldType {
   readonly type = 'latest_comment'
   readonly name = '最新留言'
+  readonly readOnly = false
 
   validateValue(value: any): FieldValidationResult {
     if (value === null || value === undefined || value === '') {

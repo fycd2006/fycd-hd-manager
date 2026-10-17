@@ -873,12 +873,12 @@
   },
   "src/modules/database/fields/FieldRegistry.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
+      "count": 3
     }
   },
   "src/modules/database/fields/FieldType.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 8
     }
   },
   "src/modules/database/fields/types/BooleanFieldType.ts": {

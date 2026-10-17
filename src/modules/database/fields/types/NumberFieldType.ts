@@ -3,6 +3,7 @@ import { FieldType, FieldValidationResult } from '../FieldType'
 export class NumberFieldType implements FieldType {
   readonly type = 'number'
   readonly name = '數字'
+  readonly readOnly = false
 
   validateValue(value: any, options: any): FieldValidationResult {
     if (value === null || value === undefined || value === '') {
@@ -11,15 +12,15 @@ export class NumberFieldType implements FieldType {
     
     const numVal = Number(value)
     if (isNaN(numVal)) {
-      return { valid: false, error: '必須是有效的數字' }
+      return { valid: false, code: 'invalid_number', error: '必須是有效的數字' }
     }
 
     if (options) {
       if (options.min !== undefined && numVal < options.min) {
-        return { valid: false, error: `不能小於 ${options.min}` }
+        return { valid: false, code: 'out_of_range', error: `不能小於 ${options.min}` }
       }
       if (options.max !== undefined && numVal > options.max) {
-        return { valid: false, error: `不能大於 ${options.max}` }
+        return { valid: false, code: 'out_of_range', error: `不能大於 ${options.max}` }
       }
     }
 
@@ -31,7 +32,7 @@ export class NumberFieldType implements FieldType {
   }
 
   getDefaultValue(options: any): any {
-    return options?.defaultValue || null
+    return options?.defaultValue ?? null
   }
 
   getGeneratedColumnSQLType(): string {

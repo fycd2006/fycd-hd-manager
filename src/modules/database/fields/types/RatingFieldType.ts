@@ -3,6 +3,7 @@ import { FieldType, FieldValidationResult } from '../FieldType'
 export class RatingFieldType implements FieldType {
   readonly type = 'rating'
   readonly name = '評分'
+  readonly readOnly = false
 
   validateValue(value: any, options: any): FieldValidationResult {
     if (value === null || value === undefined || value === '') {
@@ -10,7 +11,7 @@ export class RatingFieldType implements FieldType {
     }
     const num = Math.round(Number(value))
     if (isNaN(num)) {
-      return { valid: false, error: '必須是有效評分數字' }
+      return { valid: false, code: 'invalid_number', error: '必須是有效評分數字' }
     }
     let max = 5
     if (options) {
@@ -26,7 +27,7 @@ export class RatingFieldType implements FieldType {
   }
 
   getDefaultValue(options: any): any {
-    return options?.defaultValue || null
+    return options?.defaultValue ?? null
   }
 
   getGeneratedColumnSQLType(): string {

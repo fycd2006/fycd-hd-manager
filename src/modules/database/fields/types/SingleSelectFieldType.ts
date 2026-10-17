@@ -27,6 +27,7 @@ export function extractChoices(options: any): any[] {
 export class SingleSelectFieldType implements FieldType {
   readonly type = 'single_select'
   readonly name = '單選'
+  readonly readOnly = false
 
   validateValue(value: any, options: any): FieldValidationResult {
     if (value === null || value === undefined || value === '') {
@@ -63,7 +64,7 @@ export class SingleSelectFieldType implements FieldType {
   }
 
   getDefaultValue(options: any): any {
-    return options?.defaultValue || null
+    return options?.defaultValue ?? null
   }
 
   getGeneratedColumnSQLType(): string {

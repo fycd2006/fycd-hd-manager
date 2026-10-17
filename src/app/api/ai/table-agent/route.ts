@@ -5,6 +5,7 @@ import { triggerTableEvent } from '@/lib/pusher-server'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { GoogleGenAI, Type } from '@google/genai'
 import { FieldRegistry, extractChoices, parseLatestCommentEntries } from '@/modules/database/fields/types'
+import { validateRegisteredOrPassThrough } from '@/modules/database/fields/FieldRegistry'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
@@ -284,7 +285,7 @@ export async function POST(request: Request) {
                   ? safeJsonParse(targetField.options, {})
                   : (targetField.options || {})
                 const fieldType = FieldRegistry.get(targetField.type)
-                const validateRes = fieldType.validateValue(u.value, fOpts)
+                const validateRes = validateRegisteredOrPassThrough(fieldType, u.value, fOpts)
                 if (validateRes.valid) {
                   validatedValue = validateRes.parsedValue
                 }

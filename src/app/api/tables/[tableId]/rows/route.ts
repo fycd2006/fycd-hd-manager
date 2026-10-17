@@ -10,6 +10,7 @@ import { authorizeLinkRowOperation } from '@/modules/database/services/linkRowOp
 import { softDeleteMasterViewOverrides } from '@/modules/database/services/masterViewOverride'
 import { invalidateMasterViewCache, invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { FieldRegistry } from '@/modules/database/fields/types'
+import { validateRegisteredOrPassThrough } from '@/modules/database/fields/FieldRegistry'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { createTableRow } from '@/modules/database/services/createRow'
 import { safeJsonParse } from '@/lib/json-utils'
@@ -204,7 +205,7 @@ export async function PATCH(
       if (key in updateMap && f.type !== 'last_modified_by' && f.type !== 'last_modified_on') {
         const fOpts = typeof f.options === 'string' ? safeJsonParse(f.options, {}) : (f.options || {})
         const fieldType = FieldRegistry.get(f.type)
-        const validateRes = fieldType.validateValue(updateMap[key], fOpts)
+        const validateRes = validateRegisteredOrPassThrough(fieldType, updateMap[key], fOpts)
         if (!validateRes.valid) {
           return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
         }

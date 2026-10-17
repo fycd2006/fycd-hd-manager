@@ -3,6 +3,7 @@ import { FieldType, FieldValidationResult } from '../FieldType'
 export class BooleanFieldType implements FieldType {
   readonly type = 'boolean'
   readonly name = '核取方塊'
+  readonly readOnly = false
 
   validateValue(value: any): FieldValidationResult {
     if (value === null || value === undefined || value === '') {

@@ -9,6 +9,7 @@
 import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { FieldRegistry } from '@/modules/database/fields/types'
+import { validateRegisteredOrPassThrough } from '@/modules/database/fields/FieldRegistry'
 import { safeJsonParse } from '@/lib/json-utils'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
@@ -75,7 +76,7 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
     } else if (input[key] !== undefined) {
       const fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
       const fieldType = FieldRegistry.get(f.type)
-      const validateRes = fieldType.validateValue(input[key], fOpts)
+      const validateRes = validateRegisteredOrPassThrough(fieldType, input[key], fOpts)
 
       if (!validateRes.valid) {
         return { ok: false, error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }

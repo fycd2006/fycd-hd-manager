@@ -4,6 +4,7 @@ import { extractChoices } from './SingleSelectFieldType'
 export class MultipleSelectFieldType implements FieldType {
   readonly type = 'multiple_select'
   readonly name = '多選'
+  readonly readOnly = false
 
   validateValue(value: any, options: any): FieldValidationResult {
     if (value === null || value === undefined || value === '') {
@@ -66,7 +67,7 @@ export class MultipleSelectFieldType implements FieldType {
   }
 
   getDefaultValue(options: any): any {
-    return options?.defaultValue || null
+    return options?.defaultValue ?? null
   }
 
   getGeneratedColumnSQLType(): string {

@@ -19,6 +19,11 @@ export function initializeFieldRegistry() {
   FieldRegistry.register(new RatingFieldType())
   FieldRegistry.register(new LatestCommentFieldType())
   
+  // Aliases for canonical types registered in later tasks
+  FieldRegistry.registerAlias('phone', 'phone_number')
+  FieldRegistry.registerAlias('collaborator', 'collaborators')
+  FieldRegistry.registerAlias('file', 'attachment')
+
   // Future types to implement:
   // LinkRowFieldType
   // FormulaFieldType

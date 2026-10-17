@@ -1,10 +1,20 @@
-import { Prisma } from '@prisma/client'
+export type RejectCode =
+  | 'read_only'
+  | 'unknown_type'
+  | 'unknown_option'
+  | 'invalid_number'
+  | 'out_of_range'
+  | 'invalid_boolean'
+  | 'invalid_date'
+  | 'invalid_email'
+  | 'invalid_url'
+  | 'invalid_phone'
+  | 'invalid_duration'
+  | 'invalid_format'
 
-export interface FieldValidationResult {
-  valid: boolean
-  error?: string
-  parsedValue?: any
-}
+export type FieldValidationResult =
+  | { valid: true; parsedValue: unknown }
+  | { valid: false; code: RejectCode; error: string }
 
 export interface FieldType<T = any> {
   /** The unique string identifier for the field type (e.g. 'text', 'number', 'date') */
@@ -12,6 +22,9 @@ export interface FieldType<T = any> {
   
   /** The human-readable name of the field type */
   readonly name: string
+
+  /** Whether cells of this type cannot be written by users (computed / system-managed) */
+  readonly readOnly: boolean
 
   /** 
    * Validates and parses the raw input value based on the field options.

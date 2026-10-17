@@ -3,6 +3,7 @@ import { FieldType, FieldValidationResult } from '../FieldType'
 export class DateFieldType implements FieldType {
   readonly type = 'date'
   readonly name = '日期'
+  readonly readOnly = false
 
   validateValue(value: any, options: any): FieldValidationResult {
     if (value === null || value === undefined || value === '') {
@@ -11,7 +12,7 @@ export class DateFieldType implements FieldType {
     
     const date = new Date(value)
     if (isNaN(date.getTime())) {
-      return { valid: false, error: '必須是有效的日期格式 (ISO 8601)' }
+      return { valid: false, code: 'invalid_date', error: '必須是有效的日期格式 (ISO 8601)' }
     }
 
     return { valid: true, parsedValue: date.toISOString() }
@@ -25,7 +26,7 @@ export class DateFieldType implements FieldType {
     if (options?.defaultValue === 'NOW') {
       return new Date().toISOString()
     }
-    return options?.defaultValue || null
+    return options?.defaultValue ?? null
   }
 
   getGeneratedColumnSQLType(): string {
