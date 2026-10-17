@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PATH=\"$PATH:/c/Program Files/nodejs\" node \"$(git rev-parse --show-toplevel)/.claude/hooks/post-edit-lint.mjs\"",
+            "timeout": 60,
+            "statusMessage": "eslint --fix"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PATH=\"$PATH:/c/Program Files/nodejs\" node \"$(git rev-parse --show-toplevel)/.claude/hooks/pre-commit-verify.mjs\"",
+            "timeout": 900,
+            "onFailure": "block",
+            "statusMessage": "npm run verify"
+          }
+        ]
+      }
+    ]
+  }
+}
