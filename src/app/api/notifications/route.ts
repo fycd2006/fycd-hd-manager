@@ -47,32 +47,35 @@ export async function POST(request: Request) {
 
     if (notification.type === 'workspace_invite' && notification.data) {
       const inviteData = JSON.parse(notification.data)
-      const { workspaceId, inviteId, role } = inviteData
+      const { workspaceId, inviteId } = inviteData
+      const wsId = parseInt(workspaceId)
+
+      if ((action === 'accept' || action === 'decline') && notification.read) {
+        return NextResponse.json({ error: '此通知已處理' }, { status: 409 })
+      }
 
       if (action === 'accept') {
-        // Add to WorkspaceUser
-        await prisma.workspaceUser.upsert({
-          where: {
-            workspaceId_userId: {
-              workspaceId: parseInt(workspaceId),
-              userId: activeUser.id
-            }
-          },
-          update: { role: role || 'member' },
-          create: {
-            workspaceId: parseInt(workspaceId),
-            userId: activeUser.id,
-            role: role || 'member'
-          }
+        // The notification payload is not authority: membership comes only from an existing
+        // membership (left untouched) or a pending invitation addressed to this user.
+        const existingMember = await prisma.workspaceUser.findUnique({
+          where: { workspaceId_userId: { workspaceId: wsId, userId: activeUser.id } }
         })
 
-        await invalidateWorkspaceRoleCache(parseInt(workspaceId), activeUser.id)
+        if (!existingMember) {
+          const invitation = inviteId
+            ? await prisma.workspaceInvitation.findFirst({
+                where: { id: parseInt(inviteId), workspaceId: wsId, email: activeUser.email.toLowerCase() }
+              })
+            : null
+          if (!invitation) {
+            return NextResponse.json({ error: '邀請已失效，請聯絡工作區管理員' }, { status: 403 })
+          }
 
-        // Delete workspace invitation record if exists
-        if (inviteId) {
-          await prisma.workspaceInvitation.deleteMany({
-            where: { id: parseInt(inviteId) }
+          await prisma.workspaceUser.create({
+            data: { workspaceId: wsId, userId: activeUser.id, role: invitation.role }
           })
+          await prisma.workspaceInvitation.delete({ where: { id: invitation.id } })
+          await invalidateWorkspaceRoleCache(wsId, activeUser.id)
         }
 
         // Mark notification as read
@@ -85,7 +88,7 @@ export async function POST(request: Request) {
       } else if (action === 'decline') {
         if (inviteId) {
           await prisma.workspaceInvitation.deleteMany({
-            where: { id: parseInt(inviteId) }
+            where: { id: parseInt(inviteId), email: activeUser.email.toLowerCase() }
           })
         }
         await prisma.notification.update({
