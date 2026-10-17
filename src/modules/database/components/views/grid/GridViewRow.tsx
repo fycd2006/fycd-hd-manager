@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { TableField, RowColorRule } from '@/modules/database/types';
 import { GridViewCell } from './GridViewCell';
+import type { SelectionBounds } from './GridView';
 import { evaluateCellCondition } from './cells/utils';
 import { GripVertical, Maximize2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n/i18nContext';
@@ -23,8 +24,8 @@ interface GridViewRowProps {
   selectedColumnIndex?: number | null;
   isCellEditing?: boolean;
   initialTypeOverValue?: string | null;
-  selectionBounds?: { minRow: number; maxRow: number; minCol: number; maxCol: number; isMulti: boolean } | null;
-  autofillBounds?: { minRow: number; maxRow: number; minCol: number; maxCol: number } | null;
+  selectionBounds?: SelectionBounds | null;
+  autofillBounds?: { rowSet: Set<number>; minCol: number; maxCol: number } | null;
   isRowSelectedDirectly?: boolean;
   canDrag?: boolean;
   onSelectCell: (colIndex: number, e?: React.MouseEvent) => void;
@@ -337,23 +338,21 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
 
         const isInRange = Boolean(
           selectionBounds?.isMulti &&
-          rowIndex >= selectionBounds.minRow &&
-          rowIndex <= selectionBounds.maxRow &&
+          selectionBounds.rowSet.has(rowIndex) &&
           cIndex >= selectionBounds.minCol &&
           cIndex <= selectionBounds.maxCol
         );
 
         const rangeEdges = isInRange && selectionBounds ? {
-          top: rowIndex === selectionBounds.minRow,
-          bottom: rowIndex === selectionBounds.maxRow,
+          top: rowIndex === selectionBounds.firstRow,
+          bottom: rowIndex === selectionBounds.lastRow,
           left: cIndex === selectionBounds.minCol,
           right: cIndex === selectionBounds.maxCol,
         } : undefined;
 
         const isInAutofillRange = Boolean(
           autofillBounds &&
-          rowIndex >= autofillBounds.minRow &&
-          rowIndex <= autofillBounds.maxRow &&
+          autofillBounds.rowSet.has(rowIndex) &&
           cIndex >= autofillBounds.minCol &&
           cIndex <= autofillBounds.maxCol
         );
@@ -411,21 +410,19 @@ export const GridViewRow = React.memo<GridViewRowProps>(GridViewRowInner, (prev,
   // 3. Multi-selection range changes affecting this row
   const wasInSelection = Boolean(
     prev.selectionBounds?.isMulti &&
-    prev.rowIndex >= prev.selectionBounds.minRow &&
-    prev.rowIndex <= prev.selectionBounds.maxRow
+    prev.selectionBounds.rowSet.has(prev.rowIndex)
   );
   const isInSelection = Boolean(
     next.selectionBounds?.isMulti &&
-    next.rowIndex >= next.selectionBounds.minRow &&
-    next.rowIndex <= next.selectionBounds.maxRow
+    next.selectionBounds.rowSet.has(next.rowIndex)
   );
   if (wasInSelection !== isInSelection) return false;
   if (isInSelection) {
     if (
       prev.selectionBounds?.minCol !== next.selectionBounds?.minCol ||
       prev.selectionBounds?.maxCol !== next.selectionBounds?.maxCol ||
-      prev.selectionBounds?.minRow !== next.selectionBounds?.minRow ||
-      prev.selectionBounds?.maxRow !== next.selectionBounds?.maxRow
+      prev.selectionBounds?.firstRow !== next.selectionBounds?.firstRow ||
+      prev.selectionBounds?.lastRow !== next.selectionBounds?.lastRow
     ) {
       return false;
     }
@@ -434,13 +431,11 @@ export const GridViewRow = React.memo<GridViewRowProps>(GridViewRowInner, (prev,
   // 4. Autofill preview range changes affecting this row
   const wasInAutofill = Boolean(
     prev.autofillBounds &&
-    prev.rowIndex >= prev.autofillBounds.minRow &&
-    prev.rowIndex <= prev.autofillBounds.maxRow
+    prev.autofillBounds.rowSet.has(prev.rowIndex)
   );
   const isInAutofill = Boolean(
     next.autofillBounds &&
-    next.rowIndex >= next.autofillBounds.minRow &&
-    next.rowIndex <= next.autofillBounds.maxRow
+    next.autofillBounds.rowSet.has(next.rowIndex)
   );
   if (wasInAutofill !== isInAutofill) return false;
   if (isInAutofill) {
