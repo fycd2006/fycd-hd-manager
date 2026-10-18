@@ -181,3 +181,25 @@ describe('WorkspaceDashboard 資料表預覽上限', () => {
     expect(screen.getByRole('button', { name: '表7' })).toBeInTheDocument()
   })
 })
+
+describe('WorkspaceDashboard 樣式', () => {
+  const HARDCODED_COLOR = /#[0-9a-f]{3,8}\b|rgba?\(/i
+  const coloredInline = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll<HTMLElement>('[style]')).filter(el => HARDCODED_COLOR.test(el.getAttribute('style') ?? ''))
+
+  it('元件內沒有寫死色碼的 inline style', () => {
+    const { container } = renderDashboard({ activeWorkspace: ws7(), onShowRenameModal: jest.fn(), onShowMembersModal: jest.fn(), onShowDatabaseModal: jest.fn(), onShowCreateTableModal: jest.fn() })
+    expect(coloredInline(container)).toHaveLength(0)
+  })
+
+  it('空狀態同樣沒有寫死色碼', () => {
+    const { container } = renderDashboard({ activeWorkspace: { ...workspace, databases: [] }, onShowDatabaseModal: jest.fn(), onCreateFromTemplate: jest.fn() })
+    expect(coloredInline(container)).toHaveLength(0)
+  })
+
+  it('跨表總表返回列沒有寫死色碼', () => {
+    const { container } = renderDashboard()
+    fireEvent.click(screen.getByRole('button', { name: /跨表總表/ }))
+    expect(coloredInline(container)).toHaveLength(0)
+  })
+})
