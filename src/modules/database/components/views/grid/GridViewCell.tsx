@@ -115,7 +115,7 @@ interface GridViewCellProps {
   onAutoFillDown?: () => void;
   onStartEdit: (initialVal?: string) => void;
   onUpdate: (val: any) => void;
-  onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
+  onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void | Promise<unknown>;
   onCancelEdit: () => void;
   onNavigateCell?: (direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => void;
   onContextMenu?: (e: React.MouseEvent) => void;
@@ -142,7 +142,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   onStartAutofill,
   onAutoFillDown,
   onStartEdit,
-  onUpdate,
+  onUpdate: onUpdateProp,
   onUpdateField,
   onCancelEdit,
   onNavigateCell,
@@ -243,6 +243,22 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const localValRef = useRef(localVal);
   const hasCommittedRef = useRef(false);
+  // Inline option creation sends the option NAME in the cell write. Until the field update commits, the
+  // server would auto-add its own choice that the client's whole-options overwrite then orphans, so cell
+  // writes queue (in order) behind an in-flight field update.
+  const writeQueueRef = useRef<Promise<void> | null>(null);
+  const enqueueWrite = useCallback((step: () => unknown) => {
+    const next = Promise.resolve(writeQueueRef.current).then(step).then(() => {}, () => {});
+    writeQueueRef.current = next;
+    void next.then(() => { if (writeQueueRef.current === next) writeQueueRef.current = null; });
+  }, []);
+  const awaitFieldUpdate = useCallback((pending: void | Promise<unknown>) => {
+    if (pending instanceof Promise) enqueueWrite(() => pending);
+  }, [enqueueWrite]);
+  const onUpdate = useCallback((val: unknown) => {
+    if (writeQueueRef.current) enqueueWrite(() => onUpdateProp(val));
+    else onUpdateProp(val);
+  }, [enqueueWrite, onUpdateProp]);
   const longTextDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [selectActiveIndex, setSelectActiveIndex] = useState<number>(0);
 
@@ -942,7 +958,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: valToCreate, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
                             setLocalVal(valToCreate);
                             onUpdate(valToCreate);
@@ -956,7 +972,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
                             setLocalVal(val);
                             onUpdate(val);
@@ -1019,7 +1035,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                             const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                             const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                             const newChoiceObjs = [...choiceObjs, { id: newId, name: valToCreate, color: newColor }];
-                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                           }
                           setLocalVal(valToCreate);
                           onUpdate(valToCreate);
@@ -1163,7 +1179,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
                             let nextItems = [...currentItems];
                             if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
@@ -1182,7 +1198,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
                             let nextItems = [...currentItems];
                             if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
@@ -1255,7 +1271,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                             const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                             const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                             const newChoiceObjs = [...choiceObjs, { id: newId, name: valToAdd, color: newColor }];
-                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                           }
                           const nextItems = [...currentItems, valToAdd];
                           const nextVal = JSON.stringify(nextItems);
