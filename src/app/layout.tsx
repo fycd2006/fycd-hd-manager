@@ -2,9 +2,10 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./theme.css";
 import "@/styles/baserow/default.scss";
+import { toStartupImages } from "@/lib/brand/splashScreens";
 
 export const viewport: Viewport = {
-  themeColor: "#EA580C",
+  themeColor: "#39452B",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -19,12 +20,13 @@ export const metadata: Metadata = {
   // favicon.ico 由 app/ 檔案慣例輸出；向量圖示 app/icon.svg 需明確列出才會產生 <link>
   icons: {
     icon: { url: "/icon.svg", type: "image/svg+xml" },
-    apple: "/logo.png",
+    apple: "/brand/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "FYCD HD",
+    startupImage: toStartupImages(),
   },
   openGraph: {
     title: "FYCD HD Manager",
