@@ -4,6 +4,7 @@
  */
 
 import { TableField, TableRow, CellValue } from '../types'
+import { formatFieldDate, normalizeDateInput, resolveDateOptions } from './dateTime'
 
 /**
  * Parse a single CSV line handling quoted fields and escaped quotes
@@ -69,6 +70,12 @@ export const exportToCSV = (
             }
             return String(item)
           }).join('; ')
+        } else if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') {
+          valStr = formatFieldDate(
+            val,
+            { ...resolveDateOptions(field.options, field.type), date_format: 'iso', date_time_format: '24', date_show_time_zone: false },
+            { fieldType: field.type }
+          )
         } else {
           valStr = String(val)
         }
@@ -165,6 +172,8 @@ function convertCSVValue(rawValue: string, field: TableField): CellValue {
       return trimmed ? trimmed.split(/[,;]/).map(v => v.trim()).filter(Boolean) : []
     case 'link_row':
       return []
+    case 'date':
+      return normalizeDateInput(trimmed, field.options) ?? trimmed
     default:
       return trimmed
   }

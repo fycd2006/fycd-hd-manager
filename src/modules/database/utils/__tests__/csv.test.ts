@@ -1,5 +1,6 @@
-import { parseCSVFile, parseCSVLine, csvRowToTableRow } from '../csv'
-import type { TableField } from '../../types'
+/** @jest-environment jsdom */
+import { parseCSVFile, parseCSVLine, csvRowToTableRow, exportToCSV } from '../csv'
+import type { TableField, TableRow } from '../../types'
 
 describe('CSV Utilities', () => {
   describe('parseCSVLine', () => {
@@ -58,6 +59,51 @@ Third line"
     it('throws error for empty file', () => {
       expect(() => parseCSVFile('')).toThrow('CSV 檔案為空')
       expect(() => parseCSVFile('   \n\r  ')).toThrow('CSV 檔案為空')
+    })
+  })
+
+  describe('date fields', () => {
+    const dateField: TableField = {
+      id: 3,
+      tableId: 1,
+      name: 'When',
+      type: 'date',
+      order: 1,
+      options: JSON.stringify({ date_include_time: true, date_format: 'us', date_time_zone: 'Asia/Taipei' }),
+    }
+
+    it('exports dates as ISO wall time in the field time zone', () => {
+      let captured = ''
+      const OriginalBlob = global.Blob
+      global.Blob = class {
+        constructor(parts: BlobPart[]) {
+          captured = parts.join('')
+        }
+      } as unknown as typeof Blob
+      const createUrl = jest.fn(() => 'blob:x')
+      ;(URL as unknown as { createObjectURL: unknown }).createObjectURL = createUrl
+      ;(URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = jest.fn()
+      const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      try {
+        const rows = [
+          { id: 1, tableId: 1, order: 0, createdAt: '', data: { field_3: '2026-10-18T06:30:00.000Z' } },
+        ] as unknown as TableRow[]
+        exportToCSV([dateField], rows, [], 't')
+      } finally {
+        global.Blob = OriginalBlob
+        click.mockRestore()
+      }
+      expect(captured).toContain('"2026-10-18 14:30"')
+    })
+
+    it('imports wall time in the field time zone as a UTC instant', () => {
+      expect(csvRowToTableRow(['2026-10-18 14:30'], ['When'], [dateField])).toEqual({
+        field_3: '2026-10-18T06:30:00.000Z',
+      })
+    })
+
+    it('keeps the raw string when the date cannot be parsed', () => {
+      expect(csvRowToTableRow(['abc'], ['When'], [dateField])).toEqual({ field_3: 'abc' })
     })
   })
 
