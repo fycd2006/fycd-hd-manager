@@ -52,7 +52,7 @@
 - `resolveTimeZone(options, viewerTz?)`：`client` 時回傳 `viewerTz`；沒有 `viewerTz` 時退回 `Intl.DateTimeFormat().resolvedOptions().timeZone`。
 - `normalizeDateInput(value, options, viewerTz?)`：轉成儲存值，失敗回傳 null。
   - 含時間：帶時差或 `Z` 的 ISO 直接轉 UTC；不帶時差的 `YYYY-MM-DD HH:mm`、`YYYY-MM-DDTHH:mm(:ss)` 以欄位時區換算；只有日期時視為欄位時區 00:00。
-  - 不含時間：與現有 `DateFieldType` 行為相同；若輸入是帶時差的 ISO，以欄位時區換算出日期。
+  - 不含時間：與現有 `DateFieldType` 行為完全相同（ISO 字串取前 10 字元，既有測試 `'2026-10-16T16:00:00.000Z' → '2026-10-16'` 不變）。
 - `formatFieldDate(value, options, { locale, viewerTz, fieldType })`：顯示字串；無法解析時原樣回傳字串。
 - `toEditorValue(value, options, viewerTz?)`：轉成 `<input type="date">` 或 `<input type="datetime-local">` 的值（欄位時區的牆上時間）。
 - `fromEditorValue(input, options, viewerTz?)`：反向換算成儲存值。
@@ -69,12 +69,11 @@
 - 顯示（`formatDateValue(val)` → `formatFieldDate(val, field.options, …)`）：`GridViewCell.tsx`、`MasterGridCell.tsx`、`GridView.tsx`、`MasterGridView.tsx`、`CardDrawer.tsx`、`RowEditModal.tsx`、`DatabaseViewRouter.tsx`、`FormView.tsx`，以及 `created_on`／`last_modified_on` 的顯示處。
 - 編輯器：上述位置的日期輸入，含時間時用 `datetime-local`，值經 `toEditorValue`／`fromEditorValue`。
 - 欄位設定 UI：新增 `components/modals/field-options/DateFieldOptions.tsx`，接進 `FieldModal.tsx` 與 `CreateFieldPopover.tsx`（型別為 `date`、`created_on`、`last_modified_on` 時顯示）；文案加進 `zh-TW.json`／`en.json`。
-- 篩選：
-  - 伺服器（`services/rowQuery.ts` 慢路徑）的 `date_equal`／`date_before`／`date_after` 改用 `cellDayInZone` 比較「天」。
-  - 時區：欄位設定為固定時區時用該時區；`client` 時使用 filter 參數附帶的檢視者時區，前端送出篩選時附上 `Intl` 的時區（新增選填 query `tz`，僅接受 `Intl` 能解析的 IANA 名稱，否則忽略並退回伺服器時區）。
-  - 前端若有自行比對日期的篩選，改用同一組函式。
+- 篩選（實際篩選在前端 `evaluateCellCondition` 執行，前端不送 `filter` 參數給伺服器；且目前前端完全沒處理三個日期運算子，選了也無作用）：
+  - 前端 `components/views/grid/cells/utils.ts` 的 `evaluateCellCondition` 新增 `date_equal`／`date_before`／`date_after`，以 `cellDayInZone(value, resolveTimeZone(options))`（`client` 即檢視者時區）與篩選值 `YYYY-MM-DD` 比較「天」。
+  - 伺服器（`services/rowQuery.ts` 慢路徑）同樣改用 `cellDayInZone`；`client` 時退回伺服器時區。不新增 `tz` 參數（沒有呼叫端）。
 - 日曆視圖：`CalendarView.tsx` 以 `cellDayInZone` 決定一筆資料落在哪一天。
-- CSV：匯出使用 `formatFieldDate`；匯入以 `normalizeDateInput` 解析。
+- CSV：匯出一律用可往返的 ISO 格式（`formatFieldDate` 搭配 `date_format: 'iso'`、`date_time_format: '24'`、不顯示時區標籤，即欄位時區的 `YYYY-MM-DD` 或 `YYYY-MM-DD HH:mm`），避免 US／European 格式匯入時無法判讀；匯入在前端 `csvRowToTableRow` 以 `normalizeDateInput(value, options, 檢視者時區)` 轉成儲存值，失敗則原樣交給伺服器驗證。
 - generated column：維持 `DATE`／`LEFT(…, 10)`。含時間欄位的索引欄會是 UTC 日期，但篩選不走此欄；在 `getGeneratedColumnSQLExpression` 加註說明。
 
 ## 錯誤處理
@@ -87,5 +86,6 @@
 
 - `utils/__tests__/dateTime.test.ts`：五種格式 × 12／24 小時制 × 顯示時區標籤；`Asia/Taipei` 跨日邊界（UTC 2026-10-17T23:59Z = 台北 10-18 07:59）；`America/New_York` 夏令時間切換日（2026-03-08、2026-11-01）；`dayRangeUtc`；編輯器往返換算；無效時區退回。
 - `fields/types/__tests__/`：`DateFieldType` 含時間／不含時間的正規化、非法值、`NOW` 預設值。
-- `services/__tests__/rowQuery.test.ts`：`date_equal` 依欄位時區與 `tz` 參數判斷跨日邊界。
+- `services/__tests__/rowQuery.test.ts`：`date_equal` 依欄位時區判斷跨日邊界。
+- `components/views/grid/__tests__/`：`evaluateCellCondition` 的三個日期運算子（含跨日邊界）。
 - 元件測試：`GridViewCell` 依設定顯示含時間格式；`DateFieldOptions` 切換設定送出正確的 `options`。
