@@ -77,6 +77,10 @@ describe('evaluateFilterRule — skipped rules', () => {
   it('new operator on a missing field is skipped', () => {
     expect(evaluateFilterRule('C', undefined, rule('has_any_of', { values: ['A'] }), NOW)).toBe(true)
   })
+  it.each(['date_on_or_before', 'date_on_or_after', 'date_within'])('new date operator %s on a missing field is skipped', (op) => {
+    const r = rule(op, op === 'date_within' ? { dateMode: 'past_week' } : { dateMode: 'today' })
+    expect(evaluateFilterRule('', undefined, r, NOW)).toBe(true)
+  })
   it('legacy operator on a missing field keeps current behavior', () => {
     const r = rule('contains', { value: 'zz' })
     expect(evaluateFilterRule('abc', undefined, r, NOW)).toBe(evaluateCellCondition('abc', undefined, 'contains', 'zz'))

@@ -93,7 +93,7 @@ function isRuleIncomplete(rule: FilterRule): boolean {
 function isRuleSkipped(rule: FilterRule, field: TableField | undefined): boolean {
   const isNew = SET_OPERATORS.includes(rule.operator) || DATE_OPERATORS.includes(rule.operator)
   if (!isNew) return false
-  if (!field && SET_OPERATORS.includes(rule.operator)) return true
+  if (!field) return true
   return isRuleIncomplete(rule)
 }
 
