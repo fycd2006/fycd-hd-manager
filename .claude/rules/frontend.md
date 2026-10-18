@@ -29,3 +29,4 @@ paths:
 - 最新留言格子寫死 `WebkitLineClamp: 2`，列高調高（44／60／80px）仍只顯示兩行 → 格子內多行文字不要寫死行數，用固定 `lineHeight` ＋ `maxHeight: 'round(down, 100%, <行高>)'` 依列高顯示整數行
 - 格子編輯器掛在 portal（`document.body`）時，編輯結束移除節點不會觸發 `onMouseLeave`，`isCellHovered` 卡 true，選別格後原格殘留灰底 → 格子的 hover 狀態在 `isEditing` 變 true 時清除（render 期間比對 prev，不用 effect 呼叫 setState），新增 portal 型編輯器時確認這點
 - 品牌載入層在 `workspaceReady` 已為 true 時 650ms 就退場，Logo 動畫還沒出現 → 有進場動畫的遮罩要設最短顯示時間（`MIN_VISIBLE_MS`），reduced motion 例外
+- 篩選選單（`constants/fieldTypes.ts`）提供 `date_equal`／`date_before`／`date_after`，前端 `evaluateCellCondition` 卻沒處理，選了也無作用 → 新增篩選運算子時同時改 `constants/fieldTypes.ts` 與 `components/views/grid/cells/utils.ts` 的 `evaluateCellCondition`，並在 `components/views/grid/__tests__/` 加一個以該運算子為例的 `it.each` 測試

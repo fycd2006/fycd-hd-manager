@@ -1,3 +1,5 @@
+import { cellDayInZone, resolveDateOptions, resolveTimeZone } from '@/modules/database/utils/dateTime';
+
 export interface PaletteColor {
   id: string;
   name: string;
@@ -216,7 +218,7 @@ export function parseNumberInput(val: any): number | null {
   const isNegative = /^\s*[-–—]|\([^\)]+\)/.test(str) || (str.includes('-') && !str.toLowerCase().includes('e-'));
   
   // Strip currency symbols, commas, percent, units and parentheses
-  let cleaned = str
+  const cleaned = str
     .replace(/[,\s$¥€£元%]/g, '')
     .replace(/^NT\$/i, '')
     .replace(/^NT/i, '')
@@ -237,6 +239,15 @@ export function evaluateCellCondition(
   targetValue: string
 ): boolean {
   const target = (targetValue || '').toLowerCase().trim();
+
+  // 0. Date operators: compare by day in the field's time zone
+  if (operator === 'date_equal' || operator === 'date_before' || operator === 'date_after') {
+    const cellDay = cellDayInZone(val, resolveTimeZone(resolveDateOptions(field?.options, field?.type)));
+    const targetDay = (targetValue || '').trim();
+    if (!cellDay || !targetDay) return false;
+    if (operator === 'date_equal') return cellDay === targetDay;
+    return operator === 'date_before' ? cellDay < targetDay : cellDay > targetDay;
+  }
 
   // 1. Select field types
   if (field?.type === 'single_select' || field?.type === 'multiple_select') {

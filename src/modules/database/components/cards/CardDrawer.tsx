@@ -7,7 +7,8 @@ import { X, Table as TableIcon, Loader2, AlertCircle } from 'lucide-react'
 import type { TableField, TableRow } from '@/modules/database/types'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import AdvancedFieldInputs from '../modals/AdvancedFieldInputs'
-import { formatDateValue } from '@/modules/database/utils'
+import { formatFieldDate, toEditorValue, fromEditorValue, resolveDateOptions } from '@/modules/database/utils/dateTime'
+import { useI18n } from '@/lib/i18n/i18nContext'
 import { renderFormulaCell, parseNumberInput } from '../views/grid/GridViewCell'
 import { safeJsonParse } from '@/lib/json-utils'
 
@@ -32,6 +33,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
   readOnly = false,
   isMasterViewContext = false,
 }) => {
+  const { locale } = useI18n()
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -554,14 +556,14 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
                             border: '1px solid #e4e4e7',
                           }}
                         >
-                          {formatDateValue(value) || '-'}
+                          {formatFieldDate(value, field.options, { locale, fieldType: field.type }) || '-'}
                         </div>
                       ) : (
                         <input
-                          type="date"
+                          type={resolveDateOptions(field.options, field.type).date_include_time ? 'datetime-local' : 'date'}
                           className="card-drawer-input"
-                          value={value ? String(value).split('T')[0] : ''}
-                          onChange={(e) => handleUpdateCell(fieldKey, e.target.value)}
+                          value={value ? toEditorValue(value, field.options) : ''}
+                          onChange={(e) => handleUpdateCell(fieldKey, fromEditorValue(e.target.value, field.options) ?? '')}
                           style={{
                             width: '100%',
                             fontSize: '13px',

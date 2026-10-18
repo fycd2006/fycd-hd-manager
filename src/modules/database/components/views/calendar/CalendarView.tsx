@@ -1,11 +1,13 @@
 import React, { useState } from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { CalendarViewSkeleton } from './CalendarViewSkeleton'
+import { cellDayInZone, resolveDateOptions, resolveTimeZone } from '../../../utils/dateTime'
 
 interface TableField {
   id: number
   name: string
   type: string
+  options?: unknown
 }
 
 type CellValue = string | number | boolean | null | CellValue[] | { [key: string]: CellValue }
@@ -119,13 +121,16 @@ export default function CalendarView({ fields, rows, onExpandRow, loading = fals
   }
 
   // Group rows by active date field value
+  const fieldTimeZone = resolveTimeZone(resolveDateOptions(activeDateField.options, activeDateField.type))
   const rowsByDate: Record<string, TableRow[]> = {}
   rows.forEach(row => {
     const val = row.data[`field_${activeDateField.id}`]
     if (val) {
-      const dStr = String(val).split('T')[0]
-      if (!rowsByDate[dStr]) rowsByDate[dStr] = []
-      rowsByDate[dStr].push(row)
+      const dStr = cellDayInZone(val, fieldTimeZone)
+      if (dStr) {
+        if (!rowsByDate[dStr]) rowsByDate[dStr] = []
+        rowsByDate[dStr].push(row)
+      }
     }
   })
 

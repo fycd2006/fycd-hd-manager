@@ -49,7 +49,7 @@ import {
 } from 'lucide-react'
 import { CardDrawer } from '@/modules/database/components/cards/CardDrawer'
 import { WorkspaceGridSkeleton } from '@/modules/database/components/table/WorkspaceGridSkeleton'
-import { formatDateValue } from '@/modules/database/utils'
+import { formatFieldDate } from '@/modules/database/utils/dateTime'
 import {
   parseSelectItems,
   getOptionColor,
@@ -859,7 +859,7 @@ export const MasterGridView: React.FC<MasterGridViewProps> = ({
             .filter(Boolean)
             .join(', ')
         } else if (fieldType === 'date' || fieldType === 'created_on' || fieldType === 'last_modified_on') {
-          textVal = formatDateValue(val)
+          textVal = formatFieldDate(val, tableFieldInfo?.options ?? unifiedCol?.options, { fieldType })
         } else if (Array.isArray(val)) {
           textVal = val
             .map((item) =>
