@@ -73,7 +73,7 @@ export async function POST(
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
     const parsedRowsData: Array<{ clientId: string, data: Record<string, any>, order: number, sourceRowId: number }> = []
-    const targetMeta: FieldMeta[] = targetFields.map(f => ({ id: f.id, name: f.name, type: f.type, options: f.options }))
+    const targetMeta: FieldMeta[] = targetFields.map(f => ({ id: f.id, name: f.name, type: f.type, options: typeof f.options === 'string' ? safeJsonParse(f.options, {}) : f.options }))
     const targetNameById = new Map(targetFields.map(f => [f.id, f.name]))
 
     // Step 2: Validate Data

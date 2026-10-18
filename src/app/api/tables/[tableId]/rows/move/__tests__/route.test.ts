@@ -176,6 +176,19 @@ describe('POST /api/tables/[tableId]/rows/move', () => {
     expect((await res.json()).error).toContain('欄位 [數量] 驗證失敗：')
   })
 
+  it('applies target field options stored as a JSON string', async () => {
+    fieldsFor(sourceFields, [targetFields[0], { ...targetFields[1], options: JSON.stringify({ min: 0 }) }])
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_2: '-5' } }],
+    })
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toContain('不能小於 0')
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
   it('does not carry the source autonumber value; the target assigns its own', async () => {
     fieldsFor(
       [...sourceFields, { id: 3, tableId: 20, name: '編號', type: 'autonumber', options: null }],
