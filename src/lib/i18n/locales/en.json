@@ -363,7 +363,19 @@
     "doubleClickRename": "Double-click or click icon to rename",
     "tableCount": "{count} Tables",
     "addTable": "Add Table",
-    "emptyTable": "No tables"
+    "emptyTable": "No tables",
+    "databaseCountLabel": "Databases",
+    "tableCountLabel": "Tables",
+    "masterView": "Master view",
+    "backToOverview": "Back to overview",
+    "masterViewTitle": "{workspace} · Master view",
+    "showAllTables": "Show all ({count})",
+    "showLess": "Show less",
+    "templateProject": "Project",
+    "templateCrm": "CRM",
+    "templateFinance": "Finance",
+    "templateHr": "HR",
+    "welcomeLine": "Welcome back, {username} · {role}"
   },
   "auth": {
     "systemTitle": "Cloud Database & Workspace Management System",
