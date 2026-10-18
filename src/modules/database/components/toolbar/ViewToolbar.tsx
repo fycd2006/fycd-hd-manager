@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import { PanelLeft, PanelLeftClose, PanelLeftOpen, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload, Sparkles } from 'lucide-react'
-import type { TableView, TableField, FilterItem, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
+import type { TableView, TableField, TableRow, FilterItem, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import { ViewContextMenu } from '@/modules/database/components/menu/ViewContextMenu'
@@ -63,6 +63,7 @@ interface ViewToolbarProps {
 
   // Fields (hide/show)
   fields: TableField[]
+  rows?: TableRow[]
   hiddenFieldKeys: string[]
   setHiddenFieldKeys: (v: string[]) => void
 
@@ -120,6 +121,7 @@ export function ViewToolbar({
   setGroupByRules,
   onToggleCollapseAllGroups,
   fields,
+  rows,
   hiddenFieldKeys,
   setHiddenFieldKeys,
   rowHeightSize,
@@ -1472,6 +1474,7 @@ export function ViewToolbar({
                 setFilterRules={setFilterRules}
                 filterType={filterType}
                 setFilterType={setFilterType}
+                rows={rows}
               />
             )}
 

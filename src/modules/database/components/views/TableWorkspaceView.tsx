@@ -241,6 +241,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
       >
         {/* View selector and header toolbar */}
         <ViewToolbar
+          rows={rows}
           isAiOpen={isAiOpen}
           onToggleAiOpen={() => setIsAiOpen(prev => !prev)}
         canManageStructure={currentUserRolePermissions.canManageStructure}
