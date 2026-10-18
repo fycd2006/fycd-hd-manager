@@ -219,7 +219,7 @@ export function CreateFieldPopover({
         setNumberFormat('thousands')
         setNumberPrefix('')
         setNumberSuffix('')
-        setDateOptions(resolveDateOptions(null, 'date'))
+        setDateOptions(resolveDateOptions(null, defaultType || 'date'))
         setCreateRelatedField(true)
         setAllowMultiple(true)
       }

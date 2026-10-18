@@ -1,9 +1,10 @@
 /** @jest-environment jsdom */
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { I18nProvider } from '@/lib/i18n/i18nContext'
 import { DateFieldOptions } from '../field-options/DateFieldOptions'
+import { CreateFieldPopover } from '../../field/CreateFieldPopover'
 import { resolveDateOptions } from '@/modules/database/utils/dateTime'
 
 function setup(value = resolveDateOptions(null, 'date'), fieldType = 'date') {
@@ -19,6 +20,9 @@ function setup(value = resolveDateOptions(null, 'date'), fieldType = 'date') {
 describe('DateFieldOptions', () => {
   beforeAll(() => {
     document.cookie = 'i18n_locale=zh-TW'
+  })
+  afterAll(() => {
+    document.cookie = 'i18n_locale=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
   })
 
   it('hides time controls when include time is off', () => {
@@ -59,5 +63,19 @@ describe('DateFieldOptions', () => {
     const onChange = setup(resolveDateOptions({ date_include_time: true }, 'date'))
     fireEvent.change(screen.getByRole('combobox', { name: '時區' }), { target: { value: 'Asia/Taipei' } })
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ date_time_zone: 'Asia/Taipei' }))
+  })
+
+  it('submits include-time true by default for a new created_on field', async () => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined)
+    const { container } = render(
+      <I18nProvider>
+        <CreateFieldPopover show onClose={() => {}} onSubmit={onSubmit} position={{ top: 0, left: 0 }} defaultType="created_on" />
+      </I18nProvider>
+    )
+    expect(screen.getByLabelText('含時間')).toBeChecked()
+    fireEvent.submit(container.ownerDocument.querySelector('form') as HTMLFormElement)
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][1]).toBe('created_on')
+    expect(onSubmit.mock.calls[0][2]).toEqual(expect.objectContaining({ date_include_time: true }))
   })
 })
