@@ -4,12 +4,16 @@ import { authorizeAction } from '@/lib/authorize'
 import { triggerTableEvent } from '@/lib/pusher-server'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { GoogleGenAI, Type } from '@google/genai'
-import { FieldRegistry, extractChoices, parseLatestCommentEntries } from '@/modules/database/fields/types'
+import { extractChoices, parseLatestCommentEntries } from '@/modules/database/fields/types'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
 import { createTableRow } from '@/modules/database/services/createRow'
 import { safeJsonParse } from '@/lib/json-utils'
+import { prepareBatchCellWrites, applyChoiceRemap, formatRejection, type FieldMeta } from '@/modules/database/services/cellWrite'
+import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
+
+const AI_USERNAME = 'AI 助理 (AI Assistant)'
 
 const runDb = typeof withDbRetry === 'function' ? withDbRetry : async <T>(fn: () => Promise<T>): Promise<T> => fn()
 
@@ -195,6 +199,14 @@ export async function POST(request: Request) {
         }
 
         const linkRowSyncTasks: Array<Promise<any>> = []
+        const rejectedCells: Array<{ rowId: number; fieldKey: string; fieldName: string; reason: string }> = []
+        const updatedFields: Array<{ id: number; options: unknown }> = []
+        const fieldMetas: FieldMeta[] = fields.map(f => ({
+          id: f.id,
+          name: f.name,
+          type: f.type,
+          options: typeof f.options === 'string' ? safeJsonParse(f.options, null) : f.options,
+        }))
         const updatedRowIds = new Set<number>()
 
         // Group updates by rowId so multiple cell changes on the same row are applied together
@@ -206,6 +218,19 @@ export async function POST(request: Request) {
         }
 
         await runDb(() => prisma.$transaction(async (tx) => {
+          // the transaction may be retried: start from a clean slate
+          linkRowSyncTasks.length = 0
+          rejectedCells.length = 0
+          updatedFields.length = 0
+          updatedRowIds.clear()
+
+          const pending: Array<{
+            rowId: number
+            rowData: Record<string, string | number | boolean | null>
+            input: Record<string, unknown>
+            syncs: Map<string, () => Promise<unknown>>
+          }> = []
+
           for (const [rowId, rowUpdates] of updatesByRow.entries()) {
             const row = await tx.tableRow.findUnique({
               where: { id: rowId, tableId: tid, deletedAt: null }
@@ -214,12 +239,12 @@ export async function POST(request: Request) {
 
             const rowData = typeof row.data === 'string' ? JSON.parse(row.data) : { ...(row.data as any || {}) }
 
+            const rowInput: Record<string, unknown> = {}
+            const pendingSyncs = new Map<string, () => Promise<unknown>>()
+
             for (const u of rowUpdates) {
               const targetField = fieldMap.get(u.fieldKey)
               if (!targetField) continue
-
-              // Protect read-only / computed fields
-              if (READONLY_TYPES.has(targetField.type)) continue
 
               const oldVal = rowData[u.fieldKey]
               let validatedValue = u.value
@@ -228,7 +253,7 @@ export async function POST(request: Request) {
                 const oldIds = parseLinkRowIds(oldVal)
                 const newIds = parseLinkRowIds(u.value)
                 validatedValue = newIds
-                linkRowSyncTasks.push(
+                pendingSyncs.set(u.fieldKey, () =>
                   syncBiDirectionalLinkRow(tid, rowId, targetField.id, newIds, oldIds).catch(err => {
                     console.warn('[Bi-directional Sync Warning in AI Agent]:', err)
                     return null
@@ -279,19 +304,48 @@ export async function POST(request: Request) {
                     },
                   ]
                 }
-              } else {
-                const fOpts = typeof targetField.options === 'string'
-                  ? safeJsonParse(targetField.options, {})
-                  : (targetField.options || {})
-                const fieldType = FieldRegistry.get(targetField.type)
-                const validateRes = fieldType.validateValue(u.value, fOpts)
-                if (validateRes.valid) {
-                  validatedValue = validateRes.parsedValue
-                }
               }
 
-              rowData[u.fieldKey] = validatedValue
+              rowInput[u.fieldKey] = validatedValue
             }
+
+            pending.push({ rowId, rowData, input: rowInput, syncs: pendingSyncs })
+          }
+
+          // Prepare all rows together so new select options are merged into the field once
+          const preparedAll = prepareBatchCellWrites({
+            fields: fieldMetas,
+            rows: pending.map((r, i) => ({ key: i, input: r.input, existing: r.rowData })),
+            mode: 'update',
+            canAddOptions: true,
+            actor: { username: AI_USERNAME },
+          })
+          let remap: Record<number, Record<string, string>> = {}
+          if (Object.keys(preparedAll.optionAdditions).length > 0) {
+            const applied = await applyOptionAdditions(tx, tid, preparedAll.optionAdditions)
+            updatedFields.push(...applied.updated)
+            remap = applied.remap
+          }
+
+          for (const prepared of preparedAll.rows) {
+            const { rowId, rowData, syncs: pendingSyncs } = pending[prepared.key]
+            // Read-only fields and invalid values come back as rejections; those cells are not written
+            for (const rej of prepared.rejected) {
+              const fieldName = fields.find(x => x.id === rej.fieldId)?.name ?? `field_${rej.fieldId}`
+              rejectedCells.push({
+                rowId,
+                fieldKey: `field_${rej.fieldId}`,
+                fieldName,
+                reason: formatRejection(fieldName, rej),
+              })
+            }
+            if (prepared.rejected.length > 0 && Object.keys(prepared.data).length === 0) continue
+
+            const writeData = applyChoiceRemap(prepared.data, fieldMetas, remap)
+            for (const [key, run] of pendingSyncs) {
+              if (key in writeData) linkRowSyncTasks.push(run())
+            }
+            Object.assign(rowData, writeData)
 
             // Recompute formula fields if present in table
             const formulaFields = fields.filter(f => f.type === 'formula')
@@ -332,12 +386,20 @@ export async function POST(request: Request) {
 
         await invalidateMasterViewCacheForTable(tid).catch(() => {})
         triggerTableEvent(tid, 'rows-batch-changed', { type: 'update', count: updates.length }, socketId || undefined)
+        for (const u of updatedFields) {
+          const original = fields.find(f => f.id === u.id)
+          triggerTableEvent(tid, 'field-updated', { field: { ...original, ...u } })
+        }
 
+        const writtenCount = Math.max(updates.length - rejectedCells.length, 0)
         return NextResponse.json({
           success: true,
           action: 'update_cells',
-          count: updates.length,
-          summary: `成功更新 ${updates.length} 個儲存格`
+          count: writtenCount,
+          rejected: rejectedCells,
+          summary: rejectedCells.length > 0
+            ? `成功更新 ${writtenCount} 個儲存格，${rejectedCells.length} 個儲存格未寫入：${rejectedCells.map(r => r.reason).join('；')}`
+            : `成功更新 ${writtenCount} 個儲存格`
         })
       }
 
@@ -352,10 +414,14 @@ export async function POST(request: Request) {
           const result = await createTableRow({
             tableId: tid,
             input: r,
-            username: 'AI 助理 (AI Assistant)',
+            username: AI_USERNAME,
+            canAddOptions: true,
           })
           if (result.ok) {
             createdRows.push(result.row)
+            for (const u of result.updatedFields ?? []) {
+              triggerTableEvent(tid, 'field-updated', { field: u })
+            }
           } else {
             console.warn('[AI createTableRow warning]:', result.error)
           }

@@ -104,7 +104,7 @@ describe('GridView Desktop UX Operations', () => {
     expect(updates.length).toBeGreaterThan(0);
   });
 
-  it('sanitizes number and boolean types when pasting into cells', async () => {
+  it('sends trimmed raw text when pasting into cells', async () => {
     const onBatchUpdateCells = jest.fn();
     render(<GridView fields={fields} rows={mockRows} onBatchUpdateCells={onBatchUpdateCells} />);
 
@@ -126,8 +126,8 @@ describe('GridView Desktop UX Operations', () => {
     });
 
     const updates = onBatchUpdateCells.mock.calls[0][0];
-    // field_2 should be parsed as clean number 1250.5, NOT raw string "$1,250.50"
-    expect(updates[0].data.field_2).toBe(1250.5);
+    // Paste sends trimmed raw text; the server parses it
+    expect(updates[0].data.field_2).toBe('$1,250.50');
   });
 
   it('selects entire row on Shift+Space and entire column on Ctrl+Space', () => {

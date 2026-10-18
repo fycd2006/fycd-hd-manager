@@ -33,7 +33,7 @@ jest.mock('@/lib/prisma', () => ({
   default: {
     database: { create: jest.fn() },
     databaseTable: { create: jest.fn() },
-    tableField: { create: jest.fn() },
+    tableField: { create: jest.fn(), update: jest.fn() },
     tableRow: { create: jest.fn() },
     tableView: { create: jest.fn() },
   },
@@ -100,7 +100,60 @@ describe('POST /api/database/import/airtable', () => {
       data: { tableId: 60, data: { field_70: '米', field_71: 30 }, order: 0 },
     })
     expect(prisma.tableView.create).toHaveBeenCalledWith({ data: { tableId: 60, name: '全部資料', type: 'grid' } })
-    expect((await res.json()).stats).toEqual({ tableCount: 1, rowCount: 1 })
+    expect((await res.json()).stats).toEqual({ tableCount: 1, rowCount: 1, rejectedCellCount: 0 })
+  })
+
+  it('skips an invalid cell, keeps the rest of the row and counts it in stats', async () => {
+    ;(parseAirtableBasePayload as jest.Mock).mockReturnValue([{
+      ...converted[0],
+      rows: [{ data: { 品名: '米', 價格: 'abc' } }, { data: { 品名: '麵', 價格: 20 } }],
+    }])
+
+    const res = await importBase({ workspaceId: 5, rawPayload: {} })
+
+    expect(res.status).toBe(200)
+    expect(prisma.tableRow.create).toHaveBeenNthCalledWith(1, { data: { tableId: 60, data: { field_70: '米' }, order: 0 } })
+    expect(prisma.tableRow.create).toHaveBeenNthCalledWith(2, { data: { tableId: 60, data: { field_70: '麵', field_71: 20 }, order: 1 } })
+    expect((await res.json()).stats).toEqual({ tableCount: 1, rowCount: 2, rejectedCellCount: 1 })
+  })
+
+  it('stores imported read-only values as-is and does not count them as rejected', async () => {
+    ;(parseAirtableBasePayload as jest.Mock).mockReturnValue([{
+      name: '食材',
+      fields: [
+        { name: '品名', type: 'text' },
+        { name: '總價', type: 'formula', options: 'field_70' },
+        { name: '編號', type: 'autonumber' },
+        { name: '建立時間', type: 'created_on' },
+      ],
+      rows: [{ data: { 品名: '米', 總價: '30', 編號: 12, 建立時間: '2024/01/02 10:00' } }],
+    }])
+
+    const res = await importBase({ workspaceId: 5, rawPayload: {} })
+
+    expect(prisma.tableRow.create).toHaveBeenCalledWith({
+      data: { tableId: 60, data: { field_70: '米', field_71: '30', field_72: 12, field_73: '2024/01/02 10:00' }, order: 0 },
+    })
+    expect((await res.json()).stats.rejectedCellCount).toBe(0)
+  })
+
+  it('adds unknown select choices straight into the just-created field options', async () => {
+    ;(parseAirtableBasePayload as jest.Mock).mockReturnValue([{
+      name: '食材',
+      fields: [{ name: '分類', type: 'single_select', options: { choices: [{ id: 'c1', name: '蔬菜' }] } }],
+      rows: [{ data: { 分類: '肉類' } }, { data: { 分類: '蔬菜' } }],
+    }])
+
+    const res = await importBase({ workspaceId: 5, rawPayload: {} })
+
+    expect(res.status).toBe(200)
+    const updateArg = (prisma.tableField.update as jest.Mock).mock.calls[0][0]
+    expect(updateArg.where).toEqual({ id: 70 })
+    const choices = updateArg.data.options.choices
+    expect(choices.map((c: { name: string }) => c.name)).toEqual(['蔬菜', '肉類'])
+    const newId = choices[1].id
+    expect(prisma.tableRow.create).toHaveBeenNthCalledWith(1, { data: { tableId: 60, data: { field_70: newId }, order: 0 } })
+    expect(prisma.tableRow.create).toHaveBeenNthCalledWith(2, { data: { tableId: 60, data: { field_70: 'c1' }, order: 1 } })
   })
 
   it('uses the personal access token API for a base URL with a token', async () => {

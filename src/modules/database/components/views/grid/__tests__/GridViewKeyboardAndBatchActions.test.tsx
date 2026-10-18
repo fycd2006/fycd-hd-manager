@@ -4,7 +4,7 @@
 
 import React from 'react';
 import '@testing-library/jest-dom';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, fireEvent, screen, waitFor } from '@testing-library/react';
 import { GridView } from '../GridView';
 import type { TableField } from '@/modules/database/types';
 
@@ -96,5 +96,57 @@ describe('GridView Keyboard Navigation, Type-over, and Batch Actions', () => {
       fireEvent.doubleClick(resizeHandles[0]);
       expect(onUpdateFieldMock).toHaveBeenCalled();
     }
+  });
+});
+
+describe('GridView paste sends raw text', () => {
+  const fields: TableField[] = [
+    { id: 1, tableId: 1, name: '名稱', type: 'text', order: 0, width: 150, options: null },
+    { id: 2, tableId: 1, name: '數量', type: 'number', order: 1, width: 120, options: null },
+    { id: 3, tableId: 1, name: '完成', type: 'boolean', order: 2, width: 100, options: null },
+  ];
+  const rows = [
+    { id: 101, tableId: 1, order: 1, values: { 1: '項目 A', 2: 1, 3: false }, data: { field_1: '項目 A', field_2: 1, field_3: false } },
+    { id: 102, tableId: 1, order: 2, values: { 1: '項目 B', 2: 2, 3: false }, data: { field_1: '項目 B', field_2: 2, field_3: false } },
+    { id: 103, tableId: 1, order: 3, values: { 1: '項目 C', 2: 3, 3: false }, data: { field_1: '項目 C', field_2: 3, field_3: false } },
+  ] as unknown as React.ComponentProps<typeof GridView>['rows'];
+
+  const paste = (text: string) => {
+    const pasteEvent = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(pasteEvent, 'clipboardData', {
+      value: { getData: (format: string) => (format === 'text/plain' || !format ? text : '') },
+    });
+    window.dispatchEvent(pasteEvent);
+  };
+
+  const selectCell = (colIndex: number) => {
+    const cell = screen.getByText('項目 A').closest('.grid-view__row')?.querySelectorAll('.grid-view__column')[colIndex + 1];
+    expect(cell).toBeTruthy();
+    fireEvent.mouseDown(cell as Element, { button: 0 });
+  };
+
+  it("pastes 'abc' into a boolean field as the raw string, not true", async () => {
+    const onBatchUpdateCells = jest.fn();
+    render(<GridView fields={fields} rows={rows} onBatchUpdateCells={onBatchUpdateCells} />);
+    selectCell(2);
+    paste('abc');
+    await waitFor(() => expect(onBatchUpdateCells).toHaveBeenCalled());
+    expect(onBatchUpdateCells.mock.calls[0][0][0].data.field_3).toBe('abc');
+  });
+
+  it("pastes ' 12 ' into a number field as trimmed '12'", async () => {
+    const onBatchUpdateCells = jest.fn();
+    render(<GridView fields={fields} rows={rows} onBatchUpdateCells={onBatchUpdateCells} />);
+    selectCell(1);
+    paste(' 12 ');
+    await waitFor(() => expect(onBatchUpdateCells).toHaveBeenCalled());
+    expect(onBatchUpdateCells.mock.calls[0][0][0].data.field_2).toBe('12');
+  });
+
+  it('adds grid-cell--rejected to cells listed in recentlyRejected', () => {
+    render(<GridView fields={fields} rows={rows} recentlyRejected={new Set(['101:2'])} />);
+    const cells = screen.getByText('項目 A').closest('.grid-view__row')?.querySelectorAll('.grid-view__column');
+    expect(cells?.[2].classList.contains('grid-cell--rejected')).toBe(true);
+    expect(cells?.[1].classList.contains('grid-cell--rejected')).toBe(false);
   });
 });

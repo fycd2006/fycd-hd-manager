@@ -20,38 +20,42 @@ export function parseLatestCommentEntries(val: any): CommentLogEntry[] {
   return []
 }
 
+const invalidComment = (): FieldValidationResult => ({
+  valid: false,
+  code: 'invalid_format',
+  error: '留言格式不正確，每則留言都必須包含 id、user、time 與 content',
+})
+
+function isCommentEntry(item: unknown): boolean {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) return false
+  const e = item as Record<string, unknown>
+  return (
+    (typeof e.id === 'string' || typeof e.id === 'number') &&
+    typeof e.user === 'string' &&
+    typeof e.time === 'string' &&
+    typeof e.content === 'string'
+  )
+}
+
 export class LatestCommentFieldType implements FieldType {
   readonly type = 'latest_comment'
   readonly name = '最新留言'
+  readonly readOnly = false
 
-  validateValue(value: any): FieldValidationResult {
+  validateValue(value: unknown): FieldValidationResult {
     if (value === null || value === undefined || value === '') {
       return { valid: true, parsedValue: [] }
     }
-    if (Array.isArray(value)) {
-      return { valid: true, parsedValue: value }
-    }
+    let list: unknown = value
     if (typeof value === 'string') {
-      const trimmed = value.trim()
       try {
-        const parsed = JSON.parse(trimmed)
-        if (Array.isArray(parsed)) {
-          return { valid: true, parsedValue: parsed }
-        }
-      } catch {}
-      return {
-        valid: true,
-        parsedValue: [
-          {
-            id: String(Date.now()),
-            user: '系統 (System)',
-            time: new Date().toLocaleString('zh-TW', { hour12: false }),
-            content: trimmed,
-          },
-        ],
+        list = JSON.parse(value)
+      } catch {
+        return invalidComment()
       }
     }
-    return { valid: true, parsedValue: [] }
+    if (!Array.isArray(list) || !list.every(isCommentEntry)) return invalidComment()
+    return { valid: true, parsedValue: list }
   }
 
   formatValue(value: any): any {

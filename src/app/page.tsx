@@ -472,7 +472,7 @@ export default function Home() {
   }, [wsState.activeTableId, fetchTableData, setSearchQuery, setRows, setFields])
 
   // Cell and batch editing hook
-  const { updateCell, batchUpdateCells } = useCellEdit({
+  const { updateCell, batchUpdateCells, recentlyRejected } = useCellEdit({
     activeTableId: wsState.activeTableId,
     rows,
     setRows,
@@ -809,6 +809,7 @@ export default function Home() {
 
     updateCell,
     batchUpdateCells,
+    recentlyRejected,
     addRow,
     batchAddRows,
     deleteRow,
@@ -861,6 +862,7 @@ export default function Home() {
     createView,
     updateCell,
     batchUpdateCells,
+    recentlyRejected,
     addRow,
     batchAddRows,
     deleteRow,

@@ -3,6 +3,7 @@ import type { TableField, TableRow } from '../types'
 import { exportToCSV, parseCSVFile, csvRowToTableRow } from '../utils/csv'
 import * as fieldService from '../services/field'
 import * as rowService from '../services/row'
+import { formatRejectedSummary } from '../utils/formatRejectedSummary'
 
 export interface UseTableCSVOptions {
   activeTableId: number | null
@@ -144,6 +145,8 @@ export function useTableCSV({
 
       // 4. Batch import rows in chunks of BATCH_IMPORT_SIZE
       let totalImported = 0
+      let providedCells = 0
+      const rejected: Array<{ fieldId: number; reason: string }> = []
       for (let i = 0; i < csvRows.length; i += BATCH_IMPORT_SIZE) {
         const chunk = csvRows.slice(i, i + BATCH_IMPORT_SIZE)
         const rowsPayload = chunk.map((csvRow, idx) => ({
@@ -156,10 +159,15 @@ export function useTableCSV({
           throw new Error(result.error || `批次新增第 ${i + 1} 至 ${i + chunk.length} 列失敗`)
         }
         totalImported += chunk.length
+        providedCells += rowsPayload.reduce((n, r) => n + Object.keys(r.data).length, 0)
+        rejected.push(...(result.rejected ?? []))
       }
 
       await fetchTableData(activeTableId)
       addToast(`CSV 匯入成功，共匯入 ${totalImported} 筆資料`, 'success')
+      if (rejected.length > 0) {
+        addToast(formatRejectedSummary(providedCells - rejected.length, rejected, updatedFields), 'info')
+      }
     } catch (error) {
       addToast((error as Error).message || 'CSV 匯入失敗', 'error')
     } finally {

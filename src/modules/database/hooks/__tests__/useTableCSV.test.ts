@@ -121,15 +121,15 @@ describe('useTableCSV', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             field_1: '王大同',
-            field_2: 30,
-            field_3: true,
+            field_2: '30',
+            field_3: '是',
           }),
         }),
         expect.objectContaining({
           data: expect.objectContaining({
             field_1: '陳小芬',
-            field_2: 25,
-            field_3: false,
+            field_2: '25',
+            field_3: '否',
           }),
         }),
       ])
@@ -140,5 +140,38 @@ describe('useTableCSV', () => {
       expect.stringContaining('共匯入 2 筆資料'),
       'success'
     )
+  })
+
+  it('accumulates rejected cells across import batches and shows the summary toast', async () => {
+    const addToast = jest.fn()
+    ;(fieldService.fetchFields as jest.Mock).mockResolvedValue(mockFields)
+    ;(rowService.batchCreateRows as jest.Mock)
+      .mockResolvedValueOnce({ ok: true, rows: [], rejected: [{ clientId: 'a', fieldId: 2, code: 'invalid_number', reason: '必須是有效的數字' }] })
+      .mockResolvedValueOnce({ ok: true, rows: [], rejected: [{ clientId: 'b', fieldId: 2, code: 'invalid_number', reason: '必須是有效的數字' }] })
+
+    const { result } = renderHook(() =>
+      useTableCSV({
+        activeTableId: 10,
+        fields: mockFields,
+        rows: mockRows,
+        hiddenFieldKeys: [],
+        workspaces: mockWorkspaces,
+        setFields: jest.fn(),
+        setGridLoading: jest.fn(),
+        fetchTableData: jest.fn(),
+        addToast,
+      })
+    )
+
+    // 101 data rows -> two batches of BATCH_IMPORT_SIZE (100) and 1; 2 cells per row
+    const lines = Array.from({ length: 101 }, (_, i) => `人${i},${i === 0 || i === 100 ? 'abc' : i}`)
+    const file = new File([`姓名,年齡\n${lines.join('\n')}`], 'test.csv', { type: 'text/csv' })
+
+    await act(async () => {
+      await result.current.handleCSVImport({ target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>)
+    })
+
+    expect(rowService.batchCreateRows).toHaveBeenCalledTimes(2)
+    expect(addToast).toHaveBeenCalledWith('已寫入 200 格，2 格未寫入：年齡 必須是有效的數字', 'info')
   })
 })

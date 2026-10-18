@@ -2,6 +2,7 @@ import { createTableRow } from '../createRow'
 import prisma from '@/lib/prisma'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { evaluateFormula } from '@/lib/formula'
+import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
 
 jest.mock('@/modules/database/services/masterViewCache', () => ({
   invalidateMasterViewCacheForTable: jest.fn().mockResolvedValue(undefined),
@@ -27,6 +28,10 @@ jest.mock('@/lib/prisma', () => ({
     tableField: { findMany: jest.fn() },
     $transaction: jest.fn(),
   },
+}))
+
+jest.mock('@/modules/database/services/cellWriteOptions', () => ({
+  applyOptionAdditions: jest.fn(),
 }))
 
 const mockFields = (fields: Array<{ id: number; name?: string; type: string; options?: unknown }>) => {
@@ -94,7 +99,7 @@ describe('createTableRow', () => {
     tx.databaseTable.findUnique.mockResolvedValue({ id: 1, autonumberCounter: 7 })
     tx.databaseTable.update.mockResolvedValue({ autonumberCounter: 8 })
 
-    await createTableRow({ tableId: 1, input: { field_1: 999 }, username: 'alice' })
+    await createTableRow({ tableId: 1, input: {}, username: 'alice' })
 
     expect(tx.tableRow.findMany).not.toHaveBeenCalled()
     expect(tx.databaseTable.update).toHaveBeenCalledTimes(1)
@@ -169,5 +174,81 @@ describe('createTableRow', () => {
     expect(res.ok).toBe(true)
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
+  })
+
+  it('rejects autonumber input with the field name and creates no row', async () => {
+    mockFields([{ id: 1, name: '編號', type: 'autonumber' }])
+    const res = await createTableRow({ tableId: 1, input: { field_1: 5 }, username: 'alice' })
+    expect(res.ok).toBe(false)
+    if (!res.ok) expect(res.error).toContain('欄位 [編號] 驗證失敗：')
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(tx.tableRow.create).not.toHaveBeenCalled()
+  })
+
+  it('writes a numeric default of 0', async () => {
+    mockFields([{ id: 1, type: 'number', options: { defaultValue: 0 } }])
+    await createTableRow({ tableId: 1, input: {}, username: 'alice' })
+    expect(createdData().data).toEqual({ field_1: 0 })
+  })
+
+  const selectField = { id: 1, name: '類別', type: 'single_select', options: { choices: [{ id: 'a', name: 'A', color: '#111' }] } }
+
+  it('public form (canAddOptions false) rejects an unknown option', async () => {
+    mockFields([selectField])
+    const res = await createTableRow({ tableId: 1, input: { field_1: '新選項' }, username: 'f', canAddOptions: false })
+    expect(res.ok).toBe(false)
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('canAddOptions true creates the row, merges options in the same transaction and returns updatedFields', async () => {
+    mockFields([selectField])
+    ;(applyOptionAdditions as jest.Mock).mockResolvedValue({ updated: [{ id: 1, options: { choices: ['x'] } }], remap: {} })
+    const res = await createTableRow({ tableId: 1, input: { field_1: '新選項' }, username: 'alice', canAddOptions: true })
+    expect(res.ok).toBe(true)
+    expect(applyOptionAdditions).toHaveBeenCalledWith(tx, 1, expect.objectContaining({ 1: [expect.objectContaining({ name: '新選項' })] }))
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+    expect(tx.tableRow.create).toHaveBeenCalledTimes(1)
+    if (res.ok) expect(res.updatedFields).toEqual([expect.objectContaining({ id: 1, name: '類別', options: { choices: ['x'] } })])
+  })
+
+  it('does not call applyOptionAdditions when nothing was added', async () => {
+    mockFields([{ id: 1, type: 'text' }])
+    const res = await createTableRow({ tableId: 1, input: { field_1: 'x' }, username: 'alice', canAddOptions: true })
+    expect(applyOptionAdditions).not.toHaveBeenCalled()
+    if (res.ok) expect(res.updatedFields).toBeUndefined()
+  })
+
+  it('replaces a forged latest_comment user with the acting username', async () => {
+    mockFields([{ id: 1, type: 'latest_comment' }])
+    await createTableRow({
+      tableId: 1,
+      input: { field_1: [{ id: 'c1', user: 'hacker', time: '1999', content: 'hi' }] },
+      username: 'alice',
+    })
+    const entries = createdData().data.field_1 as Array<{ user: string }>
+    expect(entries[0].user).toBe('alice')
+  })
+
+  it('ignores blocked fields from fieldFilter even when they would be rejected', async () => {
+    mockFields([{ id: 1, type: 'text' }, { id: 2, type: 'formula', options: { formula: '1' } }])
+    const res = await createTableRow({
+      tableId: 1, input: { field_1: 'ok', field_2: 99 }, username: 'f',
+      fieldFilter: f => f.type !== 'formula',
+    })
+    expect(res.ok).toBe(true)
+  })
+
+  it('ignores blank placeholders for formula and autonumber fields and assigns the autonumber', async () => {
+    mockFields([
+      { id: 1, type: 'text' },
+      { id: 2, type: 'formula', options: { formula: '1' } },
+      { id: 3, type: 'autonumber' },
+    ])
+    tx.databaseTable.findUnique.mockResolvedValue({ id: 1, autonumberCounter: 7 })
+    tx.databaseTable.update.mockResolvedValue({ autonumberCounter: 8 })
+    ;(evaluateFormula as jest.Mock).mockReturnValue(1)
+    const res = await createTableRow({ tableId: 1, input: { field_1: 'a', field_2: '', field_3: '' }, username: 'alice' })
+    expect(res.ok).toBe(true)
+    expect(createdData().data).toMatchObject({ field_1: 'a', field_3: 8 })
   })
 })

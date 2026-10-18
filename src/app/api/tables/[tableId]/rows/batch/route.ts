@@ -2,13 +2,47 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { authorizeAction } from '@/lib/authorize'
-import { FieldRegistry } from '@/modules/database/fields/types'
+import type { Prisma } from '@prisma/client'
+import { prepareBatchCellWrites, applyChoiceRemap, type FieldMeta, type CellRejection } from '@/modules/database/services/cellWrite'
+import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
 import { triggerTableEvent } from '@/lib/pusher-server'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+const FIELD_KEY = /^field_\d+$/
+
+function toFieldMetas(fields: Array<{ id: number; name: string; type: string; options: unknown }>): FieldMeta[] {
+  return fields.map((f) => ({
+    id: f.id,
+    name: f.name,
+    type: f.type,
+    options: typeof f.options === 'string' ? safeJsonParse(f.options, null) : f.options,
+  }))
+}
+
+function pickFieldKeys(source: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    for (const [k, v] of Object.entries(source)) {
+      if (FIELD_KEY.test(k) && v !== undefined) out[k] = v
+    }
+  }
+  return out
+}
+
+function emitFieldUpdates(
+  tableId: number,
+  fields: Array<{ id: number }>,
+  updated: Array<{ id: number; options: unknown }>,
+) {
+  for (const u of updated) {
+    const original = fields.find((f) => f.id === u.id)
+    triggerTableEvent(tableId, 'field-updated', { field: { ...original, ...u } })
+  }
+}
 
 async function getSessionUsername() {
   const user = await getSessionUser()
@@ -44,57 +78,50 @@ export async function POST(
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
-    const parsedRowsData: Array<{ clientId: string, data: Record<string, any>, order: number }> = []
+    const parsedRowsData: Array<{ clientId: string, data: Record<string, unknown>, order: number }> = []
 
-    // Process all rows first before transaction
     for (const rowObj of rows) {
       if (!rowObj.clientId) {
         return NextResponse.json({ error: '批次新增缺少 clientId' }, { status: 400 })
       }
-
-      const rowData: Record<string, any> = {}
-      for (const f of fields) {
-        const key = `field_${f.id}`
-        if (f.type === 'created_by' || f.type === 'last_modified_by') {
-          rowData[key] = username
-        } else if (f.type === 'created_on' || f.type === 'last_modified_on') {
-          rowData[key] = nowStr
-        } else if ((rowObj.data && rowObj.data[key] !== undefined) || (rowObj && rowObj[key] !== undefined)) {
-          const rawValue = (rowObj.data && rowObj.data[key] !== undefined) ? rowObj.data[key] : rowObj[key]
-          let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
-          const fieldType = FieldRegistry.get(f.type)
-          const validateRes = fieldType.validateValue(rawValue, fOpts)
-
-          if (!validateRes.valid) {
-            return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
-          }
-          rowData[key] = validateRes.parsedValue
-        } else {
-          let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
-          const fieldType = FieldRegistry.get(f.type)
-          const def = fieldType.getDefaultValue(fOpts)
-          if (def !== null) rowData[key] = def
-        }
-      }
-
-      const normalizedRowData: Record<string, any> = {}
-      Object.entries(rowData).forEach(([k, v]) => {
-        const fid = parseInt(k.replace('field_', ''))
-        if (!isNaN(fid)) {
-          normalizedRowData[`field_${fid}`] = v
-        } else {
-          normalizedRowData[k] = v
-        }
-      })
-
-      parsedRowsData.push({
-        clientId: rowObj.clientId,
-        data: normalizedRowData,
-        order: 0 // placeholder
-      })
     }
 
+    const fieldMetas = toFieldMetas(fields)
+    const prepared = prepareBatchCellWrites({
+      fields: fieldMetas,
+      rows: rows.map((rowObj: { clientId: string; data?: unknown }) => ({
+        key: rowObj.clientId,
+        input: { ...pickFieldKeys(rowObj), ...pickFieldKeys(rowObj.data) },
+      })),
+      mode: 'create',
+      canAddOptions: true,
+      actor: { username },
+    })
+    const rejectedCells: Array<{ clientId: string; fieldId: number; code: CellRejection['code']; reason: string }> = []
+    for (const r of prepared.rows) {
+      for (const rej of r.rejected) {
+        rejectedCells.push({ clientId: r.key, fieldId: rej.fieldId, code: rej.code, reason: rej.reason })
+      }
+    }
+    const hasOptionAdditions = Object.keys(prepared.optionAdditions).length > 0
+    let updatedFields: Array<{ id: number; options: unknown }> = []
+
     const createdRows = await prisma.$transaction(async (tx) => {
+      const applied = hasOptionAdditions
+        ? await applyOptionAdditions(tx, id, prepared.optionAdditions)
+        : { updated: [], remap: {} }
+      updatedFields = applied.updated
+
+      for (const r of prepared.rows) {
+        const data = applyChoiceRemap(r.data, fieldMetas, applied.remap)
+        for (const f of fields) {
+          const key = `field_${f.id}`
+          if (f.type === 'created_by' || f.type === 'last_modified_by') data[key] = username
+          else if (f.type === 'created_on' || f.type === 'last_modified_on') data[key] = nowStr
+        }
+        parsedRowsData.push({ clientId: r.key, data, order: 0 })
+      }
+
       // Autonumber processing
       const autonumberFields = fields.filter(f => f.type === 'autonumber')
       if (autonumberFields.length > 0) {
@@ -150,7 +177,7 @@ export async function POST(
       const insertData = parsedRowsData.map(r => ({
         tableId: id,
         clientId: r.clientId,
-        data: r.data,
+        data: r.data as Prisma.InputJsonObject,
         order: r.order
       }))
 
@@ -181,7 +208,9 @@ export async function POST(
     // Batch event
     triggerTableEvent(id, 'rows-batch-changed', { type: 'create', count: createdRows.length }, socketId)
 
-    return NextResponse.json({ rows: createdRows }, { status: 201 })
+    emitFieldUpdates(id, fields, updatedFields)
+
+    return NextResponse.json({ rows: createdRows, rejected: rejectedCells }, { status: 201 })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: msg || '批次新增資料列失敗' }, { status: 500 })
@@ -268,6 +297,9 @@ export async function PATCH(
     const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
     const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
     const validFieldKeys = new Set(fields.map(f => `field_${f.id}`))
+    const fieldMetas = toFieldMetas(fields)
+    const rejectedCells: Array<{ rowId: number; fieldId: number; code: CellRejection['code']; reason: string }> = []
+    let updatedFields: Array<{ id: number; options: unknown }> = []
 
     const rowIds = updates.map((u: any) => parseInt(u.rowId)).filter((rid: number) => !isNaN(rid))
     if (rowIds.length === 0) {
@@ -282,40 +314,45 @@ export async function PATCH(
 
       const results: Array<{ rowId: number; beforeData?: Record<string, any>; data: Record<string, any> }> = []
 
+      const targets: Array<{ rid: number; originalDataObj: Record<string, any>; input: Record<string, unknown> }> = []
       for (const updateObj of updates) {
         const rid = parseInt(updateObj.rowId)
         if (isNaN(rid)) continue
         const currentRow = existingRowMap.get(rid)
         if (!currentRow) continue
+        targets.push({
+          rid,
+          originalDataObj: safeJsonParse<Record<string, any>>(currentRow.data, {}),
+          input: updateObj.data && typeof updateObj.data === 'object' ? updateObj.data : {},
+        })
+      }
 
-        const dataMap = updateObj.data || {}
-        let updateMap: Record<string, any> = { ...dataMap }
+      const prepared = prepareBatchCellWrites({
+        fields: fieldMetas,
+        rows: targets.map((t) => ({ key: t.rid, input: t.input, existing: t.originalDataObj })),
+        mode: 'update',
+        canAddOptions: true,
+        actor: { username },
+      })
+      const applied = Object.keys(prepared.optionAdditions).length > 0
+        ? await applyOptionAdditions(tx, id, prepared.optionAdditions)
+        : { updated: [], remap: {} }
+      updatedFields = applied.updated
 
+      for (let i = 0; i < targets.length; i++) {
+        const { rid, originalDataObj } = targets[i]
+        const row = prepared.rows[i]
+        for (const rej of row.rejected) {
+          rejectedCells.push({ rowId: rid, fieldId: rej.fieldId, code: rej.code, reason: rej.reason })
+        }
+        // Every provided cell was rejected: nothing to write for this row
+        if (row.rejected.length > 0 && Object.keys(row.data).length === 0) continue
+
+        const updateMap: Record<string, any> = applyChoiceRemap(row.data, fieldMetas, applied.remap)
         for (const f of fields) {
           const key = `field_${f.id}`
-          if (f.type === 'last_modified_by') {
-            updateMap[key] = username
-          } else if (f.type === 'last_modified_on') {
-            updateMap[key] = nowStr
-          } else if (key in updateMap) {
-            let fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
-            const fieldType = FieldRegistry.get(f.type)
-            const validateRes = fieldType.validateValue(updateMap[key], fOpts)
-            if (!validateRes.valid) {
-              throw new Error(`欄位 [${f.name}] 驗證失敗: ${validateRes.error}`)
-            }
-            updateMap[key] = validateRes.parsedValue
-          }
-        }
-
-        // 保存更新前的舊值 (beforeData)，供 Pusher 事件與 Undo Stack 使用
-        let originalDataObj: Record<string, any> = {}
-        if (currentRow.data) {
-          try {
-            originalDataObj = typeof currentRow.data === 'string' ? JSON.parse(currentRow.data) : currentRow.data
-          } catch {
-            originalDataObj = {}
-          }
+          if (f.type === 'last_modified_by') updateMap[key] = username
+          else if (f.type === 'last_modified_on') updateMap[key] = nowStr
         }
 
         let currentData: Record<string, any> = { ...originalDataObj }
@@ -396,7 +433,9 @@ export async function PATCH(
 
     triggerTableEvent(id, 'rows-batch-updated', { updates: updatedResults }, socketId)
 
-    return NextResponse.json({ ok: true, updates: updatedResults }, { status: 200 })
+    emitFieldUpdates(id, fields, updatedFields)
+
+    return NextResponse.json({ ok: true, updates: updatedResults, rejected: rejectedCells }, { status: 200 })
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: msg || '批次更新失敗' }, { status: 500 })

@@ -77,20 +77,29 @@ Third line"
       const result = csvRowToTableRow(csvRow, headers, mockFields)
 
       expect(result['field_10']).toBe('王大明')
-      expect(result['field_11']).toBe(1250)
-      expect(result['field_12']).toBe(true)
+      expect(result['field_11']).toBe('1,250')
+      expect(result['field_12']).toBe('是')
     })
 
-    it('correctly converts numbers, booleans, and multi-select tags', () => {
+    it('trims values, leaves type judgement to the server, and splits multi-select tags', () => {
       const headers = ['姓名', '年齡', '已繳費', '標籤']
       const csvRow = ['李小華', '28', 'false', '開發, 設計; 行銷']
 
       const result = csvRowToTableRow(csvRow, headers, mockFields)
 
       expect(result['field_10']).toBe('李小華')
-      expect(result['field_11']).toBe(28)
-      expect(result['field_12']).toBe(false)
+      expect(result['field_11']).toBe('28')
+      expect(result['field_12']).toBe('false')
       expect(result['field_13']).toEqual(['開發', '設計', '行銷'])
+    })
+
+    it('does not pre-convert types: invalid numbers and booleans reach the server as trimmed text', () => {
+      const headers = ['姓名', '年齡', '已繳費']
+      const result = csvRowToTableRow(['  王小明  ', ' 十八 ', ' 也許 '], headers, mockFields)
+
+      expect(result['field_10']).toBe('王小明')
+      expect(result['field_11']).toBe('十八')
+      expect(result['field_12']).toBe('也許')
     })
 
     it('supports positional fallback for backward compatibility', () => {
@@ -99,8 +108,8 @@ Third line"
       const result = csvRowToTableRow(csvRow, mockFields)
 
       expect(result['field_10']).toBe('張三')
-      expect(result['field_11']).toBe(35)
-      expect(result['field_12']).toBe(true)
+      expect(result['field_11']).toBe('35')
+      expect(result['field_12']).toBe('true')
     })
   })
 })

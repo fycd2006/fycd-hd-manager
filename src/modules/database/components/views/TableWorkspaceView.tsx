@@ -180,6 +180,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
     setGroupByRules,
     updateCell,
     batchUpdateCells,
+    recentlyRejected,
     addRow,
     batchAddRows,
     deleteRow,
@@ -415,6 +416,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
                 getRowBgColorClass={getRowBgColorClass}
                 updateCell={updateCell}
                 batchUpdateCells={batchUpdateCells}
+                recentlyRejected={recentlyRejected}
                 toggleSort={toggleSort}
                 setEditingFieldId={setEditingFieldId}
                 setEditingFieldName={setEditingFieldName}

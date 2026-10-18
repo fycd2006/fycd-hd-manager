@@ -1,6 +1,19 @@
 import { useCallback } from 'react'
 import type { TableField, TableRow, CellValue, GroupByRule, SortRule, SortOrder, TableView } from '../types'
 import * as rowService from '../services/row'
+import { READ_ONLY_FIELD_TYPES } from '../fields/types/ReadOnlyFieldTypes'
+import { formatRejectedSummary } from '../utils/formatRejectedSummary'
+
+const READ_ONLY_TYPES: ReadonlySet<string> = new Set(READ_ONLY_FIELD_TYPES)
+
+/** Returns a copy of `data` without cells of read-only (computed / system) fields. */
+export function stripReadOnlyCells<T>(data: Record<string, T>, fields: Array<{ id: number; type: string }>): Record<string, T> {
+  const out = { ...data }
+  for (const f of fields) {
+    if (READ_ONLY_TYPES.has(f.type)) delete out[`field_${f.id}`]
+  }
+  return out
+}
 
 export interface UseRowOperationsOptions {
   activeTableId: number | null
@@ -50,12 +63,11 @@ export function useRowOperations({
         const lastRow = rows[rows.length - 1]
         baseData = { ...lastRow.data }
 
-        fields.forEach(f => {
-          const key = `field_${f.id}`
-          if (['created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'lookup', 'rollup', 'formula'].includes(f.type)) {
-            delete baseData[key]
-          }
-        })
+        baseData = stripReadOnlyCells(baseData, fields)
+        // The previous row's comments would be re-stamped with the current user and time
+        for (const f of fields) {
+          if (f.type === 'latest_comment') delete baseData[`field_${f.id}`]
+        }
       } else {
         fields.forEach(f => {
           const key = `field_${f.id}`
@@ -118,14 +130,27 @@ export function useRowOperations({
         return baseData
       })
 
-      const results = await Promise.all(
-        payloadRows.map(baseData => rowService.createRow(activeTableId, baseData))
+      const result = await rowService.batchCreateRows(
+        activeTableId,
+        payloadRows.map((data, i) => ({
+          clientId: `batch-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          data,
+        }))
       )
-      const createdRows = results.filter(r => r.ok && r.row).map(r => r.row!)
+      if (!result.ok) {
+        addToast(result.error || '批次新增列失敗', 'error')
+        return
+      }
+      const createdRows = result.rows ?? []
 
       if (createdRows.length > 0) {
         setRows(prev => [...prev, ...createdRows])
         addToast(`成功新增 ${createdRows.length} 列資料`, 'success')
+      }
+      const rejected = result.rejected ?? []
+      if (rejected.length > 0) {
+        const provided = rowsToCreate.reduce((n, r) => n + Object.keys(r).length, 0)
+        addToast(formatRejectedSummary(provided - rejected.length, rejected, fields), 'info')
       }
     } catch {
       addToast('批次新增列失敗', 'error')
@@ -221,11 +246,25 @@ export function useRowOperations({
 
     try {
       if (updatesByRowId.size > 0) {
-        await Promise.all(
+        const results = await Promise.all(
           Array.from(updatesByRowId.entries()).map(([rid, u]) =>
             rowService.updateRow(activeTableId, rid, u)
           )
         )
+        const rejected = results.flatMap(r => r.rejected ?? [])
+        if (rejected.length > 0) {
+          // The server refused the group value: undo the optimistic move, keeping only the cells it accepted
+          const rejectedKeys = new Set(rejected.map(r => `${r.rowId}:field_${r.fieldId}`))
+          setRows(rows.map(r => {
+            const u = updatesByRowId.get(r.id)
+            if (!u) return r
+            const accepted = Object.fromEntries(Object.entries(u).filter(([k]) => !rejectedKeys.has(`${r.id}:${k}`)))
+            return Object.keys(accepted).length > 0 ? { ...r, data: { ...r.data, ...accepted } } : r
+          }))
+          const provided = Array.from(updatesByRowId.values()).reduce((n, u) => n + Object.keys(u).length, 0)
+          addToast(formatRejectedSummary(provided - rejected.length, rejected, fields), 'info')
+          return
+        }
       }
       const res = await rowService.reorderRows(activeTableId, rowIds)
       if (res.ok) {
@@ -242,6 +281,7 @@ export function useRowOperations({
     activeTableId,
     activeViewId,
     displayRows,
+    fields,
     groupByRules,
     groupByField,
     rows,
@@ -276,13 +316,7 @@ export function useRowOperations({
             onClick: async () => {
               try {
                 // Strip computed fields before re-creating
-                const restoreData = { ...snapshotData }
-                fields.forEach(f => {
-                  const key = `field_${f.id}`
-                  if (['created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'lookup', 'rollup', 'formula'].includes(f.type)) {
-                    delete restoreData[key]
-                  }
-                })
+                const restoreData = stripReadOnlyCells(snapshotData, fields)
                 const res = await rowService.createRow(tableId, restoreData)
                 if (res.ok && res.row) {
                   setRows(prev => [...prev, res.row!])

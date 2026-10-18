@@ -17,26 +17,22 @@ describe('SingleSelectFieldType', () => {
 
   it('validates and maps old string name to ID', () => {
     const res = type.validateValue('Option A', options)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe('opt_1')
+    expect(res).toEqual({ valid: true, parsedValue: 'opt_1' })
   })
 
   it('validates and accepts ID directly', () => {
     const res = type.validateValue('opt_2', options)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe('opt_2')
+    expect(res).toEqual({ valid: true, parsedValue: 'opt_2' })
   })
 
-  it('gracefully accepts new option string without rejecting', () => {
+  it('rejects unknown option string', () => {
     const res = type.validateValue('Ghost', options)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe('Ghost')
+    expect(res).toEqual({ valid: false, code: 'unknown_option', error: '選項「Ghost」不存在' })
   })
 
   it('supports legacy options array', () => {
     const res = type.validateValue('Option B', legacyOptions)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe('Option B')
+    expect(res).toEqual({ valid: true, parsedValue: 'Option B' })
   })
 })
 
@@ -53,25 +49,21 @@ describe('MultipleSelectFieldType', () => {
 
   it('validates and maps legacy comma-separated string to ID array', () => {
     const res = type.validateValue('Option A, Option C', options)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe(JSON.stringify(['opt_1', 'opt_3']))
+    expect(res).toEqual({ valid: true, parsedValue: JSON.stringify(['opt_1', 'opt_3']) })
   })
 
   it('validates and maps legacy JSON array of names to ID array', () => {
     const res = type.validateValue(JSON.stringify(['Option B', 'Option C']), options)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe(JSON.stringify(['opt_2', 'opt_3']))
+    expect(res).toEqual({ valid: true, parsedValue: JSON.stringify(['opt_2', 'opt_3']) })
   })
 
   it('validates and accepts array of IDs', () => {
     const res = type.validateValue(['opt_1', 'opt_2'], options)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe(JSON.stringify(['opt_1', 'opt_2']))
+    expect(res).toEqual({ valid: true, parsedValue: JSON.stringify(['opt_1', 'opt_2']) })
   })
 
-  it('gracefully accepts new option items without rejecting', () => {
+  it('rejects unknown option items', () => {
     const res = type.validateValue(['opt_1', 'Ghost'], options)
-    expect(res.valid).toBe(true)
-    expect(res.parsedValue).toBe(JSON.stringify(['opt_1', 'Ghost']))
+    expect(res).toEqual({ valid: false, code: 'unknown_option', error: '選項「Ghost」不存在' })
   })
 })

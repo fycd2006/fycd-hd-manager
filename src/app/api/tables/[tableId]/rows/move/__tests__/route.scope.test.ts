@@ -59,7 +59,7 @@ describe('POST /api/tables/[tableId]/rows/move source row scoping', () => {
     expect(res.status).toBe(404)
     expect(prisma.tableRow.findMany).toHaveBeenCalledWith({
       where: { id: { in: [5] }, tableId: 10, deletedAt: null },
-      select: { id: true },
+      select: { id: true, data: true },
     })
     expect(prisma.$transaction).not.toHaveBeenCalled()
     expect(prisma.tableRow.delete).not.toHaveBeenCalled()

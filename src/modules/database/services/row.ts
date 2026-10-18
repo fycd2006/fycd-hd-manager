@@ -105,7 +105,12 @@ export const updateRow = async (
   tableId: number,
   rowId: number,
   data: Record<string, any>
-): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
+): Promise<{
+  ok: boolean
+  row?: TableRow
+  error?: string
+  rejected?: Array<{ rowId: number; fieldId: number; code: string; reason: string }>
+}> => {
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
@@ -115,7 +120,7 @@ export const updateRow = async (
     })
     const resData = await res.json()
     if (res.ok) {
-      return { ok: true }
+      return { ok: true, rejected: resData.rejected }
     }
     return { ok: false, error: resData.error || '更新列失敗' }
   } catch {
@@ -129,7 +134,12 @@ export const updateRow = async (
 export const batchUpdateRows = async (
   tableId: number,
   updates: Array<{ rowId: number; data: Record<string, any> }>
-): Promise<{ ok: boolean; updates?: Array<{ rowId: number; data: Record<string, any> }>; error?: string }> => {
+): Promise<{
+  ok: boolean
+  updates?: Array<{ rowId: number; data: Record<string, any> }>
+  rejected?: Array<{ rowId: number; fieldId: number; code: string; reason: string }>
+  error?: string
+}> => {
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
@@ -139,7 +149,7 @@ export const batchUpdateRows = async (
     })
     const resData = await res.json()
     if (res.ok) {
-      return { ok: true, updates: resData.updates }
+      return { ok: true, updates: resData.updates, rejected: resData.rejected }
     }
     return { ok: false, error: resData.error || '批次更新失敗' }
   } catch {
@@ -194,7 +204,12 @@ export const reorderRows = async (tableId: number, rowIds: number[]): Promise<{ 
 export const batchCreateRows = async (
   tableId: number,
   rows: Array<{ clientId: string; data: Record<string, any> }>
-): Promise<{ ok: boolean; rows?: TableRow[]; error?: string }> => {
+): Promise<{
+  ok: boolean
+  rows?: TableRow[]
+  rejected?: Array<{ clientId: string; fieldId: number; code: string; reason: string }>
+  error?: string
+}> => {
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
@@ -204,7 +219,7 @@ export const batchCreateRows = async (
     })
     const resData = await res.json()
     if (res.ok) {
-      return { ok: true, rows: resData.rows }
+      return { ok: true, rows: resData.rows, rejected: resData.rejected }
     }
     return { ok: false, error: resData.error || '批次新增列失敗' }
   } catch {

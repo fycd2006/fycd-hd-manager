@@ -8,23 +8,15 @@
 
 import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
-import { FieldRegistry } from '@/modules/database/fields/types'
+import { READ_ONLY_FIELD_TYPES } from '@/modules/database/fields/types/ReadOnlyFieldTypes'
 import { safeJsonParse } from '@/lib/json-utils'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
+import { prepareCellWrites, applyChoiceRemap, formatRejection, type FieldMeta } from '@/modules/database/services/cellWrite'
+import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
 
 /** Field types that can never be written through a public form submission. */
-export const FORM_READONLY_TYPES = [
-  'link_row',
-  'autonumber',
-  'formula',
-  'lookup',
-  'rollup',
-  'created_on',
-  'last_modified_on',
-  'created_by',
-  'last_modified_by',
-] as const
+export const FORM_READONLY_TYPES = ['link_row', 'latest_comment', ...READ_ONLY_FIELD_TYPES] as const
 
 interface FieldShape {
   id: number
@@ -45,14 +37,16 @@ export interface CreateTableRowOptions {
    * always server-controlled regardless of this filter.
    */
   fieldFilter?: (field: FieldShape) => boolean
+  /** Whether unknown select options may be added to the field (default false). */
+  canAddOptions?: boolean
 }
 
 export type CreateTableRowResult =
-  | { ok: true; row: Record<string, unknown> }
+  | { ok: true; row: Record<string, unknown>; updatedFields?: Array<{ id: number; options: unknown }> }
   | { ok: false; error: string }
 
 export async function createTableRow(options: CreateTableRowOptions): Promise<CreateTableRowResult> {
-  const { tableId, input, username, fieldFilter } = options
+  const { tableId, input, username, fieldFilter, canAddOptions = false } = options
 
   const fields = await prisma.tableField.findMany({
     where: { tableId, deletedAt: null },
@@ -62,37 +56,41 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
   const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
   const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
-  const rowData: Record<string, unknown> = {}
+  const AUDIT_TYPES = ['created_by', 'last_modified_by', 'created_on', 'last_modified_on']
+  const writable = fields.filter(f => !AUDIT_TYPES.includes(f.type) && (!fieldFilter || fieldFilter(f)))
+  const fieldMetas: FieldMeta[] = writable.map(f => ({
+    id: f.id,
+    name: f.name,
+    type: f.type,
+    options: typeof f.options === 'string' ? safeJsonParse(f.options, null) : f.options,
+  }))
+  // Fields not writable here (audit / filtered) are dropped from input, never rejected
+  const writableKeys = new Set(writable.map(f => `field_${f.id}`))
+  const filteredInput: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(input)) {
+    if (writableKeys.has(k)) filteredInput[k] = v
+  }
+
+  const prepared = prepareCellWrites({
+    fields: fieldMetas,
+    input: filteredInput,
+    mode: 'create',
+    canAddOptions,
+    actor: { username },
+  })
+  if (prepared.rejected.length > 0) {
+    const first = prepared.rejected[0]
+    const name = fields.find(f => f.id === first.fieldId)?.name ?? `field_${first.fieldId}`
+    return { ok: false, error: formatRejection(name, first) }
+  }
+
+  const rowData: Record<string, unknown> = { ...prepared.data }
   for (const f of fields) {
     const key = `field_${f.id}`
     if (f.type === 'created_by' || f.type === 'last_modified_by') {
       rowData[key] = username
     } else if (f.type === 'created_on' || f.type === 'last_modified_on') {
       rowData[key] = nowStr
-    } else if (fieldFilter && !fieldFilter(f)) {
-      // Field is not writable in this context (e.g. public form): skip it
-      continue
-    } else if (input[key] !== undefined) {
-      const fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
-      const fieldType = FieldRegistry.get(f.type)
-      const validateRes = fieldType.validateValue(input[key], fOpts)
-
-      if (!validateRes.valid) {
-        return { ok: false, error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }
-      }
-      if (f.type === 'latest_comment' && Array.isArray(validateRes.parsedValue)) {
-        validateRes.parsedValue.forEach((entry: any) => {
-          if (entry && (entry.user === '系統 (System)' || !entry.user)) {
-            entry.user = username || '系統 (System)'
-          }
-        })
-      }
-      rowData[key] = validateRes.parsedValue
-    } else {
-      const fOpts = typeof f.options === 'string' ? JSON.parse(f.options) : (f.options || {})
-      const fieldType = FieldRegistry.get(f.type)
-      const def = fieldType.getDefaultValue(fOpts)
-      if (def !== null) rowData[key] = def
     }
   }
 
@@ -113,7 +111,13 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
     }
   }
 
+  let updatedFields: Array<{ id: number; options: unknown }> = []
   const row = await prisma.$transaction(async (tx) => {
+    if (Object.keys(prepared.optionAdditions).length > 0) {
+      const applied = await applyOptionAdditions(tx, tableId, prepared.optionAdditions)
+      updatedFields = applied.updated.map(u => ({ ...fields.find(f => f.id === u.id), ...u }))
+      Object.assign(rowData, applyChoiceRemap(rowData, fieldMetas, applied.remap))
+    }
     const autonumberFields = fields.filter(f => f.type === 'autonumber')
     if (autonumberFields.length > 0) {
       const dbTable = await tx.databaseTable.findUnique({ where: { id: tableId } })
@@ -181,5 +185,9 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
     console.warn('[MasterViewCache Warning on createRow]:', cacheErr)
   }
 
-  return { ok: true, row: { ...row, data: safeJsonParse(row.data, {}) } }
+  return {
+    ok: true,
+    row: { ...row, data: safeJsonParse(row.data, {}) },
+    ...(updatedFields.length > 0 ? { updatedFields } : {}),
+  }
 }

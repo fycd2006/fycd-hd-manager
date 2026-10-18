@@ -1,8 +1,8 @@
 # PROGRESS
 
 ## 目前進度
-- PR #1–#6 已合併：開發規範、核心服務測試、CI verify、README／`.env.example`、Claude code review + 漏洞關卡 + next 16.4.2、commit hook 改在目標 worktree 驗證。
-- 待審 PR：`fix/members-authz`（members 補權限、accept-invite 需有邀請）、`fix/rows-move-scope`（rows/move 來源列限定來源表）、`test/api-routes`（除 forgot-password、members、move 外所有路由補測試）。
+- 分支 `feat/unified-cell-write`：統一儲存格寫入層（`prepareCellWrites`／`prepareBatchCellWrites`），單格 PATCH、新增列（含公開表單）、批次、move、AI agent、總表覆寫、Airtable 匯入全走同一套驗證（編輯稽核 F1–F3、F5–F16、C3、C4）。一致性測試 `rows/__tests__/writePathConsistency.test.ts`。
+- 先前已合併 PR #1–#6；待審 PR：`fix/members-authz`、`fix/rows-move-scope`、`test/api-routes`。
 
 ## 已做的決定
 - 驗證統一走 `npm run verify`；CI 也跑同一個指令（`verify.yml`）。`build:check` 不碰資料庫，`npm run build`（部署用）不動。
@@ -31,3 +31,4 @@
 - [ ] 確認 `npm run build` 的 `db push --accept-data-loss` 是否會刪 `schemaService` 建的 generated column（已在 PR #1 詢問）
 - [ ] `FieldRegistry.get()` 對未註冊型別 fail-open → 用 `/bugfix` 評估
 - [ ] E2E（`e2e/` 已有 Playwright spec 但無設定檔）與真資料庫整合測試：需先規劃
+- [ ] 統一寫入層範圍外：密碼雜湊、既有壞資料清理、前端即時驗證、文字長度／索引（S7、F17）、欄位型別變更時的值轉換（S1）
