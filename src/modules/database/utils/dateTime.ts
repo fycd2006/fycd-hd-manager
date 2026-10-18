@@ -177,3 +177,61 @@ export function toEditorValue(value: unknown, options: unknown, viewerTz?: strin
 export function fromEditorValue(input: string, options: unknown, viewerTz?: string): string | null {
   return normalizeDateInput(input, options, viewerTz)
 }
+
+export function formatFieldDate(
+  value: unknown,
+  options: unknown,
+  ctx?: { locale?: 'zh-TW' | 'en'; viewerTz?: string; fieldType?: string }
+): string {
+  if (value === null || value === undefined) return ''
+  const raw = value instanceof Date ? (isNaN(value.getTime()) ? '' : value.toISOString()) : typeof value === 'string' ? value.trim() : String(value)
+  if (!raw) return ''
+
+  const opts = resolveDateOptions(options, ctx?.fieldType)
+  const locale = ctx?.locale ?? 'zh-TW'
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? parseDateOnly(raw) : null
+
+  const timeZone = resolveTimeZone(opts, ctx?.viewerTz)
+  let year: number, month: number, day: number, hour = 0, minute = 0
+  let instantMs: number
+  if (dateOnly) {
+    ;[year, month, day] = dateOnly.split('-').map(Number)
+    instantMs = Date.UTC(year, month - 1, day, 12)
+  } else {
+    if (!raw.includes('T')) return raw
+    const ms = new Date(raw).getTime()
+    if (isNaN(ms)) return raw
+    const w = zonedWall(ms, timeZone)
+    ;({ year, month, day, hour, minute } = w)
+    instantMs = ms
+  }
+
+  let datePart: string
+  if (opts.date_format === 'local' || opts.date_format === 'friendly') {
+    datePart = new Intl.DateTimeFormat(locale, {
+      dateStyle: opts.date_format === 'local' ? 'short' : 'long',
+      timeZone: dateOnly ? 'UTC' : timeZone,
+    }).format(new Date(instantMs))
+  } else if (opts.date_format === 'us') {
+    datePart = `${pad(month)}/${pad(day)}/${pad(year, 4)}`
+  } else if (opts.date_format === 'european') {
+    datePart = `${pad(day)}/${pad(month)}/${pad(year, 4)}`
+  } else {
+    datePart = `${pad(year, 4)}-${pad(month)}-${pad(day)}`
+  }
+  if (!opts.date_include_time) return datePart
+
+  let timePart: string
+  if (opts.date_time_format === '12') {
+    timePart = `${hour % 12 === 0 ? 12 : hour % 12}:${pad(minute)} ${hour < 12 ? 'AM' : 'PM'}`
+  } else {
+    timePart = `${pad(hour)}:${pad(minute)}`
+  }
+  let out = `${datePart} ${timePart}`
+  if (opts.date_show_time_zone) {
+    const label = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'short' })
+      .formatToParts(new Date(instantMs)).find(p => p.type === 'timeZoneName')?.value
+    if (label) out += ` ${label}`
+  }
+  return out
+}
