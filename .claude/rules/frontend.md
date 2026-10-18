@@ -27,3 +27,4 @@ paths:
 - `page.tsx` 三個 return 分支各自渲染 `FYCDBrandLoading`，登入後切分支時載入層重新掛載、重播淡入而閃爍 → 跨分支要延續的元件放在每個分支「同一種根元素（Fragment）的同一個子位置」，共用同一個 JSX 變數（見 `brandOverlay`）
 - 用 `<label>` 包住含按鈕的欄位，點標籤文字會觸發排在 input 前面的按鈕（「忘記密碼」）→ 標籤與 input 用 `useId()` ＋ `htmlFor` 綁定，不要用 label 包整個欄位
 - 品牌載入層在 `workspaceReady` 已為 true 時 650ms 就退場，Logo 動畫還沒出現 → 有進場動畫的遮罩要設最短顯示時間（`MIN_VISIBLE_MS`），reduced motion 例外
+- 篩選選單（`constants/fieldTypes.ts`）提供 `date_equal`／`date_before`／`date_after`，前端 `evaluateCellCondition` 卻沒處理，選了也無作用 → 新增篩選運算子時同時改 `constants/fieldTypes.ts` 與 `components/views/grid/cells/utils.ts` 的 `evaluateCellCondition`，並在 `components/views/grid/__tests__/` 加一個以該運算子為例的 `it.each` 測試
