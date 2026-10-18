@@ -5,7 +5,7 @@ import * as viewService from '@/modules/database/services/view'
 import type {
   TableView,
   ViewType,
-  FilterRule,
+  FilterItem,
   RowColorRule,
   GroupByRule,
   SortRule,
@@ -33,7 +33,7 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
   const [sortRules, setSortRules] = useState<SortRule[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
-  const [filterRules, setFilterRules] = useState<FilterRule[]>([])
+  const [filterRules, setFilterRules] = useState<FilterItem[]>([])
   const [filterType, setFilterType] = useState<'AND' | 'OR'>('AND')
 
   // Hidden Fields & Row Colors Config

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { TableField, TableRow, FilterRule, RowColorRule, GroupCollapseState, GroupByRule } from '@/modules/database/types'
+import type { TableField, TableRow, FilterItem, RowColorRule, GroupCollapseState, GroupByRule } from '@/modules/database/types'
 import { GridView as GridViewContent, RowData } from '../views/grid/GridView'
 import { WorkspaceGridSkeleton } from './WorkspaceGridSkeleton'
 
@@ -24,7 +24,7 @@ interface GridViewProps {
   editingCell?: { rowId: number; fieldKey: string } | null
   editInputRef?: React.RefObject<HTMLInputElement | null>
   searchQuery?: string
-  filterRules?: FilterRule[]
+  filterRules?: FilterItem[]
   readOnly?: boolean
   
   // Callbacks

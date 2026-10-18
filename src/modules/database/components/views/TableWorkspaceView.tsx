@@ -13,7 +13,7 @@ import type {
   TableView,
   GroupCollapseState,
   SortRule,
-  FilterRule,
+  FilterItem,
   RowColorRule,
   GroupByRule,
 } from '@/modules/database/types'
@@ -281,7 +281,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
           }
         }}
         filterRules={filterRules}
-        setFilterRules={(rules: FilterRule[]) => {
+        setFilterRules={(rules: FilterItem[]) => {
           setFilterRules(rules)
           if (activeViewId) {
             saveViewConfig(activeViewId, {

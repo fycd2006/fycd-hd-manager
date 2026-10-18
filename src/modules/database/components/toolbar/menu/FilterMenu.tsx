@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react'
 import { X, Plus, Star } from 'lucide-react'
-import type { TableField, FilterRule } from '@/modules/database/types'
+import type { TableField, FilterRule, FilterItem } from '@/modules/database/types'
 import { CustomSelect } from '@/components/ui/CustomSelect'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface FilterMenuProps {
   fields: TableField[]
-  filterRules: FilterRule[]
-  setFilterRules: (rules: FilterRule[]) => void
+  filterRules: FilterItem[]
+  setFilterRules: (rules: FilterItem[]) => void
   filterType?: 'AND' | 'OR'
   setFilterType?: (type: 'AND' | 'OR') => void
 }
@@ -21,7 +21,7 @@ export function FilterMenu({
 }: FilterMenuProps) {
   const { t } = useI18n()
   const safeFields = Array.isArray(fields) ? fields : []
-  const safeFilterRules = Array.isArray(filterRules) ? filterRules : []
+  const safeFilterRules = (Array.isArray(filterRules) ? filterRules : []) as FilterRule[]
 
   const getOperatorOptionsForField = (field: TableField | undefined) => {
     const isNum = field && ['number', 'rating', 'autonumber', 'percent', 'currency'].includes(field.type || '')
