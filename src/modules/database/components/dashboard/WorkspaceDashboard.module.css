@@ -1,5 +1,6 @@
 /* 工作區總覽：配色只用本檔的 --dash-* 變數；暗色由外層 .theme-dark 覆寫 */
-.root {
+/* .tokens 只放變數，跨表總表外層也用它，不把總覽頁的文字色、字型套進 MasterGridView */
+.tokens {
   --dash-bg: #faf8f3;
   --dash-surface: #ffffff;
   --dash-surface-muted: #f5f0e6;
@@ -16,7 +17,10 @@
   --dash-accent-fg: #dd6410;
   --dash-accent-soft: #fff1e5;
   --dash-focus: #f58220;
+}
 
+.root {
+  composes: tokens;
   flex: 1;
   height: 100%;
   overflow-y: auto;
@@ -26,7 +30,7 @@
   font-family: Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-:global(.theme-dark) .root {
+:global(.theme-dark) .tokens {
   --dash-bg: #12131a;
   --dash-surface: #181922;
   --dash-surface-muted: #1f202e;
@@ -50,6 +54,7 @@
 }
 
 .root button:focus-visible,
+.masterBack:focus-visible,
 .search:focus-visible {
   outline: 2px solid var(--dash-focus);
   outline-offset: 2px;
@@ -117,6 +122,7 @@
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
+  font-family: inherit;
   cursor: pointer;
   transition:
     background-color 0.15s ease,
@@ -576,9 +582,11 @@
 
 /* ---------- 跨表總表 ---------- */
 .masterRoot {
-  composes: root;
+  composes: tokens;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
 }
 
