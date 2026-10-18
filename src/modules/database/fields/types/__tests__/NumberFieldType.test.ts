@@ -31,6 +31,15 @@ describe('NumberFieldType', () => {
   })
 })
 
+describe('parseNumberText currency symbols', () => {
+  it.each<[string, number]>([['$1,250.50', 1250.5], ['NT$ 300', 300], ['￥１２０', 120], ['-$5', -5]])('parses %j as %d', (input, expected) => {
+    expect(parseNumberText(input)).toBe(expected)
+  })
+  it.each(['$', '5%'])('rejects %j', (input) => {
+    expect(parseNumberText(input)).toBe('invalid')
+  })
+})
+
 describe('parseNumberText', () => {
   it('returns null for empty and invalid for junk', () => {
     expect(parseNumberText(null)).toBeNull()

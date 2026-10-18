@@ -178,7 +178,7 @@ describe('useRowOperations - batchAddRows rejected cells', () => {
     (rowService.batchCreateRows as jest.Mock).mockResolvedValue({
       ok: true,
       rows: [{ id: 1, tableId: 1, order: 1, data: { field_1: null }, createdAt: '', updatedAt: '' }],
-      rejected: [{ clientId: 'c1', fieldId: 1, code: 'invalid', reason: '必須是有效的數字' }],
+      rejected: [{ clientId: 'c1', fieldId: 1, code: 'invalid_number', reason: '必須是有效的數字' }],
     });
     const { result } = renderHook(() =>
       useRowOperations({

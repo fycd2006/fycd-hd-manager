@@ -8,7 +8,14 @@ export function parseNumberText(raw: unknown): number | null | 'invalid' {
   if (typeof raw === 'number') return Number.isFinite(raw) ? raw : 'invalid'
   if (typeof raw !== 'string') return 'invalid'
 
-  const text = raw
+  // Strip ONE leading currency symbol (a leading minus may precede it)
+  const symbolRe = /^([-－]?)\s*(?:NT\$|[$¥￥€£])\s*/
+  const trimmed = raw.trim()
+  const hasSymbol = symbolRe.test(trimmed)
+  const unsymbolled = trimmed.replace(symbolRe, '$1')
+  if (hasSymbol && unsymbolled.replace(/[-－\s]/g, '') === '') return 'invalid'
+
+  const text = unsymbolled
     .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
     .replace(/．/g, '.')
     .replace(/－/g, '-')

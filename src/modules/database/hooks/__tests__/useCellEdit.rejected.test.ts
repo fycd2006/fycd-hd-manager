@@ -55,8 +55,8 @@ describe('useCellEdit - rejected cells in batch update', () => {
         { rowId: 102, data: { field_2: 'y' } },
       ],
       rejected: [
-        { rowId: 101, fieldId: 1, code: 'invalid', reason: '必須是有效的數字' },
-        { rowId: 102, fieldId: 1, code: 'invalid', reason: '必須是有效的數字' },
+        { rowId: 101, fieldId: 1, code: 'invalid_number', reason: '必須是有效的數字' },
+        { rowId: 102, fieldId: 1, code: 'invalid_number', reason: '必須是有效的數字' },
       ],
     })
 
@@ -79,7 +79,7 @@ describe('useCellEdit - rejected cells in batch update', () => {
     ;(rowService.batchUpdateRows as jest.Mock).mockResolvedValue({
       ok: true,
       updates: [{ rowId: 102, data: { field_2: 'y' } }],
-      rejected: [{ rowId: 101, fieldId: 1, code: 'invalid', reason: '必須是有效的數字' }],
+      rejected: [{ rowId: 101, fieldId: 1, code: 'invalid_number', reason: '必須是有效的數字' }],
     })
     expect(hook.result.current.recentlyRejected.size).toBe(0)
 
@@ -113,7 +113,7 @@ describe('useCellEdit - rejected cells in batch update', () => {
     ;(rowService.batchUpdateRows as jest.Mock).mockResolvedValue({
       ok: true,
       updates: [],
-      rejected: [{ rowId: 101, fieldId: 99, code: 'invalid', reason: '無效' }],
+      rejected: [{ rowId: 101, fieldId: 99, code: 'invalid_number', reason: '無效' }],
     })
     await act(async () => {
       await hook.result.current.batchUpdateCells([{ rowId: 101, data: { field_99: 'q' } }])
