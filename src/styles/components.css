@@ -580,6 +580,48 @@
   --skeleton-shine: rgba(255, 255, 255, 0.06);
 }
 
+/* 資料表骨架：桌機寬表格／手機窄表格，依寬度切換（隱藏的版型以 display:none 移出無障礙樹） */
+.fycd-grid-skeleton-desktop {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fycd-grid-skeleton-mobile {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fycd-grid-skeleton-mobile__row {
+  display: grid;
+  grid-template-columns: 28px 1fr 72px 56px;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.fycd-grid-skeleton-mobile__head {
+  height: 38px;
+  background: #faf8f3;
+  border-bottom-color: #e7e1d3;
+}
+
+@media (max-width: 768px) {
+  .fycd-grid-skeleton-desktop {
+    display: none;
+  }
+
+  .fycd-grid-skeleton-mobile {
+    display: flex;
+  }
+}
+
 @keyframes fycdSkeletonShimmer {
   to {
     transform: translateX(100%);
