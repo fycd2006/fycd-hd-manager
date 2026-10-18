@@ -129,6 +129,38 @@ describe('useRowOperations - Batch Multi-Row Reorder', () => {
     expect(rowService.updateRow).toHaveBeenCalledWith(1, 102, { field_2: 'Doing' });
   });
 
+  it('reverts the optimistic group move and toasts the summary when the server rejects the group cell', async () => {
+    (rowService.updateRow as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      rejected: [{ rowId: 101, fieldId: 2, code: 'read_only', reason: '此欄位為唯讀，無法寫入' }],
+    });
+    const { result } = renderHook(() =>
+      useRowOperations({
+        activeTableId: 1,
+        activeViewId: 10,
+        fields: mockFields,
+        rows: initialRows,
+        setRows,
+        displayRows: initialRows,
+        groupByField: 'field_2',
+        addToast,
+        setSortField,
+        setSortRules,
+        setSortOrder,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleReorderRows(0, 2);
+    });
+
+    // last setRows restores the original rows (row 101 keeps 'Todo' and its position)
+    const last = setRows.mock.calls[setRows.mock.calls.length - 1][0];
+    expect(last).toEqual(initialRows);
+    expect(rowService.reorderRows).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith('已寫入 0 格，1 格未寫入：Status 此欄位為唯讀，無法寫入', 'info');
+  });
+
   it('supports single number input for backwards compatibility', async () => {
     const { result } = renderHook(() =>
       useRowOperations({
