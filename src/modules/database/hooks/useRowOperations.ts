@@ -1,6 +1,18 @@
 import { useCallback } from 'react'
 import type { TableField, TableRow, CellValue, GroupByRule, SortRule, SortOrder, TableView } from '../types'
 import * as rowService from '../services/row'
+import { READ_ONLY_FIELD_TYPES } from '../fields/types/ReadOnlyFieldTypes'
+
+const READ_ONLY_TYPES: ReadonlySet<string> = new Set(READ_ONLY_FIELD_TYPES)
+
+/** Returns a copy of `data` without cells of read-only (computed / system) fields. */
+export function stripReadOnlyCells<T>(data: Record<string, T>, fields: Array<{ id: number; type: string }>): Record<string, T> {
+  const out = { ...data }
+  for (const f of fields) {
+    if (READ_ONLY_TYPES.has(f.type)) delete out[`field_${f.id}`]
+  }
+  return out
+}
 
 export interface UseRowOperationsOptions {
   activeTableId: number | null
@@ -50,12 +62,7 @@ export function useRowOperations({
         const lastRow = rows[rows.length - 1]
         baseData = { ...lastRow.data }
 
-        fields.forEach(f => {
-          const key = `field_${f.id}`
-          if (['created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'lookup', 'rollup', 'formula'].includes(f.type)) {
-            delete baseData[key]
-          }
-        })
+        baseData = stripReadOnlyCells(baseData, fields)
       } else {
         fields.forEach(f => {
           const key = `field_${f.id}`
@@ -276,13 +283,7 @@ export function useRowOperations({
             onClick: async () => {
               try {
                 // Strip computed fields before re-creating
-                const restoreData = { ...snapshotData }
-                fields.forEach(f => {
-                  const key = `field_${f.id}`
-                  if (['created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'lookup', 'rollup', 'formula'].includes(f.type)) {
-                    delete restoreData[key]
-                  }
-                })
+                const restoreData = stripReadOnlyCells(snapshotData, fields)
                 const res = await rowService.createRow(tableId, restoreData)
                 if (res.ok && res.row) {
                   setRows(prev => [...prev, res.row!])

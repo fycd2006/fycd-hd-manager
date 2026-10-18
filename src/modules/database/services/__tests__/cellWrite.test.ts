@@ -19,6 +19,20 @@ describe('prepareCellWrites', () => {
     expect(r.rejected[1].reason).toBe('此欄位為唯讀，無法寫入')
     expect(r.optionAdditions).toEqual({})
   })
+  it('treats blank values for read-only fields as not provided', () => {
+    for (const blank of ['', '  ', null, undefined, []]) {
+      const r = prepareCellWrites({ fields, mode: 'update', canAddOptions: false, input: { field_3: blank } })
+      expect(r.rejected).toEqual([])
+      expect(r.data).toEqual({})
+    }
+    const batch = prepareBatchCellWrites({ fields, mode: 'create', canAddOptions: false, rows: [{ key: 'a', input: { field_3: '' } }] })
+    expect(batch.rows[0].rejected).toEqual([])
+    expect(batch.rows[0].data).not.toHaveProperty('field_3')
+  })
+  it('still rejects non-empty values for read-only fields', () => {
+    const r = prepareCellWrites({ fields, mode: 'update', canAddOptions: false, input: { field_3: 9 } })
+    expect(r.rejected.map((x) => x.code)).toEqual(['read_only'])
+  })
   it('adds unknown options when allowed and stores the new id', () => {
     const r = prepareCellWrites({ fields, mode: 'update', canAddOptions: true, input: { field_4: '甜點' } })
     const [added] = r.optionAdditions[4]

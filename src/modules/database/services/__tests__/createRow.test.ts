@@ -237,4 +237,18 @@ describe('createTableRow', () => {
     })
     expect(res.ok).toBe(true)
   })
+
+  it('ignores blank placeholders for formula and autonumber fields and assigns the autonumber', async () => {
+    mockFields([
+      { id: 1, type: 'text' },
+      { id: 2, type: 'formula', options: { formula: '1' } },
+      { id: 3, type: 'autonumber' },
+    ])
+    tx.databaseTable.findUnique.mockResolvedValue({ id: 1, autonumberCounter: 7 })
+    tx.databaseTable.update.mockResolvedValue({ autonumberCounter: 8 })
+    ;(evaluateFormula as jest.Mock).mockReturnValue(1)
+    const res = await createTableRow({ tableId: 1, input: { field_1: 'a', field_2: '', field_3: '' }, username: 'alice' })
+    expect(res.ok).toBe(true)
+    expect(createdData().data).toMatchObject({ field_1: 'a', field_3: 8 })
+  })
 })

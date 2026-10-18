@@ -3,7 +3,7 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { useRowOperations } from '../useRowOperations';
+import { useRowOperations, stripReadOnlyCells } from '../useRowOperations';
 import * as rowService from '@/modules/database/services/row';
 import { TableRow, TableField } from '@/modules/database/types';
 
@@ -152,5 +152,16 @@ describe('useRowOperations - Batch Multi-Row Reorder', () => {
     const updated = setRows.mock.calls[0][0];
     expect(updated.map((r: TableRow) => r.id)).toEqual([102, 101, 103, 104]);
     expect(addToast).toHaveBeenCalledWith('已儲存資料列順序', 'success');
+  });
+});
+
+describe('stripReadOnlyCells', () => {
+  it('removes every read-only field type and keeps writable cells', () => {
+    const types = ['formula', 'lookup', 'rollup', 'count', 'autonumber', 'uuid', 'created_on', 'created_by', 'last_modified_on', 'last_modified_by', 'edit_row_link'];
+    const fields = [{ id: 1, type: 'text' }, ...types.map((t, i) => ({ id: i + 2, type: t }))];
+    const data: Record<string, unknown> = { field_1: 'keep' };
+    types.forEach((_, i) => { data[`field_${i + 2}`] = 'x'; });
+    expect(stripReadOnlyCells(data, fields)).toEqual({ field_1: 'keep' });
+    expect(data.field_2).toBe('x');
   });
 });

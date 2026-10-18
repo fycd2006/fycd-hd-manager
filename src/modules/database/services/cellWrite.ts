@@ -124,6 +124,12 @@ function stampComments(parsed: unknown, existingValue: unknown, actor: Actor): u
   })
 }
 
+function isBlank(v: unknown): boolean {
+  if (v === null || v === undefined) return true
+  if (typeof v === 'string') return v.trim() === ''
+  return Array.isArray(v) && v.length === 0
+}
+
 function writeOne(
   s: Session,
   input: Record<string, unknown>,
@@ -144,6 +150,8 @@ function writeOne(
     }
     const ft = FieldRegistry.get(field.type)
     if (ft.readOnly) {
+      // Blank placeholders (e.g. the client seeds every field with '') mean "not provided"
+      if (isBlank(raw)) continue
       rejected.push({ fieldId: field.id, code: 'read_only', reason: '此欄位為唯讀，無法寫入' })
       continue
     }
