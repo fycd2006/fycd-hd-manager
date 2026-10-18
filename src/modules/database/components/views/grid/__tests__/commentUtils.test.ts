@@ -5,6 +5,7 @@ import {
   avatarInitial,
   isContinuation,
   formatCommentTime,
+  formatCommentDate,
 } from '../cells/commentUtils';
 
 describe('commentUtils', () => {
@@ -28,6 +29,13 @@ describe('commentUtils', () => {
     expect(formatRelativeTime('2026/09/01 09:05:00', now)).toBe('9/1');
     expect(formatRelativeTime('2025/09/01 09:05:00', now)).toBe('2025/9/1');
     expect(formatRelativeTime('不是時間', now)).toBe('不是時間');
+  });
+
+  it('formats the date part only', () => {
+    expect(formatCommentDate('2026/9/1 08:00')).toBe('2026/09/01');
+    expect(formatCommentDate('2026/10/18 14:03:05')).toBe('2026/10/18');
+    expect(formatCommentDate('不是時間')).toBe('不是時間');
+    expect(formatCommentDate(undefined)).toBe('');
   });
 
   it('formats a full timestamp for new entries', () => {
