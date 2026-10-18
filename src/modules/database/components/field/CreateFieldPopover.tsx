@@ -10,6 +10,8 @@ import { safeJsonParse } from '@/lib/json-utils'
 import { FieldTypeSelector } from '../modals/FieldTypeSelector'
 import { FieldModalHeader } from '../modals/FieldModalHeader'
 import { NumberFieldOptions } from '../modals/field-options/NumberFieldOptions'
+import { DateFieldOptions } from '../modals/field-options/DateFieldOptions'
+import { resolveDateOptions, type DateOptions } from '@/modules/database/utils/dateTime'
 import { SelectFieldOptions, type SelectOptionItem } from '../modals/field-options/SelectFieldOptions'
 import { LinkRowFieldOptions } from '../modals/field-options/LinkRowFieldOptions'
 import { RollupLookupFieldOptions } from '../modals/field-options/RollupLookupFieldOptions'
@@ -63,6 +65,13 @@ export function CreateFieldPopover({
   const [numberFormat, setNumberFormat] = useState<string>('thousands')
   const [numberPrefix, setNumberPrefix] = useState<string>('')
   const [numberSuffix, setNumberSuffix] = useState<string>('')
+  // Date field options state (date / created_on / last_modified_on)
+  const [dateOptions, setDateOptions] = useState<DateOptions>(() => resolveDateOptions(null, 'date'))
+  const isDateType = (ft: string) => ft === 'date' || ft === 'created_on' || ft === 'last_modified_on'
+  const handleTypeChange = (next: string) => {
+    setType(next)
+    if (!editField && isDateType(next)) setDateOptions(resolveDateOptions(null, next))
+  }
 
   const [fetchedTargetFields, setFetchedTargetFields] = useState<any[]>([])
   const [description, setDescription] = useState('')
@@ -138,6 +147,7 @@ export function CreateFieldPopover({
       if (editField) {
         setName(editField.name || '')
         setType(editField.type || 'text')
+        setDateOptions(resolveDateOptions(editField.options, editField.type))
         setTypeDropdownOpen(false)
         let choices: SelectOptionItem[] = []
         let formulaStr = ''
@@ -209,6 +219,7 @@ export function CreateFieldPopover({
         setNumberFormat('thousands')
         setNumberPrefix('')
         setNumberSuffix('')
+        setDateOptions(resolveDateOptions(null, 'date'))
         setCreateRelatedField(true)
         setAllowMultiple(true)
       }
@@ -266,6 +277,8 @@ export function CreateFieldPopover({
           number_prefix: numberPrefix,
           number_suffix: numberSuffix
         }
+      } else if (isDateType(type)) {
+        parsedOptions = { ...dateOptions }
       }
 
       await onSubmit(name.trim(), type, parsedOptions)
@@ -366,7 +379,7 @@ export function CreateFieldPopover({
 
               <FieldTypeSelector
                 type={type}
-                setType={setType}
+                setType={handleTypeChange}
                 setName={setName}
                 typeDropdownOpen={typeDropdownOpen}
                 setTypeDropdownOpen={setTypeDropdownOpen}
@@ -384,6 +397,10 @@ export function CreateFieldPopover({
                   numberSuffix={numberSuffix}
                   setNumberSuffix={setNumberSuffix}
                 />
+              )}
+
+              {isDateType(type) && (
+                <DateFieldOptions value={dateOptions} onChange={setDateOptions} fieldType={type} />
               )}
 
               {(type === 'single_select' || type === 'multiple_select') && (
