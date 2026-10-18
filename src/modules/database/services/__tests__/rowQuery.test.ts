@@ -315,6 +315,25 @@ describe('getPopulatedTableRows rollup functions', () => {
   })
 })
 
+describe('getPopulatedTableRows date filter', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('compares date_equal by day in the field time zone', async () => {
+    (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 3, tableId: 1, name: 'When', type: 'date', options: JSON.stringify({ date_include_time: true, date_time_zone: 'Asia/Taipei' }) },
+    ]);
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 1, tableId: 1, data: JSON.stringify({ field_3: '2026-10-17T23:59:00.000Z' }), order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+      { id: 2, tableId: 1, data: JSON.stringify({ field_3: '2026-10-17T15:59:00.000Z' }), order: 2, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ])
+
+    const result = await getPopulatedTableRows(1, { filterParam: 'field_3:date_equal:2026-10-18' })
+    expect(result.rows!.map(r => r.id)).toEqual([1])
+  })
+})
+
 describe('cleanupFieldDependencies', () => {
   it('cleans up invalid relationFieldId or targetFieldId on dependent lookup fields when target field is deleted', async () => {
     (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([

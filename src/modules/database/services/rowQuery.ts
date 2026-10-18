@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
+import { cellDayInZone, resolveDateOptions, resolveTimeZone } from '../utils/dateTime'
 
 export interface QueryOptions {
   rowId?: number | string | null
@@ -519,7 +520,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
         : Prisma.sql`SELECT id, clientId, tableId, data, \`order\`, createdAt, updatedAt, deletedAt FROM TableRow WHERE ${whereSql} ORDER BY ${effectiveOrder}`
     )
 
-    let rawParsed = rawRows.map(sanitizeRawRow)
+    const rawParsed = rawRows.map(sanitizeRawRow)
     const populated = await populateRows(rawParsed, fields)
 
     if (wantPagination) {
@@ -586,20 +587,18 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
         case 'higher_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) >= Number(filterValue)
         case 'lower_than': return !isNaN(Number(cellValue)) && Number(cellValue) < Number(filterValue)
         case 'lower_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) <= Number(filterValue)
-        case 'date_equal': {
-          const d1 = new Date(cellValue).getTime()
-          const d2 = new Date(filterValue).getTime()
-          return !isNaN(d1) && !isNaN(d2) && new Date(d1).toDateString() === new Date(d2).toDateString()
-        }
-        case 'date_before': {
-          const d1 = new Date(cellValue).getTime()
-          const d2 = new Date(filterValue).getTime()
-          return !isNaN(d1) && !isNaN(d2) && d1 < d2
-        }
+        case 'date_equal':
+        case 'date_before':
         case 'date_after': {
-          const d1 = new Date(cellValue).getTime()
-          const d2 = new Date(filterValue).getTime()
-          return !isNaN(d1) && !isNaN(d2) && d1 > d2
+          const fieldMeta = fieldByKey.get(fieldKey)
+          const cellDay = cellDayInZone(
+            row.data[fieldKey],
+            resolveTimeZone(resolveDateOptions(fieldMeta?.options, fieldMeta?.type)),
+          )
+          const targetDay = filterValue.trim()
+          if (!cellDay || !targetDay) return false
+          if (operator === 'date_equal') return cellDay === targetDay
+          return operator === 'date_before' ? cellDay < targetDay : cellDay > targetDay
         }
         case 'not_empty': return cellValue !== '' && cellValue !== 'null' && cellValue !== 'undefined'
         case 'empty': return cellValue === '' || cellValue === 'null' || cellValue === 'undefined'

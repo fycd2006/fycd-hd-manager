@@ -812,9 +812,6 @@
   "src/modules/database/components/views/grid/cells/utils.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 18
-    },
-    "prefer-const": {
-      "count": 1
     }
   },
   "src/modules/database/components/views/kanban/KanbanView.tsx": {
@@ -1016,9 +1013,6 @@
   "src/modules/database/services/rowQuery.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 12
-    },
-    "prefer-const": {
-      "count": 1
     }
   },
   "src/modules/database/services/schemaService.ts": {
