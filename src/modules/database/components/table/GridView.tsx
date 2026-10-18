@@ -177,9 +177,9 @@ export default function GridView({
             right: 0,
             height: '2px',
             zIndex: 9999,
-            background: 'linear-gradient(90deg, transparent 0%, #52A628 35%, #EA580C 65%, transparent 100%)',
+            background: 'linear-gradient(90deg, transparent 0%, #39452B 35%, #F58220 65%, transparent 100%)',
             backgroundSize: '200% 100%',
-            boxShadow: '0 0 10px rgba(82, 166, 40, 0.45)',
+            boxShadow: '0 0 10px rgba(245, 130, 32, 0.35)',
             animation: 'fycdBarShimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite',
             pointerEvents: 'none',
           }}

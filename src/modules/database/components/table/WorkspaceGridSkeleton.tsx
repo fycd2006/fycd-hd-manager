@@ -60,7 +60,7 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
               width: '6px',
               height: '6px',
               borderRadius: '50%',
-              backgroundColor: '#52A628',
+              backgroundColor: '#F58220',
               display: 'inline-block',
               animation: 'fycdRowPulse 1.2s ease-in-out infinite alternate',
             }}
@@ -69,6 +69,8 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
         </div>
       )}
 
+      {/* 桌機：寬表格骨架（≤768px 時由 CSS 隱藏） */}
+      <div className="fycd-grid-skeleton-desktop">
       {/* Skeleton Table Header */}
       <div
         style={{
@@ -126,6 +128,25 @@ export const WorkspaceGridSkeleton: React.FC<WorkspaceGridSkeletonProps> = ({ lo
             <div className="fycd-skeleton" style={{ width: '70px', height: '12px', borderRadius: '4px' }} />
             <div className="fycd-skeleton" style={{ width: '110px', height: '12px', borderRadius: '4px' }} />
             <div style={{ flex: 1 }} />
+          </div>
+        ))}
+      </div>
+      </div>
+
+      {/* 手機：窄表格骨架（列號＋首欄＋2 欄），≤768px 時顯示 */}
+      <div className="fycd-grid-skeleton-mobile">
+        <div className="fycd-grid-skeleton-mobile__row fycd-grid-skeleton-mobile__head">
+          <div className="fycd-skeleton" style={{ width: '20px', height: '12px', borderRadius: '3px' }} />
+          <div className="fycd-skeleton" style={{ width: '96px', height: '14px', borderRadius: '4px' }} />
+          <div className="fycd-skeleton" style={{ width: '64px', height: '14px', borderRadius: '4px' }} />
+          <div className="fycd-skeleton" style={{ width: '56px', height: '14px', borderRadius: '4px' }} />
+        </div>
+        {[0.9, 0.6, 0.8, 0.5, 0.75, 0.65, 0.85, 0.55].map((widthRatio, idx) => (
+          <div key={idx} className="fycd-grid-skeleton-mobile__row">
+            <div className="fycd-skeleton" style={{ width: '16px', height: '10px', borderRadius: '3px' }} />
+            <div className="fycd-skeleton" style={{ width: `${Math.round(110 * widthRatio)}px`, height: '14px', borderRadius: '4px' }} />
+            <div className="fycd-skeleton" style={{ width: '60px', height: '18px', borderRadius: '10px' }} />
+            <div className="fycd-skeleton" style={{ width: '48px', height: '12px', borderRadius: '4px' }} />
           </div>
         ))}
       </div>
