@@ -1,6 +1,5 @@
 import { FieldType, FieldValidationResult } from '../FieldType'
-
-const DATE_PATTERN = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(T.*)?$/
+import { normalizeDateInput, resolveDateOptions } from '../../utils/dateTime'
 
 export class DateFieldType implements FieldType {
   readonly type = 'date'
@@ -12,28 +11,16 @@ export class DateFieldType implements FieldType {
       return { valid: true, parsedValue: null }
     }
 
-    const invalid: FieldValidationResult = {
-      valid: false,
-      code: 'invalid_date',
-      error: '必須是有效的日期（YYYY-MM-DD）',
+    const parsedValue = normalizeDateInput(value, options)
+    if (parsedValue === null) {
+      const includeTime = resolveDateOptions(options).date_include_time
+      return {
+        valid: false,
+        code: 'invalid_date',
+        error: includeTime ? '必須是有效的日期時間（YYYY-MM-DD HH:mm）' : '必須是有效的日期（YYYY-MM-DD）',
+      }
     }
-    const match = typeof value === 'string' ? DATE_PATTERN.exec(value.trim()) : null
-    if (!match) return invalid
-
-    const year = Number(match[1])
-    const month = Number(match[2])
-    const day = Number(match[3])
-    const check = new Date(Date.UTC(year, month - 1, day))
-    if (
-      check.getUTCFullYear() !== year ||
-      check.getUTCMonth() !== month - 1 ||
-      check.getUTCDate() !== day
-    ) {
-      return invalid
-    }
-
-    const pad = (n: number, len: number) => String(n).padStart(len, '0')
-    return { valid: true, parsedValue: `${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}` }
+    return { valid: true, parsedValue }
   }
 
   formatValue(value: any, options: any): any {
@@ -42,6 +29,7 @@ export class DateFieldType implements FieldType {
 
   getDefaultValue(options: any): any {
     if (options?.defaultValue === 'NOW') {
+      if (resolveDateOptions(options).date_include_time) return new Date().toISOString()
       const now = new Date()
       const pad = (n: number) => String(n).padStart(2, '0')
       return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
@@ -52,7 +40,8 @@ export class DateFieldType implements FieldType {
   getGeneratedColumnSQLType(): string {
     return 'DATE'
   }
-  
+
+  // 含時間欄位取到的是 UTC 日期，僅供索引，篩選不走此欄
   getGeneratedColumnSQLExpression(fieldKey: string): string {
     // Dates are stored as YYYY-MM-DD (legacy ISO strings: first 10 chars)
     return `CAST(LEFT(JSON_UNQUOTE(JSON_EXTRACT(data, '$."${fieldKey}"')), 10) AS DATE)`
