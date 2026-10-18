@@ -1,7 +1,9 @@
-import type { FilterConjunction, FilterGroup, FilterItem, FilterOperator, FilterRule, TableField, TableRow } from '../types'
+import type { DateFilterMode, FilterConjunction, FilterGroup, FilterItem, FilterOperator, FilterRule, TableField, TableRow } from '../types'
 import { evaluateCellCondition, parseSelectItems } from '../components/views/grid/cells/utils'
+import { cellDayInZone, resolveDateOptions, resolveTimeZone } from './dateTime'
 
 const SET_OPERATORS: FilterOperator[] = ['is_any_of', 'is_none_of', 'has_any_of', 'has_all_of', 'has_none_of', 'is_exactly']
+const DATE_OPERATORS: FilterOperator[] = ['date_equal', 'date_before', 'date_after', 'date_on_or_before', 'date_on_or_after', 'date_within']
 const ID_FIELD_TYPES = ['link_row', 'collaborator']
 
 export function isFilterGroup(item: FilterItem): item is FilterGroup {
@@ -22,15 +24,99 @@ export function readCellForFilter(row: TableRow, fieldKey: string): unknown {
   return ''
 }
 
-function isNewOperator(op: FilterOperator): boolean {
-  return SET_OPERATORS.includes(op)
+// ---------- Date helpers (pure YYYY-MM-DD arithmetic in UTC) ----------
+
+const pad = (n: number, w = 2) => String(n).padStart(w, '0')
+const toDay = (d: Date) => `${pad(d.getUTCFullYear(), 4)}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
+const splitDay = (day: string) => day.split('-').map(Number) as [number, number, number]
+
+export function addDays(day: string, n: number): string {
+  const [y, m, d] = splitDay(day)
+  return toDay(new Date(Date.UTC(y, m - 1, d + n)))
+}
+
+// Month arithmetic clamped to the last day of the target month (3/31 − 1 month → 2/28)
+export function addMonthsClamped(day: string, n: number): string {
+  const [y, m, d] = splitDay(day)
+  const lastDay = new Date(Date.UTC(y, m - 1 + n + 1, 0)).getUTCDate()
+  return toDay(new Date(Date.UTC(y, m - 1 + n, Math.min(d, lastDay))))
+}
+
+const NEEDS_AMOUNT: DateFilterMode[] = ['days_ago', 'days_from_now', 'past_n_days', 'next_n_days']
+const hasAmount = (rule: FilterRule) => typeof rule.dateAmount === 'number' && Number.isFinite(rule.dateAmount) && rule.dateAmount >= 0
+
+export function resolveDateTarget(rule: FilterRule, today: string): string | null {
+  const mode = rule.dateMode || 'exact'
+  if (NEEDS_AMOUNT.includes(mode) && !hasAmount(rule)) return null
+  switch (mode) {
+    case 'exact': {
+      const v = (rule.value || '').trim()
+      return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null
+    }
+    case 'today': return today
+    case 'tomorrow': return addDays(today, 1)
+    case 'yesterday': return addDays(today, -1)
+    case 'days_ago': return addDays(today, -rule.dateAmount!)
+    case 'days_from_now': return addDays(today, rule.dateAmount!)
+    default: return null
+  }
+}
+
+export function resolveDateRange(rule: FilterRule, today: string): [string, string] | null {
+  const mode = rule.dateMode || 'past_week'
+  if (NEEDS_AMOUNT.includes(mode) && !hasAmount(rule)) return null
+  switch (mode) {
+    case 'past_week': return [addDays(today, -7), today]
+    case 'next_week': return [today, addDays(today, 7)]
+    case 'past_month': return [addMonthsClamped(today, -1), today]
+    case 'next_month': return [today, addMonthsClamped(today, 1)]
+    case 'past_year': return [addMonthsClamped(today, -12), today]
+    case 'next_year': return [today, addMonthsClamped(today, 12)]
+    case 'past_n_days': return [addDays(today, -rule.dateAmount!), today]
+    case 'next_n_days': return [today, addDays(today, rule.dateAmount!)]
+    default: return null
+  }
+}
+
+function fieldTimeZone(field: TableField | undefined): string {
+  return resolveTimeZone(resolveDateOptions(field?.options, field?.type))
+}
+
+function isRuleIncomplete(rule: FilterRule): boolean {
+  if (SET_OPERATORS.includes(rule.operator)) return !Array.isArray(rule.values) || rule.values.length === 0
+  if (rule.operator === 'date_within') return resolveDateRange(rule, '2000-01-01') === null
+  if (DATE_OPERATORS.includes(rule.operator)) return resolveDateTarget(rule, '2000-01-01') === null
+  return false
 }
 
 // New operators without a usable value (or on a deleted field) do not filter anything
 function isRuleSkipped(rule: FilterRule, field: TableField | undefined): boolean {
-  if (!isNewOperator(rule.operator)) return false
-  if (!field) return true
-  return SET_OPERATORS.includes(rule.operator) && (!Array.isArray(rule.values) || rule.values.length === 0)
+  const isNew = SET_OPERATORS.includes(rule.operator) || DATE_OPERATORS.includes(rule.operator)
+  if (!isNew) return false
+  if (!field && SET_OPERATORS.includes(rule.operator)) return true
+  return isRuleIncomplete(rule)
+}
+
+function evaluateDateOperator(val: unknown, field: TableField | undefined, rule: FilterRule, now: Date): boolean {
+  const tz = fieldTimeZone(field)
+  const cellDay = cellDayInZone(val, tz)
+  if (!cellDay) return false
+  const today = cellDayInZone(now.toISOString(), tz)
+  if (!today) return false
+  if (rule.operator === 'date_within') {
+    const range = resolveDateRange(rule, today)
+    return !!range && cellDay >= range[0] && cellDay <= range[1]
+  }
+  const target = resolveDateTarget(rule, today)
+  if (!target) return false
+  switch (rule.operator) {
+    case 'date_equal': return cellDay === target
+    case 'date_before': return cellDay < target
+    case 'date_after': return cellDay > target
+    case 'date_on_or_before': return cellDay <= target
+    case 'date_on_or_after': return cellDay >= target
+    default: return false
+  }
 }
 
 function parseIdList(val: unknown): string[] {
@@ -72,9 +158,9 @@ function evaluateSetOperator(val: unknown, field: TableField, rule: FilterRule):
 }
 
 export function evaluateFilterRule(value: unknown, field: TableField | undefined, rule: FilterRule, now: Date): boolean {
-  void now
   if (isRuleSkipped(rule, field)) return true
   if (SET_OPERATORS.includes(rule.operator)) return evaluateSetOperator(value, field!, rule)
+  if (DATE_OPERATORS.includes(rule.operator)) return evaluateDateOperator(value, field, rule, now)
   return evaluateCellCondition(value, field, rule.operator, rule.value)
 }
 
