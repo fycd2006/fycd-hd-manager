@@ -1,13 +1,22 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, X, Edit2, Trash2, Check, Send } from 'lucide-react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { MessageSquare, X, Pencil, Trash2, ArrowUp } from 'lucide-react';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import { useAuthStore } from '@/modules/database/store';
+import {
+  avatarColor,
+  avatarInitial,
+  formatCommentTime,
+  formatRelativeTime,
+  isContinuation,
+  parseCommentTime,
+} from './commentUtils';
 
 export interface CommentLogEntry {
   id: string
   user: string
   time: string
   content: string
+  editedAt?: string
 }
 
 export const parseLatestCommentEntries = (val: any): CommentLogEntry[] => {
@@ -22,19 +31,46 @@ export const parseLatestCommentEntries = (val: any): CommentLogEntry[] => {
   return []
 }
 
+const COMPOSER_MAX_HEIGHT = 160
+
+const isSubmitKey = (e: React.KeyboardEvent) =>
+  e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing
+
+const autoGrow = (el: HTMLTextAreaElement | null) => {
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT)}px`
+}
+
+const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 30 }) => (
+  <span
+    className="lc-avatar"
+    aria-hidden="true"
+    style={{ background: avatarColor(name), width: size, height: size, fontSize: size * 0.45 }}
+  >
+    {avatarInitial(name)}
+  </span>
+)
+
 export const LatestCommentModal: React.FC<{
   show: boolean
   value: any
   fieldName?: string
+  /** 從表格直接打字開啟時，帶入的第一個字 */
+  initialText?: string
   onChange: (newValue: CommentLogEntry[]) => void
   onClose: () => void
   readOnly?: boolean
-}> = ({ show, value, fieldName = '最新留言紀錄', onChange, onClose, readOnly = false }) => {
+}> = ({ show, value, fieldName = '最新留言紀錄', initialText = '', onChange, onClose, readOnly = false }) => {
   const entries = parseLatestCommentEntries(value)
-  const [newText, setNewText] = useState('')
+  const [newText, setNewText] = useState(initialText)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [draftWarning, setDraftWarning] = useState(false)
+  const [justAddedId, setJustAddedId] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const editRef = useRef<HTMLTextAreaElement>(null)
 
   const [authState] = useAuthStore()
   const cachedUser = typeof window !== 'undefined' ? (() => {
@@ -44,251 +80,237 @@ export const LatestCommentModal: React.FC<{
     } catch { return null }
   })() : null
   const currentUserName = authState.currentUser?.username || cachedUser?.username || authState.currentUser?.email?.split('@')[0] || cachedUser?.email?.split('@')[0] || '使用者'
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
+  const submitHint = isMac ? '⌘ + Enter 送出' : 'Ctrl + Enter 送出'
+
+  const focusComposer = () => {
+    const ta = textareaRef.current
+    if (!ta) return
+    ta.focus()
+    ta.setSelectionRange(ta.value.length, ta.value.length)
+  }
 
   useEffect(() => {
     if (show && !readOnly) {
-      const timer = setTimeout(() => {
-        textareaRef.current?.focus()
-      }, 50)
+      const timer = setTimeout(focusComposer, 50)
       return () => clearTimeout(timer)
     }
   }, [show, readOnly])
 
-  const handleAdd = (e?: React.MouseEvent | React.FormEvent) => {
-    e?.stopPropagation()
+  useLayoutEffect(() => { autoGrow(textareaRef.current) }, [newText])
+  useLayoutEffect(() => { autoGrow(editRef.current) }, [editText, editingId])
+
+  useEffect(() => {
+    if (!editingId) return
+    const ta = editRef.current
+    if (!ta) return
+    ta.focus()
+    ta.setSelectionRange(ta.value.length, ta.value.length)
+  }, [editingId])
+
+  // Esc／點遮罩／關閉鈕：依序收起刪除確認、取消更正、提醒草稿，最後才關閉
+  const requestClose = () => {
+    if (confirmDeleteId) { setConfirmDeleteId(null); return }
+    if (editingId) { cancelEdit(); return }
+    if (newText.trim() && !draftWarning) { setDraftWarning(true); focusComposer(); return }
+    onClose()
+  }
+
+  const handleAdd = () => {
     if (!newText.trim() || readOnly) return
-    const nowStr = new Date().toLocaleString('zh-TW', { hour12: false })
     const newEntry: CommentLogEntry = {
       id: 'lc-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       user: currentUserName,
-      time: nowStr,
+      time: formatCommentTime(new Date()),
       content: newText.trim()
     }
-    const updated = [...entries, newEntry]
-    onChange(updated)
+    onChange([...entries, newEntry])
+    setJustAddedId(newEntry.id)
     setNewText('')
+    setDraftWarning(false)
+    focusComposer()
   }
 
-  const handleSaveEdit = (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    if (!editText.trim() || readOnly) return
-    const updated = entries.map(item => item.id === id ? { ...item, content: editText.trim() } : item)
-    onChange(updated)
+  const startEdit = (item: CommentLogEntry) => {
+    setConfirmDeleteId(null)
+    setEditingId(item.id)
+    setEditText(item.content)
+  }
+
+  const cancelEdit = () => {
     setEditingId(null)
     setEditText('')
+    focusComposer()
   }
 
-  const handleDelete = (id: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    if (readOnly) return
-    const updated = entries.filter(item => item.id !== id)
-    onChange(updated)
+  const handleSaveEdit = (id: string) => {
+    if (!editText.trim() || readOnly) return
+    const original = entries.find(item => item.id === id)
+    if (original && original.content !== editText.trim()) {
+      onChange(entries.map(item => item.id === id
+        ? { ...item, content: editText.trim(), editedAt: formatCommentTime(new Date()) }
+        : item))
+    }
+    cancelEdit()
   }
+
+  const handleDelete = (id: string) => {
+    if (readOnly) return
+    onChange(entries.filter(item => item.id !== id))
+    setConfirmDeleteId(null)
+    focusComposer()
+  }
+
+  const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isSubmitKey(e)) {
+      e.preventDefault()
+      handleAdd()
+      return
+    }
+    if (e.key === 'ArrowUp' && !newText && !e.nativeEvent.isComposing) {
+      const mine = [...entries].reverse().find(item => item.user === currentUserName)
+      if (mine) {
+        e.preventDefault()
+        startEdit(mine)
+      }
+    }
+  }
+
+  const displayed = [...entries].reverse()
 
   return (
-    <ModalOverlay
-      show={show}
-      onClose={onClose}
-      className="animate-in fade-in duration-150"
-      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
-    >
-      <div
-        className="animate-in zoom-in-95 duration-150"
-        style={{
-          width: '560px',
-          maxWidth: '92vw',
-          maxHeight: '88vh',
-          background: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Modal Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #f1f5f9', background: '#fafafa' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#FFF7ED', border: '1px solid #FFEDD5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EA580C' }}>
-              <MessageSquare size={16} />
-            </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: '#0f172a' }}>{fieldName}</h3>
-              <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>檢視所有歷史備註留言與新增修訂紀錄</p>
-            </div>
-            <span style={{ fontSize: '11px', background: '#FFEDD5', color: '#C2410C', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, marginLeft: '6px' }}>
-              {entries.length} 筆紀錄
-            </span>
+    <ModalOverlay show={show} onClose={requestClose} className="animate-in fade-in duration-150">
+      <div className="lc-modal animate-in zoom-in-95 duration-150" role="dialog" aria-modal="true" aria-label={fieldName}>
+        <header className="lc-header">
+          <span className="lc-header-icon"><MessageSquare size={16} /></span>
+          <div className="lc-header-text">
+            <h3>{fieldName}</h3>
+            <p>{entries.length > 0 ? `${entries.length} 則留言` : '尚無留言'}</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '6px', borderRadius: '6px', display: 'flex', alignItems: 'center', transition: 'background 0.15s ease' }}
-            title="關閉"
-          >
+          <button type="button" className="lc-icon-btn" onClick={requestClose} title="關閉 (Esc)" aria-label="關閉">
             <X size={18} />
           </button>
-        </div>
+        </header>
 
-        {/* Modal Scroll Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '160px', background: '#f8fafc' }}>
-          {entries.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 20px', color: '#94a3b8', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-              <MessageSquare size={28} style={{ color: '#cbd5e1' }} />
-              <span>尚無留言紀錄，請在下方輸入框新增第一筆備註。</span>
-            </div>
-          ) : (
-            [...entries].reverse().map((item, idx) => {
-              const isEditing = editingId === item.id
-              const isLatest = idx === 0
-              return (
-                <div
-                  key={item.id || idx}
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: '8px',
-                    background: isLatest ? '#FFF7ED' : '#ffffff',
-                    border: isLatest ? '1px solid #FED7AA' : '1px solid #e2e8f0',
-                    boxShadow: isLatest ? '0 2px 8px rgba(234, 88, 12, 0.06)' : '0 1px 3px rgba(0, 0, 0, 0.04)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontWeight: 600, color: '#0f172a', fontSize: '13px' }}>{item.user}</span>
-                      {isLatest && (
-                        <span style={{ fontSize: '10px', background: '#EA580C', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                          最新紀錄
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>{item.time}</span>
-                      {!readOnly && !isEditing && (
-                        <button
-                          type="button"
-                          onClick={() => { setEditingId(item.id); setEditText(item.content); }}
-                          title="更正此筆紀錄"
-                          style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', cursor: 'pointer', color: '#475569', padding: '3px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px' }}
-                        >
-                          <Edit2 size={12} /> 更正
+        <ol className="lc-list">
+          {displayed.length === 0 ? (
+            <li className="lc-empty">
+              <MessageSquare size={28} />
+              <span>尚無留言紀錄{readOnly ? '' : '，在下方輸入第一則備註。'}</span>
+            </li>
+          ) : displayed.map((item, idx) => {
+            const isEditing = editingId === item.id
+            const isLatest = idx === 0
+            const continued = isContinuation(item, displayed[idx - 1])
+            const fullTime = parseCommentTime(item.time) ? item.time : undefined
+            const classes = [
+              'lc-entry',
+              isLatest && 'lc-entry--latest',
+              continued && 'lc-entry--continued',
+              item.id === justAddedId && 'lc-entry--new',
+            ].filter(Boolean).join(' ')
+            return (
+              <li key={item.id || idx} className={classes}>
+                <div className="lc-gutter">{!continued && <Avatar name={item.user} />}</div>
+                <div className="lc-main">
+                  <div className="lc-meta">
+                    {!continued && <span className="lc-author">{item.user}</span>}
+                    <time className="lc-time" title={fullTime}>{formatRelativeTime(item.time)}</time>
+                    {item.editedAt && <span className="lc-edited" title={`更正於 ${item.editedAt}`}>（已編輯）</span>}
+                    {isLatest && <span className="lc-badge">最新紀錄</span>}
+                    {!readOnly && !editingId && (
+                      <div className="lc-actions">
+                        <button type="button" className="lc-icon-btn" onClick={() => startEdit(item)} title="更正" aria-label="更正留言">
+                          <Pencil size={13} />
                         </button>
-                      )}
-                      {!readOnly && !isEditing && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleDelete(item.id, e)}
-                          title="刪除此筆紀錄"
-                          style={{ background: '#fef2f2', border: '1px solid #fecaca', cursor: 'pointer', color: '#ef4444', padding: '3px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '11px' }}
-                        >
-                          <Trash2 size={12} /> 刪除
+                        <button type="button" className="lc-icon-btn lc-icon-btn--danger" onClick={() => setConfirmDeleteId(item.id)} title="刪除" aria-label="刪除留言">
+                          <Trash2 size={13} />
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   {isEditing ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                    <div className="lc-edit">
                       <textarea
-                        rows={3}
+                        ref={editRef}
+                        aria-label="更正留言內容"
+                        className="lc-textarea"
+                        rows={2}
                         value={editText}
                         onChange={e => setEditText(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px',
-                          fontSize: '13px',
-                          border: '1.5px solid #EA580C',
-                          borderRadius: '6px',
-                          resize: 'vertical',
-                          outline: 'none',
-                          boxShadow: '0 0 0 3px rgba(234, 88, 12, 0.12)',
-                          lineHeight: '1.6',
-                          background: '#ffffff'
+                        onKeyDown={e => {
+                          if (isSubmitKey(e)) {
+                            e.preventDefault()
+                            handleSaveEdit(item.id)
+                          }
                         }}
-                        autoFocus
                       />
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          onClick={(e) => handleSaveEdit(item.id, e)}
-                          style={{ background: '#EA580C', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                        >
-                          <Check size={14} /> 儲存更正
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingId(null)}
-                          style={{ background: '#ffffff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 12px', fontSize: '12px', cursor: 'pointer' }}
-                        >
-                          取消
+                      <div className="lc-edit-footer">
+                        <span className="lc-hint">{isMac ? '⌘' : 'Ctrl'} + Enter 儲存 · Esc 取消</span>
+                        <button type="button" className="lc-btn lc-btn--ghost" onClick={cancelEdit}>取消</button>
+                        <button type="button" className="lc-btn lc-btn--primary" onClick={() => handleSaveEdit(item.id)} disabled={!editText.trim()}>
+                          儲存
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ color: '#334155', wordBreak: 'break-word', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontSize: '13px' }}>
-                      {item.content}
+                    <div className="lc-content">{item.content}</div>
+                  )}
+
+                  {confirmDeleteId === item.id && (
+                    <div className="lc-confirm" role="alertdialog" aria-label="刪除這則留言？">
+                      <div>
+                        <strong>刪除這則留言？</strong>
+                        <span>此動作無法復原</span>
+                      </div>
+                      <div className="lc-confirm-actions">
+                        <button type="button" className="lc-btn lc-btn--ghost" autoFocus onClick={() => { setConfirmDeleteId(null); focusComposer() }}>取消</button>
+                        <button type="button" className="lc-btn lc-btn--danger" onClick={() => handleDelete(item.id)}>刪除</button>
+                      </div>
                     </div>
                   )}
                 </div>
-              )
-            })
-          )}
-        </div>
+              </li>
+            )
+          })}
+        </ol>
 
-        {/* Modal Footer: New Comment Input */}
         {!readOnly && (
-          <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', background: '#ffffff', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <textarea
-              ref={textareaRef}
-              autoFocus
-              rows={3}
-              placeholder="輸入新留言備註 (長文字，支援多列輸入，Ctrl+Enter 送出)..."
-              value={newText}
-              onChange={e => setNewText(e.target.value)}
-              onKeyDown={e => {
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                  e.preventDefault();
-                  handleAdd();
-                }
-              }}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontSize: '13px',
-                outline: 'none',
-                resize: 'vertical',
-                minHeight: '64px',
-                background: '#ffffff',
-                lineHeight: '1.6'
-              }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                onClick={(e) => handleAdd(e)}
-                disabled={!newText.trim()}
-                style={{
-                  background: newText.trim() ? '#EA580C' : '#cbd5e1',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '8px 18px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: newText.trim() ? 'pointer' : 'default',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: newText.trim() ? '0 2px 4px rgba(234, 88, 12, 0.2)' : 'none'
-                }}
-              >
-                <Send size={14} />
-                <span>新增留言</span>
-              </button>
+          <footer className="lc-composer">
+            {draftWarning && (
+              <div className="lc-draft-warning" role="status">
+                還有未送出的留言，再按一次 Esc 或關閉即放棄
+              </div>
+            )}
+            <div className="lc-composer-row">
+              <Avatar name={currentUserName} size={30} />
+              <div className="lc-composer-box">
+                <textarea
+                  ref={textareaRef}
+                  className="lc-textarea lc-textarea--composer"
+                  rows={1}
+                  placeholder="輸入新留言備註…"
+                  value={newText}
+                  onChange={e => { setNewText(e.target.value); setDraftWarning(false) }}
+                  onKeyDown={handleComposerKeyDown}
+                />
+                <button
+                  type="button"
+                  className="lc-send"
+                  onClick={handleAdd}
+                  disabled={!newText.trim()}
+                  title={submitHint}
+                >
+                  <ArrowUp size={14} />
+                  <span>新增留言</span>
+                </button>
+              </div>
             </div>
-          </div>
+            <div className="lc-hint lc-composer-hint">
+              {submitHint} · Enter 換行{entries.some(item => item.user === currentUserName) ? ' · ↑ 更正自己的上一則' : ''}
+            </div>
+          </footer>
         )}
       </div>
     </ModalOverlay>

@@ -15,6 +15,7 @@
 
 /* 5. Modals, dialog boxes, context menus, buttons, toasts, spinners & keyframe animations */
 @import '../styles/components.css';
+@import '../styles/latest-comment.css';
 
 /* 6. Mobile iOS Input Auto-Zoom Prevention (WebKit zooms on inputs with font-size < 16px) */
 @media (max-width: 768px) {
