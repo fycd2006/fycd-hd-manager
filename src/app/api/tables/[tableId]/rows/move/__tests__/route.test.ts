@@ -127,6 +127,33 @@ describe('POST /api/tables/[tableId]/rows/move', () => {
     expect(prisma.tableRow.deleteMany).not.toHaveBeenCalled()
   })
 
+  it('names the field and reason when a value fails target validation', async () => {
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_2: 'abc' } }],
+    })
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toContain('欄位 [數量] 驗證失敗：')
+  })
+
+  it('does not carry the source autonumber value; the target assigns its own', async () => {
+    fieldsFor(
+      [...sourceFields, { id: 3, tableId: 20, name: '編號', type: 'autonumber', options: null }],
+      [...targetFields, { id: 13, tableId: 10, name: '編號', type: 'autonumber', options: null }],
+    )
+    tx.databaseTable.findUnique.mockResolvedValue({ id: 10, autonumberCounter: 7 })
+    tx.databaseTable.update.mockResolvedValue({ autonumberCounter: 8 })
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'a', sourceRowId: 5, data: { field_1: 'x', field_3: 99 } }],
+    })
+
+    expect(res.status).toBe(200)
+    expect(tx.tableRow.createMany.mock.calls[0][0].data[0].data.field_13).toBe(8)
+  })
+
   it('allocates autonumbers on the target table', async () => {
     const auto = [...targetFields, { id: 13, tableId: 10, name: '編號', type: 'autonumber', options: null }]
     fieldsFor([...sourceFields, { id: 3, tableId: 20, name: '編號', type: 'autonumber', options: null }], auto)

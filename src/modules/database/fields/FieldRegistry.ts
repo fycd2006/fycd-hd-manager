@@ -61,13 +61,3 @@ class Registry {
 }
 
 export const FieldRegistry = new Registry()
-
-/**
- * Transitional helper for write paths that still pass link_row / formula / etc. through
- * (those types have no FieldType yet). Registered types are validated; unregistered ones
- * keep the legacy pass-through. Removed when the unified cell-write service lands.
- */
-export function validateRegisteredOrPassThrough(fieldType: FieldType, value: unknown, options: unknown): FieldValidationResult {
-  if (fieldType instanceof UnknownFieldType) return { valid: true, parsedValue: value }
-  return fieldType.validateValue(value, options)
-}

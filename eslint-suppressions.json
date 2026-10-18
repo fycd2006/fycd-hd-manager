@@ -182,7 +182,7 @@
   },
   "src/app/api/database/import/airtable/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
+      "count": 2
     }
   },
   "src/app/api/form/[token]/route.ts": {
@@ -253,10 +253,7 @@
   },
   "src/app/api/tables/[tableId]/rows/move/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
-    "prefer-const": {
-      "count": 2
+      "count": 3
     }
   },
   "src/app/api/tables/[tableId]/rows/renormalize/route.ts": {

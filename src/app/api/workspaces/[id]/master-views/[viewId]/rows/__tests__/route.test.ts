@@ -10,6 +10,7 @@ jest.mock('@/lib/authorize', () => ({
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
+    tableField: { findMany: jest.fn() },
     masterViewOverride: {
       upsert: jest.fn(),
       findUnique: jest.fn(),
@@ -22,6 +23,10 @@ jest.mock('@/lib/prisma', () => ({
 describe('Route Handler Integration: /api/workspaces/[id]/master-views/[viewId]/rows', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 7, tableId: 5, name: '備註', type: 'text', options: null },
+      { id: 8, tableId: 5, name: '數量', type: 'number', options: null },
+    ])
   })
 
   describe('PATCH (Upsert Override)', () => {
@@ -56,7 +61,7 @@ describe('Route Handler Integration: /api/workspaces/[id]/master-views/[viewId]/
         masterViewId: 10,
         sourceTableId: 5,
         sourceRowId: 100,
-        overrides: JSON.stringify({ customNote: 'Approved' }),
+        overrides: JSON.stringify({ field_7: 'Approved' }),
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
@@ -70,7 +75,7 @@ describe('Route Handler Integration: /api/workspaces/[id]/master-views/[viewId]/
         body: JSON.stringify({
           sourceTableId: 5,
           sourceRowId: 100,
-          overrides: { customNote: 'Approved' },
+          overrides: { field_7: 'Approved' },
         }),
       })
       const params = Promise.resolve({ id: '1', viewId: '10' })
@@ -80,7 +85,7 @@ describe('Route Handler Integration: /api/workspaces/[id]/master-views/[viewId]/
 
       expect(response.status).toBe(200)
       expect(body.success).toBe(true)
-      expect(body.override.overrides).toEqual({ customNote: 'Approved' })
+      expect(body.override.overrides).toEqual({ field_7: 'Approved' })
       expect(prisma.masterViewOverride.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
@@ -94,6 +99,38 @@ describe('Route Handler Integration: /api/workspaces/[id]/master-views/[viewId]/
       )
     })
 
+    it('rejects with 400 and writes nothing when an override value is invalid for the source field', async () => {
+      ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'member' } })
+
+      const request = new Request('http://localhost:3000/api/workspaces/1/master-views/10/rows', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceTableId: 5, sourceRowId: 100, overrides: { field_7: 'ok', field_8: 'abc' } }),
+      })
+      const response = await PATCH(request, { params: Promise.resolve({ id: '1', viewId: '10' }) })
+
+      expect(response.status).toBe(400)
+      expect((await response.json()).error).toContain('欄位 [數量] 驗證失敗：')
+      expect(prisma.masterViewOverride.upsert).not.toHaveBeenCalled()
+    })
+
+    it('rejects an override that would add a select option to the source field', async () => {
+      ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'member' } })
+      ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+        { id: 9, tableId: 5, name: '組別', type: 'single_select', options: { choices: [{ id: 'a', name: '甲' }] } },
+      ])
+
+      const request = new Request('http://localhost:3000/api/workspaces/1/master-views/10/rows', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceTableId: 5, sourceRowId: 100, overrides: { field_9: '新組' } }),
+      })
+      const response = await PATCH(request, { params: Promise.resolve({ id: '1', viewId: '10' }) })
+
+      expect(response.status).toBe(400)
+      expect(prisma.masterViewOverride.upsert).not.toHaveBeenCalled()
+    })
+
     it('rejects with 400 when sourceTableId or sourceRowId is missing', async () => {
       ;(authorizeAction as jest.Mock).mockResolvedValue({
         auth: { user: { id: 1 }, role: 'member' },
@@ -103,7 +140,7 @@ describe('Route Handler Integration: /api/workspaces/[id]/master-views/[viewId]/
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          overrides: { customNote: 'Approved' },
+          overrides: { field_7: 'Approved' },
         }),
       })
       const params = Promise.resolve({ id: '1', viewId: '10' })

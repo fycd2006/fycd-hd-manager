@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma'
 import { triggerTableEvent } from '@/lib/pusher-server'
 import { syncBiDirectionalLinkRow } from '@/modules/database/services/linkRowSync'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
+import { createTableRow } from '@/modules/database/services/createRow'
+import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
 
 const mockGenerateContent = jest.fn()
 
@@ -47,6 +49,10 @@ jest.mock('@/modules/database/services/linkRowSync', () => {
 
 jest.mock('@/modules/database/services/rowCascade', () => ({
   cascadeRecomputeSingleLevel: jest.fn().mockResolvedValue([]),
+}))
+
+jest.mock('@/modules/database/services/cellWriteOptions', () => ({
+  applyOptionAdditions: jest.fn().mockResolvedValue({ updated: [], remap: {} }),
 }))
 
 jest.mock('@/modules/database/services/createRow', () => ({
@@ -621,5 +627,102 @@ describe('POST /api/ai/table-agent', () => {
       })
     )
   })
-})
 
+  it('does not write a read-only cell and reports the reason in the tool result', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '底薪', type: 'number', order: 0 },
+      { id: 3, name: '總計', type: 'formula', options: 'field_1', order: 1 },
+    ])
+    const mockTx = (prisma as unknown as { _mockTx: { tableRow: { findUnique: jest.Mock; update: jest.Mock } } })._mockTx
+    mockTx.tableRow.findUnique.mockResolvedValue({ id: 101, tableId: 1, data: { field_1: 5, field_3: '5' } })
+
+    const res = await POST(new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        confirmedAction: { name: 'update_cells', args: { updates: [{ rowId: 101, fieldKey: 'field_3', value: '惡意覆寫' }] } },
+      }),
+    }))
+    const json = await res.json()
+
+    expect(json.count).toBe(0)
+    expect(json.rejected).toEqual([
+      expect.objectContaining({ rowId: 101, fieldKey: 'field_3', reason: expect.stringContaining('欄位 [總計] 驗證失敗：') }),
+    ])
+    expect(json.summary).toContain('未寫入')
+    expect(mockTx.tableRow.update).not.toHaveBeenCalled()
+  })
+
+  it('reports an invalid value, keeps the stored one and still writes the valid cells', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: '品名', type: 'text', order: 0 },
+      { id: 2, name: '數量', type: 'number', order: 1 },
+    ])
+    const mockTx = (prisma as unknown as { _mockTx: { tableRow: { findUnique: jest.Mock; update: jest.Mock } } })._mockTx
+    mockTx.tableRow.findUnique.mockResolvedValue({ id: 101, tableId: 1, data: { field_1: '舊', field_2: 3 } })
+
+    const res = await POST(new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        confirmedAction: {
+          name: 'update_cells',
+          args: { updates: [{ rowId: 101, fieldKey: 'field_1', value: '新' }, { rowId: 101, fieldKey: 'field_2', value: 'abc' }] },
+        },
+      }),
+    }))
+    const json = await res.json()
+
+    expect(json.count).toBe(1)
+    expect(json.rejected).toHaveLength(1)
+    expect(mockTx.tableRow.update).toHaveBeenCalledWith({ where: { id: 101 }, data: { data: { field_1: '新', field_2: 3 } } })
+  })
+
+  it('adds an unknown select option on update and broadcasts field-updated', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 2, name: '組別', type: 'single_select', options: { choices: [{ id: 'a', name: '甲' }] }, order: 0 },
+    ])
+    const mockTx = (prisma as unknown as { _mockTx: { tableRow: { findUnique: jest.Mock; update: jest.Mock } } })._mockTx
+    mockTx.tableRow.findUnique.mockResolvedValue({ id: 101, tableId: 1, data: { field_2: 'a' } })
+    ;(applyOptionAdditions as jest.Mock).mockResolvedValueOnce({ updated: [{ id: 2, options: { choices: [] } }], remap: {} })
+
+    const res = await POST(new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        socketId: 's1',
+        confirmedAction: { name: 'update_cells', args: { updates: [{ rowId: 101, fieldKey: 'field_2', value: '乙' }] } },
+      }),
+    }))
+
+    expect((await res.json()).count).toBe(1)
+    expect(applyOptionAdditions).toHaveBeenCalledWith(mockTx, 1, { 2: [expect.objectContaining({ name: '乙' })] })
+    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: expect.objectContaining({ id: 2 }) }, 's1')
+  })
+
+  it('creates rows with canAddOptions and broadcasts field-updated for added options', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([{ id: 1, name: '姓名', type: 'text', order: 0 }])
+    ;(createTableRow as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      row: { id: 7, data: {} },
+      updatedFields: [{ id: 2, options: { choices: [] } }],
+    })
+
+    const res = await POST(new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        socketId: 's1',
+        confirmedAction: { name: 'create_rows', args: { rows: [{ field_1: 'x' }] } },
+      }),
+    }))
+
+    expect(res.status).toBe(200)
+    expect(createTableRow).toHaveBeenCalledWith(expect.objectContaining({ tableId: 1, canAddOptions: true }))
+    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 2, options: { choices: [] } } }, 's1')
+  })
+})

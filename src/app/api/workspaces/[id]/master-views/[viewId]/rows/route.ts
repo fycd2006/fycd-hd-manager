@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
+import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
+import { safeJsonParse } from '@/lib/json-utils'
+import { prepareCellWrites, formatRejection } from '@/modules/database/services/cellWrite'
 import {
   upsertMasterViewOverride,
   revertMasterViewOverride,
@@ -46,11 +49,31 @@ export async function PATCH(
       return NextResponse.json({ error: 'overrides 必須為有效的物件格式' }, { status: 400 })
     }
 
+    // Overrides are cell values of the source table, so they follow the source field rules.
+    // Overrides never add select options (that would change the source table's schema).
+    const sourceFields = await prisma.tableField.findMany({ where: { tableId: srcTableId, deletedAt: null } })
+    const prepared = prepareCellWrites({
+      fields: sourceFields.map((f) => ({
+        id: f.id,
+        name: f.name,
+        type: f.type,
+        options: typeof f.options === 'string' ? safeJsonParse(f.options, null) : f.options,
+      })),
+      input: overrides,
+      mode: 'update',
+      canAddOptions: false,
+    })
+    if (prepared.rejected.length > 0) {
+      const first = prepared.rejected[0]
+      const fieldName = sourceFields.find((f) => f.id === first.fieldId)?.name ?? `field_${first.fieldId}`
+      return NextResponse.json({ error: formatRejection(fieldName, first) }, { status: 400 })
+    }
+
     const result = await upsertMasterViewOverride({
       masterViewId,
       sourceTableId: srcTableId,
       sourceRowId: srcRowId,
-      overrides,
+      overrides: prepared.data,
     })
 
     // Invalidate master view cache
