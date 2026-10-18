@@ -109,3 +109,29 @@ describe('WorkspaceDashboard i18n', () => {
     expect(screen.queryByRole('button', { name: /新增資料庫/ })).not.toBeInTheDocument()
   })
 })
+
+describe('WorkspaceDashboard 資料表列', () => {
+  it('資料表列是按鈕，點擊開啟資料表', () => {
+    const onSelectTable = jest.fn()
+    renderDashboard({ onSelectTable })
+    // 庫A、庫B 都有「表1」，第一個是庫A 的（id 101）
+    fireEvent.click(screen.getAllByRole('button', { name: '表1' })[0])
+    expect(onSelectTable).toHaveBeenCalledWith(101)
+  })
+
+  it('鉛筆按鈕只觸發重新命名', () => {
+    const onSelectTable = jest.fn()
+    const onShowRenameModal = jest.fn()
+    const onSetRenameId = jest.fn()
+    renderDashboard({ onSelectTable, onShowRenameModal, onSetRenameId, onSetRenameType: jest.fn(), onSetRenameNameValue: jest.fn() })
+    fireEvent.click(screen.getAllByRole('button', { name: '重新命名資料表' })[0])
+    expect(onSetRenameId).toHaveBeenCalledWith(101)
+    expect(onShowRenameModal).toHaveBeenCalled()
+    expect(onSelectTable).not.toHaveBeenCalled()
+  })
+
+  it('沒有巢狀按鈕', () => {
+    const { container } = renderDashboard({ onShowRenameModal: jest.fn() })
+    expect(container.querySelectorAll('button button')).toHaveLength(0)
+  })
+})

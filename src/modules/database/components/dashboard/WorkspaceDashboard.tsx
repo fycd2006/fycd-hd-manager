@@ -561,6 +561,7 @@ export default function WorkspaceDashboard({
                             <button
                               type="button"
                               title={t('nav.renameDatabase')}
+                              aria-label={t('nav.renameDatabase')}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 onSetRenameType?.('database')
@@ -640,82 +641,46 @@ export default function WorkspaceDashboard({
                   }}>
                     {db.tables && db.tables.length > 0 ? (
                       db.tables.map(table => (
-                        <div
-                          key={table.id}
-                          onClick={() => onSelectTable(table.id)}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation()
-                            if (onSetRenameType && onSetRenameId && onSetRenameNameValue && onShowRenameModal) {
-                              onSetRenameType('table')
-                              onSetRenameId(table.id)
-                              onSetRenameNameValue(table.name)
-                              onShowRenameModal()
-                            }
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            backgroundColor: '#fafafa',
-                            border: '1px solid #f4f4f5',
-                            color: '#27272a',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            transition: 'all 0.12s ease'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#F4F4F5'
-                            e.currentTarget.style.borderColor = '#F4F4F5'
-                            e.currentTarget.style.color = '#2d470d'
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = '#fafafa'
-                            e.currentTarget.style.borderColor = '#f4f4f5'
-                            e.currentTarget.style.color = '#27272a'
-                          }}
-                          title={`${table.name} (${t('dashboard.doubleClickRename')})`}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                            <TableIcon size={14} color="#39452B" style={{ flexShrink: 0 }} />
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <div key={table.id} className="tableRow" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button
+                            type="button"
+                            className="tableOpen"
+                            onClick={() => onSelectTable(table.id)}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation()
+                              if (onSetRenameType && onSetRenameId && onSetRenameNameValue && onShowRenameModal) {
+                                onSetRenameType('table')
+                                onSetRenameId(table.id)
+                                onSetRenameNameValue(table.name)
+                                onShowRenameModal()
+                              }
+                            }}
+                            title={`${table.name} (${t('dashboard.doubleClickRename')})`}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0, padding: '8px 12px', fontSize: '13px', fontWeight: 600, textAlign: 'left' }}
+                          >
+                            <TableIcon size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                               {table.name}
                             </span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            {onShowRenameModal && (
-                              <button
-                                type="button"
-                                title={t('nav.renameTable')}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onSetRenameType?.('table')
-                                  onSetRenameId?.(table.id)
-                                  onSetRenameNameValue?.(table.name)
-                                  onShowRenameModal?.()
-                                }}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  padding: '4px',
-                                  borderRadius: '4px',
-                                  cursor: 'pointer',
-                                  color: '#94a3b8',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center'
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.color = '#39452B')}
-                                onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
-                              >
-                                <Pencil size={13} />
-                              </button>
-                            )}
-                            <ChevronRight size={14} color="#a1a1aa" style={{ flexShrink: 0 }} />
-                          </div>
+                            <ChevronRight size={14} aria-hidden="true" style={{ flexShrink: 0 }} />
+                          </button>
+                          {onShowRenameModal && (
+                            <button
+                              type="button"
+                              className="iconBtn"
+                              aria-label={t('nav.renameTable')}
+                              title={t('nav.renameTable')}
+                              onClick={() => {
+                                onSetRenameType?.('table')
+                                onSetRenameId?.(table.id)
+                                onSetRenameNameValue?.(table.name)
+                                onShowRenameModal?.()
+                              }}
+                              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
+                            >
+                              <Pencil size={13} aria-hidden="true" />
+                            </button>
+                          )}
                         </div>
                       ))
                     ) : (
