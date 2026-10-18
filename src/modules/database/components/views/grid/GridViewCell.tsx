@@ -350,6 +350,13 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
 
   // Hover state for showing + button on empty link_row cells
   const [isCellHovered, setIsCellHovered] = useState(false);
+  // 編輯器可能掛在 portal（document.body），開始編輯時滑鼠離開格子 DOM 不會觸發 onMouseLeave，
+  // 編輯結束後 hover 會卡住（灰底殘留），所以進入編輯時直接清掉
+  const [prevIsEditing, setPrevIsEditing] = useState(isEditing);
+  if (prevIsEditing !== isEditing) {
+    setPrevIsEditing(isEditing);
+    if (isEditing) setIsCellHovered(false);
+  }
   const [isLongTextExpanded, setIsLongTextExpanded] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
   const longTextRef = useRef<HTMLTextAreaElement>(null);
