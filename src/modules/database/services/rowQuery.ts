@@ -347,6 +347,10 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
       if (ref.type === 'lookup') {
         newData[destKey] = values.join(', ')
       } else if (ref.type === 'rollup') {
+        if (ref.rollupFunction === 'concat') {
+          newData[destKey] = values.join(', ')
+          return
+        }
         const numValues = values.map(Number).filter(n => !isNaN(n))
         if (numValues.length === 0) {
           newData[destKey] = 0
@@ -357,8 +361,12 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
           newData[destKey] = numValues.reduce((a, b) => a + b, 0)
         } else if (ref.rollupFunction === 'count') {
           newData[destKey] = numValues.length
-        } else if (ref.rollupFunction === 'average') {
+        } else if (ref.rollupFunction === 'avg' || ref.rollupFunction === 'average') {
           newData[destKey] = numValues.reduce((a, b) => a + b, 0) / numValues.length
+        } else if (ref.rollupFunction === 'min') {
+          newData[destKey] = Math.min(...numValues)
+        } else if (ref.rollupFunction === 'max') {
+          newData[destKey] = Math.max(...numValues)
         } else {
           newData[destKey] = 0
         }

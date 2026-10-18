@@ -259,6 +259,62 @@ describe('getPopulatedTableRows', () => {
   })
 })
 
+describe('getPopulatedTableRows rollup functions', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  async function rollupOf(rollupFunction: string) {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'Items', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+        { id: 2, tableId: 1, name: 'Total', type: 'rollup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10, rollupFunction }) },
+      ])
+      .mockResolvedValueOnce([
+        { id: 10, tableId: 2, name: 'Amount', type: 'number' },
+      ]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 101,
+        tableId: 1,
+        data: { field_1: '[501,502,503]' },
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    ]);
+
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce(
+      [[501, 4], [502, 2], [503, 9]].map(([id, amount]) => ({
+        id,
+        tableId: 2,
+        data: JSON.stringify({ field_10: amount }),
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      }))
+    )
+
+    const result = await getPopulatedTableRows(1, {})
+    return result.rows![0].data['field_2']
+  }
+
+  it.each([
+    ['sum', 15],
+    ['count', 3],
+    ['avg', 5],
+    ['average', 5],
+    ['min', 2],
+    ['max', 9],
+    ['concat', '4, 2, 9'],
+  ])('computes rollup function %s', async (fn, expected) => {
+    expect(await rollupOf(fn)).toBe(expected)
+  })
+})
+
 describe('cleanupFieldDependencies', () => {
   it('cleans up invalid relationFieldId or targetFieldId on dependent lookup fields when target field is deleted', async () => {
     (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
