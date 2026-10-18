@@ -12,6 +12,7 @@ import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { MasterGridView } from '@/modules/database/components/views/master'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
+import { FycdLogo } from '@/components/brand/FycdLogo'
 
 interface WorkspaceDashboardProps {
   currentUser: User
@@ -93,7 +94,7 @@ export default function WorkspaceDashboard({
   if (showMasterView && activeWorkspace) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', overflow: 'hidden' }}>
-        <div style={{ padding: '8px 16px', backgroundColor: '#f4f4f5', borderBottom: '1px solid #e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '8px 16px', backgroundColor: '#f4f4f5', borderBottom: '1px solid #E7E1D3', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button
             onClick={() => setShowMasterView(false)}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #d4d4d8', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '12px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}
@@ -120,7 +121,7 @@ export default function WorkspaceDashboard({
       flex: 1,
       overflowY: 'auto',
       height: '100%',
-      backgroundColor: '#fafafa',
+      backgroundColor: '#FAF8F3',
       fontFamily: 'Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       color: '#09090b',
       boxSizing: 'border-box'
@@ -157,20 +158,13 @@ export default function WorkspaceDashboard({
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: '16px',
-          borderBottom: '1px solid #e4e4e7',
+          borderBottom: '1px solid #E7E1D3',
           paddingBottom: '24px'
         }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <img 
-                src="/logo.png" 
-                alt="FYCD HD Manager Logo" 
-                style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #e4e4e7', boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }} 
-              />
-              <div>
-                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--brand-orange-main, #EA580C)' }}>
-                  FYCD HD Manager
-                </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <FycdLogo variant="full" height={18} />
                 <h1 style={{
                   fontSize: '24px',
                   fontWeight: 800,
@@ -191,17 +185,17 @@ export default function WorkspaceDashboard({
               fontSize: '12px',
               fontWeight: 600,
               color: '#52525b',
-              backgroundColor: '#f4f4f5',
+              backgroundColor: '#F5F0E6',
               padding: '4px 10px',
               borderRadius: '6px',
               marginBottom: '8px',
-              border: '1px solid #e4e4e7'
+              border: '1px solid #E7E1D3'
             }}>
               <span style={{
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#10b981',
+                backgroundColor: '#39452B',
                 display: 'inline-block'
               }} />
               {t('dashboard.welcomeBack', { username: currentUser.username, role: currentUser.role === 'admin' ? t('dashboard.adminRole') : t('dashboard.memberRole') })}
@@ -229,7 +223,7 @@ export default function WorkspaceDashboard({
                   borderRadius: '8px',
                   backgroundColor: '#ffffff',
                   color: '#27272a',
-                  border: '1px solid #e4e4e7',
+                  border: '1px solid #E7E1D3',
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -247,7 +241,7 @@ export default function WorkspaceDashboard({
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#ffffff'
-                  e.currentTarget.style.borderColor = '#e4e4e7'
+                  e.currentTarget.style.borderColor = '#E7E1D3'
                 }}
               >
                 <Users size={15} color="#52525b" /> {t('dashboard.membersCount', { count: memberCount })}
@@ -262,8 +256,8 @@ export default function WorkspaceDashboard({
                   padding: '0 14px',
                   borderRadius: '8px',
                   backgroundColor: '#ffffff',
-                  color: '#365314',
-                  border: '1px solid #bef264',
+                  color: '#39452B',
+                  border: '1px solid rgba(57, 69, 43, 0.4)',
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -271,20 +265,20 @@ export default function WorkspaceDashboard({
                   alignItems: 'center',
                   gap: '6px',
                   transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(63, 98, 18, 0.06)',
+                  boxShadow: '0 1px 2px rgba(57, 69, 43, 0.06)',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f7fee7'
-                  e.currentTarget.style.borderColor = '#a3e635'
+                  e.currentTarget.style.backgroundColor = '#EEF0E8'
+                  e.currentTarget.style.borderColor = '#39452B'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#ffffff'
-                  e.currentTarget.style.borderColor = '#bef264'
+                  e.currentTarget.style.borderColor = 'rgba(57, 69, 43, 0.4)'
                 }}
               >
-                <Layers size={15} color="#3F6212" />
+                <Layers size={15} color="#39452B" />
                 <span>跨表總表</span>
               </button>
             )}
@@ -292,7 +286,7 @@ export default function WorkspaceDashboard({
             {activeWorkspace && onShowDatabaseModal && (
               <button
                 onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-                className="h-9 px-3.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-indigo-500/25 flex items-center gap-1.5 cursor-pointer border-none whitespace-nowrap flex-shrink-0"
+                className="h-9 px-3.5 rounded-lg bg-[#39452B] hover:bg-[#2C3621] text-white font-semibold text-xs tracking-tight transition-all duration-200 active:scale-[0.98] shadow-md shadow-[#39452B]/25 flex items-center gap-1.5 cursor-pointer border-none whitespace-nowrap flex-shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{t('dashboard.addDatabase')}</span>
@@ -311,7 +305,7 @@ export default function WorkspaceDashboard({
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '12px',
-            border: '1px solid #e4e4e7',
+            border: '1px solid #E7E1D3',
             padding: '20px 24px',
             display: 'flex',
             alignItems: 'center',
@@ -331,8 +325,8 @@ export default function WorkspaceDashboard({
               width: '44px',
               height: '44px',
               borderRadius: '10px',
-              backgroundColor: '#F4F4F5',
-              color: '#18181B',
+              backgroundColor: '#EEF0E8',
+              color: '#39452B',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -345,7 +339,7 @@ export default function WorkspaceDashboard({
           <div style={{
             backgroundColor: '#ffffff',
             borderRadius: '12px',
-            border: '1px solid #e4e4e7',
+            border: '1px solid #E7E1D3',
             padding: '20px 24px',
             display: 'flex',
             alignItems: 'center',
@@ -365,8 +359,8 @@ export default function WorkspaceDashboard({
               width: '44px',
               height: '44px',
               borderRadius: '10px',
-              backgroundColor: '#f5f3ff',
-              color: '#7c3aed',
+              backgroundColor: '#FFF1E5',
+              color: '#DD6410',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -397,7 +391,7 @@ export default function WorkspaceDashboard({
               gap: '8px',
               letterSpacing: '-0.01em'
             }}>
-              <Layers size={18} color="#3F6212" /> {t('dashboard.databaseList', { count: filteredDatabases.length })}
+              <Layers size={18} color="#39452B" /> {t('dashboard.databaseList', { count: filteredDatabases.length })}
             </h2>
 
             {/* Clean Command Search Bar */}
@@ -413,7 +407,7 @@ export default function WorkspaceDashboard({
                   height: '36px',
                   padding: '0 12px 0 36px',
                   borderRadius: '8px',
-                  border: '1px solid #e4e4e7',
+                  border: '1px solid #E7E1D3',
                   backgroundColor: '#ffffff',
                   fontSize: '13px',
                   color: '#09090b',
@@ -422,11 +416,11 @@ export default function WorkspaceDashboard({
                   transition: 'all 0.15s ease'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#3F6212'
+                  e.currentTarget.style.borderColor = '#39452B'
                   e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.1)'
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = '#e4e4e7'
+                  e.currentTarget.style.borderColor = '#E7E1D3'
                   e.currentTarget.style.boxShadow = 'none'
                 }}
               />
@@ -526,7 +520,7 @@ export default function WorkspaceDashboard({
                   style={{
                     backgroundColor: '#ffffff',
                     borderRadius: '12px',
-                    border: '1px solid #e4e4e7',
+                    border: '1px solid #E7E1D3',
                     padding: '20px',
                     display: 'flex',
                     flexDirection: 'column',
@@ -539,7 +533,7 @@ export default function WorkspaceDashboard({
                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#e4e4e7'
+                    e.currentTarget.style.borderColor = '#E7E1D3'
                     e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.02)'
                   }}
                 >
@@ -557,7 +551,7 @@ export default function WorkspaceDashboard({
                         justifyContent: 'center',
                         flexShrink: 0
                       }}>
-                        <DatabaseIcon size={18} color="#3F6212" />
+                        <DatabaseIcon size={18} color="#39452B" />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -609,7 +603,7 @@ export default function WorkspaceDashboard({
                                 justifyContent: 'center',
                                 flexShrink: 0
                               }}
-                              onMouseEnter={(e) => (e.currentTarget.style.color = '#3F6212')}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#39452B')}
                               onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
                             >
                               <Pencil size={13} />
@@ -645,7 +639,7 @@ export default function WorkspaceDashboard({
                         onMouseEnter={(e) => {
                           e.currentTarget.style.backgroundColor = '#F4F4F5'
                           e.currentTarget.style.borderColor = '#E4E4E7'
-                          e.currentTarget.style.color = '#3F6212'
+                          e.currentTarget.style.color = '#39452B'
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.backgroundColor = '#f1f5f9'
@@ -709,7 +703,7 @@ export default function WorkspaceDashboard({
                           title={`${table.name} (${t('dashboard.doubleClickRename')})`}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                            <TableIcon size={14} color="#3F6212" style={{ flexShrink: 0 }} />
+                            <TableIcon size={14} color="#39452B" style={{ flexShrink: 0 }} />
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {table.name}
                             </span>
@@ -737,7 +731,7 @@ export default function WorkspaceDashboard({
                                   alignItems: 'center',
                                   justifyContent: 'center'
                                 }}
-                                onMouseEnter={(e) => (e.currentTarget.style.color = '#3F6212')}
+                                onMouseEnter={(e) => (e.currentTarget.style.color = '#39452B')}
                                 onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
                               >
                                 <Pencil size={13} />
