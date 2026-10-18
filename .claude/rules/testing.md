@@ -17,3 +17,5 @@ paths:
 ## 錯誤紀錄
 
 （格式：`- 根因 → 以後做法`，一到兩行，必須可執行）
+
+- jest 預設 worker 數是核心數 − 1（22 核心開 21 個），jsdom worker 合計約 5.4 GB，加上 dev server／其他 session 就分頁，MasterGridView、AiComponents 等元件測試隨機「Exceeded timeout of 5000 ms」→ `jest.config.js` 保持 `maxWorkers: '50%'`；再遇到隨機逾時，先比較同時跑 3 份 `npx jest` 與加 `--maxWorkers` 的結果，不要調高 testTimeout
