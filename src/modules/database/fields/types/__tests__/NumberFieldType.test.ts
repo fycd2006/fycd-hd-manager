@@ -14,7 +14,7 @@ describe('NumberFieldType', () => {
     expect(type.validateValue(input, options)).toEqual({ valid: true, parsedValue: expected })
   })
 
-  it.each(['Infinity', 'NaN', '0x10', '1e3x', 'abc'])('rejects %j as invalid_number', (input) => {
+  it.each<unknown>(['Infinity', 'NaN', '0x10', '1e3x', 'abc', true])('rejects %j as invalid_number', (input) => {
     const res = type.validateValue(input, undefined)
     expect(res).toMatchObject({ valid: false, code: 'invalid_number' })
   })

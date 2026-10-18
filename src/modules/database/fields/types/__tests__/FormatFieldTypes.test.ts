@@ -7,6 +7,10 @@ describe.each(['text', 'long_text', 'password', 'ai_prompt'])('%s', (type) => {
     expect(v(type, '  abc ')).toEqual({ valid: true, parsedValue: 'abc' })
     expect(v(type, '   ')).toEqual({ valid: true, parsedValue: null })
     expect(v(type, 123)).toEqual({ valid: true, parsedValue: '123' })
+    expect(v(type, true)).toEqual({ valid: true, parsedValue: 'true' })
+  })
+  it.each<unknown>([{ a: 1 }, ['x'], []])('%j -> invalid_format', (input) => {
+    expect(v(type, input)).toMatchObject({ valid: false, code: 'invalid_format', error: '必須是文字' })
   })
 })
 
@@ -19,6 +23,8 @@ describe('email', () => {
 
 describe('url', () => {
   it('adds https', () => expect(v('url', 'example.com/x')).toEqual({ valid: true, parsedValue: 'https://example.com/x' }))
+  it('adds https to www.', () => expect(v('url', 'www.example.com')).toEqual({ valid: true, parsedValue: 'https://www.example.com' }))
+  it('accepts a bare host (current behavior)', () => expect(v('url', 'example')).toEqual({ valid: true, parsedValue: 'https://example' }))
   it('keeps http', () => expect(v('url', 'http://a.tw')).toEqual({ valid: true, parsedValue: 'http://a.tw' }))
   it.each(['javascript:alert(1)', 'ftp://a'])('%s -> invalid_url', (x) => {
     expect(v('url', x)).toMatchObject({ valid: false, code: 'invalid_url' })

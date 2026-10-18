@@ -11,7 +11,7 @@ describe('BooleanFieldType', () => {
     expect(type.validateValue(input)).toEqual({ valid: true, parsedValue: false })
   })
 
-  it.each<unknown>(['abc', '2'])('%j -> invalid_boolean', (input) => {
+  it.each<unknown>(['abc', '2', 2])('%j -> invalid_boolean', (input) => {
     expect(type.validateValue(input)).toMatchObject({ valid: false, code: 'invalid_boolean' })
   })
 

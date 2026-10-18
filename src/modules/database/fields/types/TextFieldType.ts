@@ -9,6 +9,9 @@ export class TextFieldType implements FieldType {
     if (value === null || value === undefined) {
       return { valid: true, parsedValue: null }
     }
+    if (typeof value === 'object') {
+      return { valid: false, code: 'invalid_format', error: '必須是文字' }
+    }
     const strVal = String(value).trim()
     if (strVal === '') {
       return { valid: true, parsedValue: null }
