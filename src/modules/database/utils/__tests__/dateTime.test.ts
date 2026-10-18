@@ -64,6 +64,15 @@ describe('dateTime', () => {
     expect(toEditorValue('2026-10-18T06:30:00.000Z', { date_time_zone: 'Asia/Taipei' })).toBe('2026-10-18')
     expect(fromEditorValue('', TPE)).toBeNull()
   })
+
+  it('date-only editor seeds a legacy UTC instant with the field-zone day', () => {
+    const legacy = '2026-10-17T23:59:00.000Z'
+    expect(cellDayInZone(legacy, 'Asia/Taipei')).toBe('2026-10-18')
+    expect(toEditorValue(legacy, { date_time_zone: 'Asia/Taipei' })).toBe('2026-10-18')
+    expect(toEditorValue('2026-10-17T20:00:00+08:00', { date_time_zone: 'UTC' })).toBe('2026-10-17')
+    expect(toEditorValue('2026-10-17T23:59:00.000Z', { date_time_zone: 'client' }, 'Asia/Taipei')).toBe('2026-10-18')
+    expect(toEditorValue('2026-10-17', { date_time_zone: 'Asia/Taipei' })).toBe('2026-10-17')
+  })
 })
 
 describe('formatFieldDate', () => {

@@ -264,6 +264,10 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
     if (writeQueueRef.current) enqueueWrite(() => onUpdateProp(val));
     else onUpdateProp(val);
   }, [enqueueWrite, onUpdateProp]);
+  const commitEdit = (v: string) => {
+    if (isDateTimeEditor && v === toEditorValue(value, field.options)) return;
+    onUpdate(commitDateVal(v));
+  };
   const longTextDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [selectActiveIndex, setSelectActiveIndex] = useState<number>(0);
 
@@ -337,7 +341,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         if (field.type === 'number') {
           onUpdate(parseNumberInput(localValRef.current));
         } else {
-          onUpdate(commitDateVal(localValRef.current));
+          commitEdit(localValRef.current);
         }
       }
     }
@@ -1539,7 +1543,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
             if (field.type === 'number') {
               onUpdate(parseNumberInput(localVal));
             } else {
-              onUpdate(commitDateVal(localVal));
+              commitEdit(localVal);
             }
             onCancelEdit();
           }}
@@ -1551,7 +1555,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
               if (field.type === 'number') {
                 onUpdate(parseNumberInput(localVal));
               } else {
-                onUpdate(commitDateVal(localVal));
+                commitEdit(localVal);
               }
               onCancelEdit();
               onNavigateCell?.(isShift ? 'prevRow' : 'nextRow');
@@ -1562,7 +1566,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
               if (field.type === 'number') {
                 onUpdate(parseNumberInput(localVal));
               } else {
-                onUpdate(commitDateVal(localVal));
+                commitEdit(localVal);
               }
               onCancelEdit();
               onNavigateCell?.(isShift ? 'prevCol' : 'nextCol');

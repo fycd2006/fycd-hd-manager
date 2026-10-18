@@ -7,7 +7,7 @@ import { ChevronRight, ChevronDown, Plus, Trash2, X, Copy } from 'lucide-react';
 import { TableField, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '@/modules/database/types';
 import { getOptionColor, parseSelectItems, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils';
 import { parseLatestCommentEntries } from './cells/LatestCommentModal';
-import { formatFieldDate } from '@/modules/database/utils/dateTime';
+import { formatFieldDate, cellDayInZone, resolveDateOptions, resolveTimeZone, normalizeDateInput } from '@/modules/database/utils/dateTime';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -63,7 +63,7 @@ export function formatCellForClipboard(val: any, field?: TableField | null, allF
     }
 
     if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') {
-      return formatFieldDate(val, field.options, { fieldType: field.type });
+      return formatFieldDate(val, { ...resolveDateOptions(field.options, field.type), date_format: 'iso', date_time_format: '24', date_show_time_zone: false }, { fieldType: field.type });
     }
   }
 
@@ -265,7 +265,9 @@ export function parseGroupValue(
   // 5. Date
   if (field && (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on')) {
     const dateStr = String(val).trim();
-    if (!dateStr) {
+    const options = resolveDateOptions(field.options, field.type);
+    const day = cellDayInZone(dateStr, resolveTimeZone(options));
+    if (!day) {
       return {
         key: '（空白）',
         displayTitle: '（空白未指定）',
@@ -273,9 +275,9 @@ export function parseGroupValue(
         isBlank: true,
       };
     }
-    const formatted = formatFieldDate(dateStr, field.options, { fieldType: field.type });
+    const formatted = formatFieldDate(day, { ...options, date_include_time: false }, { fieldType: 'date' });
     return {
-      key: formatted,
+      key: day,
       displayTitle: formatted,
       badges: [{
         label: formatted,
@@ -961,7 +963,10 @@ export const GridView: React.FC<GridViewProps> = ({
       const sortedEntries = Array.from(map.entries()).sort(([keyA, dataA], [keyB, dataB]) => {
         if (dataA.isBlank && !dataB.isBlank) return 1;
         if (!dataA.isBlank && dataB.isBlank) return -1;
-        const cmp = dataA.displayTitle.localeCompare(dataB.displayTitle, 'zh-TW', { numeric: true });
+        const isDateGroup = field?.type === 'date' || field?.type === 'created_on' || field?.type === 'last_modified_on';
+        const cmp = isDateGroup
+          ? (keyA < keyB ? -1 : keyA > keyB ? 1 : 0)
+          : dataA.displayTitle.localeCompare(dataB.displayTitle, 'zh-TW', { numeric: true });
         return rule.order === 'desc' ? -cmp : cmp;
       });
 
@@ -1311,8 +1316,13 @@ export const GridView: React.FC<GridViewProps> = ({
 
     const rowMap = new Map<number, Record<string, any>>();
 
-    // Send the pasted text as-is (trimmed); the server parses and validates per field type
-    const sanitizePastedVal = (raw: string): string => (raw ?? '').trim();
+    // Send the pasted text as-is (trimmed); the server parses and validates per field type.
+    // Date text is converted in the browser first so client-zone wall times use the viewer's zone.
+    const sanitizePastedVal = (raw: string, field?: TableField): string => {
+      const text = (raw ?? '').trim();
+      if (field?.type === 'date' && text) return normalizeDateInput(text, field.options) ?? text;
+      return text;
+    };
 
     if (selectionBounds && selectionBounds.isMulti) {
       // Batch paste into multi-cell selection bounds
@@ -1332,7 +1342,7 @@ export const GridView: React.FC<GridViewProps> = ({
 
           if (targetRow && targetField) {
             const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
             rowMap.set(targetRow.id, map);
           }
         }
@@ -1356,7 +1366,7 @@ export const GridView: React.FC<GridViewProps> = ({
               const targetColIndex = startCol + cOffset;
               if (targetColIndex < fields.length) {
                 const targetField = fields[targetColIndex];
-                newRowData[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
+                newRowData[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
               }
             });
           }
@@ -1376,7 +1386,7 @@ export const GridView: React.FC<GridViewProps> = ({
           const targetField = fields[targetColIndex];
           if (targetRow && targetField) {
             const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
             rowMap.set(targetRow.id, map);
           }
         });

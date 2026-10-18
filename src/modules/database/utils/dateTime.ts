@@ -163,7 +163,12 @@ export function dayRangeUtc(day: string, timeZone: string): [string, string] {
 
 export function toEditorValue(value: unknown, options: unknown, viewerTz?: string): string {
   const opts = resolveDateOptions(options)
-  if (!opts.date_include_time) return normalizeDateInput(value, opts) ?? ''
+  if (!opts.date_include_time) {
+    if (typeof value === 'string' && /T.*(Z|[+-]\d{2}:?\d{2})$/i.test(value.trim())) {
+      return cellDayInZone(value, resolveTimeZone(opts, viewerTz)) ?? ''
+    }
+    return normalizeDateInput(value, opts) ?? ''
+  }
   if (typeof value !== 'string' || !value.trim()) return ''
   const text = value.trim()
   const dayOnly = /^\d{4}-\d{2}-\d{2}$/.test(text) ? parseDateOnly(text) : null

@@ -80,3 +80,40 @@ describe('date cell editor follows the field date options', () => {
     expect(onUpdate).toHaveBeenCalledWith('2026-10-20');
   });
 });
+
+describe('date-time cell editor does not rewrite an unchanged value', () => {
+  const dtOptions = { date_include_time: true, date_time_zone: 'Asia/Taipei' };
+  const stored = '2026-10-18T06:30:45.123Z';
+
+  it('blur without change does not call onUpdate', () => {
+    const { input, onUpdate } = renderEditingCell(dtOptions, stored);
+    expect(input.value).toBe('2026-10-18T14:30');
+    fireEvent.blur(input);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('Enter without change does not call onUpdate', () => {
+    const { input, onUpdate } = renderEditingCell(dtOptions, stored);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('stop-edit without change does not call onUpdate', () => {
+    const onUpdate = jest.fn();
+    const field: TableField = { id: 9, tableId: 1, name: '日期', type: 'date', order: 0, options: JSON.stringify(dtOptions) };
+    const props = {
+      rowId: 1, field, value: stored, isSelected: true,
+      onSelect: jest.fn(), onStartEdit: jest.fn(), onUpdate, onUpdateField: jest.fn(), onCancelEdit: jest.fn(),
+    };
+    const { rerender } = render(<GridViewCell {...props} isEditing />);
+    rerender(<GridViewCell {...props} isEditing={false} />);
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
+  it('a changed value is still committed on blur', () => {
+    const { input, onUpdate } = renderEditingCell(dtOptions, stored);
+    fireEvent.change(input, { target: { value: '2026-10-18T14:31' } });
+    fireEvent.blur(input);
+    expect(onUpdate).toHaveBeenCalledWith('2026-10-18T06:31:00.000Z');
+  });
+});

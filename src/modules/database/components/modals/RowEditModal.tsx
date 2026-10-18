@@ -7,7 +7,7 @@ import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import RowCommentsPanel, { ActivityLogEntry } from './RowCommentsPanel'
 import CollaboratorSelector from './CollaboratorSelector'
 import AdvancedFieldInputs from './AdvancedFieldInputs'
-import { toEditorValue, fromEditorValue, resolveDateOptions } from '@/modules/database/utils/dateTime'
+import { toEditorValue, fromEditorValue, resolveDateOptions, formatFieldDate } from '@/modules/database/utils/dateTime'
 import { renderFormulaCell, parseNumberInput } from '../views/grid/GridViewCell'
 import ModalOverlay from '@/components/ui/ModalOverlay'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -41,7 +41,7 @@ export default function RowEditModal({
   currentUser,
   readOnly = false
 }: RowEditModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [formData, setFormData] = useState<Record<string, any>>({})
   const focusValuesRef = useRef<Record<string, any>>({})
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
@@ -369,7 +369,7 @@ export default function RowEditModal({
                         </div>
                       ) : ['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'uuid'].includes(field.type) ? (
                         <div style={{ padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span>{value !== null && value !== undefined ? String(value) : ''}</span>
+                          <span>{field.type === 'created_on' || field.type === 'last_modified_on' ? formatFieldDate(value, field.options, { locale, fieldType: field.type }) : value !== null && value !== undefined ? String(value) : ''}</span>
                           <span style={{ fontSize: '11px', color: '#64748b', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>{t('rowEditModal.readOnly')}</span>
                         </div>
                       ) : (
