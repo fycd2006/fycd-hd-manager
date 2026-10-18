@@ -349,7 +349,19 @@
     "doubleClickRename": "雙擊或點擊圖示可重新命名",
     "tableCount": "{count} 張資料表",
     "addTable": "新增資料表",
-    "emptyTable": "尚無資料表"
+    "emptyTable": "尚無資料表",
+    "databaseCountLabel": "資料庫數",
+    "tableCountLabel": "資料表數",
+    "masterView": "跨表總表",
+    "backToOverview": "返回工作區總覽",
+    "masterViewTitle": "{workspace} · 跨表總表",
+    "showAllTables": "顯示全部（{count}）",
+    "showLess": "收合",
+    "templateProject": "專案範本",
+    "templateCrm": "CRM 範本",
+    "templateFinance": "財務範本",
+    "templateHr": "人資範本",
+    "welcomeLine": "歡迎回來，{username} · {role}"
   },
   "auth": {
     "systemTitle": "雲端資料庫與團隊工作區管理系統",

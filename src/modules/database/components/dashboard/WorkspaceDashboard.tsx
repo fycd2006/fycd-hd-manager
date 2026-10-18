@@ -6,7 +6,7 @@ import {
   Database as DatabaseIcon, Table as TableIcon, Users, Plus, 
   Sparkles, FolderPlus, Layers, ChevronRight, Search,
   ArrowUpRight, ShieldCheck, Activity, Filter, Command,
-  ArrowRight, Clock, Zap, Pencil, Trash2
+  ArrowRight, ArrowLeft, Clock, Zap, Pencil, Trash2
 } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -99,10 +99,11 @@ export default function WorkspaceDashboard({
             onClick={() => setShowMasterView(false)}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #d4d4d8', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '12px', fontWeight: 600, color: '#374151', cursor: 'pointer' }}
           >
-            ← 返回工作區總覽
+            <ArrowLeft size={14} aria-hidden="true" />
+            <span>{t('dashboard.backToOverview')}</span>
           </button>
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#3f3f46' }}>
-            {activeWorkspace.name} · 跨表總表
+            {t('dashboard.masterViewTitle', { workspace: activeWorkspace.name })}
           </span>
         </div>
         <div style={{ flex: 1, minHeight: 0 }}>
@@ -178,37 +179,13 @@ export default function WorkspaceDashboard({
               </div>
             </div>
 
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: '#52525b',
-              backgroundColor: '#F5F0E6',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              marginBottom: '8px',
-              border: '1px solid #E7E1D3'
-            }}>
-              <span style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#39452B',
-                display: 'inline-block'
-              }} />
-              {t('dashboard.welcomeBack', { username: currentUser.username, role: currentUser.role === 'admin' ? t('dashboard.adminRole') : t('dashboard.memberRole') })}
-            </div>
-            
             <p style={{
               fontSize: '13px',
               color: '#71717a',
               margin: 0,
-              maxWidth: '520px',
               lineHeight: 1.5
             }}>
-              {t('dashboard.description')}
+              {t('dashboard.welcomeLine', { username: currentUser.username, role: currentUser.role === 'admin' ? t('dashboard.adminRole') : t('dashboard.memberRole') })}
             </p>
           </div>
 
@@ -279,7 +256,7 @@ export default function WorkspaceDashboard({
                 }}
               >
                 <Layers size={15} color="#39452B" />
-                <span>跨表總表</span>
+                <span>{t('dashboard.masterView')}</span>
               </button>
             )}
 
@@ -314,7 +291,7 @@ export default function WorkspaceDashboard({
           }}>
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                DATABASE COUNT
+                {t('dashboard.databaseCountLabel')}
               </div>
               <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline' }}>
                 <SlidingNumber number={databases.length} inView={true} />
@@ -348,7 +325,7 @@ export default function WorkspaceDashboard({
           }}>
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                TOTAL TABLES
+                {t('dashboard.tableCountLabel')}
               </div>
               <div style={{ fontSize: '26px', fontWeight: 800, color: '#09090b', marginTop: '4px', letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline' }}>
                 <SlidingNumber number={totalTablesCount} inView={true} />
@@ -483,25 +460,25 @@ export default function WorkspaceDashboard({
                         onClick={() => onCreateFromTemplate('project')}
                         style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#e0f2fe', color: '#0284c7', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
                       >
-                        🚀 專案範本
+                        {t('dashboard.templateProject')}
                       </button>
                       <button
                         onClick={() => onCreateFromTemplate('crm')}
                         style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#fce7f3', color: '#db2777', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
                       >
-                        💼 CRM 範本
+                        {t('dashboard.templateCrm')}
                       </button>
                       <button
                         onClick={() => onCreateFromTemplate('finance')}
                         style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#dcfce7', color: '#16a34a', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
                       >
-                        💰 財務範本
+                        {t('dashboard.templateFinance')}
                       </button>
                       <button
                         onClick={() => onCreateFromTemplate('hr')}
                         style={{ padding: '6px 12px', borderRadius: '6px', backgroundColor: '#fef3c7', color: '#d97706', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
                       >
-                        👥 人資範本
+                        {t('dashboard.templateHr')}
                       </button>
                     </div>
                   )}
