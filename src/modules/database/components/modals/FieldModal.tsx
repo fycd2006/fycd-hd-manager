@@ -16,6 +16,8 @@ import { safeJsonParse } from '@/lib/json-utils'
 import { FieldTypeSelector } from './FieldTypeSelector'
 import { FieldModalHeader } from './FieldModalHeader'
 import { NumberFieldOptions } from './field-options/NumberFieldOptions'
+import { DateFieldOptions } from './field-options/DateFieldOptions'
+import { resolveDateOptions, type DateOptions } from '@/modules/database/utils/dateTime'
 import { SelectFieldOptions, type SelectOptionItem } from './field-options/SelectFieldOptions'
 import { LinkRowFieldOptions } from './field-options/LinkRowFieldOptions'
 import { RollupLookupFieldOptions } from './field-options/RollupLookupFieldOptions'
@@ -65,6 +67,13 @@ export function FieldModal({
   const [numberFormat, setNumberFormat] = useState<string>('thousands')
   const [numberPrefix, setNumberPrefix] = useState<string>('')
   const [numberSuffix, setNumberSuffix] = useState<string>('')
+  // Date field options state (date / created_on / last_modified_on)
+  const [dateOptions, setDateOptions] = useState<DateOptions>(() => resolveDateOptions(null, 'date'))
+  const isDateType = (ft: string) => ft === 'date' || ft === 'created_on' || ft === 'last_modified_on'
+  const handleTypeChange = (next: string) => {
+    setType(next)
+    if (!editField && isDateType(next)) setDateOptions(resolveDateOptions(null, next))
+  }
 
   const [fetchedTargetFields, setFetchedTargetFields] = useState<any[]>([])
 
@@ -141,6 +150,7 @@ export function FieldModal({
       if (editField) {
         setName(editField.name || '')
         setType(editField.type || 'text')
+        setDateOptions(resolveDateOptions(editField.options, editField.type))
         setTypeDropdownOpen(false)
         let choices: SelectOptionItem[] = []
         let formulaStr = ''
@@ -212,6 +222,7 @@ export function FieldModal({
         setNumberFormat('thousands')
         setNumberPrefix('')
         setNumberSuffix('')
+        setDateOptions(resolveDateOptions(null, 'date'))
         setCreateRelatedField(true)
         setAllowMultiple(true)
       }
@@ -269,6 +280,8 @@ export function FieldModal({
           number_prefix: numberPrefix,
           number_suffix: numberSuffix
         }
+      } else if (isDateType(type)) {
+        parsedOptions = { ...dateOptions }
       }
 
       await onSubmit(name.trim(), type, parsedOptions)
@@ -318,7 +331,7 @@ export function FieldModal({
 
             <FieldTypeSelector
               type={type}
-              setType={setType}
+              setType={handleTypeChange}
               setName={setName}
               typeDropdownOpen={typeDropdownOpen}
               setTypeDropdownOpen={setTypeDropdownOpen}
@@ -336,6 +349,10 @@ export function FieldModal({
                 numberSuffix={numberSuffix}
                 setNumberSuffix={setNumberSuffix}
               />
+            )}
+
+            {isDateType(type) && (
+              <DateFieldOptions value={dateOptions} onChange={setDateOptions} fieldType={type} />
             )}
 
             {(type === 'single_select' || type === 'multiple_select') && (

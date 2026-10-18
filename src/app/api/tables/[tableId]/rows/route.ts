@@ -196,8 +196,7 @@ export async function PATCH(
     }
 
     const username = await getSessionUsername()
-    const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-    const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
+    const nowStr = new Date().toISOString()
 
     let updateMap: Record<string, any> = {}
     if (typeof data === 'object' && data !== null && !Array.isArray(data)) {

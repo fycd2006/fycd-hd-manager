@@ -7,7 +7,7 @@ import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import RowCommentsPanel, { ActivityLogEntry } from './RowCommentsPanel'
 import CollaboratorSelector from './CollaboratorSelector'
 import AdvancedFieldInputs from './AdvancedFieldInputs'
-import { formatDateValue } from '@/modules/database/utils'
+import { toEditorValue, fromEditorValue, resolveDateOptions, formatFieldDate } from '@/modules/database/utils/dateTime'
 import { renderFormulaCell, parseNumberInput } from '../views/grid/GridViewCell'
 import ModalOverlay from '@/components/ui/ModalOverlay'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -41,7 +41,7 @@ export default function RowEditModal({
   currentUser,
   readOnly = false
 }: RowEditModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [formData, setFormData] = useState<Record<string, any>>({})
   const focusValuesRef = useRef<Record<string, any>>({})
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
@@ -369,18 +369,18 @@ export default function RowEditModal({
                         </div>
                       ) : ['lookup', 'rollup', 'count', 'created_on', 'last_modified_on', 'created_by', 'last_modified_by', 'autonumber', 'uuid'].includes(field.type) ? (
                         <div style={{ padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span>{value !== null && value !== undefined ? String(value) : ''}</span>
+                          <span>{field.type === 'created_on' || field.type === 'last_modified_on' ? formatFieldDate(value, field.options, { locale, fieldType: field.type }) : value !== null && value !== undefined ? String(value) : ''}</span>
                           <span style={{ fontSize: '11px', color: '#64748b', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px', fontWeight: 500 }}>{t('rowEditModal.readOnly')}</span>
                         </div>
                       ) : (
                         <input
-                          type={field.type === 'date' ? 'date' : 'text'}
+                          type={field.type === 'date' ? (resolveDateOptions(field.options, field.type).date_include_time ? 'datetime-local' : 'date') : 'text'}
                           inputMode={field.type === 'number' ? 'decimal' : undefined}
                           readOnly={readOnly}
-                          value={field.type === 'date' ? formatDateValue(value) : (value ?? '')}
+                          value={field.type === 'date' ? toEditorValue(value, field.options) : (value ?? '')}
                           onFocus={() => handleFocusField(fieldKey)}
                           onChange={e => {
-                            const val = e.target.value
+                            const val = field.type === 'date' ? (fromEditorValue(e.target.value, field.options) ?? '') : e.target.value
                             handleChange(field.id, val, false)
                           }}
                           onBlur={e => {
@@ -390,7 +390,7 @@ export default function RowEditModal({
                               handleChange(field.id, num, false)
                               commitFieldChangeLog(fieldKey, num)
                             } else {
-                              commitFieldChangeLog(fieldKey, val)
+                              commitFieldChangeLog(fieldKey, field.type === 'date' ? (fromEditorValue(val, field.options) ?? '') : val)
                             }
                           }}
                           placeholder={t('rowEditModal.enterPlaceholder')}

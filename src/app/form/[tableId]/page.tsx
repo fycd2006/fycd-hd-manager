@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { parseNumberInput } from '@/modules/database/components/views/grid/cells/utils'
+import { toEditorValue, fromEditorValue, resolveDateOptions } from '@/modules/database/utils/dateTime'
 
 interface TableField {
   id: number
@@ -349,9 +350,9 @@ export default function PublicFormPage() {
                     {/* DATE */}
                     {field.type === 'date' && (
                       <input
-                        type="date"
-                        value={val == null ? '' : val}
-                        onChange={e => handleInputChange(key, e.target.value)}
+                        type={resolveDateOptions(field.options, field.type).date_include_time ? 'datetime-local' : 'date'}
+                        value={val == null ? '' : toEditorValue(val, field.options)}
+                        onChange={e => handleInputChange(key, fromEditorValue(e.target.value, field.options) ?? '')}
                         required={isRequired}
                         style={{ padding: '10px 12px', background: 'rgba(15,15,35,0.5)', border: '1px solid rgba(63, 98, 18,0.15)', borderRadius: '6px', color: 'white', outline: 'none' }}
                         onFocus={e => e.target.style.borderColor = '#3F6212'}

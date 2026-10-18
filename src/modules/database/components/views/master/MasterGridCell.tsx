@@ -11,7 +11,7 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react'
-import { formatDateValue } from '@/modules/database/utils'
+import { formatFieldDate } from '@/modules/database/utils/dateTime'
 import {
   parseSelectItems,
   getOptionColor,
@@ -541,7 +541,7 @@ function renderCellValueContent(
 
   // 12. Date & Audit Dates (日期 / 建立時間 / 最後修改時間)
   if (fieldType === 'date' || fieldType === 'created_on' || fieldType === 'last_modified_on') {
-    const dStr = formatDateValue(val)
+    const dStr = formatFieldDate(val, tableFieldInfo?.options ?? unifiedCol?.options, { fieldType })
     return (
       <span style={{ fontSize: '12px', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
         {fieldType === 'created_on' || fieldType === 'last_modified_on' ? <Clock size={11} color="#94a3b8" /> : null}

@@ -1,6 +1,7 @@
 import React from 'react'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { GalleryViewSkeleton } from './GalleryViewSkeleton'
+import { formatFieldDate } from '@/modules/database/utils/dateTime'
 
 interface TableField {
   id: number
@@ -8,6 +9,7 @@ interface TableField {
   name: string
   type: string
   order: number
+  options?: string | null
 }
 
 type CellValue = string | number | boolean | null | CellValue[] | { [key: string]: CellValue }
@@ -125,6 +127,9 @@ export default function GalleryView({
                     if (val == null || val === '') return null
                     
                     let displayVal = String(val)
+                    if (f.type === 'date' || f.type === 'created_on' || f.type === 'last_modified_on') {
+                      displayVal = formatFieldDate(val, f.options, { fieldType: f.type })
+                    }
                     if (f.type === 'link_row' && Array.isArray(val)) {
                       displayVal = val.map(item => typeof item === 'object' ? (item as any)?.value : item).join(', ')
                     }

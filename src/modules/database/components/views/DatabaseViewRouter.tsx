@@ -6,7 +6,8 @@ import CalendarView from './calendar/CalendarView'
 import TimelineView from './timeline/TimelineView'
 import FormView from './form/FormView'
 import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '../../types'
-import { formatDateValue } from '../../utils'
+import { formatFieldDate } from '@/modules/database/utils/dateTime'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface DatabaseViewRouterProps {
   currentView: ViewType
@@ -129,6 +130,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   stageMoveRows,
   cancelMoveRows,
 }) => {
+  const { locale } = useI18n()
   const activeView = views?.find(v => v.id === activeViewId)
 
   return (
@@ -188,7 +190,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           renderCellContent={(row: TableRow, field: TableField) => {
             const val = row.data[`field_${field.id}`]
             if (val === null || val === undefined) return ''
-            if (field.type === 'date') return formatDateValue(val)
+            if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') return formatFieldDate(val, field.options, { locale, fieldType: field.type })
             if (Array.isArray(val)) {
               return val.map((item, i) => (
                 <span key={i} className="tag">

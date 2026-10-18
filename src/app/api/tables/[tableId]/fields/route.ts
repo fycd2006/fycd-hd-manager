@@ -74,8 +74,6 @@ export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createFie
       try {
         const sessionUser = await getSessionUser()
         const currentUsername = sessionUser?.username || '系統 (System)'
-        const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-        const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
         const existingRows = await prisma.tableRow.findMany({
           where: { tableId: id, deletedAt: null }
@@ -90,7 +88,7 @@ export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createFie
                 if (type === 'created_by' || type === 'last_modified_by') {
                   dataObj[key] = currentUsername
                 } else {
-                  dataObj[key] = new Date(r.createdAt || Date.now()).toLocaleDateString('zh-TW', dateOpt) || nowStr
+                  dataObj[key] = new Date(r.createdAt || Date.now()).toISOString()
                 }
               }
               await tx.tableRow.update({
