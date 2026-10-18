@@ -7,7 +7,7 @@ describe('link_row', () => {
   it.each<unknown>([[[1, '2', { id: 3 }]], ['5'], [5]])('keeps %j unchanged', (input) => {
     expect(v('link_row', input)).toEqual(ok(input))
   })
-  it.each<unknown>([{ foo: 1 }, [{}]])('%j -> invalid_format', (input) => {
+  it.each<unknown>([{ foo: 1 }, [{}], true])('%j -> invalid_format', (input) => {
     expect(v('link_row', input)).toMatchObject({ valid: false, code: 'invalid_format' })
   })
 })

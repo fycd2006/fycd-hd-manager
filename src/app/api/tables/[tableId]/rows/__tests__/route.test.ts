@@ -157,7 +157,7 @@ describe('Route Handler Integration: PATCH /api/tables/[tableId]/rows', () => {
     const body = await response.json()
 
     expect(response.status).toBe(400)
-    expect(body.error).toContain('必須為數字')
+    expect(body.error).toBe('欄位 [Price] 驗證失敗：必須是有效的數字')
     expect(prisma.$executeRaw).not.toHaveBeenCalled()
   })
 

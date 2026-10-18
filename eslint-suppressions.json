@@ -274,7 +274,7 @@
   },
   "src/app/api/tables/[tableId]/rows/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 6
     },
     "prefer-const": {
       "count": 2
@@ -1031,11 +1031,6 @@
     },
     "prefer-const": {
       "count": 1
-    }
-  },
-  "src/modules/database/services/rowValidation.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
     }
   },
   "src/modules/database/services/schemaService.ts": {
