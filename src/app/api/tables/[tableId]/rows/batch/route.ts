@@ -37,11 +37,10 @@ function emitFieldUpdates(
   tableId: number,
   fields: Array<{ id: number }>,
   updated: Array<{ id: number; options: unknown }>,
-  socketId: string | undefined,
 ) {
   for (const u of updated) {
     const original = fields.find((f) => f.id === u.id)
-    triggerTableEvent(tableId, 'field-updated', { field: { ...original, ...u } }, socketId)
+    triggerTableEvent(tableId, 'field-updated', { field: { ...original, ...u } })
   }
 }
 
@@ -209,7 +208,7 @@ export async function POST(
     // Batch event
     triggerTableEvent(id, 'rows-batch-changed', { type: 'create', count: createdRows.length }, socketId)
 
-    emitFieldUpdates(id, fields, updatedFields, socketId)
+    emitFieldUpdates(id, fields, updatedFields)
 
     return NextResponse.json({ rows: createdRows, rejected: rejectedCells }, { status: 201 })
   } catch (error: unknown) {
@@ -434,7 +433,7 @@ export async function PATCH(
 
     triggerTableEvent(id, 'rows-batch-updated', { updates: updatedResults }, socketId)
 
-    emitFieldUpdates(id, fields, updatedFields, socketId)
+    emitFieldUpdates(id, fields, updatedFields)
 
     return NextResponse.json({ ok: true, updates: updatedResults, rejected: rejectedCells }, { status: 200 })
   } catch (error: unknown) {

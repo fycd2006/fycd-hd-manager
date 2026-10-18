@@ -121,7 +121,7 @@ export async function POST(
     const socketId = body?.socket_id || body?.data?.socket_id
     triggerTableEvent(id, 'row-created', { row: createdRow }, socketId)
     for (const u of result.updatedFields ?? []) {
-      triggerTableEvent(id, 'field-updated', { field: u }, socketId)
+      triggerTableEvent(id, 'field-updated', { field: u })
     }
 
     return NextResponse.json(createdRow, { status: 201 })
@@ -297,7 +297,7 @@ export async function PATCH(
         })
         for (const u of updatedFields) {
           const original = fields.find((f) => f.id === u.id)
-          triggerTableEvent(tid, 'field-updated', { field: { ...original, ...u } }, socketId)
+          triggerTableEvent(tid, 'field-updated', { field: { ...original, ...u } })
         }
       } else {
         await prisma.$executeRaw(

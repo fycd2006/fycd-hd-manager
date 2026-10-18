@@ -114,7 +114,7 @@ describe('PATCH batch with cellWrite', () => {
     const fieldEvents = (triggerTableEvent as jest.Mock).mock.calls.filter((c) => c[1] === 'field-updated')
     expect(fieldEvents).toHaveLength(1)
     expect(fieldEvents[0][2].field).toEqual(expect.objectContaining({ id: 3, name: '類別' }))
-    expect(fieldEvents[0][3]).toBe('sock')
+    expect(fieldEvents[0]).toHaveLength(3)
   })
 
   it('rejects a non-blank write to a read-only field', async () => {

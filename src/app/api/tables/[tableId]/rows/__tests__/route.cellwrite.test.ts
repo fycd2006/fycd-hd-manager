@@ -118,8 +118,7 @@ describe('PATCH /api/tables/[tableId]/rows uses cellWrite', () => {
     expect(triggerTableEvent).toHaveBeenCalledWith(
       10,
       'field-updated',
-      { field: expect.objectContaining({ id: 4, options: updateArg.data.options }) },
-      'sock-1'
+      { field: expect.objectContaining({ id: 4, options: updateArg.data.options }) }
     )
   })
 

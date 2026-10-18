@@ -19,6 +19,8 @@ jest.mock('@/lib/pusher-server', () => ({
 const tx = {
   databaseTable: { findUnique: jest.fn(), update: jest.fn() },
   tableRow: { findMany: jest.fn(), createMany: jest.fn() },
+  tableField: { findFirst: jest.fn(), update: jest.fn() },
+  $queryRaw: jest.fn(),
 }
 
 jest.mock('@/lib/prisma', () => ({
@@ -114,6 +116,26 @@ describe('POST /api/tables/[tableId]/rows/move', () => {
     })
     expect(triggerTableEvent).toHaveBeenCalledWith(10, 'rows-batch-changed', expect.any(Object), 'sock')
     expect(triggerTableEvent).toHaveBeenCalledWith(20, 'rows-batch-changed', expect.any(Object), 'sock')
+  })
+
+  it('broadcasts field-updated for a server-added option to every client, including the originator', async () => {
+    const srcSelect = { id: 3, tableId: 20, name: '類別', type: 'single_select', options: { choices: [] } }
+    const dstSelect = { id: 13, tableId: 10, name: '類別', type: 'single_select', options: { choices: [] } }
+    fieldsFor([...sourceFields, srcSelect], [...targetFields, dstSelect])
+    tx.tableField.findFirst.mockResolvedValue(dstSelect)
+    tx.tableField.update.mockImplementation(async ({ data }) => ({ id: 13, options: data.options }))
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_3: '新選項' } }],
+      socket_id: 'sock',
+    })
+
+    expect(res.status).toBe(200)
+    const fieldEvents = (triggerTableEvent as jest.Mock).mock.calls.filter((c) => c[1] === 'field-updated')
+    expect(fieldEvents).toHaveLength(1)
+    expect(fieldEvents[0]).toHaveLength(3)
+    expect(fieldEvents[0][2].field).toEqual(expect.objectContaining({ id: 13, name: '類別' }))
   })
 
   it('rejects a value that fails target field validation before writing anything', async () => {

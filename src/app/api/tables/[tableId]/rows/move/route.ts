@@ -218,7 +218,7 @@ export async function POST(
 
     for (const u of updatedFields) {
       const original = targetFields.find(f => f.id === u.id)
-      triggerTableEvent(targetTableId, 'field-updated', { field: { ...original, ...u } }, socket_id)
+      triggerTableEvent(targetTableId, 'field-updated', { field: { ...original, ...u } })
     }
 
     // Notify target

@@ -700,7 +700,7 @@ describe('POST /api/ai/table-agent', () => {
 
     expect((await res.json()).count).toBe(1)
     expect(applyOptionAdditions).toHaveBeenCalledWith(mockTx, 1, { 2: [expect.objectContaining({ name: '乙' })] })
-    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: expect.objectContaining({ id: 2 }) }, 's1')
+    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: expect.objectContaining({ id: 2 }) })
   })
 
   it('creates rows with canAddOptions and broadcasts field-updated for added options', async () => {
@@ -723,7 +723,7 @@ describe('POST /api/ai/table-agent', () => {
 
     expect(res.status).toBe(200)
     expect(createTableRow).toHaveBeenCalledWith(expect.objectContaining({ tableId: 1, canAddOptions: true }))
-    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 2, options: { choices: [] } } }, 's1')
+    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 2, options: { choices: [] } } })
   })
 
   it('merges options for several rows in one call and broadcasts the final options once', async () => {

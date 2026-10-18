@@ -388,7 +388,7 @@ export async function POST(request: Request) {
         triggerTableEvent(tid, 'rows-batch-changed', { type: 'update', count: updates.length }, socketId || undefined)
         for (const u of updatedFields) {
           const original = fields.find(f => f.id === u.id)
-          triggerTableEvent(tid, 'field-updated', { field: { ...original, ...u } }, socketId || undefined)
+          triggerTableEvent(tid, 'field-updated', { field: { ...original, ...u } })
         }
 
         const writtenCount = Math.max(updates.length - rejectedCells.length, 0)
@@ -420,7 +420,7 @@ export async function POST(request: Request) {
           if (result.ok) {
             createdRows.push(result.row)
             for (const u of result.updatedFields ?? []) {
-              triggerTableEvent(tid, 'field-updated', { field: u }, socketId || undefined)
+              triggerTableEvent(tid, 'field-updated', { field: u })
             }
           } else {
             console.warn('[AI createTableRow warning]:', result.error)
