@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import type { TableField, TableRow, CellValue, GroupByRule, SortRule, SortOrder, TableView } from '../types'
 import * as rowService from '../services/row'
 import { READ_ONLY_FIELD_TYPES } from '../fields/types/ReadOnlyFieldTypes'
+import { formatRejectedSummary } from '../utils/formatRejectedSummary'
 
 const READ_ONLY_TYPES: ReadonlySet<string> = new Set(READ_ONLY_FIELD_TYPES)
 
@@ -125,14 +126,27 @@ export function useRowOperations({
         return baseData
       })
 
-      const results = await Promise.all(
-        payloadRows.map(baseData => rowService.createRow(activeTableId, baseData))
+      const result = await rowService.batchCreateRows(
+        activeTableId,
+        payloadRows.map((data, i) => ({
+          clientId: `batch-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          data,
+        }))
       )
-      const createdRows = results.filter(r => r.ok && r.row).map(r => r.row!)
+      if (!result.ok) {
+        addToast(result.error || '批次新增列失敗', 'error')
+        return
+      }
+      const createdRows = result.rows ?? []
 
       if (createdRows.length > 0) {
         setRows(prev => [...prev, ...createdRows])
         addToast(`成功新增 ${createdRows.length} 列資料`, 'success')
+      }
+      const rejected = result.rejected ?? []
+      if (rejected.length > 0) {
+        const provided = rowsToCreate.reduce((n, r) => n + Object.keys(r).length, 0)
+        addToast(formatRejectedSummary(provided - rejected.length, rejected, fields), 'info')
       }
     } catch {
       addToast('批次新增列失敗', 'error')

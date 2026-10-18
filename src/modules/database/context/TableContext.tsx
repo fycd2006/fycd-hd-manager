@@ -54,6 +54,7 @@ export interface TableContextValue {
     skipPushHistory?: boolean
   ) => Promise<void>
   batchUpdateCells: (updates: Array<{ rowId: number; data: Record<string, CellValue> }>) => Promise<void>
+  recentlyRejected: Set<string>
   addRow: (overrides?: Record<string, CellValue>) => Promise<void>
   batchAddRows: (rowsToCreate: Array<Record<string, CellValue>>) => Promise<void>
   deleteRow?: (rowId: number) => void

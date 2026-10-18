@@ -10,6 +10,7 @@ import { TableRow, TableField } from '@/modules/database/types';
 jest.mock('@/modules/database/services/row', () => ({
   reorderRows: jest.fn().mockResolvedValue({ ok: true }),
   updateRow: jest.fn().mockResolvedValue({ ok: true }),
+  batchCreateRows: jest.fn(),
 }));
 
 describe('useRowOperations - Batch Multi-Row Reorder', () => {
@@ -163,5 +164,38 @@ describe('stripReadOnlyCells', () => {
     types.forEach((_, i) => { data[`field_${i + 2}`] = 'x'; });
     expect(stripReadOnlyCells(data, fields)).toEqual({ field_1: 'keep' });
     expect(data.field_2).toBe('x');
+  });
+});
+
+describe('useRowOperations - batchAddRows rejected cells', () => {
+  const fields: TableField[] = [
+    { id: 1, name: '數量', type: 'number', tableId: 1, order: 0, options: null },
+  ];
+
+  it('toasts the rejected summary when the batch POST reports rejected cells', async () => {
+    const addToast = jest.fn();
+    const setRows = jest.fn();
+    (rowService.batchCreateRows as jest.Mock).mockResolvedValue({
+      ok: true,
+      rows: [{ id: 1, tableId: 1, order: 1, data: { field_1: null }, createdAt: '', updatedAt: '' }],
+      rejected: [{ clientId: 'c1', fieldId: 1, code: 'invalid', reason: '必須是有效的數字' }],
+    });
+    const { result } = renderHook(() =>
+      useRowOperations({
+        activeTableId: 1,
+        fields,
+        rows: [],
+        setRows,
+        displayRows: [],
+        addToast,
+        setSortField: jest.fn(),
+        setSortRules: jest.fn(),
+        setSortOrder: jest.fn(),
+      })
+    );
+    await act(async () => {
+      await result.current.batchAddRows([{ field_1: 'abc' }, { field_1: '5' }]);
+    });
+    expect(addToast).toHaveBeenCalledWith('已寫入 1 格，1 格未寫入：數量 必須是有效的數字', 'info');
   });
 });

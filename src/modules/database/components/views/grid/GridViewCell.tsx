@@ -106,6 +106,7 @@ interface GridViewCellProps {
   rangeEdges?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   isPrimary?: boolean;
   rowColorBg?: string | null;
+  isRejected?: boolean;
   rowDetailsWidth?: number;
   initialTypeOverValue?: string | null;
   onSelect: (e?: React.MouseEvent) => void;
@@ -133,6 +134,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   rangeEdges,
   isPrimary = false,
   rowColorBg,
+  isRejected = false,
   rowDetailsWidth = 56,
   initialTypeOverValue,
   onSelect,
@@ -2232,7 +2234,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         touchAction: isEditing ? 'auto' : 'manipulation',
         zIndex: isEditing ? 100 : (isPrimary ? 14 : (isSelected || isInRange ? 10 : undefined))
       }}
-      className={`grid-view__column ${isSelected || isInRange ? 'active' : ''}`}
+      className={`grid-view__column ${isSelected || isInRange ? 'active' : ''}${isRejected ? ' grid-cell--rejected' : ''}`}
     >
       {renderCellContent()}
 
@@ -2279,6 +2281,7 @@ export const GridViewCell = React.memo<GridViewCellProps>(GridViewCellInner, (pr
     prev.isRowHovered === next.isRowHovered &&
     prev.isPrimary === next.isPrimary &&
     prev.rowColorBg === next.rowColorBg &&
+    prev.isRejected === next.isRejected &&
     prev.rowDetailsWidth === next.rowDetailsWidth &&
     prev.initialTypeOverValue === next.initialTypeOverValue &&
     prev.rangeEdges?.top === next.rangeEdges?.top &&

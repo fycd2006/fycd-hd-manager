@@ -412,6 +412,7 @@ interface GridViewProps {
   rowDetailsWidth?: number;
   onUpdateCell?: (rowId: number, fieldId: any, value?: any) => void;
   onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void;
+  recentlyRejected?: Set<string>;
   onAddRow?: () => void;
   onAddField?: () => void;
   onAddFieldPopover?: (position: { top: number; left: number }) => void;
@@ -503,6 +504,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onUpdateAggregations,
   onUpdateCell,
   onBatchUpdateCells,
+  recentlyRejected,
   onAddRow,
   onAddField,
   onAddFieldPopover,
@@ -1045,19 +1047,8 @@ export const GridView: React.FC<GridViewProps> = ({
 
     const rowMap = new Map<number, Record<string, any>>();
 
-    const sanitizePastedVal = (raw: string, field: TableField): any => {
-      const trimmed = (raw ?? '').trim();
-      if (field.type === 'number') {
-        return parseNumberInput(trimmed);
-      }
-      if (field.type === 'boolean') {
-        const lower = trimmed.toLowerCase();
-        if (['true', '1', 'yes', 'v', '是', '✓', 'ok'].includes(lower)) return true;
-        if (['false', '0', 'no', '否', 'x'].includes(lower)) return false;
-        return Boolean(trimmed);
-      }
-      return trimmed;
-    };
+    // Send the pasted text as-is (trimmed); the server parses and validates per field type
+    const sanitizePastedVal = (raw: string): string => (raw ?? '').trim();
 
     if (selectionBounds && selectionBounds.isMulti) {
       // Batch paste into multi-cell selection bounds
@@ -1078,7 +1069,7 @@ export const GridView: React.FC<GridViewProps> = ({
 
           if (targetRow && targetField) {
             const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
             rowMap.set(targetRow.id, map);
           }
         }
@@ -1101,7 +1092,7 @@ export const GridView: React.FC<GridViewProps> = ({
               const targetColIndex = startCol + cOffset;
               if (targetColIndex < fields.length) {
                 const targetField = fields[targetColIndex];
-                newRowData[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
+                newRowData[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
               }
             });
           }
@@ -1121,7 +1112,7 @@ export const GridView: React.FC<GridViewProps> = ({
           const targetField = fields[targetColIndex];
           if (targetRow && targetField) {
             const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal, targetField);
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
             rowMap.set(targetRow.id, map);
           }
         });
@@ -2436,6 +2427,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                       fields={fields}
                                       rowColorRules={rowColorRules}
                                       rowDetailsWidth={rowDetailsWidth}
+                                      recentlyRejected={recentlyRejected}
                                       selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
                                       isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                                       initialTypeOverValue={editingCellInfo?.rowId === row.id && isEditing ? typeOverValue : undefined}
@@ -2577,6 +2569,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         fields={fields}
                         rowColorRules={rowColorRules}
                         rowDetailsWidth={rowDetailsWidth}
+                        recentlyRejected={recentlyRejected}
                         selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
                         isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                         initialTypeOverValue={editingCellInfo?.rowId === row.id && isEditing ? typeOverValue : undefined}

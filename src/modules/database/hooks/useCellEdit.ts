@@ -1,10 +1,11 @@
 'use client'
 
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import * as rowService from '@/modules/database/services/row'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
 import { normalizeRowData } from '@/modules/database/utils/normalizeRowData'
+import { formatRejectedSummary } from '@/modules/database/utils/formatRejectedSummary'
 import type { TableRow, TableField, CellValue } from '@/modules/database/types'
 
 interface UseCellEditParams {
@@ -34,6 +35,9 @@ export function useCellEdit({
   const cellAbortMap = useRef<Map<string, AbortController>>(new Map())
   const cellSeqMap = useRef<Map<string, number>>(new Map())
   const cellDebounceMap = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  // Cells (`${rowId}:${fieldId}`) the server refused in the latest batch write; cleared after 3s
+  const [recentlyRejected, setRecentlyRejected] = useState<Set<string>>(() => new Set())
+  const rejectedClearTimer = useRef<NodeJS.Timeout | null>(null)
 
   // Keep references to latest state to avoid stale closures in debounced callbacks
   const rowsRef = useRef(rows)
@@ -49,6 +53,10 @@ export function useCellEdit({
     pushEditRef.current = pushEdit
     addToastRef.current = addToast
   })
+
+  useEffect(() => () => {
+    if (rejectedClearTimer.current) clearTimeout(rejectedClearTimer.current)
+  }, [])
 
   // Clean up all pending debounce timers and abort controllers when activeTableId changes or on unmount
   useEffect(() => {
@@ -314,11 +322,46 @@ export function useCellEdit({
       // Send 1 SINGLE HTTP request to batch update API
       const result = await rowService.batchUpdateRows(targetTableId, updates)
       if (result.ok && Array.isArray(result.updates)) {
-        if (historyEdits.length > 0) {
+        const rejected = Array.isArray(result.rejected) ? result.rejected : []
+        const rejectedKeys = new Set(rejected.map(rej => `${rej.rowId}:field_${rej.fieldId}`))
+        const acceptedEdits = historyEdits.filter(e => !rejectedKeys.has(`${e.rowId}:${e.fieldKey}`))
+        if (acceptedEdits.length > 0) {
           pushEditRef.current({
             tableId: targetTableId,
-            edits: historyEdits
+            edits: acceptedEdits
           })
+        }
+        if (rejected.length > 0) {
+          // Restore the pre-update value of cells the server refused
+          const revertMap = new Map<number, Record<string, CellValue>>()
+          historyEdits.forEach(e => {
+            if (!rejectedKeys.has(`${e.rowId}:${e.fieldKey}`)) return
+            const entry = revertMap.get(e.rowId) || {}
+            entry[e.fieldKey] = e.before
+            revertMap.set(e.rowId, entry)
+          })
+          setRows(prev => prev.map(r => {
+            const rev = revertMap.get(r.id)
+            if (!rev) return r
+            const newRowData = { ...r.data, ...rev }
+            normalizeRowData(newRowData)
+            /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+            const newValues = (r as any).values ? { ...(r as any).values } : undefined
+            if (newValues) {
+              Object.entries(rev).forEach(([k, v]) => {
+                const fid = parseInt(k.replace('field_', ''))
+                if (!isNaN(fid)) newValues[fid] = v
+              })
+            }
+            return { ...r, data: newRowData, ...(newValues && { values: newValues }) }
+          }))
+          addToastRef.current(
+            formatRejectedSummary(historyEdits.length - rejected.length, rejected, fieldsRef.current),
+            'info'
+          )
+          setRecentlyRejected(new Set(rejected.map(rej => `${rej.rowId}:${rej.fieldId}`)))
+          if (rejectedClearTimer.current) clearTimeout(rejectedClearTimer.current)
+          rejectedClearTimer.current = setTimeout(() => setRecentlyRejected(new Set()), 3000)
         }
         const serverMap = new Map<number, Record<string, CellValue>>()
         result.updates.forEach(u => serverMap.set(u.rowId, u.data))
@@ -350,5 +393,6 @@ export function useCellEdit({
   return {
     updateCell,
     batchUpdateCells,
+    recentlyRejected,
   }
 }

@@ -20,6 +20,7 @@ interface GridViewRowProps {
   fields: TableField[];
   rowColorRules?: RowColorRule[];
   rowDetailsWidth?: number;
+  recentlyRejected?: Set<string>;
   selectedColumnIndex?: number | null;
   isCellEditing?: boolean;
   initialTypeOverValue?: string | null;
@@ -52,6 +53,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
   fields,
   rowColorRules,
   rowDetailsWidth = 56,
+  recentlyRejected,
   selectedColumnIndex,
   isCellEditing,
   initialTypeOverValue,
@@ -374,6 +376,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
             isPrimary={cIndex === 0}
             rowColorBg={matchedColorBg}
             rowDetailsWidth={rowDetailsWidth}
+            isRejected={recentlyRejected?.has(`${row.id}:${field.id}`)}
             initialTypeOverValue={isSelected ? initialTypeOverValue : undefined}
             onSelect={(e) => onSelectCell(cIndex, e)}
             onMouseEnterCell={(e) => onMouseEnterCell?.(cIndex, e)}
@@ -399,6 +402,11 @@ export const GridViewRow = React.memo<GridViewRowProps>(GridViewRowInner, (prev,
   if (prev.fields !== next.fields) return false;
   if (prev.rowColorRules !== next.rowColorRules) return false;
   if (prev.rowDetailsWidth !== next.rowDetailsWidth) return false;
+  if (prev.recentlyRejected !== next.recentlyRejected) {
+    const rowPrefix = `${next.row.id}:`;
+    const rowKeys = (set?: Set<string>) => Array.from(set ?? []).filter(k => k.startsWith(rowPrefix)).sort().join(',');
+    if (rowKeys(prev.recentlyRejected) !== rowKeys(next.recentlyRejected)) return false;
+  }
   if (prev.canDrag !== next.canDrag) return false;
 
   // 2. Focused cell & Editing state for this specific row

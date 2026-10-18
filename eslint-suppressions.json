@@ -725,7 +725,7 @@
   },
   "src/modules/database/components/views/grid/GridView.tsx": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 63
+      "count": 62
     }
   },
   "src/modules/database/components/views/grid/GridViewCell.tsx": {
