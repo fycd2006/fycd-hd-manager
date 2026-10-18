@@ -4,6 +4,7 @@
 - 安全與測試工作已全部合併：PR #1–#17（開發規範、CI verify、README、Claude review＋漏洞關卡、members／rows-move／comments／通知越權修正、API 路由測試、commit hook 修正、UI 與統一寫入驗證）。
 - 目前工作區在 `feat/brand-login-loading`（已追蹤 origin），不是 `main`。未 commit 變更：`.claude/launch.json`（未追蹤，非本次工作）。
 - 開放 PR：#18 `docs/handoff-2026-10-18`（也改 PROGRESS.md，與本檔可能衝突，以先合併者為準）。
+- Airtable 匯入子專案 3（視圖補強）：分支 `feat/airtable-views` → PR 到 `feat/airtable-import`。schema 新增 `TableView.sortRules`／`groupByRules`，資料庫 `db push` 前新程式碼讀不到視圖。下一步子專案 4（公式引擎）。
 
 ## 已做的決定
 - 驗證統一走 `npm run verify`；CI 跑同一指令。`npm run build` 含 `db push --accept-data-loss`，本機不執行。
@@ -27,4 +28,5 @@
 - [ ] 欄位 PATCH／DELETE 未擋已軟刪除欄位；前端 `restoreTrashItem` 用 PATCH 但路由只有 POST
 - [ ] 確認 `npm run build` 的 `db push --accept-data-loss` 是否會刪 `schemaService` 建的 generated column（已在 PR #1 詢問）
 - [ ] `FieldRegistry.get()` 對未註冊型別 fail-open，用 `/bugfix` 評估
+- [ ] 視圖：前端存分組時 `groupByField` 送 JSON 陣列，後端同步主欄位失效；篩選多值選單的連結／協作者候選值不認 JSON 字串儲存格
 - [ ] E2E（`e2e/` 有 Playwright spec 但無設定檔）與真資料庫整合測試：需先規劃
