@@ -544,11 +544,6 @@
       "count": 1
     }
   },
-  "src/modules/database/components/intro/FYCDBrandIntro.tsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1
-    }
-  },
   "src/modules/database/components/menu/ViewContextMenu.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1

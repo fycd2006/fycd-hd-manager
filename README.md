@@ -1,6 +1,6 @@
 # FYCD HD Manager (北科伙食團資料庫管理系統)
 
-![FYCD HD Logo](public/logo.png)
+![FYCD HD Logo](public/brand/icon-512.png)
 
 參考 Baserow 架構打造的高效能無程式碼 (No-Code) 資料庫與工作區管理平台。提供多維度視圖、即時協作、公式計算與大資料量表格處理能力。
 
@@ -18,10 +18,20 @@
 
 ## 🛠️ 技術棧
 
-- **Frontend**: Next.js 16 (App Router), React 19, Vanilla CSS (Modular Design System)
+- **Frontend**: Next.js 16 (App Router), React 19, Vanilla CSS (Modular Design System), Motion 動畫
 - **Database & ORM**: TiDB / MySQL, Prisma ORM 6
 - **Cache & Realtime**: Redis (ioredis), Pusher Channels
 - **Formula & Virtualization**: `@formulajs/formulajs`, `@tanstack/react-virtual`
+- **AI & Mail**: Google Gemini (`@google/genai`)、Resend 寄信、Argon2 密碼雜湊
+
+---
+
+## 🎨 品牌與 PWA 圖示
+
+- 向量字標與圖示：`src/components/brand/FycdLogo.tsx`（`variant="full"` 字標、`variant="icon"` 圖示），主畫面、登入與載入畫面皆使用。
+- 網站 favicon：`src/app/icon.svg`；Apple / PWA 圖示與啟動畫面：`public/brand/`（`icon-192`、`icon-512`、`maskable-512`、`apple-touch-icon`、各尺寸 `splash-*.png`）。
+- 品牌色：Deep Olive `#39452B`、Vibrant Orange `#F58220`、Warm Ivory `#F5F0E6`。
+- 重新產生 PNG 圖示與啟動畫面：`node scripts/generate-brand-icons.mjs`（需本機 Edge 或 Chrome，可用 `BROWSER_PATH` 指定路徑）。此腳本不在 `npm run verify` 內，手動執行。
 
 ---
 

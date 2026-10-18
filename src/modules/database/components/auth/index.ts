@@ -4,4 +4,3 @@
  */
 
 export { default as AuthScreen } from './AuthScreen'
-export { AuthPage } from './AuthPage'

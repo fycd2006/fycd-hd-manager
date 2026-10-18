@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     description: "FYCD HD Manager - 高效能團隊協作與動態資料表管理平台",
     type: "website",
     locale: "zh_TW",
-    images: [{ url: "/logo.png", width: 800, height: 800, alt: "FYCD HD Manager Logo" }],
+    images: [{ url: "/brand/icon-512.png", width: 512, height: 512, alt: "FYCD HD Manager Logo" }],
   },
 };
 
