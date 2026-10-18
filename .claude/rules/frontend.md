@@ -28,3 +28,5 @@ paths:
 - 用 `<label>` 包住含按鈕的欄位，點標籤文字會觸發排在 input 前面的按鈕（「忘記密碼」）→ 標籤與 input 用 `useId()` ＋ `htmlFor` 綁定，不要用 label 包整個欄位
 - 最新留言格子寫死 `WebkitLineClamp: 2`，列高調高（44／60／80px）仍只顯示兩行 → 格子內多行文字不要寫死行數，用固定 `lineHeight` ＋ `maxHeight: 'round(down, 100%, <行高>)'` 依列高顯示整數行
 - 品牌載入層在 `workspaceReady` 已為 true 時 650ms 就退場，Logo 動畫還沒出現 → 有進場動畫的遮罩要設最短顯示時間（`MIN_VISIBLE_MS`），reduced motion 例外
+- `useThemeStore` 掛載時先以預設 `light` 寫入 `data-theme` 再讀偏好，SSR 首屏與登入頁對暗色使用者閃一次亮色 → 主題副作用等讀完儲存偏好（`themeHydrated`）才執行；首屏元件的暗色用 `:global([data-theme='dark'])` 選擇器上色，不靠 React 主題 state
+- 暗色模式由 Dark Reader 改寫整頁顏色，SVG 的 `fill` 屬性會被行內 `!important` 改成暗色，品牌字標在暗底上看不見 → 需要固定顏色的 SVG 部件用 CSS Module 選擇器 `fill: var(--token) !important` 覆寫

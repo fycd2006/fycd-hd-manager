@@ -353,6 +353,11 @@
   },
   "auth": {
     "systemTitle": "雲端資料庫與團隊工作區管理系統",
+    "loadingWorkspace": "正在載入工作區",
+    "brandTagline": "伙食團的資料，一處整理、全員同步",
+    "brandFeatureTables": "像試算表一樣直覺的資料表與多種檢視",
+    "brandFeatureTeams": "團隊工作區與角色權限",
+    "brandFeatureRealtime": "即時同步與留言，變更一目瞭然",
     "login": "登入",
     "register": "註冊",
     "loginTitle": "登入系統",

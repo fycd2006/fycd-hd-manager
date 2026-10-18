@@ -10,7 +10,7 @@ import { PanelLeft, PanelLeftClose, LayoutGrid, Kanban, LayoutTemplate, Calendar
 import dynamic from 'next/dynamic'
 import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
 import { useUndoRedo } from '@/hooks/useUndoRedo'
-import { AuthScreen } from '@/modules/database/components/auth'
+import { AuthScreen, AppShellSkeleton } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
 
@@ -55,7 +55,6 @@ import WorkspaceDashboard from '@/modules/database/components/dashboard/Workspac
 import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { FYCDBrandLoading } from '@/components/fycd/FYCDBrandLoading'
-import { FycdLogo } from '@/components/brand/FycdLogo'
 import {
   useAuthStore,
   useThemeStore,
@@ -898,85 +897,11 @@ export default function Home() {
   )
 
   if (authState.authLoading) {
-    const isDark = themeState.theme === 'dark'
     return (
       <>
-      {brandOverlay}
-      <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#fafafa' }}>
-        {/* Top Brand Accent Line */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '3px',
-          zIndex: 50,
-          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
-          backgroundSize: '200% 100%',
-          animation: 'fycdTopBarShimmer 2s ease-in-out infinite'
-        }} />
-
-        {/* Sidebar Skeleton */}
-        <div style={{ width: '240px', height: '100%', borderRight: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: isDark ? '#1e293b' : '#ffffff', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FycdLogo variant="icon" height={24} />
-            <div className="fycd-skeleton" style={{ width: '110px', height: '16px', borderRadius: '4px' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-            {[85, 65, 75, 55, 80].map((w, i) => (
-              <div key={i} className="fycd-skeleton" style={{ width: `${w}%`, height: '16px', borderRadius: '4px' }} />
-            ))}
-          </div>
-        </div>
-
-        {/* Main Content Skeleton */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          {/* View Toolbar Skeleton */}
-          <div style={{ height: '44px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '14px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
-            <div className="fycd-skeleton" style={{ width: '110px', height: '22px', borderRadius: '6px' }} />
-            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
-            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
-          </div>
-
-          {/* Grid Skeleton */}
-          <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: isDark ? '#0f172a' : '#ffffff' }}>
-            <div style={{ display: 'flex', gap: '8px', height: '32px' }}>
-              {[1, 2, 3, 4, 5].map(col => (
-                <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
-              ))}
-            </div>
-            {[1, 2, 3, 4, 5, 6, 7].map(row => (
-              <div key={row} style={{ display: 'flex', gap: '8px', height: '34px' }}>
-                {[1, 2, 3, 4, 5].map(col => (
-                  <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <style jsx>{`
-          @keyframes fycdTopBarShimmer {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-        `}</style>
-      </div>
+        {brandOverlay}
+        <AppShellSkeleton />
       </>
-    )
-  }
-
-  // Show clean brand loading during initial authLoading to prevent FOAC
-  if (authState.authLoading) {
-    return (
-      <div className={`app-container theme-${themeState.theme}`} style={{ width: '100vw', height: '100vh', background: themeState.theme === 'dark' ? '#18191b' : '#f4f5f7' }}>
-        <FYCDBrandLoading
-          show={showBrandLoading}
-          workspaceReady={workspaceReady}
-          onExitComplete={handleExitComplete}
-        />
-      </div>
     )
   }
 
