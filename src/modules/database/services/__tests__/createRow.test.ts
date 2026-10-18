@@ -62,7 +62,8 @@ describe('createTableRow', () => {
     await createTableRow({ tableId: 1, input: { field_1: '1999/01/01 00:00' }, username: 'alice' })
     const value = createdData().data.field_1
     expect(value).not.toBe('1999/01/01 00:00')
-    expect(value).toContain(String(new Date().getFullYear()))
+    expect(value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+    expect(Math.abs(Date.now() - new Date(value as string).getTime())).toBeLessThan(5000)
   })
 
   it('ignores input for fields rejected by fieldFilter', async () => {

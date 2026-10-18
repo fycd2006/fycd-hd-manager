@@ -263,7 +263,7 @@ export function parseGroupValue(
   }
 
   // 5. Date
-  if (field && (field.type === 'date' || field.type === 'created_at' || field.type === 'updated_at')) {
+  if (field && (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on')) {
     const dateStr = String(val).trim();
     if (!dateStr) {
       return {
@@ -273,7 +273,7 @@ export function parseGroupValue(
         isBlank: true,
       };
     }
-    const formatted = dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr;
+    const formatted = formatFieldDate(dateStr, field.options, { fieldType: field.type });
     return {
       key: formatted,
       displayTitle: formatted,

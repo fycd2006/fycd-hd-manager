@@ -53,8 +53,7 @@ export async function createTableRow(options: CreateTableRowOptions): Promise<Cr
     orderBy: { order: 'asc' }
   })
 
-  const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-  const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
+  const nowStr = new Date().toISOString()
 
   const AUDIT_TYPES = ['created_by', 'last_modified_by', 'created_on', 'last_modified_on']
   const writable = fields.filter(f => !AUDIT_TYPES.includes(f.type) && (!fieldFilter || fieldFilter(f)))

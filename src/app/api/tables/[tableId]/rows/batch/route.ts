@@ -75,8 +75,7 @@ export async function POST(
     })
 
     const username = await getSessionUsername()
-    const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-    const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
+    const nowStr = new Date().toISOString()
 
     const parsedRowsData: Array<{ clientId: string, data: Record<string, unknown>, order: number }> = []
 
@@ -294,8 +293,7 @@ export async function PATCH(
       orderBy: { order: 'asc' }
     })
     const username = await getSessionUsername()
-    const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-    const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
+    const nowStr = new Date().toISOString()
     const validFieldKeys = new Set(fields.map(f => `field_${f.id}`))
     const fieldMetas = toFieldMetas(fields)
     const rejectedCells: Array<{ rowId: number; fieldId: number; code: CellRejection['code']; reason: string }> = []
