@@ -120,6 +120,31 @@ describe('getPopulatedTableRows', () => {
     expect(result.rows![0].data['field_1']).toBe('JohnDoe')
   })
 
+  it('emits created_on and last_modified_on as UTC ISO strings', async () => {
+    (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 1, tableId: 1, name: 'Created', type: 'created_on', options: null },
+      { id: 2, tableId: 1, name: 'Modified', type: 'last_modified_on', options: null },
+    ]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 101,
+        tableId: 1,
+        data: {},
+        order: 1,
+        createdAt: new Date('2026-10-18T06:30:00.000Z'),
+        updatedAt: new Date('2026-10-19T01:05:00.000Z'),
+        deletedAt: null,
+      },
+    ]);
+
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const result = await getPopulatedTableRows(1, {})
+    expect(result.rows![0].data['field_1']).toBe('2026-10-18T06:30:00.000Z')
+    expect(result.rows![0].data['field_2']).toBe('2026-10-19T01:05:00.000Z')
+  })
+
   it('filters out soft-deleted or non-existent target rows from link_row display values completely', async () => {
     (prisma.tableField.findMany as jest.Mock)
       .mockResolvedValueOnce([

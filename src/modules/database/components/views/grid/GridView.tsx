@@ -7,7 +7,7 @@ import { ChevronRight, ChevronDown, Plus, Trash2, X, Copy } from 'lucide-react';
 import { TableField, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '@/modules/database/types';
 import { getOptionColor, parseSelectItems, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils';
 import { parseLatestCommentEntries } from './cells/LatestCommentModal';
-import { formatDateValue } from '@/modules/database/utils';
+import { formatFieldDate } from '@/modules/database/utils/dateTime';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -63,7 +63,7 @@ export function formatCellForClipboard(val: any, field?: TableField | null, allF
     }
 
     if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') {
-      return formatDateValue(val);
+      return formatFieldDate(val, field.options, { fieldType: field.type });
     }
   }
 

@@ -405,14 +405,13 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 
     auditFields.forEach(af => {
       const destKey = `field_${af.id}`
-      const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
 
       switch (af.type) {
         case 'created_on':
-          newData[destKey] = new Date(row.createdAt).toLocaleDateString('zh-TW', dateOpt)
+          newData[destKey] = new Date(row.createdAt).toISOString()
           break
         case 'last_modified_on':
-          newData[destKey] = new Date(row.updatedAt).toLocaleDateString('zh-TW', dateOpt)
+          newData[destKey] = new Date(row.updatedAt).toISOString()
           break
         case 'created_by':
         case 'last_modified_by': {

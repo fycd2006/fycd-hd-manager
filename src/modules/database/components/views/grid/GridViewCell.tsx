@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, Star, Search, Link2, Mail, Clock, Sparkles, AlertTriangle, ExternalLink, ArrowUpRight, MessageSquare, Send, Edit2, Trash2, Check, X, Paperclip } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
 import { formatDateValue } from '@/modules/database/utils';
+import { formatFieldDate } from '@/modules/database/utils/dateTime';
+import { useI18n } from '@/lib/i18n/i18nContext';
 import { CardDrawer } from '@/modules/database/components/cards';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import PopoverPortal from '@/components/ui/PopoverPortal';
@@ -149,6 +151,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   onNavigateCell,
   onContextMenu,
 }) => {
+  const { locale } = useI18n();
   const getInitialStringValue = (val: any, type: string): string => {
     if (val === null || val === undefined) return type === 'multiple_select' ? '[]' : '';
     if (type === 'boolean') return String(val);
@@ -1983,7 +1986,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
     }
 
     if (field.type === 'created_on' || field.type === 'last_modified_on') {
-      const dStr = value ? formatDateValue(value) : '';
+      const dStr = value ? formatFieldDate(value, field.options, { locale, fieldType: field.type }) : '';
       if (!dStr) return null;
       return (
         <span style={{ padding: '0 8px', fontSize: '12px', color: '#64748b', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', maxHeight: '100%' }}>
@@ -2102,7 +2105,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
     }
 
     if (field.type === 'date') {
-      const dateDisplay = formatDateValue(value);
+      const dateDisplay = formatFieldDate(value, field.options, { locale, fieldType: field.type });
       return (
         <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b', maxHeight: '100%', lineHeight: '1.35' }}>
           {dateDisplay}
