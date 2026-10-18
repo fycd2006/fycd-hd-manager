@@ -14,6 +14,9 @@ import { MasterGridView } from '@/modules/database/components/views/master'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 import { FycdLogo } from '@/components/brand/FycdLogo'
 
+/** 每張資料庫卡片預設顯示的資料表數；搜尋中不套用 */
+const TABLE_PREVIEW_LIMIT = 5
+
 interface WorkspaceDashboardProps {
   currentUser: User
   activeWorkspace: Workspace | null
@@ -57,6 +60,17 @@ export default function WorkspaceDashboard({
   const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
   const [showMasterView, setShowMasterView] = useState(false)
+  const [expandedDbIds, setExpandedDbIds] = useState<Set<number>>(() => new Set())
+  const isSearching = searchQuery.trim().length > 0
+
+  const toggleExpanded = (dbId: number) => {
+    setExpandedDbIds(prev => {
+      const next = new Set(prev)
+      if (next.has(dbId)) next.delete(dbId)
+      else next.add(dbId)
+      return next
+    })
+  }
 
   // Calculate statistics
   const databases: Database[] = activeWorkspace?.databases || []
@@ -491,7 +505,12 @@ export default function WorkspaceDashboard({
               gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
               gap: '20px'
             }}>
-              {filteredDatabases.map(db => (
+              {filteredDatabases.map(db => {
+                const tables = db.tables || []
+                const expanded = isSearching || expandedDbIds.has(db.id)
+                const visibleTables = expanded ? tables : tables.slice(0, TABLE_PREVIEW_LIMIT)
+                const canToggle = !isSearching && tables.length > TABLE_PREVIEW_LIMIT
+                return (
                 <div
                   key={db.id}
                   style={{
@@ -639,8 +658,8 @@ export default function WorkspaceDashboard({
                     borderTop: '1px solid #f4f4f5',
                     paddingTop: '12px'
                   }}>
-                    {db.tables && db.tables.length > 0 ? (
-                      db.tables.map(table => (
+                    {visibleTables.length > 0 ? (
+                      visibleTables.map(table => (
                         <div key={table.id} className="tableRow" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <button
                             type="button"
@@ -694,9 +713,21 @@ export default function WorkspaceDashboard({
                         {t('dashboard.emptyTable')}
                       </div>
                     )}
+                    {canToggle && (
+                      <button
+                        type="button"
+                        className="showMore"
+                        aria-expanded={expandedDbIds.has(db.id)}
+                        onClick={() => toggleExpanded(db.id)}
+                        style={{ alignSelf: 'flex-start', padding: '4px 12px', fontSize: '12px', fontWeight: 600 }}
+                      >
+                        {expandedDbIds.has(db.id) ? t('dashboard.showLess') : t('dashboard.showAllTables', { count: tables.length })}
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

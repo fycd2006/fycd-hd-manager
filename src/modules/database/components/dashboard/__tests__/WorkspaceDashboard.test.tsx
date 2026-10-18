@@ -65,6 +65,9 @@ function renderDashboard(overrides: Partial<Props> = {}) {
   )
 }
 
+const ws7 = (): Workspace => ({ ...workspace, databases: [makeDatabase(1, '庫A', 7), makeDatabase(2, '庫B', 5)] })
+const SEARCH = '搜尋資料庫或資料表...'
+
 beforeEach(() => {
   // jsdom 的 navigator.language 是 en-US，固定用繁中驗證文案
   localStorage.setItem('fycd_i18n_locale', 'zh-TW')
@@ -130,8 +133,51 @@ describe('WorkspaceDashboard 資料表列', () => {
     expect(onSelectTable).not.toHaveBeenCalled()
   })
 
+  it('沒有巢狀按鈕（含展開按鈕）', () => {
+    const { container } = renderDashboard({ activeWorkspace: ws7(), onShowRenameModal: jest.fn() })
+    expect(container.querySelectorAll('button button')).toHaveLength(0)
+  })
+
   it('沒有巢狀按鈕', () => {
     const { container } = renderDashboard({ onShowRenameModal: jest.fn() })
     expect(container.querySelectorAll('button button')).toHaveLength(0)
+  })
+})
+
+describe('WorkspaceDashboard 資料表預覽上限', () => {
+  it('超過 5 張只顯示前 5 張，可展開與收合', () => {
+    renderDashboard({ activeWorkspace: ws7() })
+    expect(screen.queryByRole('button', { name: '表6' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '顯示全部（7）' }))
+    expect(screen.getByRole('button', { name: '表7' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '收合' }))
+    expect(screen.queryByRole('button', { name: '表6' })).not.toBeInTheDocument()
+  })
+
+  it('剛好 5 張不顯示展開按鈕', () => {
+    renderDashboard({ activeWorkspace: { ...workspace, databases: [makeDatabase(2, '庫B', 5)] } })
+    expect(screen.queryByRole('button', { name: /顯示全部/ })).not.toBeInTheDocument()
+  })
+
+  it('搜尋資料表時不套用上限', () => {
+    renderDashboard({ activeWorkspace: ws7() })
+    fireEvent.change(screen.getByPlaceholderText(SEARCH), { target: { value: '表' } })
+    expect(screen.getAllByRole('button', { name: '表7' })).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: /顯示全部/ })).not.toBeInTheDocument()
+  })
+
+  it('搜尋符合資料庫名稱時顯示該庫全部資料表', () => {
+    renderDashboard({ activeWorkspace: ws7() })
+    fireEvent.change(screen.getByPlaceholderText(SEARCH), { target: { value: '庫A' } })
+    expect(screen.getByRole('button', { name: '表7' })).toBeInTheDocument()
+  })
+
+  it('展開後搜尋再清空，保留展開狀態', () => {
+    renderDashboard({ activeWorkspace: ws7() })
+    fireEvent.click(screen.getByRole('button', { name: '顯示全部（7）' }))
+    const input = screen.getByPlaceholderText(SEARCH)
+    fireEvent.change(input, { target: { value: '表1' } })
+    fireEvent.change(input, { target: { value: '' } })
+    expect(screen.getByRole('button', { name: '表7' })).toBeInTheDocument()
   })
 })
