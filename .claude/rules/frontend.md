@@ -26,4 +26,5 @@ paths:
 - GridView 分組時畫面順序和 `rows` 順序不同，選取範圍卻用 `rows` 索引取 min..max、換列用 ±1，Delete／貼上／填滿／刪列會動到其他分組或收合的列 → 列範圍和上下列一律走 `orderedRowIndices`／`rowsOnScreenBetween`（畫面順序），首尾列用 `firstRowOnScreen`／`lastRowOnScreen`，不要寫 `rows[r]` 搭配 `r++` 或 `rows.length - 1`
 - `page.tsx` 三個 return 分支各自渲染 `FYCDBrandLoading`，登入後切分支時載入層重新掛載、重播淡入而閃爍 → 跨分支要延續的元件放在每個分支「同一種根元素（Fragment）的同一個子位置」，共用同一個 JSX 變數（見 `brandOverlay`）
 - 用 `<label>` 包住含按鈕的欄位，點標籤文字會觸發排在 input 前面的按鈕（「忘記密碼」）→ 標籤與 input 用 `useId()` ＋ `htmlFor` 綁定，不要用 label 包整個欄位
+- 最新留言格子寫死 `WebkitLineClamp: 2`，列高調高（44／60／80px）仍只顯示兩行 → 格子內多行文字不要寫死行數，用固定 `lineHeight` ＋ `maxHeight: 'round(down, 100%, <行高>)'` 依列高顯示整數行
 - 品牌載入層在 `workspaceReady` 已為 true 時 650ms 就退場，Logo 動畫還沒出現 → 有進場動畫的遮罩要設最短顯示時間（`MIN_VISIBLE_MS`），reduced motion 例外
