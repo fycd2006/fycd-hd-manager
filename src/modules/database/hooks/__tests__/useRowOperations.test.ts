@@ -11,6 +11,7 @@ jest.mock('@/modules/database/services/row', () => ({
   reorderRows: jest.fn().mockResolvedValue({ ok: true }),
   updateRow: jest.fn().mockResolvedValue({ ok: true }),
   batchCreateRows: jest.fn(),
+  createRow: jest.fn(),
 }));
 
 describe('useRowOperations - Batch Multi-Row Reorder', () => {
@@ -197,5 +198,37 @@ describe('useRowOperations - batchAddRows rejected cells', () => {
       await result.current.batchAddRows([{ field_1: 'abc' }, { field_1: '5' }]);
     });
     expect(addToast).toHaveBeenCalledWith('已寫入 1 格，1 格未寫入：數量 必須是有效的數字', 'info');
+  });
+});
+
+describe('useRowOperations - addRow copying the last row', () => {
+  it('does not copy read-only or latest_comment cells from the previous row', async () => {
+    const fields: TableField[] = [
+      { id: 1, name: '名稱', type: 'text', tableId: 1, order: 0, options: null },
+      { id: 2, name: '備註', type: 'latest_comment', tableId: 1, order: 1, options: null },
+      { id: 3, name: '編號', type: 'autonumber', tableId: 1, order: 2, options: null },
+    ];
+    const rows: TableRow[] = [{
+      id: 1, tableId: 1, order: 0, createdAt: '', updatedAt: '',
+      data: { field_1: '高麗菜', field_2: [{ id: 'c1', user: 'bob', time: 't', content: '舊留言' }], field_3: 7 },
+    }];
+    (rowService.createRow as jest.Mock).mockResolvedValue({ ok: false });
+    const { result } = renderHook(() =>
+      useRowOperations({
+        activeTableId: 1,
+        fields,
+        rows,
+        setRows: jest.fn(),
+        displayRows: rows,
+        addToast: jest.fn(),
+        setSortField: jest.fn(),
+        setSortRules: jest.fn(),
+        setSortOrder: jest.fn(),
+      })
+    );
+    await act(async () => {
+      await result.current.addRow(undefined, true);
+    });
+    expect(rowService.createRow).toHaveBeenCalledWith(1, { field_1: '高麗菜' });
   });
 });

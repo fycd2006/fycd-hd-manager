@@ -6,6 +6,7 @@ import { FieldRegistry } from '@/modules/database/fields/types'
 import { prepareBatchCellWrites, applyChoiceRemap, formatRejection, type FieldMeta } from '@/modules/database/services/cellWrite'
 import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
 import { triggerTableEvent } from '@/lib/pusher-server'
+import { safeJsonParse } from '@/lib/json-utils'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -77,7 +78,7 @@ export async function POST(
 
     // Step 2: Validate Data
     // Note: In cross-table move, field mapping is index-based because IDs might be different.
-    const prepInputs: Array<{ key: number, input: Record<string, unknown> }> = []
+    const prepInputs: Array<{ key: number, input: Record<string, unknown>, existing?: Record<string, unknown> }> = []
     for (const rowObj of rows) {
       if (!rowObj.clientId || !rowObj.sourceRowId) {
         return NextResponse.json({ error: '移動資料缺少 clientId 或 sourceRowId' }, { status: 400 })
@@ -105,6 +106,30 @@ export async function POST(
       })
     }
 
+    // sourceRowId comes from the client: every one must be a live row of the source table,
+    // otherwise an editor could hard-delete rows of any workspace by id
+    const sourceRowIds = [...new Set(parsedRowsData.map(r => r.sourceRowId))]
+    const ownedSourceRows = await prisma.tableRow.findMany({
+      where: { id: { in: sourceRowIds }, tableId: sourceTableIdNum, deletedAt: null },
+      select: { id: true, data: true }
+    })
+    if (ownedSourceRows.length !== sourceRowIds.length) {
+      return NextResponse.json({ error: '部分來源資料列不存在或不屬於來源表格' }, { status: 404 })
+    }
+
+    // The stored source row, re-keyed to target fields (same index mapping as the values), so
+    // latest_comment entries keep their original author and time instead of being re-stamped
+    const storedById = new Map(ownedSourceRows.map(r => [r.id, safeJsonParse<Record<string, unknown>>(r.data, {})]))
+    for (const p of prepInputs) {
+      const stored = storedById.get(parsedRowsData[p.key].sourceRowId) ?? {}
+      const existing: Record<string, unknown> = {}
+      for (let i = 0; i < targetFields.length; i++) {
+        const sourceKey = `field_${sourceFields[i].id}`
+        if (stored[sourceKey] !== undefined) existing[`field_${targetFields[i].id}`] = stored[sourceKey]
+      }
+      p.existing = existing
+    }
+
     const prepared = prepareBatchCellWrites({ fields: targetMeta, rows: prepInputs, mode: 'create', canAddOptions: true, actor: { username } })
     for (const r of prepared.rows) {
       const first = r.rejected[0]
@@ -118,17 +143,6 @@ export async function POST(
         if (targetF.type === 'created_by' || targetF.type === 'last_modified_by') row.data[targetKey] = username
         else if (targetF.type === 'created_on' || targetF.type === 'last_modified_on') row.data[targetKey] = nowStr
       }
-    }
-
-    // sourceRowId comes from the client: every one must be a live row of the source table,
-    // otherwise an editor could hard-delete rows of any workspace by id
-    const sourceRowIds = [...new Set(parsedRowsData.map(r => r.sourceRowId))]
-    const ownedSourceRows = await prisma.tableRow.findMany({
-      where: { id: { in: sourceRowIds }, tableId: sourceTableIdNum, deletedAt: null },
-      select: { id: true }
-    })
-    if (ownedSourceRows.length !== sourceRowIds.length) {
-      return NextResponse.json({ error: '部分來源資料列不存在或不屬於來源表格' }, { status: 404 })
     }
 
     // Step 3: Insert Target and Delete Source (Sequential)

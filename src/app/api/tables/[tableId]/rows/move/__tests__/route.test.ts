@@ -138,6 +138,23 @@ describe('POST /api/tables/[tableId]/rows/move', () => {
     expect(fieldEvents[0][2].field).toEqual(expect.objectContaining({ id: 13, name: '類別' }))
   })
 
+  it('keeps the original author and time of existing comments when moving a row', async () => {
+    const srcComment = { id: 3, tableId: 20, name: '備註', type: 'latest_comment', options: null }
+    const dstComment = { id: 13, tableId: 10, name: '備註', type: 'latest_comment', options: null }
+    fieldsFor([...sourceFields, srcComment], [...targetFields, dstComment])
+    const stored = [{ id: 'c-1', user: 'bob', time: '2026/01/02 03:04:05', content: '原留言' }]
+    ;(prisma.tableRow.findMany as jest.Mock).mockResolvedValue([{ id: 5, data: { field_3: stored } }])
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_3: [{ id: 'c-1', user: 'mallory', time: 'now', content: '原留言' }] } }],
+    })
+
+    expect(res.status).toBe(200)
+    const created = tx.tableRow.createMany.mock.calls[0][0].data[0].data
+    expect(created.field_13).toEqual([expect.objectContaining({ id: 'c-1', user: 'bob', time: '2026/01/02 03:04:05', content: '原留言' })])
+  })
+
   it('rejects a value that fails target field validation before writing anything', async () => {
     const res = await move({
       sourceTableId: 20,

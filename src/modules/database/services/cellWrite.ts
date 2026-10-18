@@ -115,7 +115,7 @@ function effectiveOptions(s: Session, f: FieldMeta): unknown {
 function stampComments(parsed: unknown, existingValue: unknown, actor: Actor): unknown {
   if (!Array.isArray(parsed)) return parsed
   const stored = new Map(parseLatestCommentEntries(existingValue).map((e) => [String(e.id), e]))
-  const now = new Date().toLocaleString('zh-TW', { hour12: false })
+  const now = new Date().toLocaleString('zh-TW', { hour12: false, timeZone: 'Asia/Taipei' })
   return parsed.map((entry) => {
     const e = entry as { id: string | number; user: string; time: string }
     const prev = stored.get(String(e.id))

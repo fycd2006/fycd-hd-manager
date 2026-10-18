@@ -67,6 +67,21 @@ describe('prepareCellWrites', () => {
       expect(list[1]).toMatchObject({ id: 'c2', user: 'bob' })
       expect(list[1].time).not.toBe('forged')
     })
+    it('stamps new entries in Taiwan time regardless of the server time zone', () => {
+      // jest sandboxes process.env, so the host zone cannot be switched here: pin the requested zone too
+      const spy = jest.spyOn(Date.prototype, 'toLocaleString')
+      jest.useFakeTimers().setSystemTime(new Date('2026-01-01T00:30:00Z'))
+      try {
+        const r = prepareCellWrites({ fields, mode: 'update', canAddOptions: false, input, existing, actor: { username: 'bob' } })
+        const time = (r.data.field_5 as Array<Record<string, string>>)[1].time
+        expect(spy).toHaveBeenCalledWith('zh-TW', expect.objectContaining({ timeZone: 'Asia/Taipei' }))
+        expect(time).toMatch(/^2026\/0?1\/0?1/)
+        expect(time).toContain('08:30')
+      } finally {
+        jest.useRealTimers()
+        spy.mockRestore()
+      }
+    })
     it('leaves entries as validated without actor', () => {
       const r = prepareCellWrites({ fields, mode: 'update', canAddOptions: false, input, existing })
       expect((r.data.field_5 as Array<Record<string, string>>)[1].user).toBe('mallory')

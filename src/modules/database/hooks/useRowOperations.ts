@@ -64,6 +64,10 @@ export function useRowOperations({
         baseData = { ...lastRow.data }
 
         baseData = stripReadOnlyCells(baseData, fields)
+        // The previous row's comments would be re-stamped with the current user and time
+        for (const f of fields) {
+          if (f.type === 'latest_comment') delete baseData[`field_${f.id}`]
+        }
       } else {
         fields.forEach(f => {
           const key = `field_${f.id}`
