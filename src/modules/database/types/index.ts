@@ -138,16 +138,55 @@ export type FilterOperator =
   | 'date_equal'
   | 'date_before'
   | 'date_after'
+  | 'date_on_or_before'
+  | 'date_on_or_after'
+  | 'date_within'
+  | 'is_any_of'
+  | 'is_none_of'
+  | 'has_any_of'
+  | 'has_all_of'
+  | 'has_none_of'
+  | 'is_exactly'
+
+export type FilterConjunction = 'AND' | 'OR'
+
+export type DateFilterMode =
+  | 'exact'
+  | 'today'
+  | 'tomorrow'
+  | 'yesterday'
+  | 'days_ago'
+  | 'days_from_now'
+  | 'past_week'
+  | 'past_month'
+  | 'past_year'
+  | 'next_week'
+  | 'next_month'
+  | 'next_year'
+  | 'past_n_days'
+  | 'next_n_days'
 
 export interface FilterRule {
   fieldKey: string
   operator: FilterOperator
   value: string
+  values?: string[]          // multi-value operators (is_any_of, has_any_of, ...)
+  dateMode?: DateFilterMode  // date operators; missing means 'exact'
+  dateAmount?: number        // N for days_ago / days_from_now / past_n_days / next_n_days
 }
 
-export interface FilterGroupConfig {
-  filterType?: 'AND' | 'OR'
+// A nested condition group; only one level of nesting is allowed
+export interface FilterGroup {
+  type: 'group'
+  filterType: FilterConjunction
   rules: FilterRule[]
+}
+
+export type FilterItem = FilterRule | FilterGroup
+
+export interface FilterGroupConfig {
+  filterType?: FilterConjunction
+  rules: FilterItem[]
 }
 
 export interface RowColorRule {
