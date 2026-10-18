@@ -117,6 +117,26 @@ describe('POST /api/database/import/airtable', () => {
     expect((await res.json()).stats).toEqual({ tableCount: 1, rowCount: 2, rejectedCellCount: 1 })
   })
 
+  it('stores imported read-only values as-is and does not count them as rejected', async () => {
+    ;(parseAirtableBasePayload as jest.Mock).mockReturnValue([{
+      name: '食材',
+      fields: [
+        { name: '品名', type: 'text' },
+        { name: '總價', type: 'formula', options: 'field_70' },
+        { name: '編號', type: 'autonumber' },
+        { name: '建立時間', type: 'created_on' },
+      ],
+      rows: [{ data: { 品名: '米', 總價: '30', 編號: 12, 建立時間: '2024/01/02 10:00' } }],
+    }])
+
+    const res = await importBase({ workspaceId: 5, rawPayload: {} })
+
+    expect(prisma.tableRow.create).toHaveBeenCalledWith({
+      data: { tableId: 60, data: { field_70: '米', field_71: '30', field_72: 12, field_73: '2024/01/02 10:00' }, order: 0 },
+    })
+    expect((await res.json()).stats.rejectedCellCount).toBe(0)
+  })
+
   it('adds unknown select choices straight into the just-created field options', async () => {
     ;(parseAirtableBasePayload as jest.Mock).mockReturnValue([{
       name: '食材',

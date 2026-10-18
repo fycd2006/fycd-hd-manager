@@ -725,4 +725,38 @@ describe('POST /api/ai/table-agent', () => {
     expect(createTableRow).toHaveBeenCalledWith(expect.objectContaining({ tableId: 1, canAddOptions: true }))
     expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 2, options: { choices: [] } } }, 's1')
   })
+
+  it('merges options for several rows in one call and broadcasts the final options once', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([
+      { id: 2, name: '組別', type: 'single_select', options: { choices: [{ id: 'a', name: '甲' }] }, order: 0 },
+    ])
+    const mockTx = (prisma as unknown as { _mockTx: { tableRow: { findUnique: jest.Mock; update: jest.Mock } } })._mockTx
+    mockTx.tableRow.findUnique
+      .mockResolvedValueOnce({ id: 101, tableId: 1, data: { field_2: 'a' } })
+      .mockResolvedValueOnce({ id: 102, tableId: 1, data: { field_2: 'a' } })
+    const finalOptions = { choices: [{ id: 'a', name: '甲' }, { id: 'x', name: '乙' }, { id: 'y', name: '丙' }] }
+    ;(applyOptionAdditions as jest.Mock).mockClear()
+    ;(applyOptionAdditions as jest.Mock).mockResolvedValueOnce({ updated: [{ id: 2, options: finalOptions }], remap: {} })
+
+    await POST(new Request('http://localhost/api/ai/table-agent', {
+      method: 'POST',
+      body: JSON.stringify({
+        tableId: 1,
+        mode: 'execute',
+        socketId: 's1',
+        confirmedAction: {
+          name: 'update_cells',
+          args: { updates: [{ rowId: 101, fieldKey: 'field_2', value: '乙' }, { rowId: 102, fieldKey: 'field_2', value: '丙' }] },
+        },
+      }),
+    }))
+
+    expect(applyOptionAdditions).toHaveBeenCalledTimes(1)
+    const additions = (applyOptionAdditions as jest.Mock).mock.calls[0][2]
+    expect(additions[2].map((c: { name: string }) => c.name)).toEqual(['乙', '丙'])
+    const fieldEvents = (triggerTableEvent as jest.Mock).mock.calls.filter(c => c[1] === 'field-updated')
+    expect(fieldEvents).toHaveLength(1)
+    expect(fieldEvents[0][2].field.options).toEqual(finalOptions)
+    expect(mockTx.tableRow.update).toHaveBeenCalledTimes(2)
+  })
 })

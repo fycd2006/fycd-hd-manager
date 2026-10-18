@@ -6,6 +6,7 @@ import { fetchAirtableSchemaWithToken, extractAirtableId } from '@/lib/airtable/
 import { fetchAllTablesFromSharedLink } from '@/lib/airtable/airtableScraper'
 import { authorizeAction } from '@/lib/authorize'
 import { prepareBatchCellWrites, mergeChoicesIntoOptions, type FieldMeta } from '@/modules/database/services/cellWrite'
+import { FieldRegistry } from '@/modules/database/fields/types'
 import type { Prisma } from '@prisma/client'
 
 export async function POST(req: NextRequest) {
@@ -94,19 +95,27 @@ export async function POST(req: NextRequest) {
         fieldMetas.push({ id: dbField.id, name: f.name, type: f.type, options: f.options ?? null })
       }
 
-      // Validate every cell against the field it is written to; invalid cells are skipped
+      // Imported history: values of read-only fields (formula, autonumber, created_on...) are copied as-is;
+      // only writable fields are validated, and invalid cells are skipped
+      const readOnlyIds = new Set(fieldMetas.filter(m => FieldRegistry.get(m.type).readOnly).map(m => m.id))
+      const readOnlyValues = new Map<number, Record<string, unknown>>()
       const prepared = prepareBatchCellWrites({
-        fields: fieldMetas,
+        fields: fieldMetas.filter(m => !readOnlyIds.has(m.id)),
         rows: convertedTable.rows.map((r, rowIdx) => {
           const input: Record<string, unknown> = {}
+          const copied: Record<string, unknown> = {}
           for (const [fieldName, val] of Object.entries(r.data)) {
             const ourFieldId = fieldMap.get(fieldName)
-            if (ourFieldId) input[`field_${ourFieldId}`] = val
+            if (!ourFieldId) continue
+            if (readOnlyIds.has(ourFieldId)) copied[`field_${ourFieldId}`] = val
+            else input[`field_${ourFieldId}`] = val
           }
+          readOnlyValues.set(rowIdx, copied)
           return { key: rowIdx, input }
         }),
         mode: 'create',
         canAddOptions: true,
+        actor: { username: session.username },
       })
 
       // The fields were created just above, so new select choices go straight into their options
@@ -126,7 +135,7 @@ export async function POST(req: NextRequest) {
         await prisma.tableRow.create({
           data: {
             tableId: dbTable.id,
-            data: row.data as Prisma.InputJsonValue,
+            data: { ...row.data, ...readOnlyValues.get(row.key) } as Prisma.InputJsonValue,
             order: row.key,
           },
         })

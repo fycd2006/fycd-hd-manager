@@ -10,7 +10,7 @@ import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCasc
 import { syncBiDirectionalLinkRow, parseLinkRowIds } from '@/modules/database/services/linkRowSync'
 import { createTableRow } from '@/modules/database/services/createRow'
 import { safeJsonParse } from '@/lib/json-utils'
-import { prepareCellWrites, applyChoiceRemap, formatRejection, type FieldMeta } from '@/modules/database/services/cellWrite'
+import { prepareBatchCellWrites, applyChoiceRemap, formatRejection, type FieldMeta } from '@/modules/database/services/cellWrite'
 import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
 
 const AI_USERNAME = 'AI 助理 (AI Assistant)'
@@ -218,6 +218,19 @@ export async function POST(request: Request) {
         }
 
         await runDb(() => prisma.$transaction(async (tx) => {
+          // the transaction may be retried: start from a clean slate
+          linkRowSyncTasks.length = 0
+          rejectedCells.length = 0
+          updatedFields.length = 0
+          updatedRowIds.clear()
+
+          const pending: Array<{
+            rowId: number
+            rowData: Record<string, string | number | boolean | null>
+            input: Record<string, unknown>
+            syncs: Map<string, () => Promise<unknown>>
+          }> = []
+
           for (const [rowId, rowUpdates] of updatesByRow.entries()) {
             const row = await tx.tableRow.findUnique({
               where: { id: rowId, tableId: tid, deletedAt: null }
@@ -296,15 +309,27 @@ export async function POST(request: Request) {
               rowInput[u.fieldKey] = validatedValue
             }
 
+            pending.push({ rowId, rowData, input: rowInput, syncs: pendingSyncs })
+          }
+
+          // Prepare all rows together so new select options are merged into the field once
+          const preparedAll = prepareBatchCellWrites({
+            fields: fieldMetas,
+            rows: pending.map((r, i) => ({ key: i, input: r.input, existing: r.rowData })),
+            mode: 'update',
+            canAddOptions: true,
+            actor: { username: AI_USERNAME },
+          })
+          let remap: Record<number, Record<string, string>> = {}
+          if (Object.keys(preparedAll.optionAdditions).length > 0) {
+            const applied = await applyOptionAdditions(tx, tid, preparedAll.optionAdditions)
+            updatedFields.push(...applied.updated)
+            remap = applied.remap
+          }
+
+          for (const prepared of preparedAll.rows) {
+            const { rowId, rowData, syncs: pendingSyncs } = pending[prepared.key]
             // Read-only fields and invalid values come back as rejections; those cells are not written
-            const prepared = prepareCellWrites({
-              fields: fieldMetas,
-              input: rowInput,
-              mode: 'update',
-              canAddOptions: true,
-              actor: { username: AI_USERNAME },
-              existing: rowData,
-            })
             for (const rej of prepared.rejected) {
               const fieldName = fields.find(x => x.id === rej.fieldId)?.name ?? `field_${rej.fieldId}`
               rejectedCells.push({
@@ -316,14 +341,7 @@ export async function POST(request: Request) {
             }
             if (prepared.rejected.length > 0 && Object.keys(prepared.data).length === 0) continue
 
-            let writeData: Record<string, unknown> = prepared.data
-            if (Object.keys(prepared.optionAdditions).length > 0) {
-              const applied = await applyOptionAdditions(tx, tid, prepared.optionAdditions)
-              for (const u of applied.updated) {
-                if (!updatedFields.some(x => x.id === u.id)) updatedFields.push(u)
-              }
-              writeData = applyChoiceRemap(writeData, fieldMetas, applied.remap)
-            }
+            const writeData = applyChoiceRemap(prepared.data, fieldMetas, remap)
             for (const [key, run] of pendingSyncs) {
               if (key in writeData) linkRowSyncTasks.push(run())
             }

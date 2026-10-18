@@ -27,7 +27,7 @@ export async function PATCH(
     }
 
     // Must have canEditData on the workspace to modify master view overrides
-    const { errorResponse } = await authorizeAction({ workspaceId, action: 'canEditData' })
+    const { errorResponse, auth } = await authorizeAction({ workspaceId, action: 'canEditData' })
     if (errorResponse) return errorResponse
 
     let body: any
@@ -52,6 +52,22 @@ export async function PATCH(
     // Overrides are cell values of the source table, so they follow the source field rules.
     // Overrides never add select options (that would change the source table's schema).
     const sourceFields = await prisma.tableField.findMany({ where: { tableId: srcTableId, deletedAt: null } })
+    const sourceFieldIds = new Set(sourceFields.map((f) => `field_${f.id}`))
+    const strayKey = Object.keys(overrides).find((k) => !sourceFieldIds.has(k))
+    if (strayKey !== undefined) {
+      return NextResponse.json({ error: `覆寫欄位不屬於來源資料表：${strayKey}` }, { status: 400 })
+    }
+
+    // The value the user sees (and edits) is the source row with the active overrides on top
+    const sourceRow = await prisma.tableRow.findFirst({ where: { id: srcRowId, tableId: srcTableId, deletedAt: null } })
+    const activeOverride = await prisma.masterViewOverride.findUnique({
+      where: { masterViewId_sourceTableId_sourceRowId: { masterViewId, sourceTableId: srcTableId, sourceRowId: srcRowId } },
+    })
+    const existing = {
+      ...safeJsonParse<Record<string, unknown>>(sourceRow?.data, {}),
+      ...(activeOverride && !activeOverride.deletedAt ? safeJsonParse<Record<string, unknown>>(activeOverride.overrides, {}) : {}),
+    }
+
     const prepared = prepareCellWrites({
       fields: sourceFields.map((f) => ({
         id: f.id,
@@ -62,6 +78,8 @@ export async function PATCH(
       input: overrides,
       mode: 'update',
       canAddOptions: false,
+      actor: { username: auth?.user.username ?? '系統 (System)' },
+      existing,
     })
     if (prepared.rejected.length > 0) {
       const first = prepared.rejected[0]
