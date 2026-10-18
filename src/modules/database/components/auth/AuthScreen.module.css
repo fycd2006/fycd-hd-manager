@@ -1,0 +1,330 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  background: #f5f0e6;
+  font-family: Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.shell {
+  width: 100%;
+  max-width: 420px;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 36px 32px 32px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #e7e1d3;
+  box-shadow:
+    0 1px 2px rgba(57, 69, 43, 0.06),
+    0 24px 48px -24px rgba(57, 69, 43, 0.18);
+}
+
+.langPicker {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  text-align: center;
+}
+
+.subtitle {
+  margin: 0;
+  color: #6b6f63;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.error {
+  overflow: hidden;
+}
+
+.errorInner {
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.desc {
+  margin: 0 0 2px;
+  color: #52554b;
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.label {
+  color: #3d4135;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.inputWrap {
+  position: relative;
+}
+
+.iconLeft {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  color: #9a9d90;
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.inputWrap:focus-within .iconLeft {
+  color: #39452b;
+}
+
+.input {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 0 14px 0 40px;
+  border-radius: 12px;
+  border: 1px solid #e4ded0;
+  background: #faf8f3;
+  color: #1a1d16;
+  font-size: 13.5px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.input::placeholder {
+  color: #a5a89b;
+}
+
+.input:hover:not(:disabled) {
+  border-color: #d3ccba;
+}
+
+.input:focus {
+  border-color: #39452b;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(57, 69, 43, 0.14);
+}
+
+.input:disabled {
+  opacity: 0.65;
+}
+
+.withToggle {
+  padding-right: 42px;
+}
+
+.toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: #9a9d90;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.toggle:hover {
+  color: #39452b;
+  background: rgba(57, 69, 43, 0.06);
+}
+
+.toggle:focus-visible,
+.linkBtn:focus-visible,
+.primaryBtn:focus-visible {
+  outline: 2px solid #f58220;
+  outline-offset: 2px;
+}
+
+.primaryBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 44px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 12px;
+  background: #39452b;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -6px rgba(57, 69, 43, 0.45);
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.primaryBtn:hover:not([aria-busy='true']) {
+  background: #2c3621;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px -8px rgba(57, 69, 43, 0.5);
+}
+
+.primaryBtn:active:not([aria-busy='true']) {
+  transform: scale(0.98);
+}
+
+.primaryBtn[aria-busy='true'] {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+.primaryBtn .arrow {
+  transition: transform 0.2s ease;
+}
+
+.primaryBtn:hover .arrow {
+  transform: translateX(3px);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: authSpin 0.7s linear infinite;
+}
+
+@keyframes authSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.linkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #52554b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.linkBtn:hover {
+  color: #39452b;
+}
+
+.forgotLink {
+  color: #dd6410;
+  font-size: 12px;
+}
+
+.forgotLink:hover {
+  color: #f58220;
+  text-decoration: underline;
+}
+
+.center {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.switcher {
+  margin-top: 24px;
+  color: #7a7d70;
+  font-size: 13px;
+  text-align: center;
+}
+
+.switcherLink {
+  color: #39452b;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 32px 22px 26px;
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s;
+  }
+
+  .primaryBtn,
+  .primaryBtn .arrow {
+    transition: none;
+  }
+}

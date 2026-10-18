@@ -55,6 +55,7 @@ import WorkspaceDashboard from '@/modules/database/components/dashboard/Workspac
 import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { FYCDBrandLoading } from '@/components/fycd/FYCDBrandLoading'
+import { FycdLogo } from '@/components/brand/FycdLogo'
 import {
   useAuthStore,
   useThemeStore,
@@ -116,6 +117,8 @@ export default function Home() {
   const [gridLoading, setGridLoading] = useState(false)
   const [showBrandLoading, setShowBrandLoading] = useState<boolean>(false)
   const [workspaceReady, setWorkspaceReady] = useState(false)
+  const [authCovered, setAuthCovered] = useState(false)
+  const [brandReplay, setBrandReplay] = useState(false)
   const [editingCell, setEditingCell] = useState<{ rowId: number; fieldKey: string } | null>(null)
   const [editingCellValue, setEditingCellValue] = useState('')
   const [editingFieldId, setEditingFieldId] = useState<number | null>(null)
@@ -190,7 +193,11 @@ export default function Home() {
       localStorage.setItem('fycd_intro_seen_desktop', 'true')
     }
     setShowBrandLoading(false)
+    setAuthCovered(false)
+    setBrandReplay(false)
   }, [])
+
+  const handleBrandEntered = useCallback(() => setAuthCovered(true), [])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -878,9 +885,23 @@ export default function Home() {
   ])
 
   // Show unified App Shell skeleton during initial load & authentication check
+  // 三個分支的根都是 Fragment 且第 0 個子元素都是 brandOverlay，
+  // 登入後切換分支時 React 會保留同一個載入層實例，不會重新淡入造成閃爍
+  const brandOverlay = (
+    <FYCDBrandLoading
+      show={showBrandLoading}
+      workspaceReady={workspaceReady}
+      onExitComplete={handleExitComplete}
+      onEntered={handleBrandEntered}
+      replay={brandReplay}
+    />
+  )
+
   if (authState.authLoading) {
     const isDark = themeState.theme === 'dark'
     return (
+      <>
+      {brandOverlay}
       <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#fafafa' }}>
         {/* Top Brand Accent Line */}
         <div style={{
@@ -890,7 +911,7 @@ export default function Home() {
           right: 0,
           height: '3px',
           zIndex: 50,
-          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
           backgroundSize: '200% 100%',
           animation: 'fycdTopBarShimmer 2s ease-in-out infinite'
         }} />
@@ -898,16 +919,12 @@ export default function Home() {
         {/* Sidebar Skeleton */}
         <div style={{ width: '240px', height: '100%', borderRight: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: isDark ? '#1e293b' : '#ffffff', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img
-              src="/logo.png"
-              alt="FYCD HD Logo"
-              style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #EA580C', boxShadow: '0 2px 6px rgba(234, 88, 12, 0.2)' }}
-            />
-            <div style={{ width: '110px', height: '16px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
+            <FycdLogo variant="icon" height={24} />
+            <div className="fycd-skeleton" style={{ width: '110px', height: '16px', borderRadius: '4px' }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
             {[85, 65, 75, 55, 80].map((w, i) => (
-              <div key={i} style={{ width: `${w}%`, height: '16px', borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#f1f5f9', opacity: 0.8 }} />
+              <div key={i} className="fycd-skeleton" style={{ width: `${w}%`, height: '16px', borderRadius: '4px' }} />
             ))}
           </div>
         </div>
@@ -916,22 +933,22 @@ export default function Home() {
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           {/* View Toolbar Skeleton */}
           <div style={{ height: '44px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '14px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
-            <div style={{ width: '110px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#e2e8f0' }} />
-            <div style={{ width: '75px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#f1f5f9' }} />
-            <div style={{ width: '75px', height: '22px', borderRadius: '6px', backgroundColor: isDark ? '#334155' : '#f1f5f9' }} />
+            <div className="fycd-skeleton" style={{ width: '110px', height: '22px', borderRadius: '6px' }} />
+            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
+            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
           </div>
 
           {/* Grid Skeleton */}
           <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: isDark ? '#0f172a' : '#ffffff' }}>
             <div style={{ display: 'flex', gap: '8px', height: '32px' }}>
               {[1, 2, 3, 4, 5].map(col => (
-                <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#334155' : '#cbd5e1', opacity: 0.7 }} />
+                <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
               ))}
             </div>
             {[1, 2, 3, 4, 5, 6, 7].map(row => (
               <div key={row} style={{ display: 'flex', gap: '8px', height: '34px' }}>
                 {[1, 2, 3, 4, 5].map(col => (
-                  <div key={col} style={{ flex: 1, borderRadius: '4px', backgroundColor: isDark ? '#1e293b' : '#f8fafc' }} />
+                  <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
                 ))}
               </div>
             ))}
@@ -946,6 +963,7 @@ export default function Home() {
           }
         `}</style>
       </div>
+      </>
     )
   }
 
@@ -966,15 +984,12 @@ export default function Home() {
   if (!authState.currentUser) {
     return (
       <>
-        <FYCDBrandLoading
-          show={showBrandLoading}
-          workspaceReady={workspaceReady}
-          onExitComplete={handleExitComplete}
-        />
-        {!showBrandLoading && (
-          <>
+        {brandOverlay}
+        {/* 被品牌層覆蓋時只隱藏不卸載，登入失敗回來時保留卡片內部狀態 */}
+        <div style={authCovered ? { display: 'none' } : undefined}>
             <ToastContainer toasts={uiState.toasts} />
             <AuthScreen
+              leaving={showBrandLoading}
               authMode={authState.authMode}
               authUsername={authState.authUsername}
               authEmail={authState.authEmail}
@@ -990,6 +1005,7 @@ export default function Home() {
               onAuthPasswordChange={authActions.setAuthPassword}
               onLogin={async (e) => {
                 setAuthError(null)
+                setBrandReplay(true)
                 setShowBrandLoading(true)
                 setWorkspaceReady(false)
                 const result = await authActions.login(authState.authUsername, authState.authPassword)
@@ -997,12 +1013,15 @@ export default function Home() {
                   uiActions.addToast(`登入成功，歡迎回來！`, 'success')
                 } else {
                   setShowBrandLoading(false)
+                  setAuthCovered(false)
+                  setBrandReplay(false)
                   setAuthError(result.error || '登入失敗，請檢查帳號或密碼')
                   uiActions.addToast(result.error || '登入失敗，請檢查帳號或密碼', 'error')
                 }
               }}
               onRegister={async (e) => {
                 setAuthError(null)
+                setBrandReplay(true)
                 setShowBrandLoading(true)
                 setWorkspaceReady(false)
                 const result = await authActions.register(authState.authUsername, authState.authEmail, authState.authPassword)
@@ -1011,6 +1030,8 @@ export default function Home() {
                   authActions.setAuthPassword('')
                 } else {
                   setShowBrandLoading(false)
+                  setAuthCovered(false)
+                  setBrandReplay(false)
                   setAuthError(result.error || '註冊失敗')
                   uiActions.addToast(result.error || '註冊失敗', 'error')
                 }
@@ -1046,8 +1067,7 @@ export default function Home() {
               }}
             />
 
-          </>
-        )}
+        </div>
       </>
     )
   }
@@ -1067,13 +1087,10 @@ export default function Home() {
   }
 
   return (
+    <>
+    {brandOverlay}
     <TableProvider value={tableContextValue}>
       <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning>
-        <FYCDBrandLoading
-          show={showBrandLoading}
-          workspaceReady={workspaceReady}
-          onExitComplete={handleExitComplete}
-        />
       <ToastContainer toasts={uiState.toasts} />
 
       <div className="layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -1364,5 +1381,6 @@ export default function Home() {
       />
     </div>
     </TableProvider>
+    </>
   )
 }

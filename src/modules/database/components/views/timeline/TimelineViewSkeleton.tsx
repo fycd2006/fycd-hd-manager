@@ -27,7 +27,7 @@ export const TimelineViewSkeleton: React.FC<TimelineViewSkeletonProps> = ({ load
         style={{
           height: '2.5px',
           width: '100%',
-          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
           backgroundSize: '200% 100%',
           animation: 'fycdBarShimmer 2s ease-in-out infinite',
         }}
@@ -45,8 +45,8 @@ export const TimelineViewSkeleton: React.FC<TimelineViewSkeletonProps> = ({ load
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '110px', height: '24px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
-          <div style={{ width: '130px', height: '24px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
+          <div className="fycd-skeleton" style={{ width: '110px', height: '24px', borderRadius: '4px' }} />
+          <div className="fycd-skeleton" style={{ width: '130px', height: '24px', borderRadius: '4px' }} />
         </div>
 
         {loadingText && (
@@ -57,8 +57,8 @@ export const TimelineViewSkeleton: React.FC<TimelineViewSkeletonProps> = ({ load
         )}
 
         <div style={{ display: 'flex', gap: '6px' }}>
-          <div style={{ width: '60px', height: '26px', borderRadius: '6px', backgroundColor: '#e2e8f0' }} />
-          <div style={{ width: '60px', height: '26px', borderRadius: '6px', backgroundColor: '#e2e8f0' }} />
+          <div className="fycd-skeleton" style={{ width: '60px', height: '26px', borderRadius: '6px' }} />
+          <div className="fycd-skeleton" style={{ width: '60px', height: '26px', borderRadius: '6px' }} />
         </div>
       </div>
 
@@ -67,7 +67,7 @@ export const TimelineViewSkeleton: React.FC<TimelineViewSkeletonProps> = ({ load
         {/* Left Row Labels */}
         <div style={{ width: '220px', borderRight: '1px solid #e2e8f0', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column' }}>
           <div style={{ height: '36px', borderBottom: '1px solid #e2e8f0', padding: '10px 14px' }}>
-            <div style={{ width: '60px', height: '14px', borderRadius: '4px', backgroundColor: '#cbd5e1' }} />
+            <div className="fycd-skeleton" style={{ width: '60px', height: '14px', borderRadius: '4px' }} />
           </div>
           {[0, 1, 2, 3, 4, 5].map((idx) => (
             <div key={idx} style={{ height: '44px', borderBottom: '1px solid #f1f5f9', padding: '12px 14px', display: 'flex', alignItems: 'center' }}>
@@ -82,7 +82,7 @@ export const TimelineViewSkeleton: React.FC<TimelineViewSkeletonProps> = ({ load
           <div style={{ height: '36px', borderBottom: '1px solid #e2e8f0', display: 'flex' }}>
             {Array.from({ length: 12 }).map((_, i) => (
               <div key={i} style={{ flex: 1, borderRight: '1px solid #f1f5f9', padding: '8px 4px', textAlign: 'center' }}>
-                <div style={{ width: '20px', height: '12px', margin: '0 auto', borderRadius: '2px', backgroundColor: '#e2e8f0' }} />
+                <div className="fycd-skeleton" style={{ width: '20px', height: '12px', margin: '0 auto', borderRadius: '2px' }} />
               </div>
             ))}
           </div>
@@ -109,7 +109,6 @@ export const TimelineViewSkeleton: React.FC<TimelineViewSkeletonProps> = ({ load
                   borderRadius: '6px',
                   backgroundColor: idx % 2 === 0 ? '#f0fdf4' : '#fff7ed',
                   border: `1px solid ${idx % 2 === 0 ? '#bbf7d0' : '#fed7aa'}`,
-                  animation: `fycdRowPulse 1.8s ease-in-out ${idx * 0.08}s infinite alternate`,
                 }}
               />
             </div>

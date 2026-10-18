@@ -5,6 +5,7 @@ export interface CommentLogEntry {
   user: string
   time: string
   content: string
+  editedAt?: string
 }
 
 export function parseLatestCommentEntries(val: any): CommentLogEntry[] {

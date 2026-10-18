@@ -1,0 +1,43 @@
+/* FYCD HD 字標進場：FYCD 自左、HD 自右滑入，最後摺紙暗面由左向右展開 */
+.animated [data-part='fycd'] {
+  animation: fycdIn 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.animated [data-part='hd'] {
+  animation: hdIn 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both;
+}
+
+.animated [data-part='fold'] {
+  animation:
+    hdIn 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s both,
+    foldIn 0.7s cubic-bezier(0.7, 0, 0.2, 1) 0.7s both;
+}
+
+@keyframes fycdIn {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+
+@keyframes hdIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+@keyframes foldIn {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated [data-part] {
+    animation: none;
+  }
+}

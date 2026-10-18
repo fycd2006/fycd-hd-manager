@@ -332,6 +332,17 @@ export function parseGroupValue(
   };
 }
 
+/** A cell range in on-screen order; rowIndices are indices into `rows`, top to bottom as displayed. */
+export interface SelectionBounds {
+  rowIndices: number[];
+  rowSet: Set<number>;
+  firstRow: number;
+  lastRow: number;
+  minCol: number;
+  maxCol: number;
+  isMulti: boolean;
+}
+
 export function isGroupCollapsed(groupKey: string, collapseState: GroupCollapseState): boolean {
   const isException = Boolean(collapseState.exceptions[groupKey]);
   return collapseState.mode === 'collapse' ? !isException : isException;
@@ -788,451 +799,6 @@ export const GridView: React.FC<GridViewProps> = ({
     setSelectionEnd([rIndex, cIndex]);
   }, []);
 
-  const selectionBounds = useMemo(() => {
-    if (!selectionStart || !selectionEnd) return null;
-    const minRow = Math.min(selectionStart[0], selectionEnd[0]);
-    const maxRow = Math.max(selectionStart[0], selectionEnd[0]);
-    const minCol = Math.min(selectionStart[1], selectionEnd[1]);
-    const maxCol = Math.max(selectionStart[1], selectionEnd[1]);
-    const isMulti = minRow !== maxRow || minCol !== maxCol;
-    return { minRow, maxRow, minCol, maxCol, isMulti };
-  }, [selectionStart, selectionEnd]);
-
-  // Dynamic real-time selection statistics (Count, Sum, Avg, Min, Max)
-  const selectionStats = useMemo(() => {
-    if (!selectionBounds || !selectionBounds.isMulti) return null;
-    const { minRow, maxRow, minCol, maxCol } = selectionBounds;
-    const totalCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
-    if (totalCount <= 1) return null;
-
-    // Fast path: pre-filter numeric columns to skip string/select/file columns across all rows
-    const numericCols: number[] = [];
-    for (let c = minCol; c <= maxCol; c++) {
-      const field = fields[c];
-      if (field && (field.type === 'number' || field.type === 'rating' || field.type === 'formula')) {
-        numericCols.push(field.id);
-      }
-    }
-
-    let numericSum = 0;
-    let numericCount = 0;
-    let minVal: number | null = null;
-    let maxVal: number | null = null;
-
-    if (numericCols.length > 0) {
-      // Limit cell inspections to at most 10,000 cells for 120 FPS buttery drag-selection
-      const rowCount = maxRow - minRow + 1;
-      const maxRowsToScan = numericCols.length * rowCount > 10000
-        ? minRow + Math.floor(10000 / numericCols.length)
-        : maxRow;
-
-      for (let r = minRow; r <= maxRowsToScan; r++) {
-        const row = rows[r];
-        if (!row) continue;
-        const rowData = (row as any).data;
-        const rowValues = row.values;
-        for (let i = 0; i < numericCols.length; i++) {
-          const fid = numericCols[i];
-          const val = rowData ? rowData[`field_${fid}`] : rowValues?.[fid];
-          if (val !== null && val !== undefined && val !== '') {
-            const num = Number(val);
-            if (!isNaN(num) && typeof val !== 'boolean') {
-              numericSum += num;
-              numericCount++;
-              if (minVal === null || num < minVal) minVal = num;
-              if (maxVal === null || num > maxVal) maxVal = num;
-            }
-          }
-        }
-      }
-    }
-
-    return {
-      totalCount,
-      numericCount,
-      sum: numericCount > 0 ? Number(numericSum.toFixed(4)) : null,
-      avg: numericCount > 0 ? Number((numericSum / numericCount).toFixed(2)) : null,
-      min: minVal,
-      max: maxVal,
-    };
-  }, [selectionBounds, rows, fields]);
-
-  const autofillBounds = useMemo(() => {
-    if (!isAutofilling || !autofillStart || !autofillEnd) return null;
-    const minRow = Math.min(autofillStart[0], autofillEnd[0]);
-    const maxRow = Math.max(autofillStart[0], autofillEnd[0]);
-    const minCol = Math.min(autofillStart[1], autofillEnd[1]);
-    const maxCol = Math.max(autofillStart[1], autofillEnd[1]);
-    return { minRow, maxRow, minCol, maxCol };
-  }, [isAutofilling, autofillStart, autofillEnd]);
-
-  const handleAutoFillDown = useCallback((sourceRowIndex: number, colIndex: number) => {
-    const targetField = fields[colIndex];
-    const sourceRowData = rows[sourceRowIndex];
-    if (!targetField || !sourceRowData || sourceRowIndex >= rows.length - 1) return;
-
-    const sourceValue = sourceRowData.values?.[targetField.id] ?? (sourceRowData as any).data?.[`field_${targetField.id}`] ?? (sourceRowData as any).data?.[targetField.id] ?? null;
-    const rowMap = new Map<number, Record<string, any>>();
-
-    for (let r = sourceRowIndex + 1; r < rows.length; r++) {
-      const rData = rows[r];
-      if (rData) {
-        const map = rowMap.get(rData.id) || {};
-        map[`field_${targetField.id}`] = sourceValue;
-        rowMap.set(rData.id, map);
-      }
-    }
-
-    if (rowMap.size > 0) {
-      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
-      if (onBatchUpdateCells) {
-        onBatchUpdateCells(batchUpdates);
-      } else {
-        (async () => {
-          const entries = Array.from(rowMap.entries());
-          for (let i = 0; i < entries.length; i += 2) {
-            const chunk = entries.slice(i, i + 2);
-            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
-            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
-          }
-        })();
-      }
-      setSelectedCell([sourceRowIndex, colIndex]);
-      setSelectionStart([sourceRowIndex, colIndex]);
-      setSelectionEnd([rows.length - 1, colIndex]);
-      showToast(`已向下自動填滿至第 ${rows.length} 列`);
-    }
-  }, [rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
-
-  const handleCopySelection = useCallback(() => {
-    const lines: string[] = [];
-    if (selectedRowIds.size > 0) {
-      rows.forEach((row) => {
-        if (selectedRowIds.has(row.id)) {
-          const rowCells: string[] = fields.map((field) => {
-            const fk = `field_${field.id}`;
-            const hasK = (row as any).data && fk in (row as any).data;
-            const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
-            const text = formatCellForClipboard(val, field, fields);
-            return text.replace(/\t/g, ' ').replace(/\n/g, ' ');
-          });
-          lines.push(rowCells.join('\t'));
-        }
-      });
-    } else if (selectionBounds) {
-      for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
-        const row = rows[r];
-        if (!row) continue;
-        const rowCells: string[] = [];
-        for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
-          const field = fields[c];
-          if (!field) continue;
-          const fk = `field_${field.id}`;
-          const hasK = (row as any).data && fk in (row as any).data;
-          const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
-          const text = formatCellForClipboard(val, field, fields);
-          rowCells.push(text.replace(/\t/g, ' ').replace(/\n/g, ' '));
-        }
-        lines.push(rowCells.join('\t'));
-      }
-    } else if (selectedCell) {
-      const [r, c] = selectedCell;
-      const row = rows[r];
-      const field = fields[c];
-      if (row && field) {
-        const fk = `field_${field.id}`;
-        const hasK = (row as any).data && fk in (row as any).data;
-        const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
-        const text = formatCellForClipboard(val, field, fields);
-        lines.push(text.replace(/\t/g, ' ').replace(/\n/g, ' '));
-      }
-    }
-    const tsv = lines.join('\n');
-    if (tsv && typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(tsv);
-      showToast('已複製資料至剪貼簿');
-    }
-  }, [selectedRowIds, selectionBounds, selectedCell, rows, fields, showToast]);
-
-  const handleClearSelectionValues = useCallback(() => {
-    setIsEditing(false);
-    const rowMap = new Map<number, Record<string, any>>();
-    if (selectedRowIds.size > 0) {
-      rows.forEach((row) => {
-        if (selectedRowIds.has(row.id)) {
-          const map = rowMap.get(row.id) || {};
-          fields.forEach((field) => {
-            map[`field_${field.id}`] = null;
-          });
-          rowMap.set(row.id, map);
-        }
-      });
-      showToast('已清空選取列內容');
-    } else if (selectionBounds) {
-      for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
-        for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
-          const targetRow = rows[r];
-          const targetField = fields[c];
-          if (targetRow && targetField) {
-            const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = null;
-            rowMap.set(targetRow.id, map);
-          }
-        }
-      }
-      showToast('已清空選取儲存格內容');
-    }
-
-    if (rowMap.size > 0) {
-      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
-      if (onBatchUpdateCells) {
-        onBatchUpdateCells(batchUpdates);
-      } else {
-        (async () => {
-          const entries = Array.from(rowMap.entries());
-          for (let i = 0; i < entries.length; i += 2) {
-            const chunk = entries.slice(i, i + 2);
-            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
-            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
-          }
-        })();
-      }
-    }
-  }, [selectedRowIds, selectionBounds, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
-
-  const handleDeleteSelectedRows = useCallback(() => {
-    if (isOffline) {
-      showToast('目前處於離線狀態，請於連線恢復後再試');
-      return;
-    }
-    const rowIdsToDelete = new Set<number>(selectedRowIds);
-    if (selectionBounds) {
-      for (let r = selectionBounds.minRow; r <= selectionBounds.maxRow; r++) {
-        const targetRow = rows[r];
-        if (targetRow) {
-          rowIdsToDelete.add(targetRow.id);
-        }
-      }
-    }
-    const count = rowIdsToDelete.size;
-    if (count === 0) return;
-    rowIdsToDelete.forEach(id => onDeleteRow?.(id));
-    setSelectedRowIds(new Set());
-    setSelectedCell(null);
-    setSelectionStart(null);
-    setSelectionEnd(null);
-    showToast(`已成功刪除 ${count} 列資料`);
-  }, [selectedRowIds, selectionBounds, rows, onDeleteRow, showToast]);
-
-  const handleCutSelection = useCallback(() => {
-    handleCopySelection();
-    handleClearSelectionValues();
-  }, [handleCopySelection, handleClearSelectionValues]);
-
-  const handlePasteSelection = useCallback(async (pastedText?: string) => {
-    if (isOffline) {
-      showToast('目前處於離線狀態，請於連線恢復後再試');
-      return;
-    }
-    let textToPaste = pastedText;
-    if (!textToPaste && typeof navigator !== 'undefined' && navigator.clipboard) {
-      try {
-        textToPaste = await navigator.clipboard.readText();
-      } catch {}
-    }
-    if (!textToPaste) return;
-
-    const pastedGrid = parseClipboardTSV(textToPaste);
-    if (pastedGrid.length === 0) return;
-
-    const rowMap = new Map<number, Record<string, any>>();
-
-    // Send the pasted text as-is (trimmed); the server parses and validates per field type
-    const sanitizePastedVal = (raw: string): string => (raw ?? '').trim();
-
-    if (selectionBounds && selectionBounds.isMulti) {
-      // Batch paste into multi-cell selection bounds
-      const rowCount = selectionBounds.maxRow - selectionBounds.minRow + 1;
-      const colCount = selectionBounds.maxCol - selectionBounds.minCol + 1;
-
-      for (let r = 0; r < rowCount; r++) {
-        const targetRowIndex = selectionBounds.minRow + r;
-        if (targetRowIndex >= rows.length) break;
-        const targetRow = rows[targetRowIndex];
-        const sourceRow = pastedGrid[r % pastedGrid.length];
-
-        for (let c = 0; c < colCount; c++) {
-          const targetColIndex = selectionBounds.minCol + c;
-          if (targetColIndex >= fields.length) break;
-          const targetField = fields[targetColIndex];
-          const cellVal = sourceRow[c % sourceRow.length];
-
-          if (targetRow && targetField) {
-            const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
-            rowMap.set(targetRow.id, map);
-          }
-        }
-      }
-    } else if (selectionStart) {
-      // Single focus cell selected -> paste grid starting at selectionStart
-      const startRow = selectionStart[0];
-      const startCol = selectionStart[1];
-
-      // Auto expand rows if pasted data exceeds table row count
-      const extraRowsCount = (startRow + pastedGrid.length) - rows.length;
-      if (extraRowsCount > 0 && onBatchAddRows) {
-        const newRowsToAppend: Record<string, any>[] = [];
-        for (let i = 0; i < extraRowsCount; i++) {
-          const rOffset = (rows.length - startRow) + i;
-          const sourceRow = pastedGrid[rOffset];
-          const newRowData: Record<string, any> = {};
-          if (sourceRow) {
-            sourceRow.forEach((cellVal, cOffset) => {
-              const targetColIndex = startCol + cOffset;
-              if (targetColIndex < fields.length) {
-                const targetField = fields[targetColIndex];
-                newRowData[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
-              }
-            });
-          }
-          newRowsToAppend.push(newRowData);
-        }
-        onBatchAddRows(newRowsToAppend);
-      }
-
-      pastedGrid.forEach((sourceRow, rOffset) => {
-        const targetRowIndex = startRow + rOffset;
-        if (targetRowIndex >= rows.length) return;
-        const targetRow = rows[targetRowIndex];
-
-        sourceRow.forEach((cellVal, cOffset) => {
-          const targetColIndex = startCol + cOffset;
-          if (targetColIndex >= fields.length) return;
-          const targetField = fields[targetColIndex];
-          if (targetRow && targetField) {
-            const map = rowMap.get(targetRow.id) || {};
-            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
-            rowMap.set(targetRow.id, map);
-          }
-        });
-      });
-    }
-
-    if (rowMap.size > 0) {
-      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
-      if (onBatchUpdateCells) {
-        onBatchUpdateCells(batchUpdates);
-      } else {
-        (async () => {
-          const entries = Array.from(rowMap.entries());
-          for (let i = 0; i < entries.length; i += 2) {
-            const chunk = entries.slice(i, i + 2);
-            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
-            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
-          }
-        })();
-      }
-      showToast('已完成資料貼上');
-    }
-  }, [selectionBounds, selectionStart, rows, fields, onUpdateCell, onBatchUpdateCells, onBatchAddRows, showToast]);
-
-  useEffect(() => {
-    const handlePasteEvent = (e: ClipboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const isInputTarget = target && typeof target.closest === 'function' && (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable ||
-        Boolean(target.closest('input, textarea, [contenteditable="true"], [role="dialog"], .modal'))
-      );
-      if (isEditing || isInputTarget) return;
-
-      const text = e.clipboardData?.getData('text/plain');
-      if (text && (selectionBounds || selectionStart)) {
-        e.preventDefault();
-        handlePasteSelection(text);
-      }
-    };
-
-    window.addEventListener('paste', handlePasteEvent);
-    return () => window.removeEventListener('paste', handlePasteEvent);
-  }, [isEditing, selectionBounds, selectionStart, handlePasteSelection]);
-
-  useEffect(() => {
-    const handleMouseUp = () => {
-      if (isAutofilling && autofillStart && autofillEnd) {
-        const srcRow = autofillStart[0];
-        const srcCol = autofillStart[1];
-        const targetField = fields[srcCol];
-        const sourceRowData = rows[srcRow];
-
-        if (targetField && sourceRowData) {
-          const sourceValue = sourceRowData.values?.[targetField.id] ?? (sourceRowData as any).data?.[`field_${targetField.id}`] ?? (sourceRowData as any).data?.[targetField.id] ?? null;
-          const minR = Math.min(autofillStart[0], autofillEnd[0]);
-          const maxR = Math.max(autofillStart[0], autofillEnd[0]);
-          const minC = Math.min(autofillStart[1], autofillEnd[1]);
-          const maxC = Math.max(autofillStart[1], autofillEnd[1]);
-
-          const rowMap = new Map<number, Record<string, any>>();
-          for (let r = minR; r <= maxR; r++) {
-            for (let c = minC; c <= maxC; c++) {
-              const rData = rows[r];
-              const fData = fields[c];
-              if (rData && fData) {
-                const map = rowMap.get(rData.id) || {};
-                map[`field_${fData.id}`] = sourceValue;
-                rowMap.set(rData.id, map);
-              }
-            }
-          }
-          if (rowMap.size > 0) {
-            const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
-            if (onBatchUpdateCells) {
-              onBatchUpdateCells(batchUpdates);
-            } else {
-              (async () => {
-                const entries = Array.from(rowMap.entries());
-                for (let i = 0; i < entries.length; i += 2) {
-                  const chunk = entries.slice(i, i + 2);
-                  await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
-                  if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
-                }
-              })();
-            }
-            setSelectedCell([minR, minC]);
-            setSelectionStart([minR, minC]);
-            setSelectionEnd([maxR, maxC]);
-            showToast(`已填滿 ${maxR - minR + 1} 列資料`);
-          }
-        }
-      }
-      stopAutoScroll();
-      isDraggingSelectionRef.current = false;
-      selectionStartRef.current = null;
-      selectionEndRef.current = null;
-      isAutofillingRef.current = false;
-      autofillStartRef.current = null;
-      setIsDraggingSelection(false);
-      setIsAutofilling(false);
-      setAutofillStart(null);
-      setAutofillEnd(null);
-    };
-    window.addEventListener('mouseup', handleMouseUp);
-    window.addEventListener('pointerup', handleMouseUp);
-    window.addEventListener('dragend', handleMouseUp);
-    window.addEventListener('drop', handleMouseUp);
-    window.addEventListener('blur', handleMouseUp);
-    return () => {
-      window.removeEventListener('mouseup', handleMouseUp);
-      window.removeEventListener('pointerup', handleMouseUp);
-      window.removeEventListener('dragend', handleMouseUp);
-      window.removeEventListener('drop', handleMouseUp);
-      window.removeEventListener('blur', handleMouseUp);
-    };
-  }, [isAutofilling, autofillStart, autofillEnd, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
-
-
   const [internalCollapseState, setInternalCollapseState] = useState<GroupCollapseState>({
     mode: 'expand',
     exceptions: {},
@@ -1456,9 +1022,490 @@ export const GridView: React.FC<GridViewProps> = ({
     return result;
   }, [groupedTree, activeCollapseState]);
 
+  // On-screen row order as indices into `rows`. Grouping reorders rows and collapsed groups hide them,
+  // so ranges and next/previous-row moves must walk this list instead of doing arithmetic on `rows` indices.
+  const orderedRowIndices = useMemo(
+    () => (visualGroupedRows ? visualGroupedRows.map(v => v.originalIndex) : rows.map((_, i) => i)),
+    [visualGroupedRows, rows]
+  );
+  const rowScreenPosition = useMemo(() => {
+    const positions = new Map<number, number>();
+    orderedRowIndices.forEach((rowIndex, pos) => positions.set(rowIndex, pos));
+    return positions;
+  }, [orderedRowIndices]);
+  // Rows shown from row a to row b inclusive, top to bottom; empty if either row is not on screen
+  const rowsOnScreenBetween = useCallback((a: number, b: number): number[] => {
+    const posA = rowScreenPosition.get(a);
+    const posB = rowScreenPosition.get(b);
+    if (posA === undefined || posB === undefined) return [];
+    return orderedRowIndices.slice(Math.min(posA, posB), Math.max(posA, posB) + 1);
+  }, [orderedRowIndices, rowScreenPosition]);
+  const firstRowOnScreen = orderedRowIndices[0] ?? 0;
+  const lastRowOnScreen = orderedRowIndices[orderedRowIndices.length - 1] ?? 0;
+
+  const selectionBounds = useMemo<SelectionBounds | null>(() => {
+    if (!selectionStart || !selectionEnd) return null;
+    const rowIndices = rowsOnScreenBetween(selectionStart[0], selectionEnd[0]);
+    if (rowIndices.length === 0) return null;
+    const minCol = Math.min(selectionStart[1], selectionEnd[1]);
+    const maxCol = Math.max(selectionStart[1], selectionEnd[1]);
+    const isMulti = rowIndices.length > 1 || minCol !== maxCol;
+    return {
+      rowIndices,
+      rowSet: new Set(rowIndices),
+      firstRow: rowIndices[0],
+      lastRow: rowIndices[rowIndices.length - 1],
+      minCol,
+      maxCol,
+      isMulti,
+    };
+  }, [selectionStart, selectionEnd, rowsOnScreenBetween]);
+
+  // Dynamic real-time selection statistics (Count, Sum, Avg, Min, Max)
+  const selectionStats = useMemo(() => {
+    if (!selectionBounds || !selectionBounds.isMulti) return null;
+    const { rowIndices, minCol, maxCol } = selectionBounds;
+    const totalCount = rowIndices.length * (maxCol - minCol + 1);
+    if (totalCount <= 1) return null;
+
+    // Fast path: pre-filter numeric columns to skip string/select/file columns across all rows
+    const numericCols: number[] = [];
+    for (let c = minCol; c <= maxCol; c++) {
+      const field = fields[c];
+      if (field && (field.type === 'number' || field.type === 'rating' || field.type === 'formula')) {
+        numericCols.push(field.id);
+      }
+    }
+
+    let numericSum = 0;
+    let numericCount = 0;
+    let minVal: number | null = null;
+    let maxVal: number | null = null;
+
+    if (numericCols.length > 0) {
+      // Limit cell inspections to at most 10,000 cells for 120 FPS buttery drag-selection
+      const rowsToScan = numericCols.length * rowIndices.length > 10000
+        ? rowIndices.slice(0, Math.floor(10000 / numericCols.length) + 1)
+        : rowIndices;
+
+      for (const r of rowsToScan) {
+        const row = rows[r];
+        if (!row) continue;
+        const rowData = (row as any).data;
+        const rowValues = row.values;
+        for (let i = 0; i < numericCols.length; i++) {
+          const fid = numericCols[i];
+          const val = rowData ? rowData[`field_${fid}`] : rowValues?.[fid];
+          if (val !== null && val !== undefined && val !== '') {
+            const num = Number(val);
+            if (!isNaN(num) && typeof val !== 'boolean') {
+              numericSum += num;
+              numericCount++;
+              if (minVal === null || num < minVal) minVal = num;
+              if (maxVal === null || num > maxVal) maxVal = num;
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      totalCount,
+      numericCount,
+      sum: numericCount > 0 ? Number(numericSum.toFixed(4)) : null,
+      avg: numericCount > 0 ? Number((numericSum / numericCount).toFixed(2)) : null,
+      min: minVal,
+      max: maxVal,
+    };
+  }, [selectionBounds, rows, fields]);
+
+  const autofillBounds = useMemo(() => {
+    if (!isAutofilling || !autofillStart || !autofillEnd) return null;
+    const rowSet = new Set(rowsOnScreenBetween(autofillStart[0], autofillEnd[0]));
+    const minCol = Math.min(autofillStart[1], autofillEnd[1]);
+    const maxCol = Math.max(autofillStart[1], autofillEnd[1]);
+    return { rowSet, minCol, maxCol };
+  }, [isAutofilling, autofillStart, autofillEnd, rowsOnScreenBetween]);
+
+  const handleAutoFillDown = useCallback((sourceRowIndex: number, colIndex: number) => {
+    const targetField = fields[colIndex];
+    const sourceRowData = rows[sourceRowIndex];
+    const sourcePos = rowScreenPosition.get(sourceRowIndex);
+    if (!targetField || !sourceRowData || sourcePos === undefined) return;
+    const rowsBelow = orderedRowIndices.slice(sourcePos + 1);
+    if (rowsBelow.length === 0) return;
+
+    const sourceValue = sourceRowData.values?.[targetField.id] ?? (sourceRowData as any).data?.[`field_${targetField.id}`] ?? (sourceRowData as any).data?.[targetField.id] ?? null;
+    const rowMap = new Map<number, Record<string, any>>();
+
+    for (const r of rowsBelow) {
+      const rData = rows[r];
+      if (rData) {
+        const map = rowMap.get(rData.id) || {};
+        map[`field_${targetField.id}`] = sourceValue;
+        rowMap.set(rData.id, map);
+      }
+    }
+
+    if (rowMap.size > 0) {
+      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+      if (onBatchUpdateCells) {
+        onBatchUpdateCells(batchUpdates);
+      } else {
+        (async () => {
+          const entries = Array.from(rowMap.entries());
+          for (let i = 0; i < entries.length; i += 2) {
+            const chunk = entries.slice(i, i + 2);
+            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+          }
+        })();
+      }
+      setSelectedCell([sourceRowIndex, colIndex]);
+      setSelectionStart([sourceRowIndex, colIndex]);
+      setSelectionEnd([rowsBelow[rowsBelow.length - 1], colIndex]);
+      showToast(`已向下自動填滿 ${rowsBelow.length} 列`);
+    }
+  }, [rows, fields, orderedRowIndices, rowScreenPosition, onUpdateCell, onBatchUpdateCells, showToast]);
+
+  const handleCopySelection = useCallback(() => {
+    const lines: string[] = [];
+    if (selectedRowIds.size > 0) {
+      rows.forEach((row) => {
+        if (selectedRowIds.has(row.id)) {
+          const rowCells: string[] = fields.map((field) => {
+            const fk = `field_${field.id}`;
+            const hasK = (row as any).data && fk in (row as any).data;
+            const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
+            const text = formatCellForClipboard(val, field, fields);
+            return text.replace(/\t/g, ' ').replace(/\n/g, ' ');
+          });
+          lines.push(rowCells.join('\t'));
+        }
+      });
+    } else if (selectionBounds) {
+      for (const r of selectionBounds.rowIndices) {
+        const row = rows[r];
+        if (!row) continue;
+        const rowCells: string[] = [];
+        for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
+          const field = fields[c];
+          if (!field) continue;
+          const fk = `field_${field.id}`;
+          const hasK = (row as any).data && fk in (row as any).data;
+          const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
+          const text = formatCellForClipboard(val, field, fields);
+          rowCells.push(text.replace(/\t/g, ' ').replace(/\n/g, ' '));
+        }
+        lines.push(rowCells.join('\t'));
+      }
+    } else if (selectedCell) {
+      const [r, c] = selectedCell;
+      const row = rows[r];
+      const field = fields[c];
+      if (row && field) {
+        const fk = `field_${field.id}`;
+        const hasK = (row as any).data && fk in (row as any).data;
+        const val = hasK ? (row as any).data[fk] : (row.values?.[field.id] ?? '');
+        const text = formatCellForClipboard(val, field, fields);
+        lines.push(text.replace(/\t/g, ' ').replace(/\n/g, ' '));
+      }
+    }
+    const tsv = lines.join('\n');
+    if (tsv && typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(tsv);
+      showToast('已複製資料至剪貼簿');
+    }
+  }, [selectedRowIds, selectionBounds, selectedCell, rows, fields, showToast]);
+
+  const handleClearSelectionValues = useCallback(() => {
+    setIsEditing(false);
+    const rowMap = new Map<number, Record<string, any>>();
+    if (selectedRowIds.size > 0) {
+      rows.forEach((row) => {
+        if (selectedRowIds.has(row.id)) {
+          const map = rowMap.get(row.id) || {};
+          fields.forEach((field) => {
+            map[`field_${field.id}`] = null;
+          });
+          rowMap.set(row.id, map);
+        }
+      });
+      showToast('已清空選取列內容');
+    } else if (selectionBounds) {
+      for (const r of selectionBounds.rowIndices) {
+        for (let c = selectionBounds.minCol; c <= selectionBounds.maxCol; c++) {
+          const targetRow = rows[r];
+          const targetField = fields[c];
+          if (targetRow && targetField) {
+            const map = rowMap.get(targetRow.id) || {};
+            map[`field_${targetField.id}`] = null;
+            rowMap.set(targetRow.id, map);
+          }
+        }
+      }
+      showToast('已清空選取儲存格內容');
+    }
+
+    if (rowMap.size > 0) {
+      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+      if (onBatchUpdateCells) {
+        onBatchUpdateCells(batchUpdates);
+      } else {
+        (async () => {
+          const entries = Array.from(rowMap.entries());
+          for (let i = 0; i < entries.length; i += 2) {
+            const chunk = entries.slice(i, i + 2);
+            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+          }
+        })();
+      }
+    }
+  }, [selectedRowIds, selectionBounds, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
+
+  const handleDeleteSelectedRows = useCallback(() => {
+    if (isOffline) {
+      showToast('目前處於離線狀態，請於連線恢復後再試');
+      return;
+    }
+    const rowIdsToDelete = new Set<number>(selectedRowIds);
+    if (selectionBounds) {
+      for (const r of selectionBounds.rowIndices) {
+        const targetRow = rows[r];
+        if (targetRow) {
+          rowIdsToDelete.add(targetRow.id);
+        }
+      }
+    }
+    const count = rowIdsToDelete.size;
+    if (count === 0) return;
+    rowIdsToDelete.forEach(id => onDeleteRow?.(id));
+    setSelectedRowIds(new Set());
+    setSelectedCell(null);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+    showToast(`已成功刪除 ${count} 列資料`);
+  }, [selectedRowIds, selectionBounds, rows, onDeleteRow, showToast]);
+
+  const handleCutSelection = useCallback(() => {
+    handleCopySelection();
+    handleClearSelectionValues();
+  }, [handleCopySelection, handleClearSelectionValues]);
+
+  const handlePasteSelection = useCallback(async (pastedText?: string) => {
+    if (isOffline) {
+      showToast('目前處於離線狀態，請於連線恢復後再試');
+      return;
+    }
+    let textToPaste = pastedText;
+    if (!textToPaste && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        textToPaste = await navigator.clipboard.readText();
+      } catch {}
+    }
+    if (!textToPaste) return;
+
+    const pastedGrid = parseClipboardTSV(textToPaste);
+    if (pastedGrid.length === 0) return;
+
+    const rowMap = new Map<number, Record<string, any>>();
+
+    // Send the pasted text as-is (trimmed); the server parses and validates per field type
+    const sanitizePastedVal = (raw: string): string => (raw ?? '').trim();
+
+    if (selectionBounds && selectionBounds.isMulti) {
+      // Batch paste into multi-cell selection bounds
+      const rowCount = selectionBounds.rowIndices.length;
+      const colCount = selectionBounds.maxCol - selectionBounds.minCol + 1;
+
+      for (let r = 0; r < rowCount; r++) {
+        const targetRowIndex = selectionBounds.rowIndices[r];
+        const targetRow = rows[targetRowIndex];
+        const sourceRow = pastedGrid[r % pastedGrid.length];
+
+        for (let c = 0; c < colCount; c++) {
+          const targetColIndex = selectionBounds.minCol + c;
+          if (targetColIndex >= fields.length) break;
+          const targetField = fields[targetColIndex];
+          const cellVal = sourceRow[c % sourceRow.length];
+
+          if (targetRow && targetField) {
+            const map = rowMap.get(targetRow.id) || {};
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
+            rowMap.set(targetRow.id, map);
+          }
+        }
+      }
+    } else if (selectionStart) {
+      // Single focus cell selected -> paste grid starting at selectionStart
+      const startPos = rowScreenPosition.get(selectionStart[0]);
+      if (startPos === undefined) return;
+      const startCol = selectionStart[1];
+
+      // Auto expand rows if pasted data runs past the last row on screen
+      const extraRowsCount = (startPos + pastedGrid.length) - orderedRowIndices.length;
+      if (extraRowsCount > 0 && onBatchAddRows) {
+        const newRowsToAppend: Record<string, any>[] = [];
+        for (let i = 0; i < extraRowsCount; i++) {
+          const rOffset = (orderedRowIndices.length - startPos) + i;
+          const sourceRow = pastedGrid[rOffset];
+          const newRowData: Record<string, any> = {};
+          if (sourceRow) {
+            sourceRow.forEach((cellVal, cOffset) => {
+              const targetColIndex = startCol + cOffset;
+              if (targetColIndex < fields.length) {
+                const targetField = fields[targetColIndex];
+                newRowData[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
+              }
+            });
+          }
+          newRowsToAppend.push(newRowData);
+        }
+        onBatchAddRows(newRowsToAppend);
+      }
+
+      pastedGrid.forEach((sourceRow, rOffset) => {
+        const targetRowIndex = orderedRowIndices[startPos + rOffset];
+        if (targetRowIndex === undefined) return;
+        const targetRow = rows[targetRowIndex];
+
+        sourceRow.forEach((cellVal, cOffset) => {
+          const targetColIndex = startCol + cOffset;
+          if (targetColIndex >= fields.length) return;
+          const targetField = fields[targetColIndex];
+          if (targetRow && targetField) {
+            const map = rowMap.get(targetRow.id) || {};
+            map[`field_${targetField.id}`] = sanitizePastedVal(cellVal);
+            rowMap.set(targetRow.id, map);
+          }
+        });
+      });
+    }
+
+    if (rowMap.size > 0) {
+      const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+      if (onBatchUpdateCells) {
+        onBatchUpdateCells(batchUpdates);
+      } else {
+        (async () => {
+          const entries = Array.from(rowMap.entries());
+          for (let i = 0; i < entries.length; i += 2) {
+            const chunk = entries.slice(i, i + 2);
+            await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+            if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+          }
+        })();
+      }
+      showToast('已完成資料貼上');
+    }
+  }, [selectionBounds, selectionStart, orderedRowIndices, rowScreenPosition, rows, fields, onUpdateCell, onBatchUpdateCells, onBatchAddRows, showToast]);
+
+  useEffect(() => {
+    const handlePasteEvent = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInputTarget = target && typeof target.closest === 'function' && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        Boolean(target.closest('input, textarea, [contenteditable="true"], [role="dialog"], .modal'))
+      );
+      if (isEditing || isInputTarget) return;
+
+      const text = e.clipboardData?.getData('text/plain');
+      if (text && (selectionBounds || selectionStart)) {
+        e.preventDefault();
+        handlePasteSelection(text);
+      }
+    };
+
+    window.addEventListener('paste', handlePasteEvent);
+    return () => window.removeEventListener('paste', handlePasteEvent);
+  }, [isEditing, selectionBounds, selectionStart, handlePasteSelection]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      if (isAutofilling && autofillStart && autofillEnd) {
+        const srcRow = autofillStart[0];
+        const srcCol = autofillStart[1];
+        const targetField = fields[srcCol];
+        const sourceRowData = rows[srcRow];
+
+        if (targetField && sourceRowData) {
+          const sourceValue = sourceRowData.values?.[targetField.id] ?? (sourceRowData as any).data?.[`field_${targetField.id}`] ?? (sourceRowData as any).data?.[targetField.id] ?? null;
+          const fillRows = rowsOnScreenBetween(autofillStart[0], autofillEnd[0]);
+          const minC = Math.min(autofillStart[1], autofillEnd[1]);
+          const maxC = Math.max(autofillStart[1], autofillEnd[1]);
+
+          const rowMap = new Map<number, Record<string, any>>();
+          for (const r of fillRows) {
+            for (let c = minC; c <= maxC; c++) {
+              const rData = rows[r];
+              const fData = fields[c];
+              if (rData && fData) {
+                const map = rowMap.get(rData.id) || {};
+                map[`field_${fData.id}`] = sourceValue;
+                rowMap.set(rData.id, map);
+              }
+            }
+          }
+          if (rowMap.size > 0) {
+            const batchUpdates = Array.from(rowMap.entries()).map(([rowId, data]) => ({ rowId, data }));
+            if (onBatchUpdateCells) {
+              onBatchUpdateCells(batchUpdates);
+            } else {
+              (async () => {
+                const entries = Array.from(rowMap.entries());
+                for (let i = 0; i < entries.length; i += 2) {
+                  const chunk = entries.slice(i, i + 2);
+                  await Promise.all(chunk.map(([rowId, dataMap]) => onUpdateCell?.(rowId, dataMap as any)));
+                  if (i + 2 < entries.length) await new Promise(res => setTimeout(res, 20));
+                }
+              })();
+            }
+            const firstRow = fillRows[0];
+            const lastRow = fillRows[fillRows.length - 1];
+            setSelectedCell([firstRow, minC]);
+            setSelectionStart([firstRow, minC]);
+            setSelectionEnd([lastRow, maxC]);
+            showToast(`已填滿 ${fillRows.length} 列資料`);
+          }
+        }
+      }
+      stopAutoScroll();
+      isDraggingSelectionRef.current = false;
+      selectionStartRef.current = null;
+      selectionEndRef.current = null;
+      isAutofillingRef.current = false;
+      autofillStartRef.current = null;
+      setIsDraggingSelection(false);
+      setIsAutofilling(false);
+      setAutofillStart(null);
+      setAutofillEnd(null);
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointerup', handleMouseUp);
+    window.addEventListener('dragend', handleMouseUp);
+    window.addEventListener('drop', handleMouseUp);
+    window.addEventListener('blur', handleMouseUp);
+    return () => {
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointerup', handleMouseUp);
+      window.removeEventListener('dragend', handleMouseUp);
+      window.removeEventListener('drop', handleMouseUp);
+      window.removeEventListener('blur', handleMouseUp);
+    };
+  }, [isAutofilling, autofillStart, autofillEnd, rowsOnScreenBetween, rows, fields, onUpdateCell, onBatchUpdateCells, showToast]);
+
+
   const handleNavigateCell = useCallback((rIndex: number, cIndex: number, direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => {
+    // Move through rows in on-screen order: with grouping, the next/previous row on screen is not rIndex ± 1
+    const pos = rowScreenPosition.get(rIndex);
+    if (pos === undefined) return;
+    const lastPos = orderedRowIndices.length - 1;
+
     // If at the bottom-most row and pressing down/enter, or at the bottom-right cell and pressing Tab: auto add row!
-    if (direction === 'nextRow' && rIndex === rows.length - 1) {
+    if (direction === 'nextRow' && pos === lastPos) {
       onAddRow?.();
       return;
     }
@@ -1469,8 +1516,8 @@ export const GridView: React.FC<GridViewProps> = ({
     // Tab / Shift+Tab row wrapping
     if (direction === 'nextCol') {
       if (cIndex === fields.length - 1) {
-        if (rIndex < rows.length - 1) {
-          nextRow = rIndex + 1;
+        if (pos < lastPos) {
+          nextRow = orderedRowIndices[pos + 1];
           nextCol = 0;
         } else {
           onAddRow?.();
@@ -1480,32 +1527,16 @@ export const GridView: React.FC<GridViewProps> = ({
         nextCol = cIndex + 1;
       }
     } else if (direction === 'prevCol') {
-      if (cIndex === 0 && rIndex > 0) {
-        nextRow = rIndex - 1;
+      if (cIndex === 0 && pos > 0) {
+        nextRow = orderedRowIndices[pos - 1];
         nextCol = fields.length - 1;
       } else {
         nextCol = Math.max(0, cIndex - 1);
       }
     } else if (direction === 'nextRow') {
-      if (visualGroupedRows && visualGroupedRows.length > 0) {
-        const currentVisualIdx = visualGroupedRows.findIndex(v => v.originalIndex === rIndex);
-        if (currentVisualIdx >= 0) {
-          const nextVisualIdx = Math.min(visualGroupedRows.length - 1, currentVisualIdx + 1);
-          nextRow = visualGroupedRows[nextVisualIdx].originalIndex;
-        }
-      } else {
-        nextRow = Math.min(rows.length - 1, rIndex + 1);
-      }
+      nextRow = orderedRowIndices[Math.min(lastPos, pos + 1)];
     } else if (direction === 'prevRow') {
-      if (visualGroupedRows && visualGroupedRows.length > 0) {
-        const currentVisualIdx = visualGroupedRows.findIndex(v => v.originalIndex === rIndex);
-        if (currentVisualIdx >= 0) {
-          const nextVisualIdx = Math.max(0, currentVisualIdx - 1);
-          nextRow = visualGroupedRows[nextVisualIdx].originalIndex;
-        }
-      } else {
-        nextRow = Math.max(0, rIndex - 1);
-      }
+      nextRow = orderedRowIndices[Math.max(0, pos - 1)];
     }
 
     setSelectedCell([nextRow, nextCol]);
@@ -1516,7 +1547,7 @@ export const GridView: React.FC<GridViewProps> = ({
     // (DO NOT force edit mode, so user can freely navigate with arrows or press any key for Type-over)
     setIsEditing(false);
     setEditingCellInfo(null);
-  }, [rows, fields.length, visualGroupedRows, onAddRow]);
+  }, [orderedRowIndices, rowScreenPosition, fields.length, onAddRow]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1534,8 +1565,8 @@ export const GridView: React.FC<GridViewProps> = ({
         e.preventDefault();
         const allIds = new Set(rows.map(r => r.id));
         setSelectedRowIds(allIds);
-        setSelectionStart([0, 0]);
-        setSelectionEnd([Math.max(0, rows.length - 1), Math.max(0, fields.length - 1)]);
+        setSelectionStart([firstRowOnScreen, 0]);
+        setSelectionEnd([lastRowOnScreen, Math.max(0, fields.length - 1)]);
         return;
       }
 
@@ -1623,8 +1654,8 @@ export const GridView: React.FC<GridViewProps> = ({
       if ((e.ctrlKey || e.metaKey) && e.key === ' ' && selectedCell) {
         e.preventDefault();
         const [, c] = selectedCell;
-        setSelectionStart([0, c]);
-        setSelectionEnd([Math.max(0, rows.length - 1), c]);
+        setSelectionStart([firstRowOnScreen, c]);
+        setSelectionEnd([lastRowOnScreen, c]);
         setSelectedRowIds(new Set());
         return;
       }
@@ -1683,7 +1714,7 @@ export const GridView: React.FC<GridViewProps> = ({
         e.preventDefault();
         const [r, c] = selectedCell;
         if (e.ctrlKey || e.metaKey) {
-          const nextR = e.key === 'Home' ? 0 : Math.max(0, rows.length - 1);
+          const nextR = e.key === 'Home' ? firstRowOnScreen : lastRowOnScreen;
           const nextC = e.key === 'Home' ? 0 : Math.max(0, fields.length - 1);
           setSelectedCell([nextR, nextC]);
           setSelectionStart([nextR, nextC]);
@@ -1761,7 +1792,7 @@ export const GridView: React.FC<GridViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, selectedCell, selectionBounds, selectionStart, selectionEnd, selectedRowIds, rows, fields, handleCopySelection, handleCutSelection, handlePasteSelection, handleClearSelectionValues, handleNavigateCell, visualGroupedRows, onUndo, onRedo, onUpdateCell, onExpandRow, showToast]);
+  }, [isEditing, selectedCell, selectionBounds, selectionStart, selectionEnd, selectedRowIds, rows, fields, handleCopySelection, handleCutSelection, handlePasteSelection, handleClearSelectionValues, handleNavigateCell, visualGroupedRows, firstRowOnScreen, lastRowOnScreen, onUndo, onRedo, onUpdateCell, onExpandRow, showToast]);
 
   // Ensure Row 1 (index 0) is visible at top on initial mount or table switch
   useEffect(() => {
@@ -1797,10 +1828,10 @@ export const GridView: React.FC<GridViewProps> = ({
     } else {
       const allIds = new Set(rows.map(r => r.id));
       setSelectedRowIds(allIds);
-      setSelectionStart([0, 0]);
-      setSelectionEnd([Math.max(0, rows.length - 1), Math.max(0, fields.length - 1)]);
+      setSelectionStart([firstRowOnScreen, 0]);
+      setSelectionEnd([lastRowOnScreen, Math.max(0, fields.length - 1)]);
     }
-  }, [isAllRowsSelected, rows, fields.length]);
+  }, [isAllRowsSelected, rows, fields.length, firstRowOnScreen, lastRowOnScreen]);
 
   const handleToggleRowCheckbox = useCallback((rowId: number, e?: React.MouseEvent) => {
     setSelectedRowIds(prev => {
@@ -1871,13 +1902,13 @@ export const GridView: React.FC<GridViewProps> = ({
   // Select full column (Airtable / Excel / Google Sheets standard)
   const handleSelectColumn = useCallback((cIndex: number) => {
     if (rows.length === 0) return;
-    setSelectedCell([0, cIndex]);
-    setSelectionStart([0, cIndex]);
-    setSelectionEnd([rows.length - 1, cIndex]);
+    setSelectedCell([firstRowOnScreen, cIndex]);
+    setSelectionStart([firstRowOnScreen, cIndex]);
+    setSelectionEnd([lastRowOnScreen, cIndex]);
     setSelectedRowIds(new Set());
     setIsEditing(false);
     setEditingCellInfo(null);
-  }, [rows.length]);
+  }, [rows.length, firstRowOnScreen, lastRowOnScreen]);
 
   // Context menu on cell with instant selection sync
   const handleContextMenuCell = useCallback((rIndex: number, cIndex: number, e: React.MouseEvent) => {
@@ -1886,7 +1917,7 @@ export const GridView: React.FC<GridViewProps> = ({
 
     // If right-clicked cell is not within the multi-selection bounding box, refocus on it
     const isInsideMulti = selectionBounds && selectionBounds.isMulti &&
-      rIndex >= selectionBounds.minRow && rIndex <= selectionBounds.maxRow &&
+      selectionBounds.rowSet.has(rIndex) &&
       cIndex >= selectionBounds.minCol && cIndex <= selectionBounds.maxCol;
 
     if (!isInsideMulti) {
@@ -3017,14 +3048,14 @@ export const GridView: React.FC<GridViewProps> = ({
             selectedRowIds.size > 0
               ? selectedRowIds.size * fields.length
               : selectionBounds
-              ? (selectionBounds.maxRow - selectionBounds.minRow + 1) * (selectionBounds.maxCol - selectionBounds.minCol + 1)
+              ? selectionBounds.rowIndices.length * (selectionBounds.maxCol - selectionBounds.minCol + 1)
               : 1
           }
           selectedRowCount={
             selectedRowIds.size > 0
               ? selectedRowIds.size
               : selectionBounds
-              ? selectionBounds.maxRow - selectionBounds.minRow + 1
+              ? selectionBounds.rowIndices.length
               : 1
           }
           onClose={() => setCellContextMenu(null)}

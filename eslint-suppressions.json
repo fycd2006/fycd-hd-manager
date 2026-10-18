@@ -387,9 +387,6 @@
     }
   },
   "src/components/fycd/FYCDBrandLoading.tsx": {
-    "react-hooks/refs": {
-      "count": 1
-    },
     "react-hooks/set-state-in-effect": {
       "count": 2
     }
@@ -731,9 +728,6 @@
   "src/modules/database/components/views/grid/GridViewCell.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 30
-    },
-    "prefer-const": {
-      "count": 3
     },
     "react-hooks/immutability": {
       "count": 1

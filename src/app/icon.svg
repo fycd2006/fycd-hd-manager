@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="400 -30 312 136">
+  <defs>
+    <linearGradient id="fold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0.5" stop-color="#F58220"/>
+      <stop offset="0.5" stop-color="#DD6410"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(46 0) skewX(-17)">
+    <g transform="translate(392 -24) scale(1.24)" fill="url(#fold)" stroke="url(#fold)" stroke-width="2.4" stroke-linejoin="round" fill-rule="evenodd">
+      <path d="M0 0H29V37H67V0H96V100H67V63H29V100H0Z"/>
+      <path d="M104 0H156C190 0 210 21 210 50C210 79 190 100 156 100H104ZM133 26V74H153C171 74 181 64 181 50C181 36 171 26 153 26Z"/>
+    </g>
+  </g>
+</svg>

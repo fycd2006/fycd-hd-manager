@@ -12,6 +12,12 @@ import TimelineView from '../timeline/TimelineView'
 import FormView from '../form/FormView'
 import { DatabaseViewRouter } from '../DatabaseViewRouter'
 import type { TableField, TableRow } from '../../../types'
+import { KanbanViewSkeleton } from '../kanban/KanbanViewSkeleton'
+import { GalleryViewSkeleton } from '../gallery/GalleryViewSkeleton'
+import { CalendarViewSkeleton } from '../calendar/CalendarViewSkeleton'
+import { TimelineViewSkeleton } from '../timeline/TimelineViewSkeleton'
+import { FormViewSkeleton } from '../form/FormViewSkeleton'
+import { WorkspaceGridSkeleton } from '../../table/WorkspaceGridSkeleton'
 
 // Mock i18n
 jest.mock('@/lib/i18n/i18nContext', () => ({
@@ -281,5 +287,19 @@ describe('Database Views Skeleton & UI/UX Consistency', () => {
 
       expect(screen.getByText('Task 1')).toBeInTheDocument()
     })
+  })
+})
+
+describe('Skeleton shared shimmer', () => {
+  it.each([
+    ['KanbanViewSkeleton', KanbanViewSkeleton],
+    ['GalleryViewSkeleton', GalleryViewSkeleton],
+    ['CalendarViewSkeleton', CalendarViewSkeleton],
+    ['TimelineViewSkeleton', TimelineViewSkeleton],
+    ['FormViewSkeleton', FormViewSkeleton],
+    ['WorkspaceGridSkeleton', WorkspaceGridSkeleton],
+  ])('%s uses the shared shimmer class', (_name, Skeleton) => {
+    const { container } = render(<Skeleton />)
+    expect(container.querySelectorAll('.fycd-skeleton').length).toBeGreaterThan(0)
   })
 })

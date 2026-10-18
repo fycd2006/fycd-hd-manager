@@ -27,7 +27,7 @@ export const CalendarViewSkeleton: React.FC<CalendarViewSkeletonProps> = ({ load
         style={{
           height: '2.5px',
           width: '100%',
-          background: 'linear-gradient(90deg, #52A628 0%, #EA580C 50%, #52A628 100%)',
+          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
           backgroundSize: '200% 100%',
           animation: 'fycdBarShimmer 2s ease-in-out infinite',
         }}
@@ -45,10 +45,10 @@ export const CalendarViewSkeleton: React.FC<CalendarViewSkeletonProps> = ({ load
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '120px', height: '22px', borderRadius: '4px', backgroundColor: '#e2e8f0' }} />
+          <div className="fycd-skeleton" style={{ width: '120px', height: '22px', borderRadius: '4px' }} />
           <div style={{ display: 'flex', gap: '4px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#e2e8f0' }} />
-            <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#e2e8f0' }} />
+            <div className="fycd-skeleton" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+            <div className="fycd-skeleton" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
           </div>
         </div>
 
@@ -59,7 +59,7 @@ export const CalendarViewSkeleton: React.FC<CalendarViewSkeletonProps> = ({ load
           </div>
         )}
 
-        <div style={{ width: '100px', height: '28px', borderRadius: '6px', backgroundColor: '#e2e8f0' }} />
+        <div className="fycd-skeleton" style={{ width: '100px', height: '28px', borderRadius: '6px' }} />
       </div>
 
       {/* Day of Week Headers */}
@@ -118,7 +118,6 @@ export const CalendarViewSkeleton: React.FC<CalendarViewSkeletonProps> = ({ load
                   borderRadius: '4px',
                   backgroundColor: '#f1f5f9',
                   border: '1px solid #e2e8f0',
-                  animation: `fycdRowPulse 1.8s ease-in-out ${idx * 0.05}s infinite alternate`,
                 }}
               />
             )}
@@ -129,7 +128,6 @@ export const CalendarViewSkeleton: React.FC<CalendarViewSkeletonProps> = ({ load
                   borderRadius: '4px',
                   backgroundColor: '#f0fdf4',
                   border: '1px solid #dcfce7',
-                  animation: `fycdRowPulse 1.8s ease-in-out ${idx * 0.05}s infinite alternate`,
                 }}
               />
             )}

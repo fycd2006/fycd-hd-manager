@@ -12,6 +12,7 @@ export { parseNumberInput, formatNumberValue };
 
 import { LatestCommentModal, parseLatestCommentEntries, type CommentLogEntry } from './cells/LatestCommentModal';
 export { LatestCommentModal, parseLatestCommentEntries, type CommentLogEntry };
+import { avatarColor, avatarInitial, formatRelativeTime } from './cells/commentUtils';
 
 
 
@@ -361,7 +362,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
     if (typeof ResizeObserver === 'undefined') return;
 
     const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         if (entry.contentRect && entry.contentRect.width > 0) {
           setMeasuredWidth(entry.contentRect.width);
         }
@@ -1181,7 +1182,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
                               awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
-                            let nextItems = [...currentItems];
+                            const nextItems = [...currentItems];
                             if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
                               nextItems.push(val);
                             }
@@ -1200,7 +1201,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
                               awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
-                            let nextItems = [...currentItems];
+                            const nextItems = [...currentItems];
                             if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
                               nextItems.push(val);
                             }
@@ -1489,6 +1490,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
             show={true}
             fieldName={field.name}
             value={value}
+            initialText={initialTypeOverValue ?? ''}
             onChange={(newEntries) => {
               onUpdate(newEntries);
             }}
@@ -1700,18 +1702,18 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
       const entries = parseLatestCommentEntries(value);
       const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 
-      const getDateOnly = (timeStr?: string) => {
-        if (!timeStr) return '';
-        const trimmed = timeStr.trim();
-        if (trimmed.includes(' ')) return trimmed.split(' ')[0];
-        if (trimmed.includes('T')) return trimmed.split('T')[0];
-        return trimmed;
-      };
-
       return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', padding: '0 8px', height: '100%', width: '100%', overflow: 'hidden' }}>
           {latest ? (
             <>
+              <span
+                className="lc-avatar"
+                aria-hidden="true"
+                title={latest.user}
+                style={{ background: avatarColor(latest.user), width: 18, height: 18, fontSize: 9 }}
+              >
+                {avatarInitial(latest.user)}
+              </span>
               <span
                 style={{
                   fontSize: '12px',
@@ -1725,12 +1727,13 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                   WebkitBoxOrient: 'vertical',
                   flex: 1,
                 }}
-                title={latest.content}
+                title={`${latest.user}：${latest.content}`}
               >
                 {latest.content}
               </span>
-              <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                {getDateOnly(latest.time)}
+              <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }} title={latest.time}>
+                {formatRelativeTime(latest.time)}
+                {entries.length > 1 && ` · ${entries.length} 則`}
               </span>
             </>
           ) : (

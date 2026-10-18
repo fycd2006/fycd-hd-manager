@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { motion } from 'motion/react'
 import type { Workspace, User } from '@/modules/database/types'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { FycdLogo } from '@/components/brand/FycdLogo'
 import {
   SidebarProvider,
   Sidebar,
@@ -204,7 +205,7 @@ export default function AppSidebar({
                         className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
                       >
                         <div
-                          style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: '#059669', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}
+                          style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: '#39452B', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}
                           className="shadow-sm"
                         >
                           {activeWorkspace?.name?.[0]?.toUpperCase() || 'F'}
@@ -246,7 +247,7 @@ export default function AppSidebar({
                           padding: '6px 8px',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          backgroundColor: isSelected ? '#f0fdf4' : undefined,
+                          backgroundColor: isSelected ? '#EEF0E8' : undefined,
                         }}
                         className="hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-slate-100 dark:focus:bg-slate-800 data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-800 transition-colors"
                       >
@@ -255,15 +256,15 @@ export default function AppSidebar({
                           height: '24px',
                           minWidth: '24px',
                           borderRadius: '6px',
-                          border: isSelected ? '1px solid #a7f3d0' : '1px solid #e2e8f0',
-                          background: isSelected ? '#ecfdf5' : '#f8fafc',
+                          border: isSelected ? '1px solid #C9CFB8' : '1px solid #e2e8f0',
+                          background: isSelected ? '#EEF0E8' : '#f8fafc',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 'bold',
                           fontSize: '11px',
                           flexShrink: 0,
-                          color: isSelected ? '#059669' : '#334155'
+                          color: isSelected ? '#39452B' : '#334155'
                         }}>
                           {ws.name[0]?.toUpperCase() || 'W'}
                         </div>
@@ -275,11 +276,11 @@ export default function AppSidebar({
                           whiteSpace: 'nowrap',
                           fontSize: '13px',
                           fontWeight: isSelected ? 600 : 500,
-                          color: isSelected ? '#059669' : '#0f172a'
+                          color: isSelected ? '#39452B' : '#0f172a'
                         }}>
                           {ws.name}
                         </div>
-                        {isSelected && <Check style={{ width: '14px', height: '14px', color: '#059669', marginLeft: 'auto', flexShrink: 0 }} />}
+                        {isSelected && <Check style={{ width: '14px', height: '14px', color: '#39452B', marginLeft: 'auto', flexShrink: 0 }} />}
                         <DropdownMenuShortcut style={{ marginLeft: isSelected ? '4px' : 'auto' }}>⌘{index + 1}</DropdownMenuShortcut>
                       </DropdownMenuItem>
                     )
@@ -289,10 +290,10 @@ export default function AppSidebar({
                   {canManageStructure && (
                     <DropdownMenuItem
                       onClick={onShowWorkspaceModal}
-                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', color: '#059669', fontWeight: 600, fontSize: '13px' }}
-                      className="hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', color: '#39452B', fontWeight: 600, fontSize: '13px' }}
+                      className="hover:bg-[#EEF0E8] dark:hover:bg-emerald-950/40"
                     >
-                      <div style={{ width: '24px', height: '24px', minWidth: '24px', borderRadius: '6px', border: '1px dashed #6ee7b7', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#059669' }}>
+                      <div style={{ width: '24px', height: '24px', minWidth: '24px', borderRadius: '6px', border: '1px dashed #C9CFB8', background: '#EEF0E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#39452B' }}>
                         <Plus style={{ width: '14px', height: '14px' }} />
                       </div>
                       <span>建立新工作區</span>
@@ -372,9 +373,9 @@ export default function AppSidebar({
                   isActive={!activeTableId || activeTableId === 0}
                   onClick={onSelectDashboard}
                   tooltip={isSidebarCollapsed ? (t('nav.home') || '首頁') : undefined}
-                  className="data-[active=true]:bg-emerald-50 data-[active=true]:text-emerald-700 dark:data-[active=true]:bg-emerald-950/40 dark:data-[active=true]:text-emerald-400 font-medium"
+                  className="data-[active=true]:bg-[#EEF0E8] data-[active=true]:text-[#39452B] dark:data-[active=true]:bg-emerald-950/40 dark:data-[active=true]:text-emerald-400 font-medium"
                 >
-                  <AnimatedHome style={{ width: '16px', height: '16px', minWidth: '16px', color: '#059669', flexShrink: 0 }} />
+                  <AnimatedHome style={{ width: '16px', height: '16px', minWidth: '16px', color: '#39452B', flexShrink: 0 }} />
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.home') || '首頁'}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -449,7 +450,7 @@ export default function AppSidebar({
                     padding: 0,
                     transition: 'all 0.15s ease',
                   }}
-                  className="hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400 active:scale-95"
+                  className="hover:bg-[#EEF0E8] hover:text-[#39452B] dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400 active:scale-95"
                 >
                   <FolderPlus style={{ width: '14px', height: '14px' }} />
                   <span className="sr-only">{t('nav.createDatabase') || '新增資料庫'}</span>
@@ -492,7 +493,7 @@ export default function AppSidebar({
                                   }}
                                 />
                               )}
-                              <AnimatedDatabase style={{ width: '16px', height: '16px', minWidth: '16px', color: '#059669', flexShrink: 0 }} />
+                              <AnimatedDatabase style={{ width: '16px', height: '16px', minWidth: '16px', color: '#39452B', flexShrink: 0 }} />
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '13px', marginLeft: '6px' }}>{db.name}</span>
                             </SidebarMenuButton>
                           </CollapsibleTrigger>
@@ -522,7 +523,7 @@ export default function AppSidebar({
                                   onClick={() => onShowCreateTableModal?.(db.id)}
                                   className="cursor-pointer gap-2"
                                 >
-                                  <Plus style={{ width: '14px', height: '14px', color: '#059669' }} />
+                                  <Plus style={{ width: '14px', height: '14px', color: '#39452B' }} />
                                   <span>{t('nav.createTable')}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -593,16 +594,16 @@ export default function AppSidebar({
                                           }
                                         }}
                                         style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', height: '28px', paddingRight: canManageStructure ? '30px' : '6px' }}
-                                        className={`group/btn ${isActive ? 'text-emerald-800 dark:text-emerald-300 font-semibold' : ''}`}
+                                        className={`group/btn ${isActive ? 'text-[#39452B] dark:text-emerald-300 font-semibold' : ''}`}
                                       >
                                         {isActive && (
                                           <motion.div
                                             layoutId="active-sidebar-table-indicator"
-                                            className="absolute inset-0 rounded-md bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/15 dark:border-emerald-500/30 pointer-events-none"
+                                            className="absolute inset-0 rounded-md bg-[#EEF0E8] border border-[#C9CFB8] dark:bg-emerald-500/15 dark:border-emerald-500/30 pointer-events-none"
                                             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                                           />
                                         )}
-                                        <AnimatedTable style={{ position: 'relative', zIndex: 1, width: '14px', height: '14px', minWidth: '14px', color: isActive ? '#059669' : '#64748b', flexShrink: 0 }} />
+                                        <AnimatedTable style={{ position: 'relative', zIndex: 1, width: '14px', height: '14px', minWidth: '14px', color: isActive ? '#39452B' : '#64748b', flexShrink: 0 }} />
                                         <span style={{ position: 'relative', zIndex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px', marginLeft: '6px' }}>{table.name}</span>
                                       </SidebarMenuSubButton>
 
@@ -657,7 +658,7 @@ export default function AppSidebar({
                                   <button
                                     onClick={() => onShowCreateTableModal?.(db.id)}
                                     style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '4px 6px', fontSize: '12px', color: '#64748b', borderRadius: '6px' }}
-                                    className="hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors font-medium mt-0.5"
+                                    className="hover:text-[#39452B] hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors font-medium mt-0.5"
                                   >
                                     <AnimatedPlus style={{ width: '12px', height: '12px' }} />
                                     <span>{t('nav.createTable')}</span>
@@ -688,9 +689,9 @@ export default function AppSidebar({
                     className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
                   >
                     <div
-                      style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '11px', flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}
+                      style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: '#F5F0E6', border: '1px solid #E7E1D3', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}
                     >
-                      HD
+                      <FycdLogo variant="icon" height={10} />
                     </div>
                     {!isSidebarCollapsed && (
                       <>
@@ -716,9 +717,9 @@ export default function AppSidebar({
                   <DropdownMenuLabel className="p-0 font-normal">
                     <div className="flex items-center gap-2.5 px-2 py-2 text-left text-sm" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px' }}>
                       <div
-                        style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, #10b981, #059669)', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px', flexShrink: 0 }}
+                        style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '8px', background: '#F5F0E6', border: '1px solid #E7E1D3', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}
                       >
-                        HD
+                        <FycdLogo variant="icon" height={12} />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
                         <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
