@@ -984,7 +984,7 @@
   },
   "src/modules/database/services/createRow.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "src/modules/database/services/linkRowSync.ts": {

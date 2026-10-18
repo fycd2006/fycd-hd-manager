@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { PATCH } from '../route'
+import { PATCH, POST } from '../route'
+import { createTableRow } from '@/modules/database/services/createRow'
 import { authorizeAction } from '@/lib/authorize'
 import prisma from '@/lib/prisma'
 import { triggerTableEvent } from '@/lib/pusher-server'
@@ -11,6 +12,10 @@ jest.mock('@/lib/auth', () => ({
 
 jest.mock('@/lib/authorize', () => ({
   authorizeAction: jest.fn(),
+}))
+
+jest.mock('@/modules/database/services/createRow', () => ({
+  createTableRow: jest.fn(),
 }))
 
 jest.mock('@/lib/pusher-server', () => ({
@@ -276,5 +281,32 @@ describe('Route Handler Integration: PATCH /api/tables/[tableId]/rows', () => {
     const formulaQuery = executedSqls[1]
     const sqlText = formulaQuery.strings ? formulaQuery.strings.join('?') : ''
     expect(sqlText).not.toContain('$.?')
+  })
+})
+
+describe('Route Handler: POST /api/tables/[tableId]/rows', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    ;(authorizeAction as jest.Mock).mockResolvedValue({ errorResponse: null })
+  })
+
+  const post = (body: unknown) =>
+    POST(
+      new Request('http://localhost/api/tables/1/rows', { method: 'POST', body: JSON.stringify(body) }),
+      { params: Promise.resolve({ tableId: '1' }) },
+    )
+
+  it('creates with canAddOptions true and emits field-updated per updated field', async () => {
+    ;(createTableRow as jest.Mock).mockResolvedValue({
+      ok: true,
+      row: { id: 5 },
+      updatedFields: [{ id: 3, options: {} }, { id: 4, options: {} }],
+    })
+    const res = await post({ field_1: 'x', socket_id: 's1' })
+    expect(res.status).toBe(201)
+    expect(createTableRow).toHaveBeenCalledWith(expect.objectContaining({ tableId: 1, canAddOptions: true }))
+    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'row-created', { row: { id: 5 } }, 's1')
+    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 3, options: {} } }, 's1')
+    expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 4, options: {} } }, 's1')
   })
 })

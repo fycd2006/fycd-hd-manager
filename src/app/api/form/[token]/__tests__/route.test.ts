@@ -85,7 +85,7 @@ describe('POST /api/form/[token]', () => {
     expect(res.status).toBe(201)
     expect(await res.json()).toEqual({ message: '提交成功' })
     const args = (createTableRow as jest.Mock).mock.calls[0][0]
-    expect(args).toMatchObject({ tableId: 10, input: { '1': '小明' }, username: '表單提交 (Form)' })
+    expect(args).toMatchObject({ tableId: 10, input: { '1': '小明' }, username: '表單提交 (Form)', canAddOptions: false })
     expect(args.fieldFilter({ type: 'text' })).toBe(true)
     expect(args.fieldFilter({ type: 'formula' })).toBe(false)
     expect(triggerTableEvent).toHaveBeenCalledWith(10, 'row-created', { row: { id: 77 } })

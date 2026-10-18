@@ -98,6 +98,7 @@ export async function POST(
       tableId: ctx.table.id,
       input,
       username: '表單提交 (Form)',
+      canAddOptions: false,
       fieldFilter: (f) => !READONLY.has(f.type)
     })
 

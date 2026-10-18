@@ -112,7 +112,7 @@ export async function POST(
     const input = { ...(body ?? {}), ...(body?.data ?? {}) }
     const username = await getSessionUsername()
 
-    const result = await createTableRow({ tableId: id, input, username })
+    const result = await createTableRow({ tableId: id, input, username, canAddOptions: true })
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
@@ -120,6 +120,9 @@ export async function POST(
     const createdRow = result.row
     const socketId = body?.socket_id || body?.data?.socket_id
     triggerTableEvent(id, 'row-created', { row: createdRow }, socketId)
+    for (const u of result.updatedFields ?? []) {
+      triggerTableEvent(id, 'field-updated', { field: u }, socketId)
+    }
 
     return NextResponse.json(createdRow, { status: 201 })
   } catch (error: unknown) {
