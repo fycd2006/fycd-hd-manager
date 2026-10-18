@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, Star, Search, Link2, Mail, Clock, Sparkles, AlertTriangle, ExternalLink, ArrowUpRight, MessageSquare, Send, Edit2, Trash2, Check, X, Paperclip } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
-import { formatDateValue } from '@/modules/database/utils';
-import { formatFieldDate } from '@/modules/database/utils/dateTime';
+import { formatFieldDate, toEditorValue, fromEditorValue, resolveDateOptions } from '@/modules/database/utils/dateTime';
 import { useI18n } from '@/lib/i18n/i18nContext';
 import { CardDrawer } from '@/modules/database/components/cards';
 import ModalOverlay from '@/components/ui/ModalOverlay';
@@ -152,10 +151,12 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   onContextMenu,
 }) => {
   const { locale } = useI18n();
+  const isDateTimeEditor = field.type === 'date' && resolveDateOptions(field.options, field.type).date_include_time;
+  const commitDateVal = (v: string): unknown => (isDateTimeEditor ? fromEditorValue(v, field.options) : v);
   const getInitialStringValue = (val: any, type: string): string => {
     if (val === null || val === undefined) return type === 'multiple_select' ? '[]' : '';
     if (type === 'boolean') return String(val);
-    if (type === 'date') return formatDateValue(val);
+    if (type === 'date') return toEditorValue(val, field.options);
     if (type === 'multiple_select') {
       const items = parseSelectItems(val, field.options);
       return JSON.stringify(items);
@@ -336,7 +337,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         if (field.type === 'number') {
           onUpdate(parseNumberInput(localValRef.current));
         } else {
-          onUpdate(localValRef.current);
+          onUpdate(commitDateVal(localValRef.current));
         }
       }
     }
@@ -1509,7 +1510,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         return null;
       }
 
-      const inputType = field.type === 'date' ? 'date' 
+      const inputType = field.type === 'date' ? (isDateTimeEditor ? 'datetime-local' : 'date') 
         : field.type === 'email' ? 'email' 
         : field.type === 'url' ? 'url' 
         : (field.type === 'phone' || field.type === 'phone_number') ? 'tel' 
@@ -1529,7 +1530,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
           onChange={(e) => {
             const nextVal = e.target.value;
             setLocalVal(nextVal);
-            if (field.type === 'date' && nextVal) {
+            if (field.type === 'date' && !isDateTimeEditor && nextVal) {
               onUpdate(nextVal);
             }
           }}
@@ -1538,7 +1539,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
             if (field.type === 'number') {
               onUpdate(parseNumberInput(localVal));
             } else {
-              onUpdate(localVal);
+              onUpdate(commitDateVal(localVal));
             }
             onCancelEdit();
           }}
@@ -1550,7 +1551,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
               if (field.type === 'number') {
                 onUpdate(parseNumberInput(localVal));
               } else {
-                onUpdate(localVal);
+                onUpdate(commitDateVal(localVal));
               }
               onCancelEdit();
               onNavigateCell?.(isShift ? 'prevRow' : 'nextRow');
@@ -1561,7 +1562,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
               if (field.type === 'number') {
                 onUpdate(parseNumberInput(localVal));
               } else {
-                onUpdate(localVal);
+                onUpdate(commitDateVal(localVal));
               }
               onCancelEdit();
               onNavigateCell?.(isShift ? 'prevCol' : 'nextCol');

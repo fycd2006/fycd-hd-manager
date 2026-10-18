@@ -7,7 +7,7 @@ import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import RowCommentsPanel, { ActivityLogEntry } from './RowCommentsPanel'
 import CollaboratorSelector from './CollaboratorSelector'
 import AdvancedFieldInputs from './AdvancedFieldInputs'
-import { formatDateValue } from '@/modules/database/utils'
+import { toEditorValue, fromEditorValue, resolveDateOptions } from '@/modules/database/utils/dateTime'
 import { renderFormulaCell, parseNumberInput } from '../views/grid/GridViewCell'
 import ModalOverlay from '@/components/ui/ModalOverlay'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -374,13 +374,13 @@ export default function RowEditModal({
                         </div>
                       ) : (
                         <input
-                          type={field.type === 'date' ? 'date' : 'text'}
+                          type={field.type === 'date' ? (resolveDateOptions(field.options, field.type).date_include_time ? 'datetime-local' : 'date') : 'text'}
                           inputMode={field.type === 'number' ? 'decimal' : undefined}
                           readOnly={readOnly}
-                          value={field.type === 'date' ? formatDateValue(value) : (value ?? '')}
+                          value={field.type === 'date' ? toEditorValue(value, field.options) : (value ?? '')}
                           onFocus={() => handleFocusField(fieldKey)}
                           onChange={e => {
-                            const val = e.target.value
+                            const val = field.type === 'date' ? (fromEditorValue(e.target.value, field.options) ?? '') : e.target.value
                             handleChange(field.id, val, false)
                           }}
                           onBlur={e => {
@@ -390,7 +390,7 @@ export default function RowEditModal({
                               handleChange(field.id, num, false)
                               commitFieldChangeLog(fieldKey, num)
                             } else {
-                              commitFieldChangeLog(fieldKey, val)
+                              commitFieldChangeLog(fieldKey, field.type === 'date' ? (fromEditorValue(val, field.options) ?? '') : val)
                             }
                           }}
                           placeholder={t('rowEditModal.enterPlaceholder')}
