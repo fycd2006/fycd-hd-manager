@@ -735,9 +735,6 @@
     "@typescript-eslint/no-explicit-any": {
       "count": 30
     },
-    "prefer-const": {
-      "count": 3
-    },
     "react-hooks/immutability": {
       "count": 1
     },
