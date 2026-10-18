@@ -243,10 +243,7 @@
   },
   "src/app/api/tables/[tableId]/rows/batch/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
-    },
-    "prefer-const": {
-      "count": 4
+      "count": 10
     }
   },
   "src/app/api/tables/[tableId]/rows/comments/route.ts": {

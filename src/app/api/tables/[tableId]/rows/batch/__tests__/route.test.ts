@@ -97,15 +97,18 @@ describe('POST /api/tables/[tableId]/rows/batch', () => {
     expect(tx.tableRow.findMany).toHaveBeenCalledWith({
       where: { tableId: 10, clientId: { in: ['a', 'b'] } }, orderBy: { order: 'asc' },
     })
-    expect(await res.json()).toEqual({ rows: [{ id: 100, clientId: 'a', data: { field_1: '米' } }] })
+    expect(await res.json()).toEqual({ rows: [{ id: 100, clientId: 'a', data: { field_1: '米' } }], rejected: [] })
     expect(triggerTableEvent).toHaveBeenCalledWith(10, 'rows-batch-changed', { type: 'create', count: 1 }, 'sock')
   })
 
-  it('rejects an invalid value before opening a transaction', async () => {
+  it('creates the row with the invalid cell left empty and reports it', async () => {
     const res = await call(POST, 'POST', { rows: [{ clientId: 'a', data: { field_2: 'abc' } }] })
 
-    expect(res.status).toBe(400)
-    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(res.status).toBe(201)
+    expect(tx.tableRow.createMany.mock.calls[0][0].data[0].data).toEqual({ field_3: 'alice' })
+    expect((await res.json()).rejected).toEqual([
+      expect.objectContaining({ clientId: 'a', fieldId: 2, code: 'invalid_number' }),
+    ])
   })
 
   it('requires a clientId on every row and a non-empty rows array', async () => {
@@ -191,19 +194,22 @@ describe('PATCH /api/tables/[tableId]/rows/batch', () => {
     expect(body.updates[0].data.field_5).toBe('42')
   })
 
-  it('aborts the transaction when a value fails validation', async () => {
+  it('does not write a row whose only cell fails validation', async () => {
     tx.tableRow.findMany.mockResolvedValue([{ id: 1, data: {} }])
 
     const res = await call(PATCH, 'PATCH', { updates: [{ rowId: 1, data: { field_2: 'abc' } }] })
 
-    expect(res.status).toBe(500)
+    expect(res.status).toBe(200)
     expect(tx.$executeRawUnsafe).not.toHaveBeenCalled()
+    const body = await res.json()
+    expect(body.updates).toEqual([])
+    expect(body.rejected).toEqual([expect.objectContaining({ rowId: 1, fieldId: 2, code: 'invalid_number' })])
   })
 
   it('skips the write when no requested row exists in this table', async () => {
     const res = await call(PATCH, 'PATCH', { updates: [{ rowId: 3, data: { field_1: 'x' } }] })
 
-    expect(await res.json()).toEqual({ ok: true, updates: [] })
+    expect(await res.json()).toEqual({ ok: true, updates: [], rejected: [] })
     expect(tx.$executeRawUnsafe).not.toHaveBeenCalled()
   })
 
