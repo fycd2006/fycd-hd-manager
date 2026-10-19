@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
+import { restoreTable } from '@/modules/database/services/containerTrash'
 
 export async function PATCH(
   request: Request,
@@ -19,35 +20,21 @@ export async function PATCH(
 
     // If restoring a soft-deleted table, restore ONLY child rows and fields that were deleted with the table
     if (body.deletedAt === null) {
-      const existingTable = await prisma.databaseTable.findUnique({
-        where: { id },
-        select: { deletedAt: true },
-      })
-      const tableDeletedAt = existingTable?.deletedAt
+      const restored = await restoreTable(id)
+      if (!restored.ok) {
+        return NextResponse.json({ error: restored.error }, { status: restored.status })
+      }
 
-      await prisma.$transaction([
-        prisma.databaseTable.update({
+      if (body.name || body.order !== undefined || body.databaseId !== undefined) {
+        await prisma.databaseTable.update({
           where: { id },
           data: {
-            deletedAt: null,
             ...(body.name && { name: body.name }),
             ...(body.order !== undefined && { order: body.order }),
-            ...(body.databaseId !== undefined && { databaseId: body.databaseId })
+            ...(body.databaseId !== undefined && { databaseId: body.databaseId }),
           },
-        }),
-        ...(tableDeletedAt
-          ? [
-              prisma.tableRow.updateMany({
-                where: { tableId: id, deletedAt: tableDeletedAt },
-                data: { deletedAt: null }
-              }),
-              prisma.tableField.updateMany({
-                where: { tableId: id, deletedAt: tableDeletedAt },
-                data: { deletedAt: null }
-              })
-            ]
-          : [])
-      ])
+        })
+      }
 
       try {
         await invalidateMasterViewCacheForTable(id)

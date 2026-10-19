@@ -1,0 +1,116 @@
+import prisma from '@/lib/prisma'
+
+export type RestoreResult =
+  | { ok: true; tableIds: number[] }
+  | { ok: false; status: 400 | 404; error: string }
+
+const NOT_FOUND: RestoreResult = { ok: false, status: 404, error: '找不到已刪除的項目' }
+
+export async function softDeleteWorkspace(workspaceId: number, now: Date = new Date()): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const databases = await tx.database.findMany({
+      where: { workspaceId, deletedAt: null },
+      select: { id: true },
+    })
+    const databaseIds = databases.map((d) => d.id)
+    const tables = await tx.databaseTable.findMany({
+      where: { databaseId: { in: databaseIds }, deletedAt: null },
+      select: { id: true },
+    })
+    const tableIds = tables.map((t) => t.id)
+
+    await tx.workspace.updateMany({ where: { id: workspaceId, deletedAt: null }, data: { deletedAt: now } })
+    await tx.database.updateMany({ where: { workspaceId, deletedAt: null }, data: { deletedAt: now } })
+    await tx.databaseTable.updateMany({
+      where: { databaseId: { in: databaseIds }, deletedAt: null },
+      data: { deletedAt: now },
+    })
+    await tx.tableField.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
+    await tx.tableRow.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
+  })
+}
+
+export async function softDeleteDatabase(databaseId: number, now: Date = new Date()): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const tables = await tx.databaseTable.findMany({
+      where: { databaseId, deletedAt: null },
+      select: { id: true },
+    })
+    const tableIds = tables.map((t) => t.id)
+
+    await tx.database.updateMany({ where: { id: databaseId, deletedAt: null }, data: { deletedAt: now } })
+    await tx.databaseTable.updateMany({ where: { databaseId, deletedAt: null }, data: { deletedAt: now } })
+    await tx.tableField.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
+    await tx.tableRow.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
+  })
+}
+
+export async function restoreWorkspace(workspaceId: number): Promise<RestoreResult> {
+  return prisma.$transaction(async (tx): Promise<RestoreResult> => {
+    const workspace = await tx.workspace.findUnique({ where: { id: workspaceId }, select: { deletedAt: true } })
+    const T = workspace?.deletedAt
+    if (!T) return NOT_FOUND
+
+    const databases = await tx.database.findMany({
+      where: { workspaceId, deletedAt: T },
+      select: { id: true },
+    })
+    const databaseIds = databases.map((d) => d.id)
+    const tables = await tx.databaseTable.findMany({
+      where: { databaseId: { in: databaseIds }, deletedAt: T },
+      select: { id: true },
+    })
+    const tableIds = tables.map((t) => t.id)
+
+    await tx.tableRow.updateMany({ where: { tableId: { in: tableIds }, deletedAt: T }, data: { deletedAt: null } })
+    await tx.tableField.updateMany({ where: { tableId: { in: tableIds }, deletedAt: T }, data: { deletedAt: null } })
+    await tx.databaseTable.updateMany({
+      where: { databaseId: { in: databaseIds }, deletedAt: T },
+      data: { deletedAt: null },
+    })
+    await tx.database.updateMany({ where: { workspaceId, deletedAt: T }, data: { deletedAt: null } })
+    await tx.workspace.updateMany({ where: { id: workspaceId }, data: { deletedAt: null } })
+    return { ok: true, tableIds }
+  })
+}
+
+export async function restoreDatabase(databaseId: number): Promise<RestoreResult> {
+  return prisma.$transaction(async (tx): Promise<RestoreResult> => {
+    const database = await tx.database.findUnique({
+      where: { id: databaseId },
+      select: { deletedAt: true, workspace: { select: { deletedAt: true } } },
+    })
+    const T = database?.deletedAt
+    if (!T) return NOT_FOUND
+    if (database?.workspace?.deletedAt) return { ok: false, status: 400, error: '請先還原工作區' }
+
+    const tables = await tx.databaseTable.findMany({
+      where: { databaseId, deletedAt: T },
+      select: { id: true },
+    })
+    const tableIds = tables.map((t) => t.id)
+
+    await tx.tableRow.updateMany({ where: { tableId: { in: tableIds }, deletedAt: T }, data: { deletedAt: null } })
+    await tx.tableField.updateMany({ where: { tableId: { in: tableIds }, deletedAt: T }, data: { deletedAt: null } })
+    await tx.databaseTable.updateMany({ where: { databaseId, deletedAt: T }, data: { deletedAt: null } })
+    await tx.database.updateMany({ where: { id: databaseId }, data: { deletedAt: null } })
+    return { ok: true, tableIds }
+  })
+}
+
+export async function restoreTable(tableId: number): Promise<RestoreResult> {
+  const table = await prisma.databaseTable.findUnique({
+    where: { id: tableId },
+    select: { deletedAt: true, database: { select: { deletedAt: true } } },
+  })
+  const T = table?.deletedAt
+  if (!T) return NOT_FOUND
+  if (table?.database?.deletedAt) return { ok: false, status: 400, error: '請先還原資料庫' }
+
+  await prisma.$transaction([
+    prisma.databaseTable.update({ where: { id: tableId }, data: { deletedAt: null } }),
+    prisma.tableRow.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } }),
+    prisma.tableField.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } }),
+  ])
+  return { ok: true, tableIds: [tableId] }
+}
