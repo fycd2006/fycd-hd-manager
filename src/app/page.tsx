@@ -1117,6 +1117,7 @@ export default function Home() {
 
       <div className="layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
         <Sidebar
+          onTablePrefetch={tableDataCache.prefetch}
           currentUser={authState.currentUser}
           userPermissions={currentUserRolePermissions}
           workspaces={wsState.workspaces}
@@ -1190,6 +1191,7 @@ export default function Home() {
           {!wsState.activeTableId || wsState.activeTableId === 0 ? (
             <div key="workspace_dashboard" className="animate-view-transition" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <WorkspaceDashboard
+                onTablePrefetch={tableDataCache.prefetch}
                 theme={themeState.theme}
                 currentUser={authState.currentUser}
                 activeWorkspace={activeWorkspaceObj || null}
