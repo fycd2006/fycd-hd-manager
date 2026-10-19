@@ -22,7 +22,7 @@ const SubscriptionModal = dynamic(() => import('@/modules/database/components/mo
 const DarkReaderModal = dynamic(() => import('@/modules/database/components/modals/DarkReaderModal'), { ssr: false })
 import { getRolePermissions } from '@/lib/permissions'
 import { getSessionUser } from '@/lib/auth'
-import { useTableOperations } from '@/modules/database/hooks/useTableOperations'
+import { useTableOperations, type PendingOperation } from '@/modules/database/hooks/useTableOperations'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { parseSelectItems, evaluateCellCondition, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils'
@@ -63,8 +63,8 @@ import {
 } from '@/modules/database/store'
 import * as workspaceService from '@/modules/database/services/workspace'
 import * as fieldService from '@/modules/database/services/field'
-import * as rowService from '@/modules/database/services/row'
-import * as viewService from '@/modules/database/services/view'
+import { tableDataCache } from '@/modules/database/cache/tableDataCache'
+import { runTableLoad } from '@/modules/database/cache/runTableLoad'
 import * as userService from '@/modules/database/services/user'
 import * as trashService from '@/modules/database/services/trash'
 import { createDatabaseFromTemplate, TemplateKey } from '@/modules/database/services/templateService'
@@ -347,40 +347,67 @@ export default function Home() {
   const tableFetchRequestId = useRef<number>(0)
 
   // Fetch table data using parallel services with race-condition protection & atomic state hydration
-  const fetchTableData = useCallback(async (tableId: number) => {
+  const fetchTableData = useCallback(async (tableId: number, opts: { force?: boolean } = {}) => {
     const currentRequestId = ++tableFetchRequestId.current
-    setGridLoading(true)
-    try {
-      const [fieldsData, rowsData, viewsData] = await Promise.all([
-        fieldService.fetchFields(tableId),
-        rowService.fetchRows(tableId),
-        viewService.fetchViews(tableId),
-      ])
+    // Drop stale results if the user switched to another table before this finished
+    const isCurrent = () => currentRequestId === tableFetchRequestId.current
 
-      // Drop stale response if user switched to another table before this finished
-      if (currentRequestId !== tableFetchRequestId.current) return
+    // Dev-only timing of a table switch: start → first data applied, tagged cache-hit / cache-miss
+    const measure = process.env.NODE_ENV === 'development' && !opts.force && typeof performance !== 'undefined' && typeof performance.mark === 'function'
+    const startMark = `table-switch:start:${tableId}`
+    const appliedMark = `table-switch:applied:${tableId}`
+    let applied = false
+    const markApplied = () => {
+      if (!measure || applied) return
+      applied = true
+      performance.mark(appliedMark)
+    }
+    if (measure) performance.mark(startMark)
 
-      setFields(fieldsData)
-      mergeServerRows(rowsData)
+    const result = await runTableLoad(tableId, opts, {
+      cache: tableDataCache,
+      isCurrent,
+      applyFull: (entry) => {
+        setFields(entry.fields)
+        mergeServerRows(entry.rows)
 
-      if (Array.isArray(viewsData) && viewsData.length > 0) {
-        setViews(viewsData)
-        const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
-        const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
-        const targetView = (savedViewId && viewsData.find(v => v.id === savedViewId)) || viewsData[0]
-        wsActions.setActiveViewId(targetView.id)
-        applyViewConfig(targetView)
-      } else {
-        resetViewState()
+        const viewsData = entry.views
+        if (Array.isArray(viewsData) && viewsData.length > 0) {
+          setViews(viewsData)
+          const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
+          const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
+          const targetView = (savedViewId && viewsData.find(v => v.id === savedViewId)) || viewsData[0]
+          wsActions.setActiveViewId(targetView.id)
+          applyViewConfig(targetView)
+        } else {
+          resetViewState()
+        }
+        markApplied()
+      },
+      applyRefresh: (entry, viewsChanged) => {
+        setFields(entry.fields)
+        mergeServerRows(entry.rows)
+        if (viewsChanged) setViews(entry.views)
+      },
+      setLoading: setGridLoading,
+      onError: (error) => {
+        console.error('Failed to load table data:', error)
+        uiActions.addToast(t('toasts.loadTableFailed'), 'error')
+      },
+    })
+
+    if (measure) {
+      try {
+        if (applied) {
+          const name = `table-switch:${tableId}:${result}`
+          const entry = performance.measure(name, startMark, appliedMark)
+          console.debug(`[${name}] ${Math.round(entry?.duration ?? 0)}ms`)
+        }
+      } catch {
+        // Marks may already be cleared by an overlapping load of the same table
       }
-    } catch (error) {
-      if (currentRequestId !== tableFetchRequestId.current) return
-      console.error('Failed to load table data:', error)
-      uiActions.addToast(t('toasts.loadTableFailed'), 'error')
-    } finally {
-      if (currentRequestId === tableFetchRequestId.current) {
-        setGridLoading(false)
-      }
+      performance.clearMarks(startMark)
+      performance.clearMarks(appliedMark)
     }
   }, [uiActions, mergeServerRows, t, wsActions, applyViewConfig, resetViewState, setViews])
 
@@ -448,8 +475,23 @@ export default function Home() {
     addToast: uiActions.addToast,
   })
 
+  // Latest on-screen data of the table being shown; written back to the cache when switching away
+  const snapshotRef = useRef<{
+    tableId: number | null
+    fields: TableField[]
+    rows: TableRow[]
+    views: TableView[]
+    operations: PendingOperation[]
+  } | null>(null)
+  const switchedTableIdRef = useRef<number | null | undefined>(undefined)
+
   // Load table data and reset transient UI state when activeTableId changes
   useEffect(() => {
+    // fetchTableData's identity also changes right after a switch (CLEAR_TABLE_OPERATIONS gives
+    // mergeServerRows a new identity); only act on an actual table change
+    if (switchedTableIdRef.current === wsState.activeTableId) return
+    switchedTableIdRef.current = wsState.activeTableId
+
     // Reset all transient UI states on table switch
     setEditingCell(null)
     setSelectedRow(null)
@@ -458,10 +500,36 @@ export default function Home() {
     setFieldContextMenu(null)
     setSearchQuery('')
 
+    // Write the previous table's live state (including local edits) back to the cache
+    const snapshot = snapshotRef.current
+    if (snapshot?.tableId && snapshot.tableId !== wsState.activeTableId) {
+      const prevEntry = tableDataCache.get(snapshot.tableId)
+      if (prevEntry) {
+        const stagedMoveRowIds = new Set<number>()
+        snapshot.operations.forEach(op => {
+          if (op.tableId === snapshot.tableId && op.status === 'staged' && op.type === 'move') {
+            op.rowIds?.forEach(id => stagedMoveRowIds.add(id))
+            op.sourceRowIds?.forEach(id => stagedMoveRowIds.add(id))
+          }
+        })
+        tableDataCache.set(snapshot.tableId, {
+          fields: snapshot.fields,
+          rows: snapshot.rows.filter(r => !stagedMoveRowIds.has(r.id)),
+          views: snapshot.views,
+          fetchedAt: prevEntry.fetchedAt,
+        })
+      }
+    }
+
     if (wsState.activeTableId) {
-      setGridLoading(true)
-      setFields([])
-      setRows([])
+      if (!tableDataCache.get(wsState.activeTableId)) {
+        setGridLoading(true)
+        setFields([])
+        setRows([])
+      } else {
+        // A previous uncached load may have left the skeleton on; cached data is applied synchronously
+        setGridLoading(false)
+      }
       fetchTableData(wsState.activeTableId)
     } else {
       setFields([])
@@ -469,6 +537,11 @@ export default function Home() {
       setGridLoading(false)
     }
   }, [wsState.activeTableId, fetchTableData, setSearchQuery, setRows, setFields])
+
+  // Declared after the switch effect so the switch effect still sees the previous table's snapshot
+  useEffect(() => {
+    snapshotRef.current = { tableId: wsState.activeTableId, fields, rows, views, operations }
+  })
 
   // Cell and batch editing hook
   const { updateCell, batchUpdateCells, recentlyRejected } = useCellEdit({
@@ -1068,6 +1141,7 @@ export default function Home() {
               try {
                 const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                 if (res.ok) {
+                  tableDataCache.invalidate(tableId)
                   uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
                   if (wsState.activeTableId === tableId) {
                     wsActions.setActiveTableId(0)
@@ -1120,6 +1194,7 @@ export default function Home() {
                     try {
                       const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                       if (res.ok) {
+                        tableDataCache.invalidate(tableId)
                         uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
                         if (wsState.activeTableId === tableId) {
                           wsActions.setActiveTableId(0)
@@ -1253,7 +1328,7 @@ export default function Home() {
         setWorkspaceMemberCount={setWorkspaceMemberCount}
         showNotificationsModal={showNotificationsModal}
         setShowNotificationsModal={setShowNotificationsModal}
-        onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId) }}
+        onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId, { force: true }) }}
         onOpenAirtableImport={() => setShowAirtableModal(true)}
       />
 

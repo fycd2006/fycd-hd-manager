@@ -7,7 +7,7 @@ import type { TableField } from '@/modules/database/types'
 interface UseFieldOperationsParams {
   activeTableId: number | null
   setFields: React.Dispatch<React.SetStateAction<TableField[]>>
-  fetchTableData: (tableId: number) => Promise<void>
+  fetchTableData: (tableId: number, opts?: { force?: boolean }) => Promise<void>
   fetchWorkspaces: () => Promise<unknown>
   addToast: (message: string, type: 'success' | 'error' | 'info') => void
   onFieldCreated?: () => void
@@ -65,7 +65,7 @@ export function useFieldOperations({
       setNewFieldName('')
       setNewFieldType('text')
       setNewFieldOptions('')
-      await fetchTableData(activeTableId)
+      await fetchTableData(activeTableId, { force: true })
       await fetchWorkspaces()
       onFieldCreated?.()
       addToast(`欄位「${newFieldName}」已新增`, 'success')
@@ -78,7 +78,7 @@ export function useFieldOperations({
     if (!activeTableId) return
     try {
       await fieldService.deleteField(activeTableId, fieldId)
-      await fetchTableData(activeTableId)
+      await fetchTableData(activeTableId, { force: true })
       await fetchWorkspaces()
       addToast('欄位已刪除', 'success')
     } catch {

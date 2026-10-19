@@ -60,4 +60,41 @@ describe('useTableOperations - Cross-Table Operation Isolation Bug Reproduction'
     // This assertion will FAIL before fix, proving the data corruption bug exists!
     expect(rowInTableB?.data.field_title).toBe('CLEAN_TABLE_B_TITLE')
   })
+
+  it('mergeServerRows keeps pending update over server value', () => {
+    const { result } = renderHook(() => useTableOperations(1))
+
+    act(() => {
+      result.current.dispatch({
+        type: 'ADD_OPERATION',
+        payload: {
+          id: 'op_pending_1',
+          type: 'update',
+          status: 'pending',
+          createdAt: Date.now(),
+          tableId: 1,
+          rowIds: [7],
+          fieldKey: 'field_title',
+          value: 'LOCAL_PENDING',
+        },
+      })
+    })
+
+    act(() => {
+      result.current.mergeServerRows([
+        {
+          id: 7,
+          tableId: 1,
+          order: 1000,
+          data: { field_title: 'SERVER_STALE', field_other: 'kept' },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ])
+    })
+
+    const row = result.current.rows.find((r) => r.id === 7)
+    expect(row?.data.field_title).toBe('LOCAL_PENDING')
+    expect(row?.data.field_other).toBe('kept')
+  })
 })

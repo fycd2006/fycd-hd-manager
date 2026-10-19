@@ -6,6 +6,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { User } from '../types'
 import * as authService from '../services/auth'
+import { tableDataCache } from '../cache/tableDataCache'
 
 export interface AuthState {
   currentUser: User | null
@@ -94,6 +95,7 @@ export const useAuthStore = (): [AuthState, AuthActions] => {
 
   const logout = useCallback(async () => {
     await authService.logout()
+    tableDataCache.clear()
     setCurrentUser(null)
     saveCachedUser(null)
     if (typeof window !== 'undefined') {
