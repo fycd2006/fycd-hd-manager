@@ -69,6 +69,22 @@ describe('tableDataCache', () => {
     expect(tableDataCache.get(1)).toBeUndefined()
   })
 
+  it('throws TableLoadError on malformed JSON', async () => {
+    mockFetchByUrl({
+      '/rows': {
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError('bad json')
+        },
+      },
+    })
+    const err = await tableDataCache.load(1).catch((e) => e)
+    expect(err).toBeInstanceOf(TableLoadError)
+    expect(err.status).toBe(200)
+    expect(tableDataCache.get(1)).toBeUndefined()
+  })
+
   it('uses status 0 when the network fails', async () => {
     global.fetch = jest.fn(async () => {
       throw new TypeError('network')

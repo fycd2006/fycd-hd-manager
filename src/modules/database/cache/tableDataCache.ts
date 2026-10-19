@@ -38,7 +38,11 @@ async function fetchJsonStrict<T>(url: string, headers?: Record<string, string>)
     throw new TableLoadError('Network error', 0)
   }
   if (!res.ok) throw new TableLoadError(`Request failed: ${res.status}`, res.status)
-  return (await res.json()) as T
+  try {
+    return (await res.json()) as T
+  } catch {
+    throw new TableLoadError('Invalid response body', res.status)
+  }
 }
 
 function get(tableId: number): TableDataEntry | undefined {
