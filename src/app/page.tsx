@@ -1092,6 +1092,7 @@ export default function Home() {
           {!wsState.activeTableId || wsState.activeTableId === 0 ? (
             <div key="workspace_dashboard" className="animate-view-transition" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <WorkspaceDashboard
+                theme={themeState.theme}
                 currentUser={authState.currentUser}
                 activeWorkspace={activeWorkspaceObj || null}
                 workspaces={wsState.workspaces}

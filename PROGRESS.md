@@ -4,6 +4,7 @@
 - 安全與測試工作已全部合併：PR #1–#17（開發規範、CI verify、README、Claude review＋漏洞關卡、members／rows-move／comments／通知越權修正、API 路由測試、commit hook 修正、UI 與統一寫入驗證）。
 - 目前工作區在 `feat/brand-login-loading`（已追蹤 origin），不是 `main`。未 commit 變更：`.claude/launch.json`（未追蹤，非本次工作）。
 - 開放 PR：#18 `docs/handoff-2026-10-18`（也改 PROGRESS.md，與本檔可能衝突，以先合併者為準）。
+- 工作區總覽改版（`feat/workspace-dashboard-redesign` 的 Task 1–4）已全部併入 `main`（PR #25 之前）；Task 5 驗證通過（verify 1048 tests）。reviewer 審查後在 `fix/dashboard-review-followups` 修正：暗色字標改 `onDark`（由 `page.tsx` 傳 `theme`）、淺色 muted／accent 文字加深到 AA、鉛筆按鈕 aria-label 帶資料表名、搜尋框加 aria-label、移除表列上無法觸發的雙擊重新命名。
 
 ## 已做的決定
 - 驗證統一走 `npm run verify`；CI 跑同一指令。`npm run build` 含 `db push --accept-data-loss`，本機不執行。
