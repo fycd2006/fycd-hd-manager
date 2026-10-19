@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import type { TableField, TableRow, CellValue, GroupByRule, SortRule, SortOrder, TableView } from '../types'
 import * as rowService from '../services/row'
+import { localWriteTracker } from '../cache/localWriteTracker'
 import { READ_ONLY_FIELD_TYPES } from '../fields/types/ReadOnlyFieldTypes'
 import { formatRejectedSummary } from '../utils/formatRejectedSummary'
 
@@ -230,52 +231,59 @@ export function useRowOperations({
     const nonDisplayWithOrder = nonDisplayRows.map((r, idx) => ({ ...r, order: reorderedDisplayRows.length + idx }))
     const updatedRows = [...reorderedDisplayRows, ...nonDisplayWithOrder]
 
-    setRows(updatedRows)
-
-    const rowIds = newDisplayOrder.map(r => r.id)
-
-    // Clear sort so server order is respected after reload
-    if (sortField || (sortRules && sortRules.length > 0)) {
-      setSortField(null)
-      setSortRules([])
-      setSortOrder('asc')
-      if (activeViewId && saveViewConfig) {
-        await saveViewConfig(activeViewId, { sortField: null, sortOrder: 'asc' })
-      }
-    }
-
+    // Counts as a local write from the optimistic reorder until the server settles it, so a
+    // background table refresh in between is discarded instead of reverting the order
+    const endWrite = localWriteTracker.beginWrite()
     try {
-      if (updatesByRowId.size > 0) {
-        const results = await Promise.all(
-          Array.from(updatesByRowId.entries()).map(([rid, u]) =>
-            rowService.updateRow(activeTableId, rid, u)
-          )
-        )
-        const rejected = results.flatMap(r => r.rejected ?? [])
-        if (rejected.length > 0) {
-          // The server refused the group value: undo the optimistic move, keeping only the cells it accepted
-          const rejectedKeys = new Set(rejected.map(r => `${r.rowId}:field_${r.fieldId}`))
-          setRows(rows.map(r => {
-            const u = updatesByRowId.get(r.id)
-            if (!u) return r
-            const accepted = Object.fromEntries(Object.entries(u).filter(([k]) => !rejectedKeys.has(`${r.id}:${k}`)))
-            return Object.keys(accepted).length > 0 ? { ...r, data: { ...r.data, ...accepted } } : r
-          }))
-          const provided = Array.from(updatesByRowId.values()).reduce((n, u) => n + Object.keys(u).length, 0)
-          addToast(formatRejectedSummary(provided - rejected.length, rejected, fields), 'info')
-          return
+      setRows(updatedRows)
+
+      const rowIds = newDisplayOrder.map(r => r.id)
+
+      // Clear sort so server order is respected after reload
+      if (sortField || (sortRules && sortRules.length > 0)) {
+        setSortField(null)
+        setSortRules([])
+        setSortOrder('asc')
+        if (activeViewId && saveViewConfig) {
+          await saveViewConfig(activeViewId, { sortField: null, sortOrder: 'asc' })
         }
       }
-      const res = await rowService.reorderRows(activeTableId, rowIds)
-      if (res.ok) {
-        addToast(movedRows.length > 1 ? `已移動 ${movedRows.length} 列資料` : '已儲存資料列順序', 'success')
-      } else {
-        addToast(res.error || '儲存資料列順序失敗', 'error')
+
+      try {
+        if (updatesByRowId.size > 0) {
+          const results = await Promise.all(
+            Array.from(updatesByRowId.entries()).map(([rid, u]) =>
+              rowService.updateRow(activeTableId, rid, u)
+            )
+          )
+          const rejected = results.flatMap(r => r.rejected ?? [])
+          if (rejected.length > 0) {
+            // The server refused the group value: undo the optimistic move, keeping only the cells it accepted
+            const rejectedKeys = new Set(rejected.map(r => `${r.rowId}:field_${r.fieldId}`))
+            setRows(rows.map(r => {
+              const u = updatesByRowId.get(r.id)
+              if (!u) return r
+              const accepted = Object.fromEntries(Object.entries(u).filter(([k]) => !rejectedKeys.has(`${r.id}:${k}`)))
+              return Object.keys(accepted).length > 0 ? { ...r, data: { ...r.data, ...accepted } } : r
+            }))
+            const provided = Array.from(updatesByRowId.values()).reduce((n, u) => n + Object.keys(u).length, 0)
+            addToast(formatRejectedSummary(provided - rejected.length, rejected, fields), 'info')
+            return
+          }
+        }
+        const res = await rowService.reorderRows(activeTableId, rowIds)
+        if (res.ok) {
+          addToast(movedRows.length > 1 ? `已移動 ${movedRows.length} 列資料` : '已儲存資料列順序', 'success')
+        } else {
+          addToast(res.error || '儲存資料列順序失敗', 'error')
+          setRows(rows)
+        }
+      } catch {
+        addToast('儲存資料列順序失敗', 'error')
         setRows(rows)
       }
-    } catch {
-      addToast('儲存資料列順序失敗', 'error')
-      setRows(rows)
+    } finally {
+      endWrite()
     }
   }, [
     activeTableId,

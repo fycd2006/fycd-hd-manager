@@ -65,6 +65,7 @@ import * as workspaceService from '@/modules/database/services/workspace'
 import * as fieldService from '@/modules/database/services/field'
 import { tableDataCache } from '@/modules/database/cache/tableDataCache'
 import { runTableLoad } from '@/modules/database/cache/runTableLoad'
+import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
 import * as userService from '@/modules/database/services/user'
 import * as trashService from '@/modules/database/services/trash'
 import { createDatabaseFromTemplate, TemplateKey } from '@/modules/database/services/templateService'
@@ -345,6 +346,8 @@ export default function Home() {
   }, [undo, redo, wsState.activeTableId])
 
   const tableFetchRequestId = useRef<number>(0)
+  // Forced refetch used after a background refresh is discarded as stale (set below fetchTableData)
+  const retryTableLoadRef = useRef<(tableId: number) => void>(() => {})
 
   // Fetch table data using parallel services with race-condition protection & atomic state hydration
   const fetchTableData = useCallback(async (tableId: number, opts: { force?: boolean } = {}) => {
@@ -394,12 +397,24 @@ export default function Home() {
         console.error('Failed to load table data:', error)
         uiActions.addToast(t('toasts.loadTableFailed'), 'error')
       },
+      writes: localWriteTracker,
     })
+
+    // The refresh raced a local row write and was discarded: once all writes settle, refetch
+    // (the retry follows the same rule, so this converges). Skip if another load has started since.
+    if (result === 'stale' && isCurrent()) {
+      const retry = () => {
+        if (isCurrent()) retryTableLoadRef.current(tableId)
+      }
+      if (localWriteTracker.inFlight() === 0) retry()
+      else localWriteTracker.onSettled(retry)
+    }
 
     if (measure) {
       try {
         if (applied) {
-          const name = `table-switch:${tableId}:${result}`
+          // 'stale' only comes from the cache-hit path
+          const name = `table-switch:${tableId}:${result === 'stale' ? 'cache-hit' : result}`
           const entry = performance.measure(name, startMark, appliedMark)
           console.debug(`[${name}] ${Math.round(entry?.duration ?? 0)}ms`)
         }
@@ -414,6 +429,9 @@ export default function Home() {
   // Refresh the table already on screen: force skips re-applying the cached entry, so local edits
   // made since the last load don't flash back to cached values. Only the switch effect uses the cache.
   const refetchTableData = useCallback((tableId: number) => fetchTableData(tableId, { force: true }), [fetchTableData])
+  useEffect(() => {
+    retryTableLoadRef.current = (tableId: number) => { void refetchTableData(tableId) }
+  }, [refetchTableData])
 
   // New Field scroll trigger
   const [newFieldScrollTrigger, setNewFieldScrollTrigger] = useState(0)
@@ -542,7 +560,9 @@ export default function Home() {
     }
   }, [wsState.activeTableId, fetchTableData, setSearchQuery, setRows, setFields])
 
-  // Declared after the switch effect so the switch effect still sees the previous table's snapshot
+  // Declared after the switch effect so the switch effect still sees the previous table's snapshot.
+  // In the first commit after a switch this stores {new id, previous table's data}; that is safe only
+  // because the switch effect's state updates force another render before activeTableId can change again.
   useEffect(() => {
     snapshotRef.current = { tableId: wsState.activeTableId, fields, rows, views, operations }
   })
