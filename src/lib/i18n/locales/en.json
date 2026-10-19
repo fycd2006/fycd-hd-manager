@@ -48,6 +48,7 @@
     "dashboard": "Dashboard",
     "workspaces": "Workspaces",
     "members": "Members",
+    "recentlyDeleted": "Recently deleted",
     "notifications": "Notifications",
     "accountSettings": "Account Settings",
     "logout": "Log Out",
@@ -657,6 +658,14 @@
     "deleteDatabaseTitle": "Delete database \"{name}\"?",
     "deleteDescription": "It will be moved to \"Recently deleted\" and can be restored within 30 days, then deleted permanently.",
     "typeNamePrompt": "Type the name \"{name}\" to confirm",
-    "deleteTableConfirm": "Delete table \"{name}\"? You can restore it from \"Recently deleted\" within 30 days."
+    "deleteTableConfirm": "Delete table \"{name}\"? You can restore it from \"Recently deleted\" within 30 days.",
+    "recentlyDeletedTitle": "Recently deleted",
+    "empty": "No recently deleted items",
+    "daysLeft": "{n} days left",
+    "restore": "Restore",
+    "restoreFailed": "Restore failed",
+    "groupWorkspace": "Workspaces",
+    "groupDatabase": "Databases",
+    "groupTable": "Tables"
   }
 }

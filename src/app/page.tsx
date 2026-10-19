@@ -13,6 +13,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo'
 import { AuthScreen, AppShellSkeleton } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
 import { DeleteConfirmModal } from '@/modules/database/components/modals/DeleteConfirmModal'
+import { RecentlyDeletedModal } from '@/modules/database/components/modals/RecentlyDeletedModal'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
 
 const AirtableImportModal = dynamic(() => import('@/modules/database/components/import/AirtableImportModal').then(m => m.AirtableImportModal), { ssr: false })
@@ -234,6 +235,7 @@ export default function Home() {
   const [renameNameValue, setRenameNameValue] = useState('')
   const [rowHeightSize, setRowHeightSize] = useState<'small' | 'medium' | 'large' | 'extra'>('small')
   const [showRenameModal, setShowRenameModal] = useState(false)
+  const [showRecentlyDeleted, setShowRecentlyDeleted] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ action: 'delete_workspace' | 'delete_database'; id: number; label: string } | null>(null)
   const [showTableModal, setShowTableModal] = useState(false)
   const [modalDbIdForTable, setModalDbIdForTable] = useState<number | null>(null)
@@ -1019,6 +1021,11 @@ export default function Home() {
     <TableProvider value={tableContextValue}>
       <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning>
       <ToastContainer toasts={uiState.toasts} />
+      <RecentlyDeletedModal
+        open={showRecentlyDeleted}
+        onClose={() => setShowRecentlyDeleted(false)}
+        onRestored={() => { void wsActions.fetchWorkspaces() }}
+      />
       <DeleteConfirmModal
         open={pendingDelete !== null}
         kind={pendingDelete?.action === 'delete_database' ? 'database' : 'workspace'}
@@ -1052,6 +1059,7 @@ export default function Home() {
           memberCount={workspaceMemberCount}
           notificationCount={unreadNotificationsCount}
           onShowMembersModal={() => setShowMembersModal(true)}
+          onOpenRecentlyDeleted={() => setShowRecentlyDeleted(true)}
           onShowNotificationsModal={() => setShowNotificationsModal(true)}
           onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
           onShowSubscriptionModal={() => setShowSubscriptionModal(true)}

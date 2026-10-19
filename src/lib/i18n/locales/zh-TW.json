@@ -48,6 +48,7 @@
     "dashboard": "儀表板",
     "workspaces": "工作區",
     "members": "成員管理",
+    "recentlyDeleted": "最近刪除",
     "notifications": "通知中心",
     "accountSettings": "個人帳號設定",
     "logout": "登出系統",
@@ -657,6 +658,14 @@
     "deleteDatabaseTitle": "刪除資料庫「{name}」？",
     "deleteDescription": "會移到「最近刪除」，30 天內可以還原，之後永久刪除。",
     "typeNamePrompt": "請輸入名稱「{name}」確認",
-    "deleteTableConfirm": "確定要刪除資料表「{name}」？30 天內可以在「最近刪除」還原。"
+    "deleteTableConfirm": "確定要刪除資料表「{name}」？30 天內可以在「最近刪除」還原。",
+    "recentlyDeletedTitle": "最近刪除",
+    "empty": "沒有最近刪除的項目",
+    "daysLeft": "剩 {n} 天",
+    "restore": "還原",
+    "restoreFailed": "還原失敗",
+    "groupWorkspace": "工作區",
+    "groupDatabase": "資料庫",
+    "groupTable": "資料表"
   }
 }
