@@ -411,6 +411,10 @@ export default function Home() {
     }
   }, [uiActions, mergeServerRows, t, wsActions, applyViewConfig, resetViewState, setViews])
 
+  // Refresh the table already on screen: force skips re-applying the cached entry, so local edits
+  // made since the last load don't flash back to cached values. Only the switch effect uses the cache.
+  const refetchTableData = useCallback((tableId: number) => fetchTableData(tableId, { force: true }), [fetchTableData])
+
   // New Field scroll trigger
   const [newFieldScrollTrigger, setNewFieldScrollTrigger] = useState(0)
   const handleFieldCreated = useCallback(() => {
@@ -449,7 +453,7 @@ export default function Home() {
     rows,
     operations,
     dispatch,
-    fetchTableData,
+    fetchTableData: refetchTableData,
     addToast: uiActions.addToast,
   })
 
@@ -471,7 +475,7 @@ export default function Home() {
     workspaces: wsState.workspaces,
     setFields,
     setGridLoading,
-    fetchTableData,
+    fetchTableData: refetchTableData,
     addToast: uiActions.addToast,
   })
 
@@ -560,13 +564,13 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       ;(window as any).updateCell = updateCell
-      ;(window as any).fetchTableData = fetchTableData
+      ;(window as any).fetchTableData = refetchTableData
       ;(window as any).dispatchTableOp = dispatch
       ;(window as any).rows = rows
       ;(window as any).fields = fields
       ;(window as any).__activeTableId = wsState.activeTableId
     }
-  }, [updateCell, fetchTableData, dispatch, rows, fields, wsState.activeTableId])
+  }, [updateCell, refetchTableData, dispatch, rows, fields, wsState.activeTableId])
 
 
 
@@ -886,7 +890,7 @@ export default function Home() {
     batchAddRows,
     deleteRow,
     duplicateRow,
-    fetchTableData,
+    fetchTableData: refetchTableData,
 
     createField,
     deleteField,
@@ -939,7 +943,7 @@ export default function Home() {
     batchAddRows,
     deleteRow,
     duplicateRow,
-    fetchTableData,
+    refetchTableData,
     createField,
     deleteField,
     handleUpdateField,
@@ -1269,7 +1273,7 @@ export default function Home() {
               onSetActiveWorkspaceId={wsActions.setActiveWorkspaceId}
               onSetActiveTableId={wsActions.setActiveTableId}
               addToast={uiActions.addToast}
-              fetchTableData={fetchTableData}
+              fetchTableData={refetchTableData}
               isOffline={isOffline}
               newFieldScrollTrigger={newFieldScrollTrigger}
             />

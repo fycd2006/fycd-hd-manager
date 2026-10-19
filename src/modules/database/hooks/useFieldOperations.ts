@@ -90,7 +90,7 @@ export function useFieldOperations({
     if (!editingFieldName.trim() || !activeTableId) return
     try {
       await fieldService.renameField(activeTableId, fieldId, editingFieldName.trim())
-      await fetchTableData(activeTableId)
+      await fetchTableData(activeTableId, { force: true })
       addToast('欄位名稱已更新', 'success')
     } catch {
       addToast('更新欄位名稱失敗', 'error')
