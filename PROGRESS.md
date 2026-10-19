@@ -1,6 +1,7 @@
 # PROGRESS
 
 ## 目前進度
+- **全站載入／轉場最佳化**拆成三個子專案：1 載入效能 → 2 載入體驗 → 3 動畫系統。子專案 1 在 `feat/table-data-cache`（worktree `C:\dev\fycd-hd-manager-cache`），完成前端快取、hover／閒置預載、Server-Timing；production 量測切回 589→103ms、hover 後點擊 577→85ms，報告見 `docs/audits/2026-10-19-table-loading-baseline.md`。下一步：子專案 2 先跑 brainstorming。
 - 安全與測試工作已全部合併：PR #1–#17（開發規範、CI verify、README、Claude review＋漏洞關卡、members／rows-move／comments／通知越權修正、API 路由測試、commit hook 修正、UI 與統一寫入驗證）。
 - 目前工作區在 `feat/brand-login-loading`（已追蹤 origin），不是 `main`。未 commit 變更：`.claude/launch.json`（未追蹤，非本次工作）。
 - 開放 PR：#18 `docs/handoff-2026-10-18`（也改 PROGRESS.md，與本檔可能衝突，以先合併者為準）。
