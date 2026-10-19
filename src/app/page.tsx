@@ -1138,8 +1138,6 @@ export default function Home() {
             </div>
           ) : (
             <TableWorkspaceView
-              isSidebarCollapsed={isSidebarCollapsed}
-              setIsSidebarCollapsed={setIsSidebarCollapsed}
               currentUserRolePermissions={currentUserRolePermissions}
               currentUser={authState.currentUser}
               activeWorkspaceId={wsState.activeWorkspaceId}
