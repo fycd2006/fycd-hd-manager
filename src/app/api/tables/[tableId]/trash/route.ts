@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { cleanupInboundLinkRowReferences, cleanupRowLinkRowRelations } from '@/modules/database/services/linkRowSync'
+import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 import { softDeleteMasterViewOverrides } from '@/modules/database/services/masterViewOverride'
 
 // GET: list all soft-deleted items (fields, rows) of the table
@@ -121,6 +122,9 @@ export async function DELETE(
           where: { id: targetId, tableId: tid }
         })
       })
+
+      // 3. Only now that the field is gone for good, clear lookup/rollup references to it
+      await cleanupFieldDependencies(targetId)
     } else if (type === 'row') {
       await prisma.$transaction(async (tx) => {
         // 1. Cleanup all reverse link references and overrides

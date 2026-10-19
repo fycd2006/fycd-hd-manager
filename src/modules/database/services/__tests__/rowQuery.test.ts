@@ -27,6 +27,7 @@ describe('getPopulatedTableRows', () => {
         { id: 1, tableId: 1, name: 'TargetRowLink', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
         { id: 2, tableId: 1, name: 'TargetLookup', type: 'lookup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10 }) },
       ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
       .mockResolvedValueOnce([
         { id: 10, tableId: 2, name: 'TargetName', type: 'text' },
       ]);
@@ -65,6 +66,7 @@ describe('getPopulatedTableRows', () => {
         { id: 1, tableId: 1, name: 'TargetRowLink', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
         { id: 2, tableId: 1, name: 'TargetLookup', type: 'lookup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10 }) },
       ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
       .mockResolvedValueOnce([
         { id: 10, tableId: 2, name: 'TargetTags', type: 'multiple_select' },
       ]);
@@ -284,6 +286,44 @@ describe('getPopulatedTableRows', () => {
   })
 })
 
+describe('getPopulatedTableRows lookup references to inactive fields', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  async function lookupResult(activeIds: number[]) {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'Link', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+        { id: 2, tableId: 1, name: 'Lookup', type: 'lookup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10 }) },
+      ])
+      .mockResolvedValueOnce(activeIds.map(id => ({ id })))
+      .mockResolvedValueOnce([{ id: 10, tableId: 2, name: 'Name', type: 'text' }]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      { id: 101, tableId: 1, data: { field_1: '[501]' }, order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ]);
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 501, tableId: 2, data: JSON.stringify({ field_10: 'Product Alpha' }), order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ])
+
+    const result = await getPopulatedTableRows(1, {})
+    return result.rows![0].data['field_2']
+  }
+
+  it('skips a lookup whose target field is soft deleted', async () => {
+    expect(await lookupResult([1])).not.toBe('Product Alpha')
+    expect(prisma.tableField.findMany).toHaveBeenCalledWith({
+      where: { id: { in: expect.arrayContaining([1, 10]) }, deletedAt: null },
+      select: { id: true },
+    })
+  })
+
+  it('computes the lookup again once the target field is active', async () => {
+    expect(await lookupResult([1, 10])).toBe('Product Alpha')
+  })
+})
+
 describe('getPopulatedTableRows rollup functions', () => {
   beforeEach(() => {
     jest.resetAllMocks()
@@ -295,6 +335,7 @@ describe('getPopulatedTableRows rollup functions', () => {
         { id: 1, tableId: 1, name: 'Items', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
         { id: 2, tableId: 1, name: 'Total', type: 'rollup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10, rollupFunction }) },
       ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
       .mockResolvedValueOnce([
         { id: 10, tableId: 2, name: 'Amount', type: 'number' },
       ]);

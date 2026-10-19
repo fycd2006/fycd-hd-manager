@@ -217,6 +217,25 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
     }
   })
 
+  // A lookup/rollup is unset when either referenced field is not active (soft-deleted or purged)
+  const referencedFieldIds = new Set<number>()
+  Object.values(activeRelationFields).forEach(ref => {
+    referencedFieldIds.add(ref.relationFieldId)
+    referencedFieldIds.add(ref.targetFieldId)
+  })
+  if (referencedFieldIds.size > 0) {
+    const activeFieldRows = await prisma.tableField.findMany({
+      where: { id: { in: Array.from(referencedFieldIds) }, deletedAt: null },
+      select: { id: true },
+    })
+    const activeFieldIds = new Set(activeFieldRows.map(f => f.id))
+    for (const [id, ref] of Object.entries(activeRelationFields)) {
+      if (!activeFieldIds.has(ref.relationFieldId) || !activeFieldIds.has(ref.targetFieldId)) {
+        delete activeRelationFields[Number(id)]
+      }
+    }
+  }
+
   rows.forEach(row => {
     Object.values(activeRelationFields).forEach(ref => {
       const key = `field_${ref.relationFieldId}`

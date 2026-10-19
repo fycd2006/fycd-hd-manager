@@ -3,6 +3,7 @@ import { GET, POST, DELETE } from '../route'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { authorizeAction } from '@/lib/authorize'
 import prisma from '@/lib/prisma'
+import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 
 jest.mock('@/lib/authorize', () => ({
   authorizeAction: jest.fn(),
@@ -15,6 +16,10 @@ jest.mock('@/modules/database/services/masterViewCache', () => ({
 jest.mock('@/modules/database/services/linkRowSync', () => ({
   cleanupRowLinkRowRelations: jest.fn().mockResolvedValue(undefined),
   cleanupInboundLinkRowReferences: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('@/modules/database/services/rowCascade', () => ({
+  cleanupFieldDependencies: jest.fn().mockResolvedValue(undefined),
 }))
 
 jest.mock('@/modules/database/services/masterViewOverride', () => ({
@@ -75,6 +80,22 @@ describe('Trash Route Handler: /api/tables/[tableId]/trash', () => {
     expect(mockFieldDelete).toHaveBeenCalledWith({
       where: { id: 50, tableId: 10 },
     })
+  })
+})
+
+describe('Trash permanent delete field references', () => {
+  it('DELETE field permanently clears lookup/rollup references', async () => {
+    jest.clearAllMocks()
+    ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'owner' } })
+    ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback({ $executeRaw: jest.fn(), tableField: { delete: jest.fn() } })
+    )
+    const res = await DELETE(
+      new Request('http://localhost:3000/api/tables/10/trash?type=field&id=50', { method: 'DELETE' }),
+      { params: Promise.resolve({ tableId: '10' }) }
+    )
+    expect(res.status).toBe(200)
+    expect(cleanupFieldDependencies).toHaveBeenCalledWith(50)
   })
 })
 
