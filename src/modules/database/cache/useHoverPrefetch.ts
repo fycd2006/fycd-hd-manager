@@ -15,6 +15,7 @@ interface PrefetchHandlers {
 export function useHoverPrefetch(
   onPrefetch?: (tableId: number) => void
 ): (tableId: number) => PrefetchHandlers {
+  const onPrefetchRef = useRef(onPrefetch)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clear = useCallback(() => {
@@ -23,6 +24,10 @@ export function useHoverPrefetch(
       timerRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    onPrefetchRef.current = onPrefetch
+  }, [onPrefetch])
 
   useEffect(() => clear, [clear])
 
@@ -33,7 +38,7 @@ export function useHoverPrefetch(
         clear()
         timerRef.current = setTimeout(() => {
           timerRef.current = null
-          onPrefetch(tableId)
+          onPrefetchRef.current?.(tableId)
         }, HOVER_DELAY_MS)
       },
       onPointerLeave: () => clear(),

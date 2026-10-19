@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import React from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import WorkspaceDashboard from '../WorkspaceDashboard'
 import { I18nProvider } from '@/lib/i18n/i18nContext'
@@ -26,6 +26,18 @@ jest.mock('@/components/animate-ui/primitives/texts/sliding-number', () => ({
 jest.mock('@/modules/database/components/views/master', () => ({
   MasterGridView: () => <div data-testid="master-grid" />,
 }))
+
+// jsdom 沒有 PointerEvent，補一個會帶 pointerType 的最小版本
+if (typeof window.PointerEvent === 'undefined') {
+  class PointerEventPolyfill extends MouseEvent {
+    pointerType: string
+    constructor(type: string, init: MouseEventInit & { pointerType?: string } = {}) {
+      super(type, init)
+      this.pointerType = init.pointerType ?? ''
+    }
+  }
+  ;(window as unknown as { PointerEvent: unknown }).PointerEvent = PointerEventPolyfill
+}
 
 type Props = React.ComponentProps<typeof WorkspaceDashboard>
 
@@ -209,5 +221,21 @@ describe('WorkspaceDashboard 樣式', () => {
     const { container } = renderDashboard()
     fireEvent.click(screen.getByRole('button', { name: /跨表總表/ }))
     expect(coloredInline(container)).toHaveLength(0)
+  })
+})
+
+describe('WorkspaceDashboard prefetch', () => {
+  it('prefetches table on hover', () => {
+    jest.useFakeTimers()
+    try {
+      const onTablePrefetch = jest.fn()
+      renderDashboard({ onTablePrefetch })
+      const btn = screen.getAllByText('表1')[0].closest('button') as HTMLElement
+      fireEvent.pointerEnter(btn, { pointerType: 'mouse' })
+      act(() => { jest.advanceTimersByTime(120) })
+      expect(onTablePrefetch).toHaveBeenCalledWith(101)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })
