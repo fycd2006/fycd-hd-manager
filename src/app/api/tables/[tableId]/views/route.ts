@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
+import { createServerTiming } from '@/lib/serverTiming'
 import { z } from 'zod'
 
 const createViewSchema = z.object({
@@ -26,24 +27,28 @@ export const GET = withApiHandler<{ tableId: string }>(
     const tid = parseInt(params.tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
-    let views = await prisma.tableView.findMany({
-      where: { tableId: tid },
-      orderBy: { createdAt: 'asc' }
+    const t = createServerTiming()
+    const views = await t.time('handler', async () => {
+      let found = await prisma.tableView.findMany({
+        where: { tableId: tid },
+        orderBy: { createdAt: 'asc' }
+      })
+
+      // If no views exist for this table, auto-create a default grid view
+      if (found.length === 0) {
+        const defaultView = await prisma.tableView.create({
+          data: {
+            tableId: tid,
+            name: '預設表格視圖',
+            type: 'grid'
+          }
+        })
+        found = [defaultView]
+      }
+      return found
     })
 
-    // If no views exist for this table, auto-create a default grid view
-    if (views.length === 0) {
-      const defaultView = await prisma.tableView.create({
-        data: {
-          tableId: tid,
-          name: '預設表格視圖',
-          type: 'grid'
-        }
-      })
-      views = [defaultView]
-    }
-
-    return views
+    return NextResponse.json(views, { headers: { 'Server-Timing': t.header() } })
   },
   {
     auth: { action: 'canViewData' },
