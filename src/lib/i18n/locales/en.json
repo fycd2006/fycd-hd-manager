@@ -651,5 +651,12 @@
     "exportCsv": "Export CSV",
     "importCsv": "Import CSV",
     "delete": "Delete view"
+  },
+  "trash": {
+    "deleteWorkspaceTitle": "Delete workspace \"{name}\"?",
+    "deleteDatabaseTitle": "Delete database \"{name}\"?",
+    "deleteDescription": "It will be moved to \"Recently deleted\" and can be restored within 30 days, then deleted permanently.",
+    "typeNamePrompt": "Type the name \"{name}\" to confirm",
+    "deleteTableConfirm": "Delete table \"{name}\"? You can restore it from \"Recently deleted\" within 30 days."
   }
 }

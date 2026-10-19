@@ -651,5 +651,12 @@
     "exportCsv": "匯出 CSV 資料",
     "importCsv": "匯入 CSV 資料",
     "delete": "刪除視圖"
+  },
+  "trash": {
+    "deleteWorkspaceTitle": "刪除工作區「{name}」？",
+    "deleteDatabaseTitle": "刪除資料庫「{name}」？",
+    "deleteDescription": "會移到「最近刪除」，30 天內可以還原，之後永久刪除。",
+    "typeNamePrompt": "請輸入名稱「{name}」確認",
+    "deleteTableConfirm": "確定要刪除資料表「{name}」？30 天內可以在「最近刪除」還原。"
   }
 }
