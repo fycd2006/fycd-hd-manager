@@ -29,6 +29,8 @@ let entries = new Map<number, TableDataEntry>()
 let inflight = new Map<number, Promise<TableDataEntry>>()
 let generation = 0
 let prefetching = 0
+let requestCounter = 0
+let latestRequest = new Map<number, number>()
 
 async function fetchJsonStrict<T>(url: string, headers?: Record<string, string>): Promise<T> {
   let res: Response
@@ -65,6 +67,9 @@ function set(tableId: number, entry: TableDataEntry): void {
 
 function invalidate(tableId: number): void {
   entries.delete(tableId)
+  // A request already in flight carries pre-invalidation data: don't let it repopulate the cache
+  latestRequest.delete(tableId)
+  inflight.delete(tableId)
 }
 
 function clear(): void {
@@ -73,11 +78,18 @@ function clear(): void {
   inflight.clear()
 }
 
-function load(tableId: number): Promise<TableDataEntry> {
+/**
+ * Loads fields/rows/views for a table. Concurrent loads of the same table share one request,
+ * unless `fresh` is set: then a new request is always sent and replaces the shared one.
+ * Only the latest request sent for a table may write its result into the cache.
+ */
+function load(tableId: number, opts: { fresh?: boolean } = {}): Promise<TableDataEntry> {
   const existing = inflight.get(tableId)
-  if (existing) return existing
+  if (existing && !opts.fresh) return existing
 
   const startedGeneration = generation
+  const requestSeq = ++requestCounter
+  latestRequest.set(tableId, requestSeq)
   const promise = (async () => {
     const [fields, rows, views] = await Promise.all([
       fetchJsonStrict<TableField[]>(`/api/tables/${tableId}/fields`),
@@ -85,7 +97,7 @@ function load(tableId: number): Promise<TableDataEntry> {
       fetchJsonStrict<TableView[]>(`/api/tables/${tableId}/views`),
     ])
     const entry: TableDataEntry = { fields, rows, views, fetchedAt: Date.now() }
-    if (startedGeneration === generation) set(tableId, entry)
+    if (startedGeneration === generation && latestRequest.get(tableId) === requestSeq) set(tableId, entry)
     return entry
   })().finally(() => {
     if (inflight.get(tableId) === promise) inflight.delete(tableId)
@@ -114,4 +126,6 @@ export function __resetTableDataCacheForTests(): void {
   inflight = new Map()
   generation = 0
   prefetching = 0
+  requestCounter = 0
+  latestRequest = new Map()
 }

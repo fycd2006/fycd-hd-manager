@@ -53,6 +53,40 @@ describe('tableDataCache', () => {
     expect(a).toBe(b)
   })
 
+  it('fresh load does not join in-flight request', async () => {
+    const fetchMock = mockFetchByUrl()
+    const a = tableDataCache.load(1)
+    const b = tableDataCache.load(1, { fresh: true })
+    expect(b).not.toBe(a)
+    await Promise.all([a, b])
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+    // A later non-fresh load joins the newest request, not the replaced one
+    const c = tableDataCache.load(1)
+    const d = tableDataCache.load(1)
+    expect(d).toBe(c)
+    await c
+  })
+
+  it('older response arriving later does not overwrite newer cache entry', async () => {
+    const resolvers: Array<(rowsBody: unknown) => void> = []
+    global.fetch = jest.fn((url: string) => {
+      if (url.endsWith('/rows')) {
+        return new Promise((resolve) => resolvers.push((body) => resolve(okResponse(body))))
+      }
+      return Promise.resolve(okResponse(url.endsWith('/fields') ? fields : views))
+    }) as unknown as typeof fetch
+
+    const older = tableDataCache.load(1)
+    const newer = tableDataCache.load(1, { fresh: true })
+    expect(resolvers).toHaveLength(2)
+    resolvers[1]([{ id: 'new' }])
+    await newer
+    resolvers[0]([{ id: 'old' }])
+    await older
+
+    expect(tableDataCache.get(1)?.rows).toEqual([{ id: 'new' }])
+  })
+
   it('evicts least recently used beyond 8', () => {
     for (let i = 1; i <= 8; i++) tableDataCache.set(i, makeEntry())
     tableDataCache.get(1)
@@ -105,6 +139,14 @@ describe('tableDataCache', () => {
   it('invalidate removes entry', () => {
     tableDataCache.set(1, makeEntry())
     tableDataCache.invalidate(1)
+    expect(tableDataCache.get(1)).toBeUndefined()
+  })
+
+  it('in-flight load started before invalidate does not repopulate the cache', async () => {
+    mockFetchByUrl()
+    const p = tableDataCache.load(1)
+    tableDataCache.invalidate(1)
+    await p
     expect(tableDataCache.get(1)).toBeUndefined()
   })
 

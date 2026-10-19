@@ -116,6 +116,54 @@ describe('runTableLoad', () => {
     expect(deps.setLoading.mock.calls.at(-1)).toEqual([false])
   })
 
+  it('does not apply background result when a local write happened during load', async () => {
+    let seq = 0
+    const deps = {
+      ...makeDeps({
+        cached: entry(),
+        load: async () => {
+          seq += 2 // a write began and ended while the request was out
+          return entry([], 'server')
+        },
+      }),
+      writes: { snapshot: () => seq, inFlight: () => 0 },
+    }
+    expect(await runTableLoad(1, {}, deps)).toBe('stale')
+    expect(deps.applyRefresh).not.toHaveBeenCalled()
+
+    const forced = {
+      ...makeDeps({
+        cached: entry(),
+        load: async () => {
+          seq += 2
+          return entry()
+        },
+      }),
+      writes: { snapshot: () => seq, inFlight: () => 0 },
+    }
+    expect(await runTableLoad(1, { force: true }, forced)).toBe('stale')
+    expect(forced.applyRefresh).not.toHaveBeenCalled()
+  })
+
+  it('does not apply background result while writes are in flight', async () => {
+    const deps = {
+      ...makeDeps({ cached: entry() }),
+      writes: { snapshot: () => 5, inFlight: () => 1 },
+    }
+    expect(await runTableLoad(1, {}, deps)).toBe('stale')
+    expect(deps.applyRefresh).not.toHaveBeenCalled()
+  })
+
+  it('force loads fresh, background refresh shares in-flight request', async () => {
+    const forced = makeDeps({ cached: entry() })
+    await runTableLoad(1, { force: true }, forced)
+    expect(forced.cache.load).toHaveBeenCalledWith(1, { fresh: true })
+
+    const bg = makeDeps({ cached: entry() })
+    await runTableLoad(1, {}, bg)
+    expect(bg.cache.load).toHaveBeenCalledWith(1, { fresh: false })
+  })
+
   it('force skips applyFull', async () => {
     const deps = makeDeps({ cached: entry() })
     await runTableLoad(1, { force: true }, deps)
