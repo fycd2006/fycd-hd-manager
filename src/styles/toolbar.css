@@ -45,10 +45,10 @@
 .table-header .table-meta {
   font-size: 12px;
   color: var(--accent-primary);
-  background: rgba(63, 98, 18, 0.08);
+  background: rgba(57, 69, 43, 0.08);
   padding: 4px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(63, 98, 18, 0.08);
+  border: 1px solid rgba(57, 69, 43, 0.08);
 }
 
 .view-save-group {
@@ -57,8 +57,8 @@
   gap: 6px;
   padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(63, 98, 18, 0.08);
-  border: 1px solid rgba(63, 98, 18, 0.16);
+  background: rgba(57, 69, 43, 0.08);
+  border: 1px solid rgba(57, 69, 43, 0.16);
 }
 
 .view-dropdown {
@@ -100,7 +100,7 @@
 
 .view-pill:hover {
   color: var(--text-primary);
-  background: rgba(63, 98, 18, 0.12);
+  background: rgba(57, 69, 43, 0.12);
 }
 
 .view-pill.active {
@@ -163,11 +163,11 @@
 
 .toolbar-btn:hover {
   color: var(--text-primary);
-  background: rgba(63, 98, 18, 0.06);
+  background: rgba(57, 69, 43, 0.06);
 }
 
 .toolbar-btn.active {
-  background: rgba(63, 98, 18, 0.12);
+  background: rgba(57, 69, 43, 0.12);
   color: var(--accent-primary);
 }
 
@@ -269,13 +269,13 @@
 .public-form-btn {
   padding: 6px 10px !important;
   border-radius: 999px !important;
-  background: rgba(63, 98, 18, 0.12) !important;
+  background: rgba(57, 69, 43, 0.12) !important;
   color: var(--accent-secondary) !important;
-  border: 1px solid rgba(63, 98, 18, 0.18) !important;
+  border: 1px solid rgba(57, 69, 43, 0.18) !important;
 }
 
 .public-form-btn:hover {
-  background: rgba(63, 98, 18, 0.16) !important;
+  background: rgba(57, 69, 43, 0.16) !important;
 }
 
 /* ===== Filter Panel ===== */
@@ -294,8 +294,8 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: rgba(63, 98, 18, 0.15);
-  border: 1px solid rgba(63, 98, 18, 0.3);
+  background: rgba(57, 69, 43, 0.15);
+  border: 1px solid rgba(57, 69, 43, 0.3);
   border-radius: 6px;
   font-size: 12px;
   color: var(--accent-secondary);
@@ -442,7 +442,7 @@
 }
 
 .header-filter-icon--view {
-  color: #3F6212;
+  color: var(--brand-green-main);
   font-size: 18px;
 }
 
