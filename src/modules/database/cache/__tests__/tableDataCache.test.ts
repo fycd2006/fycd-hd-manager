@@ -150,6 +150,35 @@ describe('tableDataCache', () => {
     expect(tableDataCache.get(1)).toBeUndefined()
   })
 
+  it('set overrides in-flight load result', async () => {
+    mockFetchByUrl()
+    const p = tableDataCache.load(1)
+    const local = { ...makeEntry(), rows: [{ id: 'local' }] as unknown as TableRow[] }
+    tableDataCache.set(1, local)
+    await p
+    expect(tableDataCache.get(1)?.rows).toEqual([{ id: 'local' }])
+  })
+
+  it('load after set does not join the in-flight request that predates it', async () => {
+    mockFetchByUrl()
+    const p = tableDataCache.load(1)
+    tableDataCache.set(1, makeEntry())
+    const later = tableDataCache.load(1)
+    expect(later).not.toBe(p)
+    await Promise.all([p, later])
+  })
+
+  it('prefetch returns a promise that resolves when done, skipped or failed', async () => {
+    mockFetchByUrl()
+    await expect(tableDataCache.prefetch(1)).resolves.toBeUndefined()
+    expect(tableDataCache.get(1)).toBeDefined()
+    await expect(tableDataCache.prefetch(1)).resolves.toBeUndefined() // fresh: skipped
+    global.fetch = jest.fn(async () => {
+      throw new TypeError('network')
+    }) as unknown as typeof fetch
+    await expect(tableDataCache.prefetch(2)).resolves.toBeUndefined()
+  })
+
   it('prefetch skips fresh entry', () => {
     const fetchMock = mockFetchByUrl()
     tableDataCache.set(1, makeEntry(Date.now()))

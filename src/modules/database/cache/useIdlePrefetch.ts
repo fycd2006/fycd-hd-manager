@@ -8,7 +8,8 @@ interface IdlePrefetchParams {
   workspaceId: number | null
   activeTableId: number | null
   validTableIds: number[]
-  prefetch: (tableId: number) => void
+  /** The next table is scheduled only after the returned promise settles */
+  prefetch: (tableId: number) => Promise<void> | void
 }
 
 type NetworkInformation = { saveData?: boolean; effectiveType?: string }
@@ -47,6 +48,7 @@ export function useIdlePrefetch(params: IdlePrefetchParams): void {
     }
 
     const run = () => {
+      handle = null
       if (cancelled) return
       if (queue === null) {
         const { activeTableId, validTableIds } = latestRef.current
@@ -57,8 +59,11 @@ export function useIdlePrefetch(params: IdlePrefetchParams): void {
       }
       const next = queue.shift()
       if (next === undefined) return
-      latestRef.current.prefetch(next)
-      if (queue.length > 0) schedule()
+      // One at a time: wait for this load to settle before asking for the next idle period
+      const scheduleNext = () => {
+        if (!cancelled && queue !== null && queue.length > 0) schedule()
+      }
+      void Promise.resolve(latestRef.current.prefetch(next)).then(scheduleNext, scheduleNext)
     }
 
     schedule()

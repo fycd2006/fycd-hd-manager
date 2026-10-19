@@ -55,7 +55,7 @@ function get(tableId: number): TableDataEntry | undefined {
   return entry
 }
 
-function set(tableId: number, entry: TableDataEntry): void {
+function store(tableId: number, entry: TableDataEntry): void {
   entries.delete(tableId)
   entries.set(tableId, entry)
   while (entries.size > MAX_ENTRIES) {
@@ -63,6 +63,13 @@ function set(tableId: number, entry: TableDataEntry): void {
     if (oldest === undefined) break
     entries.delete(oldest)
   }
+}
+
+function set(tableId: number, entry: TableDataEntry): void {
+  store(tableId, entry)
+  // A request already in flight predates this entry: don't let it overwrite the cache or be joined
+  latestRequest.delete(tableId)
+  inflight.delete(tableId)
 }
 
 function invalidate(tableId: number): void {
@@ -97,7 +104,7 @@ function load(tableId: number, opts: { fresh?: boolean } = {}): Promise<TableDat
       fetchJsonStrict<TableView[]>(`/api/tables/${tableId}/views`),
     ])
     const entry: TableDataEntry = { fields, rows, views, fetchedAt: Date.now() }
-    if (startedGeneration === generation && latestRequest.get(tableId) === requestSeq) set(tableId, entry)
+    if (startedGeneration === generation && latestRequest.get(tableId) === requestSeq) store(tableId, entry)
     return entry
   })().finally(() => {
     if (inflight.get(tableId) === promise) inflight.delete(tableId)
@@ -107,13 +114,14 @@ function load(tableId: number, opts: { fresh?: boolean } = {}): Promise<TableDat
   return promise
 }
 
-function prefetch(tableId: number): void {
+/** Resolves once the prefetch finished, was skipped or failed; never rejects */
+function prefetch(tableId: number): Promise<void> {
   const entry = entries.get(tableId)
-  if (entry && Date.now() - entry.fetchedAt < PREFETCH_FRESH_MS) return
-  if (prefetching >= MAX_PREFETCH_CONCURRENCY) return
+  if (entry && Date.now() - entry.fetchedAt < PREFETCH_FRESH_MS) return Promise.resolve()
+  if (prefetching >= MAX_PREFETCH_CONCURRENCY) return Promise.resolve()
   prefetching++
-  load(tableId)
-    .catch(() => {})
+  return load(tableId)
+    .then(() => {}, () => {})
     .finally(() => {
       prefetching--
     })
