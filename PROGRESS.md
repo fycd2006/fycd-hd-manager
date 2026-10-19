@@ -2,7 +2,7 @@
 
 ## 目前進度
 - PR #1–#27 全部已合併。最近：統一寫入驗證層（#17）、最新留言／hover 修正（#21、#22）、Airtable 匯入與檢視（#23、#26）、總覽／入口頁／主題品牌改版（#24、#25、#27）。
-- 編輯健檢報告：`docs/audits/2026-10-17-editing-audit.md`，6 個子專案已完成 1（分組選取）、2（統一寫入驗證層）；子專案 3「刪除保護」進行中（分支 `feat/delete-protection`，worktree `C:\dev\fycd-hd-manager-delete`）。
+- 編輯健檢報告：`docs/audits/2026-10-17-editing-audit.md`，6 個子專案已完成 1（分組選取）、2（統一寫入驗證層）；子專案 3「刪除保護」已完成實作（分支 `feat/delete-protection`，尚未發 PR）：工作區／資料庫軟刪除＋最近刪除還原、刪除前輸入名稱確認、刪使用者保留留言、還原欄位保留 lookup／rollup、欄位回收站需結構權限。
 - 主 checkout 為 detached HEAD，有他人未 commit 的修改（TiDB HTTP adapter：`src/lib/prisma.ts`＋`package.json`），勿動。
 
 ## 已做的決定
@@ -14,7 +14,7 @@
 
 ## 下一步
 - 設定 main 分支保護：目前沒有任何 ruleset，需 repo admin 在 Settings → Rules 設定（必要檢查 `npm run verify`、`npm audit (production)`）。
-- 健檢子專案 3「刪除保護」（W1、W3、S4、S6）：brainstorm → 計畫 → TDD。
+- 部署前需執行 `db push`（新增 Workspace／Database 的 `deletedAt`、RowComment.userId 改可為 null；不刪資料），由使用者決定時機。
 
 ## 待辦
 - [ ] **安全（待與 fycd2006 討論）**：forgot-password 回應直接帶 `resetToken`，知道帳號＋Email 即可重設他人密碼
@@ -27,3 +27,4 @@
 - [ ] 升級 Prisma 7（清剩餘 production high 漏洞）；確認 `npm run build` 的 db push 是否會刪 generated column
 - [ ] `FieldRegistry.get()` 對未註冊型別 fail-open，用 `/bugfix` 評估
 - [ ] E2E（`e2e/` 有 Playwright spec 無設定檔）與真資料庫整合測試；舊 grid 測試用不存在的 `.grid-cell` 而空轉
+- [ ] **安全**：資料表 PATCH／還原帶 databaseId 時只檢查來源工作區權限，可把資料表搬進其他工作區的資料庫
