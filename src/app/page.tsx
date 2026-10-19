@@ -22,7 +22,7 @@ const SubscriptionModal = dynamic(() => import('@/modules/database/components/mo
 const DarkReaderModal = dynamic(() => import('@/modules/database/components/modals/DarkReaderModal'), { ssr: false })
 import { getRolePermissions } from '@/lib/permissions'
 import { getSessionUser } from '@/lib/auth'
-import { useTableOperations, type PendingOperation } from '@/modules/database/hooks/useTableOperations'
+import { useTableOperations } from '@/modules/database/hooks/useTableOperations'
 import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { parseSelectItems, evaluateCellCondition, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils'
@@ -68,6 +68,7 @@ import { runTableLoad } from '@/modules/database/cache/runTableLoad'
 import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
 import { pushRecentTable } from '@/modules/database/cache/recentTables'
 import { useIdlePrefetch } from '@/modules/database/cache/useIdlePrefetch'
+import { buildWriteBackEntry, type TableSnapshot } from '@/modules/database/cache/writeBack'
 import * as userService from '@/modules/database/services/user'
 import * as trashService from '@/modules/database/services/trash'
 import { createDatabaseFromTemplate, TemplateKey } from '@/modules/database/services/templateService'
@@ -83,7 +84,6 @@ import type {
   ViewType,
   SortOrder,
   ViewConfigPatch,
-  TableView,
   Toast,
   ContextMenu,
   FilterRule,
@@ -107,6 +107,8 @@ export default function Home() {
   // Local UI State (Not yet extracted to stores)
   // ============================================
   const [fields, setFields] = useState<TableField[]>([])
+  // Table whose fields/rows/views are on screen; set together with them, so it lags activeTableId after a switch
+  const [dataTableId, setDataTableId] = useState<number | null>(null)
   // Real-time updates indicator
   const [isSyncing, setIsSyncing] = useState(false)
 
@@ -375,6 +377,7 @@ export default function Home() {
       applyFull: (entry) => {
         setFields(entry.fields)
         mergeServerRows(entry.rows)
+        setDataTableId(tableId)
 
         const viewsData = entry.views
         if (Array.isArray(viewsData) && viewsData.length > 0) {
@@ -392,6 +395,7 @@ export default function Home() {
       applyRefresh: (entry, viewsChanged) => {
         setFields(entry.fields)
         mergeServerRows(entry.rows)
+        setDataTableId(tableId)
         if (viewsChanged) setViews(entry.views)
       },
       setLoading: setGridLoading,
@@ -500,13 +504,7 @@ export default function Home() {
   })
 
   // Latest on-screen data of the table being shown; written back to the cache when switching away
-  const snapshotRef = useRef<{
-    tableId: number | null
-    fields: TableField[]
-    rows: TableRow[]
-    views: TableView[]
-    operations: PendingOperation[]
-  } | null>(null)
+  const snapshotRef = useRef<TableSnapshot | null>(null)
   const switchedTableIdRef = useRef<number | null | undefined>(undefined)
 
   // Load table data and reset transient UI state when activeTableId changes
@@ -527,22 +525,8 @@ export default function Home() {
     // Write the previous table's live state (including local edits) back to the cache
     const snapshot = snapshotRef.current
     if (snapshot?.tableId && snapshot.tableId !== wsState.activeTableId) {
-      const prevEntry = tableDataCache.get(snapshot.tableId)
-      if (prevEntry) {
-        const stagedMoveRowIds = new Set<number>()
-        snapshot.operations.forEach(op => {
-          if (op.tableId === snapshot.tableId && op.status === 'staged' && op.type === 'move') {
-            op.rowIds?.forEach(id => stagedMoveRowIds.add(id))
-            op.sourceRowIds?.forEach(id => stagedMoveRowIds.add(id))
-          }
-        })
-        tableDataCache.set(snapshot.tableId, {
-          fields: snapshot.fields,
-          rows: snapshot.rows.filter(r => !stagedMoveRowIds.has(r.id)),
-          views: snapshot.views,
-          fetchedAt: prevEntry.fetchedAt,
-        })
-      }
+      const writeBack = buildWriteBackEntry(snapshot, tableDataCache.get(snapshot.tableId))
+      if (writeBack) tableDataCache.set(snapshot.tableId, writeBack)
     }
 
     if (wsState.activeTableId) {
@@ -563,10 +547,10 @@ export default function Home() {
   }, [wsState.activeTableId, fetchTableData, setSearchQuery, setRows, setFields])
 
   // Declared after the switch effect so the switch effect still sees the previous table's snapshot.
-  // In the first commit after a switch this stores {new id, previous table's data}; that is safe only
-  // because the switch effect's state updates force another render before activeTableId can change again.
+  // In the first commit after a switch this stores the new id with the previous table's data;
+  // dataTableId still names the previous table then, so buildWriteBackEntry refuses to write it back.
   useEffect(() => {
-    snapshotRef.current = { tableId: wsState.activeTableId, fields, rows, views, operations }
+    snapshotRef.current = { tableId: wsState.activeTableId, dataTableId, fields, rows, views, operations }
   })
 
   // Cell and batch editing hook
