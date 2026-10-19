@@ -29,7 +29,7 @@ export async function GET(
     })
     if (!rowMeta) return NextResponse.json({ error: '找不到該資料列' }, { status: 404 })
 
-    const comments = await prisma.rowComment.findMany({
+    const rawComments = await prisma.rowComment.findMany({
       where: { rowId: rid },
       include: {
         user: {
@@ -41,6 +41,11 @@ export async function GET(
       },
       orderBy: { createdAt: 'asc' }
     })
+
+    // userId is SetNull when the author's account is deleted; keep the comment with a fixed label
+    const comments = rawComments.map(c =>
+      c.user === null ? { ...c, user: { username: '已刪除的使用者', role: null } } : c
+    )
 
     const hasHistory = comments.some(c => c.content.startsWith('[HISTORY]'))
     if (!hasHistory) {

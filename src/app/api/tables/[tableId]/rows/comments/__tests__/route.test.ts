@@ -75,6 +75,29 @@ describe('GET /api/tables/[tableId]/rows/comments', () => {
     expect(prisma.tableRow.findFirst).toHaveBeenCalledWith({ where: { id: 30, tableId: 10 }, select: { createdAt: true, updatedAt: true } })
   })
 
+  it('GET labels comments of deleted users as 已刪除的使用者', async () => {
+    ;(prisma.rowComment.findMany as jest.Mock).mockResolvedValue([
+      { id: 5, content: 'hi', user: null },
+      { id: 6, content: 'yo', user: { username: 'bob', role: 'editor' } },
+    ])
+
+    const body = await (await list('?rowId=30')).json()
+
+    expect(body[0]).toMatchObject({ id: -999, user: { username: '系統 (System)' } })
+    expect(body[1]).toEqual({ id: 5, content: 'hi', user: { username: '已刪除的使用者', role: null } })
+    expect(body[2].user).toEqual({ username: 'bob', role: 'editor' })
+  })
+
+  it('GET labels deleted-user comments when history entries already exist', async () => {
+    ;(prisma.rowComment.findMany as jest.Mock).mockResolvedValue([
+      { id: 5, content: '[HISTORY] 修改了欄位', user: null },
+    ])
+
+    const body = await (await list('?rowId=30')).json()
+
+    expect(body[0].user).toEqual({ username: '已刪除的使用者', role: null })
+  })
+
   it('returns 400 for a missing or invalid rowId', async () => {
     expect((await list('')).status).toBe(400)
     expect((await list('?rowId=abc')).status).toBe(400)
