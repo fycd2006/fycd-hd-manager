@@ -27,6 +27,7 @@ import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { parseSelectItems, evaluateCellCondition, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils'
 import { normalizeRowData } from '@/modules/database/utils/normalizeRowData'
+import { evaluateFilters } from '@/modules/database/utils/filterEvaluation'
 import { ToastContainer } from '@/components/ui/ToastContainer'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
@@ -544,20 +545,7 @@ export default function Home() {
 
     // Advanced filters
     if (Array.isArray(filterRules) && filterRules.length > 0) {
-      result = result.filter(row => {
-        if (filterType === 'OR') {
-          return filterRules.some(rule => {
-            const val = getCellValue(row, rule.fieldKey)
-            const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
-            return evaluateCellCondition(val, field, rule.operator, rule.value)
-          })
-        }
-        return filterRules.every(rule => {
-          const val = getCellValue(row, rule.fieldKey)
-          const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
-          return evaluateCellCondition(val, field, rule.operator, rule.value)
-        })
-      })
+      result = result.filter(row => evaluateFilters(row, filterType, filterRules, fields))
     }
 
     // Defer re-sorting if a cell is currently being edited

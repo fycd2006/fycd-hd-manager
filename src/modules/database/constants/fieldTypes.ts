@@ -9,6 +9,7 @@ import {
   CalendarPlus, UserPlus, Clock, Link2, Mail, ListFilter, Phone, Calculator, 
   Sigma, Layers, Search, Users, Fingerprint, ListOrdered, Lock, ExternalLink, Sparkles, MessageSquare 
 } from 'lucide-react'
+import type { DateFilterMode, FilterOperator } from '../types'
 
 /**
  * Map all 27 field types to clean, modern, high-end Lucide icons matching Baserow standards
@@ -134,15 +135,82 @@ export const ROLLUP_FUNCTIONS = [
 ]
 
 /**
- * Field operators for filtering
+ * Filter operators per field type (single source for the filter menu)
  */
-export const FILTER_OPERATORS = {
+const OPERATOR_LABEL_KEYS: Record<FilterOperator, string> = {
+  contains: 'filter.contains',
+  not_contains: 'filter.notContains',
+  equals: 'filter.equals',
+  not_equals: 'filter.notEquals',
+  empty: 'filter.isEmpty',
+  not_empty: 'filter.isNotEmpty',
+  higher_than: 'filter.higherThan',
+  higher_than_or_equal: 'filter.higherThanOrEqual',
+  lower_than: 'filter.lowerThan',
+  lower_than_or_equal: 'filter.lowerThanOrEqual',
+  date_equal: 'filter.dateIs',
+  date_before: 'filter.dateBefore',
+  date_after: 'filter.dateAfter',
+  date_on_or_before: 'filter.dateOnOrBefore',
+  date_on_or_after: 'filter.dateOnOrAfter',
+  date_within: 'filter.dateWithin',
+  is_any_of: 'filter.isAnyOf',
+  is_none_of: 'filter.isNoneOf',
+  has_any_of: 'filter.hasAnyOf',
+  has_all_of: 'filter.hasAllOf',
+  has_none_of: 'filter.hasNoneOf',
+  is_exactly: 'filter.isExactly',
+}
+
+const NUMERIC_FILTER_TYPES = ['number', 'rating', 'autonumber', 'percent', 'currency']
+const DATE_FILTER_TYPES = ['date', 'created_on', 'last_modified_on']
+const ID_FILTER_TYPES = ['link_row', 'collaborator']
+
+const OPERATORS_BY_KIND: Record<string, FilterOperator[]> = {
   text: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
   number: ['equals', 'not_equals', 'higher_than', 'higher_than_or_equal', 'lower_than', 'lower_than_or_equal', 'empty', 'not_empty'],
+  single_select: ['equals', 'not_equals', 'is_any_of', 'is_none_of', 'empty', 'not_empty'],
+  multiple_select: ['has_any_of', 'has_all_of', 'has_none_of', 'is_exactly', 'empty', 'not_empty'],
+  id_list: ['contains', 'has_any_of', 'has_all_of', 'has_none_of', 'empty', 'not_empty'],
+  date: ['date_equal', 'date_before', 'date_after', 'date_on_or_before', 'date_on_or_after', 'date_within', 'empty', 'not_empty'],
   boolean: ['equals'],
-  date: ['date_equal', 'date_before', 'date_after', 'empty', 'not_empty'],
-  default: ['contains', 'not_contains', 'equals', 'not_equals', 'empty', 'not_empty'],
 }
+
+function operatorKind(fieldType: string | undefined): string {
+  if (!fieldType) return 'text'
+  if (NUMERIC_FILTER_TYPES.includes(fieldType)) return 'number'
+  if (DATE_FILTER_TYPES.includes(fieldType)) return 'date'
+  if (ID_FILTER_TYPES.includes(fieldType)) return 'id_list'
+  if (fieldType in OPERATORS_BY_KIND) return fieldType
+  return 'text'
+}
+
+export function getFilterOperators(fieldType: string | undefined): { value: FilterOperator; labelKey: string }[] {
+  return OPERATORS_BY_KIND[operatorKind(fieldType)].map(value => ({ value, labelKey: OPERATOR_LABEL_KEYS[value] }))
+}
+
+export const MULTI_VALUE_OPERATORS: FilterOperator[] = ['is_any_of', 'is_none_of', 'has_any_of', 'has_all_of', 'has_none_of', 'is_exactly']
+export const DATE_OPERATORS: FilterOperator[] = ['date_equal', 'date_before', 'date_after', 'date_on_or_before', 'date_on_or_after', 'date_within']
+export const NO_VALUE_OPERATORS: FilterOperator[] = ['empty', 'not_empty']
+export const DATE_COMPARE_MODES: DateFilterMode[] = ['exact', 'today', 'tomorrow', 'yesterday', 'days_ago', 'days_from_now']
+export const DATE_WITHIN_MODES: DateFilterMode[] = ['past_week', 'past_month', 'past_year', 'next_week', 'next_month', 'next_year', 'past_n_days', 'next_n_days']
+export const DATE_MODE_LABEL_KEYS: Record<DateFilterMode, string> = {
+  exact: 'filter.modeExact',
+  today: 'filter.modeToday',
+  tomorrow: 'filter.modeTomorrow',
+  yesterday: 'filter.modeYesterday',
+  days_ago: 'filter.modeDaysAgo',
+  days_from_now: 'filter.modeDaysFromNow',
+  past_week: 'filter.modePastWeek',
+  past_month: 'filter.modePastMonth',
+  past_year: 'filter.modePastYear',
+  next_week: 'filter.modeNextWeek',
+  next_month: 'filter.modeNextMonth',
+  next_year: 'filter.modeNextYear',
+  past_n_days: 'filter.modePastNDays',
+  next_n_days: 'filter.modeNextNDays',
+}
+export const DATE_MODES_WITH_AMOUNT: DateFilterMode[] = ['days_ago', 'days_from_now', 'past_n_days', 'next_n_days']
 
 /**
  * Row color options

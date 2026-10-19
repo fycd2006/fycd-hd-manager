@@ -5,7 +5,7 @@ import KanbanView from './kanban/KanbanView'
 import CalendarView from './calendar/CalendarView'
 import TimelineView from './timeline/TimelineView'
 import FormView from './form/FormView'
-import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '../../types'
+import type { TableView, TableField, TableRow, ViewType, FilterItem, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '../../types'
 import { formatFieldDate } from '@/modules/database/utils/dateTime'
 import { useI18n } from '@/lib/i18n/i18nContext'
 
@@ -31,7 +31,7 @@ interface DatabaseViewRouterProps {
   editingCell: { rowId: number; fieldKey: string } | null
   editInputRef: React.RefObject<HTMLInputElement | null>
   searchQuery: string
-  filterRules: FilterRule[]
+  filterRules: FilterItem[]
   groupedRows: Record<string, TableRow[]>
   getRowBgColorClass: (row: TableRow) => string
   updateCell: (rowId: number, fieldKey: string, value: any) => Promise<void>
