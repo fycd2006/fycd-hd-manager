@@ -66,4 +66,32 @@ describe('useIdlePrefetch', () => {
     act(() => { jest.advanceTimersByTime(10000) })
     expect(prefetch).not.toHaveBeenCalled()
   })
+
+  it('waits until validTableIds is non-empty', () => {
+    const prefetch = jest.fn()
+    const { rerender } = renderHook(
+      ({ ids }: { ids: number[] }) =>
+        useIdlePrefetch({ workspaceId: 1, activeTableId: null, validTableIds: ids, prefetch }),
+      { initialProps: { ids: [] as number[] } }
+    )
+    act(() => { jest.advanceTimersByTime(5000) })
+    expect(prefetch).not.toHaveBeenCalled()
+    rerender({ ids: ALL })
+    act(() => { jest.advanceTimersByTime(10000) })
+    expect(prefetch.mock.calls).toEqual([[5], [4], [3]])
+  })
+
+  it('cancels pending prefetch when workspaceId changes', () => {
+    pushRecentTable(2, 20)
+    const prefetch = jest.fn()
+    const { rerender } = renderHook(
+      ({ ws }: { ws: number }) =>
+        useIdlePrefetch({ workspaceId: ws, activeTableId: null, validTableIds: [...ALL, 20], prefetch }),
+      { initialProps: { ws: 1 } }
+    )
+    act(() => { jest.advanceTimersByTime(1000) })
+    rerender({ ws: 2 })
+    act(() => { jest.advanceTimersByTime(10000) })
+    expect(prefetch.mock.calls).toEqual([[20]])
+  })
 })

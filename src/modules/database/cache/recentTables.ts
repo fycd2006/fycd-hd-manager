@@ -1,6 +1,6 @@
 const MAX_RECENT = 5
 
-const keyOf = (workspaceId: number) => `recentTables:${workspaceId}`
+const keyOf = (workspaceId: number) => `recentTables_${workspaceId}`
 
 export function getRecentTables(workspaceId: number): number[] {
   try {

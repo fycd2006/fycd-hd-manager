@@ -21,10 +21,11 @@ function isConstrainedNetwork(): boolean {
 
 /**
  * 進入工作區後，在瀏覽器閒置時一次一張預載最近開過的表（最多 3 張，排除目前開著的）。
- * 只在 workspaceId 改變時重新排程；其餘參數以 ref 讀最新值。
+ * 只在 workspaceId 改變或表格清單從空變非空時重新排程；其餘參數以 ref 讀最新值。
  */
 export function useIdlePrefetch(params: IdlePrefetchParams): void {
   const { workspaceId } = params
+  const hasValidTables = params.validTableIds.length > 0
   const latestRef = useRef(params)
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export function useIdlePrefetch(params: IdlePrefetchParams): void {
   })
 
   useEffect(() => {
-    if (workspaceId === null || isConstrainedNetwork()) return
+    if (workspaceId === null || !hasValidTables || isConstrainedNetwork()) return
 
     const hasIdle = typeof window.requestIdleCallback === 'function'
     let handle: number | ReturnType<typeof setTimeout> | null = null
@@ -68,5 +69,5 @@ export function useIdlePrefetch(params: IdlePrefetchParams): void {
       if (hasIdle) window.cancelIdleCallback(handle as number)
       else clearTimeout(handle as ReturnType<typeof setTimeout>)
     }
-  }, [workspaceId])
+  }, [workspaceId, hasValidTables])
 }

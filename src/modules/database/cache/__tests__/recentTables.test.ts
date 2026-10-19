@@ -17,6 +17,11 @@ describe('recentTables', () => {
     expect(getRecentTables(1)).toEqual([6, 5, 4, 3, 2])
   })
 
+  it('stores under recentTables_<workspaceId>', () => {
+    pushRecentTable(1, 7)
+    expect(localStorage.getItem('recentTables_1')).toBe('[7]')
+  })
+
   it('scoped by workspace', () => {
     pushRecentTable(1, 10)
     pushRecentTable(2, 20)
@@ -39,7 +44,7 @@ describe('recentTables', () => {
   })
 
   it('returns [] on malformed JSON', () => {
-    localStorage.setItem('recentTables:1', '{not json')
+    localStorage.setItem('recentTables_1', '{not json')
     expect(getRecentTables(1)).toEqual([])
   })
 })
