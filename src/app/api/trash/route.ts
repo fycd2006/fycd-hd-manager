@@ -42,7 +42,7 @@ export async function GET() {
     const items: TrashEntry[] = []
 
     for (const ws of workspaces) {
-      const role = isSystemAdmin ? 'admin' : ws.members[0]?.role
+      const role = ws.members[0]?.role ?? (isSystemAdmin ? 'admin' : undefined)
       const perms = getRolePermissions(role)
 
       if (ws.deletedAt) {

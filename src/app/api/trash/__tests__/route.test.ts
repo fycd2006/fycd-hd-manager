@@ -69,4 +69,14 @@ describe('GET /api/trash', () => {
     const body = await res.json()
     expect(body.items[0].daysLeft).toBe(27)
   })
+
+  it('uses the member role over system admin, matching authorizeAction', async () => {
+    ;(getSessionUser as jest.Mock).mockResolvedValue({ id: 5, role: 'admin' })
+    ;(prisma.workspace.findMany as jest.Mock).mockResolvedValue([
+      { id: 1, name: 'A', deletedAt: new Date(Date.now() - DAY), members: [{ role: 'viewer' }], databases: [] },
+    ])
+    const res = await GET()
+    const body = await res.json()
+    expect(body.items).toEqual([])
+  })
 })
