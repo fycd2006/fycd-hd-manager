@@ -53,12 +53,22 @@ export async function POST(
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
-    if (errorResponse) return errorResponse
+    let body: { type?: unknown; id?: unknown } | null
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: '無效的 JSON 請求內容' }, { status: 400 })
+    }
+    const { type, id } = body ?? {}
+    if (type !== 'field' && type !== 'row') return NextResponse.json({ error: '無效的類型' }, { status: 400 })
 
-    const body = await request.json()
-    const { type, id } = body
-    const targetId = parseInt(id)
+    // Fields are table structure; rows are data
+    const { errorResponse } = await authorizeAction({
+      tableId: tid,
+      action: type === 'field' ? 'canManageStructure' : 'canEditData'
+    })
+    if (errorResponse) return errorResponse
+    const targetId = parseInt(String(id))
     if (isNaN(targetId)) return NextResponse.json({ error: '無效的目標 ID' }, { status: 400 })
 
     if (type === 'field') {
@@ -97,11 +107,15 @@ export async function DELETE(
     const tid = parseInt(tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
-    const { errorResponse } = await authorizeAction({ tableId: tid, action: 'canEditData' })
-    if (errorResponse) return errorResponse
-
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type')
+    if (type !== 'field' && type !== 'row') return NextResponse.json({ error: '無效的類型' }, { status: 400 })
+
+    const { errorResponse } = await authorizeAction({
+      tableId: tid,
+      action: type === 'field' ? 'canManageStructure' : 'canEditData'
+    })
+    if (errorResponse) return errorResponse
     const idStr = searchParams.get('id')
     const targetId = parseInt(idStr || '')
 
