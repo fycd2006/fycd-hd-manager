@@ -29,8 +29,8 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ tableId: string }> }
 ) {
-  const t = createServerTiming()
   const executeQuery = async () => {
+    const t = createServerTiming()
     const totalStart = performance.now()
     const { tableId } = await params
     const id = parseInt(tableId)

@@ -337,4 +337,26 @@ describe('Route Handler: GET /api/tables/[tableId]/rows', () => {
     expect(header).toContain('populate;dur=')
     expect(header).toContain('total;dur=')
   })
+
+  it('Server-Timing reflects only the final attempt after retry', async () => {
+    const ok = { auth: { user: { id: 1 }, role: 'member' } }
+    ;(authorizeAction as jest.Mock)
+      .mockImplementationOnce(() => new Promise(r => setTimeout(() => r(ok), 120)))
+      .mockResolvedValue(ok)
+    ;(getPopulatedTableRows as jest.Mock)
+      .mockRejectedValueOnce(new Error('Connection lost'))
+      .mockImplementationOnce(async (_id, opts) => {
+        await opts.timing.time('populate', async () => undefined)
+        return { isPaginated: false, rows: [] }
+      })
+    const res = await GET(new Request('http://localhost/api/tables/1/rows'), {
+      params: Promise.resolve({ tableId: '1' }),
+    })
+    expect(res.status).toBe(200)
+    expect(getPopulatedTableRows).toHaveBeenCalledTimes(2)
+    const header = res.headers.get('Server-Timing') ?? ''
+    expect(header.match(/auth;dur=/g)).toHaveLength(1)
+    // 第一次嘗試的 auth 慢 120ms；若計時物件跨重試共用，auth 會 >= 120
+    expect(Number(/auth;dur=([0-9.]+)/.exec(header)?.[1])).toBeLessThan(60)
+  })
 })
