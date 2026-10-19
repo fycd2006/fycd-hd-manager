@@ -19,8 +19,6 @@ import type {
 } from '@/modules/database/types'
 
 export interface TableWorkspaceViewProps {
-  isSidebarCollapsed: boolean
-  setIsSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>> | ((v: boolean) => void)
   currentUserRolePermissions: {
     canManageStructure?: boolean
     canEditData?: boolean
@@ -93,8 +91,6 @@ export interface TableWorkspaceViewProps {
 }
 
 export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
-  isSidebarCollapsed,
-  setIsSidebarCollapsed,
   currentUserRolePermissions,
   currentUser,
   activeWorkspaceId,
@@ -244,8 +240,6 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
           isAiOpen={isAiOpen}
           onToggleAiOpen={() => setIsAiOpen(prev => !prev)}
         canManageStructure={currentUserRolePermissions.canManageStructure}
-        isSidebarCollapsed={isSidebarCollapsed}
-        setIsSidebarCollapsed={setIsSidebarCollapsed}
         views={views}
         activeViewId={activeViewId}
         setActiveViewId={(id) => {
