@@ -91,7 +91,6 @@ describe('GET /api/cron/trash-cleanup', () => {
     expect(before - cutoff).toBeGreaterThan(twentyNineDays)
     expect(before - cutoff).toBeLessThan(thirtyOneDays)
     expect(prisma.databaseTable.deleteMany).toHaveBeenCalledWith({ where })
-    expect(prisma.tableField.deleteMany).toHaveBeenCalledWith({ where })
   })
 
   it('purges databases and workspaces deleted more than 30 days ago', async () => {
@@ -118,5 +117,33 @@ describe('GET /api/cron/trash-cleanup', () => {
     expect(cleanupFieldDependencies).toHaveBeenCalledTimes(2)
     expect(cleanupFieldDependencies).toHaveBeenCalledWith(11)
     expect(cleanupFieldDependencies).toHaveBeenCalledWith(12)
+  })
+
+  it('cleans references before deleting exactly the found field ids', async () => {
+    const before = Date.now()
+
+    await run({ authorization: 'Bearer cron-secret' })
+
+    expect(prisma.tableField.deleteMany).toHaveBeenCalledWith({ where: { id: { in: [11, 12] } } })
+    const findWhere = (prisma.tableField.findMany as jest.Mock).mock.calls[0][0].where
+    expect(findWhere.deletedAt.not).toBeNull()
+    const age = before - (findWhere.deletedAt.lte as Date).getTime()
+    expect(age).toBeGreaterThan(29 * 24 * 60 * 60 * 1000)
+    expect(age).toBeLessThan(31 * 24 * 60 * 60 * 1000)
+
+    const cleanupOrders = (cleanupFieldDependencies as jest.Mock).mock.invocationCallOrder
+    const deleteOrder = (prisma.tableField.deleteMany as jest.Mock).mock.invocationCallOrder[0]
+    expect(Math.max(...cleanupOrders)).toBeLessThan(deleteOrder)
+  })
+
+  it('skips field cleanup and deletion when no fields expired', async () => {
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([])
+
+    const res = await run({ authorization: 'Bearer cron-secret' })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ deletedFields: 0 })
+    expect(cleanupFieldDependencies).not.toHaveBeenCalled()
+    expect(prisma.tableField.deleteMany).not.toHaveBeenCalled()
   })
 })

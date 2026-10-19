@@ -63,10 +63,15 @@ export async function GET(request: Request) {
       where: expiredWhere,
       select: { id: true },
     })
-    const deletedFieldsResult = await prisma.tableField.deleteMany({ where: expiredWhere })
-    for (const { id } of expiredFields) {
+    const expiredFieldIds = expiredFields.map((f) => f.id)
+    // Clean references first so a failure leaves the fields in place for the next run.
+    for (const id of expiredFieldIds) {
       await cleanupFieldDependencies(id)
     }
+    const deletedFieldsResult =
+      expiredFieldIds.length > 0
+        ? await prisma.tableField.deleteMany({ where: { id: { in: expiredFieldIds } } })
+        : { count: 0 }
 
     // 4. Delete databases soft-deleted > 30 days (children cascade)
     const deletedDatabasesResult = await prisma.database.deleteMany({ where: expiredWhere })
