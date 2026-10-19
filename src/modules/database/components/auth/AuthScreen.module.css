@@ -1,3 +1,72 @@
+/* 登入頁：配色只用 --auth-*；暗色依 html[data-theme]（首屏即生效）覆寫，值對齊工作區總覽 */
+.page {
+  --auth-bg: #f5f0e6;
+  --auth-card: #ffffff;
+  --auth-border: #e7e1d3;
+  --auth-card-shadow: 0 1px 2px rgba(57, 69, 43, 0.06), 0 24px 48px -24px rgba(57, 69, 43, 0.18);
+  --auth-text: #1a1d16;
+  --auth-text-secondary: #52554b;
+  --auth-text-subtle: #6b6f63;
+  --auth-text-muted: #7a7d70;
+  --auth-label: #3d4135;
+  --auth-icon: #9a9d90;
+  --auth-placeholder: #a5a89b;
+  --auth-input-bg: #faf8f3;
+  --auth-input-bg-focus: #ffffff;
+  --auth-input-border: #e4ded0;
+  --auth-input-border-hover: #d3ccba;
+  --auth-primary: #39452b;
+  --auth-primary-hover: #2c3621;
+  --auth-primary-fg: #39452b;
+  --auth-primary-shadow: rgba(57, 69, 43, 0.45);
+  --auth-focus-ring: rgba(57, 69, 43, 0.14);
+  --auth-hover-bg: rgba(57, 69, 43, 0.06);
+  --auth-accent: #f58220;
+  --auth-accent-fg: #dd6410;
+  --auth-focus: #f58220;
+  --auth-error-bg: #fef2f2;
+  --auth-error-border: #fecaca;
+  --auth-error-text: #991b1b;
+  --auth-logo-fycd: #39452b;
+  --auth-panel-bg: #39452b;
+  --auth-panel-text: #f5f0e6;
+  --auth-panel-text-muted: rgba(245, 240, 230, 0.78);
+  --auth-panel-chip: rgba(245, 240, 230, 0.1);
+}
+
+:global([data-theme='dark']) .page,
+:global(.theme-dark) .page {
+  --auth-bg: #12131a;
+  --auth-card: #181922;
+  --auth-border: #242637;
+  --auth-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 24px 48px -24px rgba(0, 0, 0, 0.6);
+  --auth-text: #f1f5f9;
+  --auth-text-secondary: #b6bcc8;
+  --auth-text-subtle: #b6bcc8;
+  --auth-text-muted: #8b93a3;
+  --auth-label: #d4d8e0;
+  --auth-icon: #8b93a3;
+  --auth-placeholder: #6b7283;
+  --auth-input-bg: #1f202e;
+  --auth-input-bg-focus: #1f202e;
+  --auth-input-border: #2c2f42;
+  --auth-input-border-hover: #34374d;
+  --auth-primary: #4a5a37;
+  --auth-primary-hover: #56683f;
+  --auth-primary-fg: #a3b38a;
+  --auth-primary-shadow: rgba(0, 0, 0, 0.5);
+  --auth-focus-ring: rgba(163, 179, 138, 0.2);
+  --auth-hover-bg: rgba(163, 179, 138, 0.12);
+  --auth-accent: #f58220;
+  --auth-accent-fg: #f58220;
+  --auth-focus: #f58220;
+  --auth-error-bg: rgba(239, 68, 68, 0.12);
+  --auth-error-border: rgba(239, 68, 68, 0.3);
+  --auth-error-text: #fca5a5;
+  --auth-logo-fycd: #f5f0e6;
+  --auth-panel-bg: #1c2216;
+}
+
 .page {
   position: relative;
   min-height: 100vh;
@@ -6,8 +75,102 @@
   justify-content: center;
   padding: 20px;
   box-sizing: border-box;
-  background: #f5f0e6;
+  background: var(--auth-bg);
   font-family: Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* 桌機左欄品牌面板 */
+.brandPanel {
+  display: none;
+}
+
+.brandPanel [data-part='fycd'] {
+  fill: var(--auth-panel-text) !important;
+  stroke: var(--auth-panel-text) !important;
+}
+
+.tagline {
+  max-width: 22em;
+  margin: 40px 0 0;
+  color: var(--auth-panel-text);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--auth-panel-text-muted);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.featureIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--auth-panel-chip);
+  color: var(--auth-accent);
+}
+
+@media (min-width: 960px) {
+  .page {
+    display: grid;
+    grid-template-columns: minmax(360px, 44%) 1fr;
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .brandPanel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 56px clamp(40px, 5vw, 72px);
+    background: var(--auth-panel-bg);
+  }
+
+  .brandPanel::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--auth-accent);
+  }
+
+  /* 桌機時語言選單改相對右欄定位；手機仍相對 .page */
+  .main {
+    position: relative;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+  }
 }
 
 .shell {
@@ -21,11 +184,9 @@
   box-sizing: border-box;
   padding: 36px 32px 32px;
   border-radius: 20px;
-  background: #ffffff;
-  border: 1px solid #e7e1d3;
-  box-shadow:
-    0 1px 2px rgba(57, 69, 43, 0.06),
-    0 24px 48px -24px rgba(57, 69, 43, 0.18);
+  background: var(--auth-card);
+  border: 1px solid var(--auth-border);
+  box-shadow: var(--auth-card-shadow);
 }
 
 .langPicker {
@@ -44,9 +205,15 @@
   text-align: center;
 }
 
+/* 卡片字標的 FYCD 在暗色卡片上改米白；!important 蓋過 Dark Reader 對 SVG fill 屬性的行內改寫 */
+.brand [data-part='fycd'] {
+  fill: var(--auth-logo-fycd) !important;
+  stroke: var(--auth-logo-fycd) !important;
+}
+
 .subtitle {
   margin: 0;
-  color: #6b6f63;
+  color: var(--auth-text-subtle);
   font-size: 13.5px;
   font-weight: 500;
   letter-spacing: 0.01em;
@@ -72,9 +239,9 @@
   margin-bottom: 20px;
   padding: 12px 16px;
   border-radius: 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--auth-error-bg);
+  border: 1px solid var(--auth-error-border);
+  color: var(--auth-error-text);
   font-size: 13px;
   font-weight: 600;
   text-align: center;
@@ -88,7 +255,7 @@
 
 .desc {
   margin: 0 0 2px;
-  color: #52554b;
+  color: var(--auth-text-secondary);
   font-size: 13px;
   line-height: 1.55;
   text-align: center;
@@ -107,7 +274,7 @@
 }
 
 .label {
-  color: #3d4135;
+  color: var(--auth-label);
   font-size: 12.5px;
   font-weight: 600;
 }
@@ -121,13 +288,13 @@
   top: 50%;
   left: 14px;
   transform: translateY(-50%);
-  color: #9a9d90;
+  color: var(--auth-icon);
   pointer-events: none;
   transition: color 0.15s ease;
 }
 
 .inputWrap:focus-within .iconLeft {
-  color: #39452b;
+  color: var(--auth-primary-fg);
 }
 
 .input {
@@ -136,9 +303,9 @@
   box-sizing: border-box;
   padding: 0 14px 0 40px;
   border-radius: 12px;
-  border: 1px solid #e4ded0;
-  background: #faf8f3;
-  color: #1a1d16;
+  border: 1px solid var(--auth-input-border);
+  background: var(--auth-input-bg);
+  color: var(--auth-text);
   font-size: 13.5px;
   outline: none;
   transition:
@@ -148,17 +315,17 @@
 }
 
 .input::placeholder {
-  color: #a5a89b;
+  color: var(--auth-placeholder);
 }
 
 .input:hover:not(:disabled) {
-  border-color: #d3ccba;
+  border-color: var(--auth-input-border-hover);
 }
 
 .input:focus {
-  border-color: #39452b;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(57, 69, 43, 0.14);
+  border-color: var(--auth-primary-fg);
+  background: var(--auth-input-bg-focus);
+  box-shadow: 0 0 0 3px var(--auth-focus-ring);
 }
 
 .input:disabled {
@@ -183,7 +350,7 @@
   border: none;
   border-radius: 8px;
   background: none;
-  color: #9a9d90;
+  color: var(--auth-icon);
   cursor: pointer;
   transition:
     color 0.15s ease,
@@ -191,14 +358,14 @@
 }
 
 .toggle:hover {
-  color: #39452b;
-  background: rgba(57, 69, 43, 0.06);
+  color: var(--auth-primary-fg);
+  background: var(--auth-hover-bg);
 }
 
 .toggle:focus-visible,
 .linkBtn:focus-visible,
 .primaryBtn:focus-visible {
-  outline: 2px solid #f58220;
+  outline: 2px solid var(--auth-focus);
   outline-offset: 2px;
 }
 
@@ -212,13 +379,13 @@
   margin-top: 6px;
   border: none;
   border-radius: 12px;
-  background: #39452b;
+  background: var(--auth-primary);
   color: #ffffff;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: 0 6px 16px -6px rgba(57, 69, 43, 0.45);
+  box-shadow: 0 6px 16px -6px var(--auth-primary-shadow);
   transition:
     background-color 0.15s ease,
     transform 0.15s ease,
@@ -226,9 +393,9 @@
 }
 
 .primaryBtn:hover:not([aria-busy='true']) {
-  background: #2c3621;
+  background: var(--auth-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px -8px rgba(57, 69, 43, 0.5);
+  box-shadow: 0 10px 20px -8px var(--auth-primary-shadow);
 }
 
 .primaryBtn:active:not([aria-busy='true']) {
@@ -271,7 +438,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: #52554b;
+  color: var(--auth-text-secondary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -279,16 +446,16 @@
 }
 
 .linkBtn:hover {
-  color: #39452b;
+  color: var(--auth-primary-fg);
 }
 
 .forgotLink {
-  color: #dd6410;
+  color: var(--auth-accent-fg);
   font-size: 12px;
 }
 
 .forgotLink:hover {
-  color: #f58220;
+  color: var(--auth-accent);
   text-decoration: underline;
 }
 
@@ -299,13 +466,13 @@
 
 .switcher {
   margin-top: 24px;
-  color: #7a7d70;
+  color: var(--auth-text-muted);
   font-size: 13px;
   text-align: center;
 }
 
 .switcherLink {
-  color: #39452b;
+  color: var(--auth-primary-fg);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;

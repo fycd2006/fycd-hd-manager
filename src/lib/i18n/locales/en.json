@@ -379,6 +379,11 @@
   },
   "auth": {
     "systemTitle": "Cloud Database & Workspace Management System",
+    "loadingWorkspace": "Loading workspace",
+    "brandTagline": "Your team’s data, organized in one place and in sync.",
+    "brandFeatureTables": "Spreadsheet-simple tables with multiple views",
+    "brandFeatureTeams": "Team workspaces with role-based access",
+    "brandFeatureRealtime": "Real-time sync and comments keep everyone current",
     "login": "Log In",
     "register": "Register",
     "loginTitle": "Sign In to Account",

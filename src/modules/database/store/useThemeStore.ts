@@ -74,6 +74,8 @@ function resolveTheme(pref: ThemePreference): Theme {
 export const useThemeStore = (): [ThemeState, ThemeActions] => {
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>('light')
   const [theme, setThemeState] = useState<Theme>('light')
+  // 讀到儲存的偏好前不套用主題：否則掛載時會先把 data-theme 寫成預設的 light，暗色使用者看到一次亮色閃爍
+  const [themeHydrated, setThemeHydrated] = useState(false)
 
   // Sync saved theme preference after mount to prevent SSR hydration mismatch
   useEffect(() => {
@@ -81,6 +83,7 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     const pref = loadThemePreference()
     setThemePreferenceState(pref)
     setThemeState(resolveTheme(pref))
+    setThemeHydrated(true)
   }, [])
 
   // Listen for OS theme changes when preference is 'system'
@@ -114,7 +117,7 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
 
   // Apply native CSS theme attributes & DarkReader engine
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !themeHydrated) return
 
     document.documentElement.setAttribute('data-theme', theme)
 
@@ -148,7 +151,7 @@ export const useThemeStore = (): [ThemeState, ThemeActions] => {
     rootStyle.setProperty('--darkreader-contrast', `${activeSettings.contrast}%`)
     rootStyle.setProperty('--darkreader-sepia', `${activeSettings.sepia}%`)
     rootStyle.setProperty('--darkreader-grayscale', `${activeSettings.grayscale}%`)
-  }, [theme, activeSettings])
+  }, [theme, activeSettings, themeHydrated])
 
   const toggleTheme = useCallback(() => {
     const newPref: ThemePreference = theme === 'dark' ? 'light' : 'dark'

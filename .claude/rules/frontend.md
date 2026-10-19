@@ -30,3 +30,5 @@ paths:
 - 格子編輯器掛在 portal（`document.body`）時，編輯結束移除節點不會觸發 `onMouseLeave`，`isCellHovered` 卡 true，選別格後原格殘留灰底 → 格子的 hover 狀態在 `isEditing` 變 true 時清除（render 期間比對 prev，不用 effect 呼叫 setState），新增 portal 型編輯器時確認這點
 - 品牌載入層在 `workspaceReady` 已為 true 時 650ms 就退場，Logo 動畫還沒出現 → 有進場動畫的遮罩要設最短顯示時間（`MIN_VISIBLE_MS`），reduced motion 例外
 - 篩選選單（`constants/fieldTypes.ts`）提供 `date_equal`／`date_before`／`date_after`，前端 `evaluateCellCondition` 卻沒處理，選了也無作用 → 新增篩選運算子時同時改 `constants/fieldTypes.ts` 與 `components/views/grid/cells/utils.ts` 的 `evaluateCellCondition`，並在 `components/views/grid/__tests__/` 加一個以該運算子為例的 `it.each` 測試
+- `useThemeStore` 掛載時先以預設 `light` 寫入 `data-theme` 再讀偏好，SSR 首屏與登入頁對暗色使用者閃一次亮色 → 主題副作用等讀完儲存偏好（`themeHydrated`）才執行；首屏元件的暗色用 `:global([data-theme='dark'])` 選擇器上色，不靠 React 主題 state
+- 暗色模式由 Dark Reader 改寫整頁顏色，SVG 的 `fill` 屬性會被行內 `!important` 改成暗色，品牌字標在暗底上看不見 → 需要固定顏色的 SVG 部件用 CSS Module 選擇器 `fill: var(--token) !important` 覆寫

@@ -1,0 +1,138 @@
+/* 首屏骨架：配色只用 --shell-*；暗色依 html[data-theme]（SSR 首屏即生效）或 .theme-dark 覆寫 */
+.root {
+  --shell-bg: #faf8f3;
+  --shell-surface: #ffffff;
+  --shell-border: #e7e1d3;
+  --shell-skel: #efeadf;
+  --shell-shine: rgba(255, 255, 255, 0.7);
+  --skeleton-base: var(--shell-skel);
+  --skeleton-shine: var(--shell-shine);
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  overflow: hidden;
+  background: var(--shell-bg);
+}
+
+:global([data-theme='dark']) .root,
+:global(.theme-dark) .root {
+  --shell-bg: #12131a;
+  --shell-surface: #181922;
+  --shell-border: #242637;
+  --shell-skel: #1f202e;
+  --shell-shine: rgba(255, 255, 255, 0.05);
+}
+
+.topLine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  height: 3px;
+  background: linear-gradient(90deg, #39452b 0%, #f58220 50%, #39452b 100%);
+  background-size: 200% 100%;
+  animation: shellTopLine 2s ease-in-out infinite;
+}
+
+@keyframes shellTopLine {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-shrink: 0;
+  width: 240px;
+  height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  background: var(--shell-surface);
+  border-right: 1px solid var(--shell-border);
+}
+
+.sidebarBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebarList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 44px;
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: var(--shell-surface);
+  border-bottom: 1px solid var(--shell-border);
+}
+
+.grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: var(--shell-surface);
+}
+
+.gridHead,
+.gridRow {
+  display: flex;
+  gap: 8px;
+  height: 34px;
+}
+
+.gridHead {
+  height: 32px;
+}
+
+.cell {
+  flex: 1;
+  min-width: 0;
+  border-radius: 4px;
+}
+
+/* 真實 app 在 <1024px 隱藏側欄 */
+@media (max-width: 1023px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .toolbar > :nth-child(3),
+  .cell:nth-child(n + 4) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topLine {
+    animation: none;
+  }
+}

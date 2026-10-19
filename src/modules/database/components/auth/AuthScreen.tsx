@@ -2,7 +2,7 @@
 
 import React, { useEffect, useId, useState } from 'react'
 import { motion, AnimatePresence, useAnimationControls, useReducedMotion } from 'motion/react'
-import { Eye, EyeOff, Lock, User as UserIcon, Mail, ArrowRight, ArrowLeft, KeyRound, type LucideIcon } from 'lucide-react'
+import { Eye, EyeOff, Lock, User as UserIcon, Mail, ArrowRight, ArrowLeft, KeyRound, Table2, Users, Zap, type LucideIcon } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FycdLogo } from '@/components/brand/FycdLogo'
@@ -28,6 +28,12 @@ interface AuthScreenProps {
   onRequestResetPassword?: (username: string, email: string) => Promise<{ ok: boolean; message?: string; error?: string; resetToken?: string }>
   onResetPassword?: (newPassword: string) => Promise<{ ok: boolean; message?: string; error?: string }>
 }
+
+const BRAND_FEATURES: { icon: LucideIcon; key: string }[] = [
+  { icon: Table2, key: 'auth.brandFeatureTables' },
+  { icon: Users, key: 'auth.brandFeatureTeams' },
+  { icon: Zap, key: 'auth.brandFeatureRealtime' },
+]
 
 const EASE_OUT: [number, number, number, number] = [0.2, 0.8, 0.2, 1]
 
@@ -231,111 +237,73 @@ export default function AuthScreen({
 
   return (
     <div className={styles.page}>
-      <div className={styles.langPicker}>
-        <LangPicker align="right" variant="subtle" />
-      </div>
-      <motion.div className={styles.shell} animate={shake}>
-        <motion.div
-          className={styles.card}
-          layout={!reduceMotion}
-          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
-          animate={leaving ? { opacity: 0, scale: 0.98, y: 0 } : { opacity: 1, scale: 1, y: 0 }}
-          transition={cardTransition}
-        >
-          {/* Brand / Logo Header */}
-          <motion.div layout={!reduceMotion ? 'position' : false} className={styles.brand}>
-            <h1 className={styles.srOnly}>FYCD HD Manager</h1>
-            <FycdLogo variant="full" animated height={44} />
-            <p className={styles.subtitle}>{subtitle}</p>
-          </motion.div>
+      {/* 桌機左欄品牌面板（<960px 隱藏）；Logo 與卡片內重複，只留卡片那個給輔助科技 */}
+      <aside className={styles.brandPanel}>
+        <div aria-hidden="true">
+          <FycdLogo variant="full" tone="onDark" height={40} />
+        </div>
+        <h2 className={styles.tagline}>{t('auth.brandTagline')}</h2>
+        <ul className={styles.features}>
+          {BRAND_FEATURES.map(({ icon: Icon, key }) => (
+            <li key={key} className={styles.feature}>
+              <span className={styles.featureIcon} aria-hidden="true"><Icon size={16} /></span>
+              <span>{t(key)}</span>
+            </li>
+          ))}
+        </ul>
+      </aside>
+      <main className={styles.main}>
+        <div className={styles.langPicker}>
+          <LangPicker align="right" variant="subtle" />
+        </div>
+        <motion.div className={styles.shell} animate={shake}>
+          <motion.div
+            className={styles.card}
+            layout={!reduceMotion}
+            initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+            animate={leaving ? { opacity: 0, scale: 0.98, y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+            transition={cardTransition}
+          >
+            {/* Brand / Logo Header */}
+            <motion.div layout={!reduceMotion ? 'position' : false} className={styles.brand}>
+              <h1 className={styles.srOnly}>FYCD HD Manager</h1>
+              <FycdLogo variant="full" animated height={44} />
+              <p className={styles.subtitle}>{subtitle}</p>
+            </motion.div>
 
-          {/* Error Message */}
-          <AnimatePresence initial={false}>
-            {activeError && (
-              <motion.div
-                key="error"
-                className={styles.error}
-                role="alert"
-                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
-                animate={reduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
-                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
-                transition={{ duration: reduceMotion ? 0 : 0.22, ease: EASE_OUT }}
-              >
-                <div className={styles.errorInner}>{activeError}</div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.form key={authMode} onSubmit={handleSubmit} className={styles.form} {...swap}>
-              {authMode === 'forgot-password' && (
-                <>
-                  {/* 雙重身分核對 */}
-                  <p className={styles.desc}>{t('auth.forgotPasswordDesc')}</p>
-                  <Field
-                    label={t('auth.usernameLabel')}
-                    icon={UserIcon}
-                    type="text"
-                    placeholder={t('auth.enterUsername')}
-                    value={authUsername}
-                    onChange={onAuthUsernameChange}
-                    autoComplete="username"
-                    disabled={disabled}
-                  />
-                  <Field
-                    label={t('auth.emailLabel')}
-                    icon={Mail}
-                    type="email"
-                    placeholder={t('auth.enterEmail')}
-                    value={authEmail}
-                    onChange={onAuthEmailChange}
-                    autoComplete="email"
-                    disabled={disabled}
-                  />
-                </>
+            {/* Error Message */}
+            <AnimatePresence initial={false}>
+              {activeError && (
+                <motion.div
+                  key="error"
+                  className={styles.error}
+                  role="alert"
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                  animate={reduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.22, ease: EASE_OUT }}
+                >
+                  <div className={styles.errorInner}>{activeError}</div>
+                </motion.div>
               )}
+            </AnimatePresence>
 
-              {authMode === 'reset-password' && (
-                <>
-                  <p className={styles.desc}>{t('auth.resetPasswordDesc')}</p>
-                  <Field
-                    label={t('auth.newPasswordLabel')}
-                    icon={KeyRound}
-                    type="password"
-                    placeholder={t('auth.enterNewPassword')}
-                    value={newPassword}
-                    onChange={setNewPassword}
-                    autoComplete="new-password"
-                    disabled={disabled}
-                    reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword) }}
-                  />
-                  <Field
-                    label={t('auth.confirmPasswordLabel')}
-                    icon={Lock}
-                    type="password"
-                    placeholder={t('auth.enterConfirmPassword')}
-                    value={confirmPassword}
-                    onChange={setConfirmPassword}
-                    autoComplete="new-password"
-                    disabled={disabled}
-                    reveal={{ shown: showConfirmPassword, onToggle: () => setShowConfirmPassword(!showConfirmPassword) }}
-                  />
-                </>
-              )}
-
-              {(authMode === 'login' || authMode === 'register') && (
-                <>
-                  <Field
-                    label={authMode === 'login' ? t('auth.usernameOrEmailLabel') : t('auth.usernameLabel')}
-                    icon={UserIcon}
-                    type="text"
-                    placeholder={authMode === 'login' ? t('auth.enterUsernameOrEmail') : t('auth.enterUsername')}
-                    value={authUsername}
-                    onChange={onAuthUsernameChange}
-                    autoComplete="username"
-                    disabled={disabled}
-                  />
-                  {authMode === 'register' && (
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.form key={authMode} onSubmit={handleSubmit} className={styles.form} {...swap}>
+                {authMode === 'forgot-password' && (
+                  <>
+                    {/* 雙重身分核對 */}
+                    <p className={styles.desc}>{t('auth.forgotPasswordDesc')}</p>
+                    <Field
+                      label={t('auth.usernameLabel')}
+                      icon={UserIcon}
+                      type="text"
+                      placeholder={t('auth.enterUsername')}
+                      value={authUsername}
+                      onChange={onAuthUsernameChange}
+                      autoComplete="username"
+                      disabled={disabled}
+                    />
                     <Field
                       label={t('auth.emailLabel')}
                       icon={Mail}
@@ -346,75 +314,130 @@ export default function AuthScreen({
                       autoComplete="email"
                       disabled={disabled}
                     />
-                  )}
-                  <Field
-                    label={t('auth.passwordLabel')}
-                    icon={Lock}
-                    type="password"
-                    placeholder={t('auth.enterPassword')}
-                    value={authPassword}
-                    onChange={onAuthPasswordChange}
-                    autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
-                    disabled={disabled}
-                    reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword) }}
-                    labelAction={authMode === 'login' && (
-                      <button
-                        type="button"
-                        className={`${styles.linkBtn} ${styles.forgotLink}`}
-                        onClick={() => {
-                          setLocalError(null)
-                          onAuthModeChange('forgot-password')
-                        }}
-                      >
-                        {t('auth.forgotPassword')}
-                      </button>
-                    )}
-                  />
-                </>
-              )}
-
-              <button type="submit" className={styles.primaryBtn} aria-busy={submitting}>
-                {submitting ? (
-                  <>
-                    <span className={styles.spinner} aria-hidden="true" />
-                    <span>{t('notifications.processing')}</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{submitLabel}</span>
-                    {(authMode === 'login' || authMode === 'register') && (
-                      <ArrowRight size={16} className={styles.arrow} aria-hidden="true" />
-                    )}
                   </>
                 )}
-              </button>
 
-              {(authMode === 'forgot-password' || authMode === 'reset-password') && (
-                <div className={styles.center}>
-                  <button type="button" className={styles.linkBtn} onClick={backToLogin}>
-                    <ArrowLeft size={14} aria-hidden="true" />
-                    <span>{t('auth.backToLogin')}</span>
-                  </button>
-                </div>
-              )}
-            </motion.form>
-          </AnimatePresence>
+                {authMode === 'reset-password' && (
+                  <>
+                    <p className={styles.desc}>{t('auth.resetPasswordDesc')}</p>
+                    <Field
+                      label={t('auth.newPasswordLabel')}
+                      icon={KeyRound}
+                      type="password"
+                      placeholder={t('auth.enterNewPassword')}
+                      value={newPassword}
+                      onChange={setNewPassword}
+                      autoComplete="new-password"
+                      disabled={disabled}
+                      reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword) }}
+                    />
+                    <Field
+                      label={t('auth.confirmPasswordLabel')}
+                      icon={Lock}
+                      type="password"
+                      placeholder={t('auth.enterConfirmPassword')}
+                      value={confirmPassword}
+                      onChange={setConfirmPassword}
+                      autoComplete="new-password"
+                      disabled={disabled}
+                      reveal={{ shown: showConfirmPassword, onToggle: () => setShowConfirmPassword(!showConfirmPassword) }}
+                    />
+                  </>
+                )}
 
-          {/* Mode Switcher Link (Login <-> Register) */}
-          {(authMode === 'login' || authMode === 'register') && (
-            <motion.div layout={!reduceMotion ? 'position' : false} className={styles.switcher}>
-              {authMode === 'login' ? t('auth.noAccountPrompt') : t('auth.hasAccountPrompt')}{' '}
-              <button
-                type="button"
-                className={`${styles.linkBtn} ${styles.switcherLink}`}
-                onClick={() => onAuthModeChange(authMode === 'login' ? 'register' : 'login')}
-              >
-                {authMode === 'login' ? t('auth.registerNow') : t('auth.loginNow')}
-              </button>
-            </motion.div>
-          )}
+                {(authMode === 'login' || authMode === 'register') && (
+                  <>
+                    <Field
+                      label={authMode === 'login' ? t('auth.usernameOrEmailLabel') : t('auth.usernameLabel')}
+                      icon={UserIcon}
+                      type="text"
+                      placeholder={authMode === 'login' ? t('auth.enterUsernameOrEmail') : t('auth.enterUsername')}
+                      value={authUsername}
+                      onChange={onAuthUsernameChange}
+                      autoComplete="username"
+                      disabled={disabled}
+                    />
+                    {authMode === 'register' && (
+                      <Field
+                        label={t('auth.emailLabel')}
+                        icon={Mail}
+                        type="email"
+                        placeholder={t('auth.enterEmail')}
+                        value={authEmail}
+                        onChange={onAuthEmailChange}
+                        autoComplete="email"
+                        disabled={disabled}
+                      />
+                    )}
+                    <Field
+                      label={t('auth.passwordLabel')}
+                      icon={Lock}
+                      type="password"
+                      placeholder={t('auth.enterPassword')}
+                      value={authPassword}
+                      onChange={onAuthPasswordChange}
+                      autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+                      disabled={disabled}
+                      reveal={{ shown: showPassword, onToggle: () => setShowPassword(!showPassword) }}
+                      labelAction={authMode === 'login' && (
+                        <button
+                          type="button"
+                          className={`${styles.linkBtn} ${styles.forgotLink}`}
+                          onClick={() => {
+                            setLocalError(null)
+                            onAuthModeChange('forgot-password')
+                          }}
+                        >
+                          {t('auth.forgotPassword')}
+                        </button>
+                      )}
+                    />
+                  </>
+                )}
+
+                <button type="submit" className={styles.primaryBtn} aria-busy={submitting}>
+                  {submitting ? (
+                    <>
+                      <span className={styles.spinner} aria-hidden="true" />
+                      <span>{t('notifications.processing')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{submitLabel}</span>
+                      {(authMode === 'login' || authMode === 'register') && (
+                        <ArrowRight size={16} className={styles.arrow} aria-hidden="true" />
+                      )}
+                    </>
+                  )}
+                </button>
+
+                {(authMode === 'forgot-password' || authMode === 'reset-password') && (
+                  <div className={styles.center}>
+                    <button type="button" className={styles.linkBtn} onClick={backToLogin}>
+                      <ArrowLeft size={14} aria-hidden="true" />
+                      <span>{t('auth.backToLogin')}</span>
+                    </button>
+                  </div>
+                )}
+              </motion.form>
+            </AnimatePresence>
+
+            {/* Mode Switcher Link (Login <-> Register) */}
+            {(authMode === 'login' || authMode === 'register') && (
+              <motion.div layout={!reduceMotion ? 'position' : false} className={styles.switcher}>
+                {authMode === 'login' ? t('auth.noAccountPrompt') : t('auth.hasAccountPrompt')}{' '}
+                <button
+                  type="button"
+                  className={`${styles.linkBtn} ${styles.switcherLink}`}
+                  onClick={() => onAuthModeChange(authMode === 'login' ? 'register' : 'login')}
+                >
+                  {authMode === 'login' ? t('auth.registerNow') : t('auth.loginNow')}
+                </button>
+              </motion.div>
+            )}
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </main>
     </div>
   )
 }
