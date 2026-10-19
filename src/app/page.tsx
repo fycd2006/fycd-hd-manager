@@ -66,6 +66,8 @@ import * as fieldService from '@/modules/database/services/field'
 import { tableDataCache } from '@/modules/database/cache/tableDataCache'
 import { runTableLoad } from '@/modules/database/cache/runTableLoad'
 import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
+import { pushRecentTable } from '@/modules/database/cache/recentTables'
+import { useIdlePrefetch } from '@/modules/database/cache/useIdlePrefetch'
 import * as userService from '@/modules/database/services/user'
 import * as trashService from '@/modules/database/services/trash'
 import { createDatabaseFromTemplate, TemplateKey } from '@/modules/database/services/templateService'
@@ -861,6 +863,27 @@ export default function Home() {
       uiActions.addToast('更新名稱失敗', 'error')
     }
   }
+
+  // 記錄最近開過的表，並在閒置時預載
+  useEffect(() => {
+    if (wsState.activeWorkspaceId && wsState.activeTableId) {
+      pushRecentTable(wsState.activeWorkspaceId, wsState.activeTableId)
+    }
+  }, [wsState.activeWorkspaceId, wsState.activeTableId])
+
+  const validTableIds = useMemo(
+    () =>
+      (wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId)?.databases ?? [])
+        .flatMap(d => d.tables)
+        .map(t => t.id),
+    [wsState.workspaces, wsState.activeWorkspaceId]
+  )
+  useIdlePrefetch({
+    workspaceId: wsState.activeWorkspaceId,
+    activeTableId: wsState.activeTableId,
+    validTableIds,
+    prefetch: tableDataCache.prefetch,
+  })
 
   // Get active table
   const activeTable = wsState.workspaces
