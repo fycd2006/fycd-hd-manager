@@ -111,6 +111,14 @@ describe('WorkspaceDashboard i18n', () => {
     expect(screen.queryByRole('button', { name: /跨表總表/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /新增資料庫/ })).not.toBeInTheDocument()
   })
+
+  it('暗色模式字標改用 onDark tone，淺色維持 brand', () => {
+    const { container, unmount } = renderDashboard({ theme: 'dark' })
+    expect(container.querySelector('[data-tone="onDark"]')).toBeInTheDocument()
+    unmount()
+    const light = renderDashboard()
+    expect(light.container.querySelector('[data-tone="brand"]')).toBeInTheDocument()
+  })
 })
 
 describe('WorkspaceDashboard 資料表列', () => {
@@ -127,7 +135,7 @@ describe('WorkspaceDashboard 資料表列', () => {
     const onShowRenameModal = jest.fn()
     const onSetRenameId = jest.fn()
     renderDashboard({ onSelectTable, onShowRenameModal, onSetRenameId, onSetRenameType: jest.fn(), onSetRenameNameValue: jest.fn() })
-    fireEvent.click(screen.getAllByRole('button', { name: '重新命名資料表' })[0])
+    fireEvent.click(screen.getAllByRole('button', { name: '重新命名資料表 - 表1' })[0])
     expect(onSetRenameId).toHaveBeenCalledWith(101)
     expect(onShowRenameModal).toHaveBeenCalled()
     expect(onSelectTable).not.toHaveBeenCalled()
