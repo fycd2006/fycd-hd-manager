@@ -106,6 +106,13 @@ describe('DatabaseTable Route Handler: /api/tables/[tableId]', () => {
     const response = await PATCH(request, { params })
     expect(response.status).toBe(200)
 
+    // Restoring a deleted table must authorize with includeDeleted
+    expect(authorizeAction).toHaveBeenCalledWith({
+      tableId: 10,
+      action: 'canManageStructure',
+      includeDeleted: true,
+    })
+
     expect(prisma.$transaction).toHaveBeenCalledTimes(1)
     // Restore runs as a single interactive transaction callback
     expect(typeof (prisma.$transaction as jest.Mock).mock.calls[0][0]).toBe('function')
@@ -163,5 +170,22 @@ describe('DatabaseTable Route Handler: /api/tables/[tableId]', () => {
     const fieldUpdateCall = (prisma.tableField.updateMany as jest.Mock).mock.calls[0][0]
     expect(fieldUpdateCall.where.deletedAt).toEqual(tableDeletedAt)
     // Any prior deleted field (with deletedAt e.g. 2026-08-19) would NOT match where.deletedAt
+  })
+
+  it('PATCH: ordinary update keeps default authorization (deleted tables stay hidden)', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({
+      auth: { user: { id: 1 }, role: 'owner' },
+    })
+    ;(prisma.databaseTable.update as jest.Mock).mockResolvedValue({ id: 10, name: 'New' })
+
+    const request = new Request('http://localhost:3000/api/tables/10', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'New' }),
+    })
+    const response = await PATCH(request, { params: Promise.resolve({ tableId: '10' }) })
+
+    expect(response.status).toBe(200)
+    expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canManageStructure' })
   })
 })

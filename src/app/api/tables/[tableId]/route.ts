@@ -13,10 +13,15 @@ export async function PATCH(
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canManageStructure' })
-    if (errorResponse) return errorResponse
-
     const body = await request.json()
+
+    // 還原已刪除的資料表時，授權需放行 deletedAt 已設定的表；其他更新維持預設
+    const { errorResponse } = await authorizeAction({
+      tableId: id,
+      action: 'canManageStructure',
+      ...(body.deletedAt === null && { includeDeleted: true }),
+    })
+    if (errorResponse) return errorResponse
 
     // If restoring a soft-deleted table, restore ONLY child rows and fields that were deleted with the table
     if (body.deletedAt === null) {
