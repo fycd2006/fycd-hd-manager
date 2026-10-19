@@ -20,20 +20,13 @@ export async function PATCH(
 
     // If restoring a soft-deleted table, restore ONLY child rows and fields that were deleted with the table
     if (body.deletedAt === null) {
-      const restored = await restoreTable(id)
+      const restored = await restoreTable(id, {
+        name: body.name,
+        order: body.order,
+        databaseId: body.databaseId,
+      })
       if (!restored.ok) {
         return NextResponse.json({ error: restored.error }, { status: restored.status })
-      }
-
-      if (body.name || body.order !== undefined || body.databaseId !== undefined) {
-        await prisma.databaseTable.update({
-          where: { id },
-          data: {
-            ...(body.name && { name: body.name }),
-            ...(body.order !== undefined && { order: body.order }),
-            ...(body.databaseId !== undefined && { databaseId: body.databaseId }),
-          },
-        })
       }
 
       try {

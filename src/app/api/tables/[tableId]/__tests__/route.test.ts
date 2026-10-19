@@ -14,6 +14,7 @@ jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     $transaction: jest.fn(),
+    database: { findUnique: jest.fn() },
     databaseTable: {
       update: jest.fn(),
       findUnique: jest.fn(),
@@ -81,7 +82,7 @@ describe('DatabaseTable Route Handler: /api/tables/[tableId]', () => {
 
     const tableDeletedAt = new Date('2026-08-20T10:00:00.123Z')
 
-    ;(prisma.$transaction as jest.Mock).mockResolvedValue([])
+    ;(prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: unknown) => unknown) => cb(prisma))
     ;(prisma.databaseTable.findUnique as jest.Mock)
       .mockResolvedValueOnce({
         id: 10,
@@ -106,8 +107,8 @@ describe('DatabaseTable Route Handler: /api/tables/[tableId]', () => {
     expect(response.status).toBe(200)
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1)
-    const transactionArgs = (prisma.$transaction as jest.Mock).mock.calls[0][0]
-    expect(transactionArgs).toHaveLength(3)
+    // Restore runs as a single interactive transaction callback
+    expect(typeof (prisma.$transaction as jest.Mock).mock.calls[0][0]).toBe('function')
 
     // Table itself has deletedAt set to null
     expect(prisma.databaseTable.update).toHaveBeenCalledWith(
@@ -136,7 +137,7 @@ describe('DatabaseTable Route Handler: /api/tables/[tableId]', () => {
 
     const tableDeletedAt = new Date('2026-08-20T12:00:00.000Z')
 
-    ;(prisma.$transaction as jest.Mock).mockResolvedValue([])
+    ;(prisma.$transaction as jest.Mock).mockImplementation((cb: (tx: unknown) => unknown) => cb(prisma))
     ;(prisma.databaseTable.findUnique as jest.Mock)
       .mockResolvedValueOnce({
         id: 10,

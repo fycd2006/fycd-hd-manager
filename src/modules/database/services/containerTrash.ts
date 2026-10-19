@@ -98,19 +98,41 @@ export async function restoreDatabase(databaseId: number): Promise<RestoreResult
   })
 }
 
-export async function restoreTable(tableId: number): Promise<RestoreResult> {
-  const table = await prisma.databaseTable.findUnique({
-    where: { id: tableId },
-    select: { deletedAt: true, database: { select: { deletedAt: true } } },
-  })
-  const T = table?.deletedAt
-  if (!T) return NOT_FOUND
-  if (table?.database?.deletedAt) return { ok: false, status: 400, error: '請先還原資料庫' }
+export async function restoreTable(
+  tableId: number,
+  extra?: { name?: string; order?: number; databaseId?: number }
+): Promise<RestoreResult> {
+  return prisma.$transaction(async (tx): Promise<RestoreResult> => {
+    const table = await tx.databaseTable.findUnique({
+      where: { id: tableId },
+      select: { deletedAt: true, database: { select: { deletedAt: true } } },
+    })
+    const T = table?.deletedAt
+    if (!T) return NOT_FOUND
+    if (table?.database?.deletedAt) return { ok: false, status: 400, error: '請先還原資料庫' }
 
-  await prisma.$transaction([
-    prisma.databaseTable.update({ where: { id: tableId }, data: { deletedAt: null } }),
-    prisma.tableRow.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } }),
-    prisma.tableField.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } }),
-  ])
-  return { ok: true, tableIds: [tableId] }
+    if (extra?.databaseId !== undefined) {
+      const target = await tx.database.findUnique({
+        where: { id: extra.databaseId },
+        select: { deletedAt: true, workspace: { select: { deletedAt: true } } },
+      })
+      if (!target) return NOT_FOUND
+      if (target.deletedAt || target.workspace?.deletedAt) {
+        return { ok: false, status: 400, error: '請先還原資料庫' }
+      }
+    }
+
+    await tx.databaseTable.update({
+      where: { id: tableId },
+      data: {
+        deletedAt: null,
+        ...(extra?.name && { name: extra.name }),
+        ...(extra?.order !== undefined && { order: extra.order }),
+        ...(extra?.databaseId !== undefined && { databaseId: extra.databaseId }),
+      },
+    })
+    await tx.tableRow.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } })
+    await tx.tableField.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } })
+    return { ok: true, tableIds: [tableId] }
+  })
 }

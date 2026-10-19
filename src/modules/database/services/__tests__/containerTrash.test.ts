@@ -201,6 +201,28 @@ describe('containerTrash', () => {
     expect(p.databaseTable.update).not.toHaveBeenCalled()
   })
 
+  it('restoreTable refuses to move the table into a deleted database', async () => {
+    p.databaseTable.findUnique.mockResolvedValue({ deletedAt: new Date(), database: { deletedAt: null } })
+    p.database.findUnique.mockResolvedValue({ deletedAt: null, workspace: { deletedAt: new Date() } })
+    expect(await restoreTable(10, { databaseId: 9 })).toEqual({
+      ok: false,
+      status: 400,
+      error: '請先還原資料庫',
+    })
+    expect(p.databaseTable.update).not.toHaveBeenCalled()
+  })
+
+  it('restoreTable merges name, order and databaseId into the same transaction update', async () => {
+    p.databaseTable.findUnique.mockResolvedValue({ deletedAt: new Date(), database: { deletedAt: null } })
+    p.database.findUnique.mockResolvedValue({ deletedAt: null, workspace: { deletedAt: null } })
+    await restoreTable(10, { name: 'N', order: 2, databaseId: 9 })
+    expect(p.databaseTable.update).toHaveBeenCalledWith({
+      where: { id: 10 },
+      data: { deletedAt: null, name: 'N', order: 2, databaseId: 9 },
+    })
+    expect(p.$transaction).toHaveBeenCalledTimes(1)
+  })
+
   it('restoreTable clears the table and only children deleted at the same timestamp', async () => {
     const T = new Date('2026-10-19T01:00:00.000Z')
     p.databaseTable.findUnique.mockResolvedValue({ deletedAt: T, database: { deletedAt: null } })
