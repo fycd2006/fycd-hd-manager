@@ -188,4 +188,58 @@ describe('DatabaseTable Route Handler: /api/tables/[tableId]', () => {
     expect(response.status).toBe(200)
     expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canManageStructure' })
   })
+
+  describe('PATCH: moving a table to another database', () => {
+    const move = (databaseId: unknown) =>
+      PATCH(
+        new Request('http://localhost:3000/api/tables/10', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ databaseId }),
+        }),
+        { params: Promise.resolve({ tableId: '10' }) }
+      )
+
+    beforeEach(() => {
+      ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'owner' } })
+      ;(prisma.databaseTable.update as jest.Mock).mockResolvedValue({ id: 10, databaseId: 7 })
+    })
+
+    it('rejects a soft-deleted target database with 400', async () => {
+      ;(prisma.database.findUnique as jest.Mock).mockResolvedValue({ deletedAt: new Date(), workspace: { deletedAt: null } })
+      const response = await move(7)
+      expect(response.status).toBe(400)
+      expect((await response.json()).error).toBe('請先還原資料庫')
+      expect(prisma.databaseTable.update).not.toHaveBeenCalled()
+    })
+
+    it('rejects a target database in a soft-deleted workspace with 400', async () => {
+      ;(prisma.database.findUnique as jest.Mock).mockResolvedValue({ deletedAt: null, workspace: { deletedAt: new Date() } })
+      const response = await move(7)
+      expect(response.status).toBe(400)
+      expect(prisma.databaseTable.update).not.toHaveBeenCalled()
+    })
+
+    it('returns 404 when the target database does not exist', async () => {
+      ;(prisma.database.findUnique as jest.Mock).mockResolvedValue(null)
+      const response = await move(7)
+      expect(response.status).toBe(404)
+      expect(prisma.databaseTable.update).not.toHaveBeenCalled()
+    })
+
+    it.each([['abc'], [0], [-3], [1.5]])('rejects invalid databaseId %p with 400', async (bad) => {
+      const response = await move(bad)
+      expect(response.status).toBe(400)
+      expect(prisma.databaseTable.update).not.toHaveBeenCalled()
+    })
+
+    it('moves the table when the target database is active', async () => {
+      ;(prisma.database.findUnique as jest.Mock).mockResolvedValue({ deletedAt: null, workspace: { deletedAt: null } })
+      const response = await move(7)
+      expect(response.status).toBe(200)
+      expect(prisma.databaseTable.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ databaseId: 7 }) })
+      )
+    })
+  })
 })

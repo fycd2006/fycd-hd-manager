@@ -5,6 +5,25 @@ export type RestoreResult =
   | { ok: false; status: 400 | 404; error: string }
 
 const NOT_FOUND: RestoreResult = { ok: false, status: 404, error: '找不到已刪除的項目' }
+const TX_OPTIONS = { maxWait: 5000, timeout: 20000 }
+
+type TargetCheckFailure = { ok: false; status: 400 | 404; error: string }
+
+/** 目標資料庫必須存在，且它與所屬工作區都未被刪除；否則回傳失敗結果，通過回傳 null。 */
+export async function checkTargetDatabaseActive(
+  databaseId: number,
+  client: Pick<typeof prisma, 'database'> = prisma
+): Promise<TargetCheckFailure | null> {
+  const target = await client.database.findUnique({
+    where: { id: databaseId },
+    select: { deletedAt: true, workspace: { select: { deletedAt: true } } },
+  })
+  if (!target) return { ok: false, status: 404, error: '找不到資料庫' }
+  if (target.deletedAt || target.workspace?.deletedAt) {
+    return { ok: false, status: 400, error: '請先還原資料庫' }
+  }
+  return null
+}
 
 export async function softDeleteWorkspace(workspaceId: number, now: Date = new Date()): Promise<void> {
   await prisma.$transaction(async (tx) => {
@@ -27,7 +46,7 @@ export async function softDeleteWorkspace(workspaceId: number, now: Date = new D
     })
     await tx.tableField.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
     await tx.tableRow.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
-  })
+  }, TX_OPTIONS)
 }
 
 export async function softDeleteDatabase(databaseId: number, now: Date = new Date()): Promise<void> {
@@ -42,7 +61,7 @@ export async function softDeleteDatabase(databaseId: number, now: Date = new Dat
     await tx.databaseTable.updateMany({ where: { databaseId, deletedAt: null }, data: { deletedAt: now } })
     await tx.tableField.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
     await tx.tableRow.updateMany({ where: { tableId: { in: tableIds }, deletedAt: null }, data: { deletedAt: now } })
-  })
+  }, TX_OPTIONS)
 }
 
 export async function restoreWorkspace(workspaceId: number): Promise<RestoreResult> {
@@ -71,7 +90,7 @@ export async function restoreWorkspace(workspaceId: number): Promise<RestoreResu
     await tx.database.updateMany({ where: { workspaceId, deletedAt: T }, data: { deletedAt: null } })
     await tx.workspace.updateMany({ where: { id: workspaceId }, data: { deletedAt: null } })
     return { ok: true, tableIds }
-  })
+  }, TX_OPTIONS)
 }
 
 export async function restoreDatabase(databaseId: number): Promise<RestoreResult> {
@@ -95,7 +114,7 @@ export async function restoreDatabase(databaseId: number): Promise<RestoreResult
     await tx.databaseTable.updateMany({ where: { databaseId, deletedAt: T }, data: { deletedAt: null } })
     await tx.database.updateMany({ where: { id: databaseId }, data: { deletedAt: null } })
     return { ok: true, tableIds }
-  })
+  }, TX_OPTIONS)
 }
 
 export async function restoreTable(
@@ -112,14 +131,8 @@ export async function restoreTable(
     if (table?.database?.deletedAt) return { ok: false, status: 400, error: '請先還原資料庫' }
 
     if (extra?.databaseId !== undefined) {
-      const target = await tx.database.findUnique({
-        where: { id: extra.databaseId },
-        select: { deletedAt: true, workspace: { select: { deletedAt: true } } },
-      })
-      if (!target) return NOT_FOUND
-      if (target.deletedAt || target.workspace?.deletedAt) {
-        return { ok: false, status: 400, error: '請先還原資料庫' }
-      }
+      const failure = await checkTargetDatabaseActive(extra.databaseId, tx)
+      if (failure) return failure
     }
 
     await tx.databaseTable.update({
@@ -134,5 +147,5 @@ export async function restoreTable(
     await tx.tableRow.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } })
     await tx.tableField.updateMany({ where: { tableId, deletedAt: T }, data: { deletedAt: null } })
     return { ok: true, tableIds: [tableId] }
-  })
+  }, TX_OPTIONS)
 }

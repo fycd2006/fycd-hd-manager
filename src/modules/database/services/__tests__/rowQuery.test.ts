@@ -415,3 +415,35 @@ describe('cleanupFieldDependencies', () => {
     })
   })
 })
+
+describe('getPopulatedTableRows string ids in legacy lookup options', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('coerces ids to numbers for the active field query and still computes the lookup', async () => {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'Link', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+        { id: 2, tableId: 1, name: 'Lookup', type: 'lookup', options: JSON.stringify({ relationFieldId: '1', targetFieldId: '10' }) },
+        { id: 3, tableId: 1, name: 'Bad', type: 'lookup', options: JSON.stringify({ relationFieldId: 'abc', targetFieldId: '10' }) },
+      ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
+      .mockResolvedValueOnce([{ id: 10, tableId: 2, name: 'Name', type: 'text' }]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      { id: 101, tableId: 1, data: { field_1: '[501]' }, order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ]);
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 501, tableId: 2, data: JSON.stringify({ field_10: 'Product Alpha' }), order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ])
+
+    const result = await getPopulatedTableRows(1, {})
+
+    expect(prisma.tableField.findMany).toHaveBeenCalledWith({
+      where: { id: { in: [1, 10] }, deletedAt: null },
+      select: { id: true },
+    })
+    expect(result.rows![0].data['field_2']).toBe('Product Alpha')
+  })
+})

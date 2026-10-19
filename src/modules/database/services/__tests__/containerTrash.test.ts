@@ -241,4 +241,23 @@ describe('containerTrash', () => {
       data: { deletedAt: null },
     })
   })
+
+  it('runs every interactive transaction with the bulk-update timeout options', async () => {
+    p.workspace.findUnique.mockResolvedValue(null)
+    p.database.findUnique.mockResolvedValue(null)
+    p.databaseTable.findUnique.mockResolvedValue(null)
+    p.database.findMany.mockResolvedValue([])
+    p.databaseTable.findMany.mockResolvedValue([])
+
+    await softDeleteWorkspace(1)
+    await softDeleteDatabase(1)
+    await restoreWorkspace(1)
+    await restoreDatabase(1)
+    await restoreTable(1)
+
+    expect(p.$transaction).toHaveBeenCalledTimes(5)
+    for (const call of p.$transaction.mock.calls) {
+      expect(call[1]).toEqual({ maxWait: 5000, timeout: 20000 })
+    }
+  })
 })

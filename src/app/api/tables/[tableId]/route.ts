@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
-import { restoreTable } from '@/modules/database/services/containerTrash'
+import { restoreTable, checkTargetDatabaseActive } from '@/modules/database/services/containerTrash'
 
 export async function PATCH(
   request: Request,
@@ -42,6 +42,14 @@ export async function PATCH(
 
       const updated = await prisma.databaseTable.findUnique({ where: { id } })
       return NextResponse.json(updated)
+    }
+
+    if (body.databaseId !== undefined) {
+      if (!Number.isInteger(body.databaseId) || body.databaseId <= 0) {
+        return NextResponse.json({ error: '無效的資料庫 ID' }, { status: 400 })
+      }
+      const failure = await checkTargetDatabaseActive(body.databaseId)
+      if (failure) return NextResponse.json({ error: failure.error }, { status: failure.status })
     }
 
     const updated = await prisma.databaseTable.update({
