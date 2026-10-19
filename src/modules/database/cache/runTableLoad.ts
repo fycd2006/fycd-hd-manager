@@ -38,25 +38,27 @@ export async function runTableLoad(
       onError(error)
       return
     }
-    if (cached) {
+    if (cached || fresh) {
       console.warn('Background table refresh failed', error)
       return
     }
     onError(error)
   }
 
-  if (cached) {
-    if (!opts.force) applyFull(cached)
+  // force refreshes the table already on screen, even if its cache entry was evicted or invalidated:
+  // no skeleton and no re-applied view; without an entry to compare against, only the views are reset
+  if (cached || fresh) {
+    if (cached && !fresh) applyFull(cached)
     // The screen is editable now: a server snapshot taken around a local write may predate it
     const writeSeq = writes?.snapshot()
     try {
       const result = await cache.load(tableId, { fresh })
       if (writes && (writes.snapshot() !== writeSeq || writes.inFlight() > 0)) return 'stale'
-      if (isCurrent()) applyRefresh(result, !sameViews(cached.views, result.views))
+      if (isCurrent()) applyRefresh(result, !cached || !sameViews(cached.views, result.views))
     } catch (error) {
       handleError(error)
     }
-    return 'cache-hit'
+    return cached ? 'cache-hit' : 'cache-miss'
   }
 
   setLoading(true)

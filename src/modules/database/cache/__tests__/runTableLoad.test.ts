@@ -164,6 +164,28 @@ describe('runTableLoad', () => {
     expect(bg.cache.load).toHaveBeenCalledWith(1, { fresh: false })
   })
 
+  it('force without cache entry does not show loading or reapply view', async () => {
+    const fresh = entry([view(1)])
+    const deps = makeDeps({ load: () => Promise.resolve(fresh) })
+    await runTableLoad(1, { force: true }, deps)
+    expect(deps.cache.load).toHaveBeenCalledWith(1, { fresh: true })
+    expect(deps.setLoading).not.toHaveBeenCalled()
+    expect(deps.applyFull).not.toHaveBeenCalled()
+    expect(deps.applyRefresh).toHaveBeenCalledWith(fresh, true)
+
+    // Data is already on screen: a non-403/404 failure only warns
+    const failed = makeDeps({ load: () => Promise.reject(new TableLoadError('x', 500)) })
+    await runTableLoad(1, { force: true }, failed)
+    expect(failed.onError).not.toHaveBeenCalled()
+    expect(failed.setLoading).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalled()
+
+    const gone = makeDeps({ load: () => Promise.reject(new TableLoadError('x', 404)) })
+    await runTableLoad(3, { force: true }, gone)
+    expect(gone.cache.invalidate).toHaveBeenCalledWith(3)
+    expect(gone.onError).toHaveBeenCalled()
+  })
+
   it('force skips applyFull', async () => {
     const deps = makeDeps({ cached: entry() })
     await runTableLoad(1, { force: true }, deps)
