@@ -167,6 +167,77 @@ describe('Route Handler Integration: /api/tables/[tableId]/views', () => {
       expect(data).toEqual(mockUpdated)
     })
 
+    it('updates view with rowHeight', async () => {
+      const mockUpdated = {
+        id: 5,
+        tableId: 10,
+        name: '測試視圖',
+        rowHeight: 'large',
+      }
+      ;(prisma.tableView.update as jest.Mock).mockResolvedValue(mockUpdated)
+
+      const request = new Request('http://localhost:3000/api/tables/10/views', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewId: 5,
+          rowHeight: 'large',
+        }),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ tableId: '10' }) })
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(prisma.tableView.update).toHaveBeenCalledWith({
+        where: { id: 5, tableId: 10 },
+        data: expect.objectContaining({
+          rowHeight: 'large',
+        }),
+      })
+      expect(data).toEqual(mockUpdated)
+    })
+
+    it('rejects invalid rowHeight with 400', async () => {
+      const request = new Request('http://localhost:3000/api/tables/10/views', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewId: 5,
+          rowHeight: 'huge',
+        }),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ tableId: '10' }) })
+
+      expect(response.status).toBe(400)
+      expect(prisma.tableView.update).not.toHaveBeenCalled()
+    })
+
+    it('does not include rowHeight key in update data when not provided', async () => {
+      const mockUpdated = {
+        id: 5,
+        tableId: 10,
+        name: '更新名稱',
+      }
+      ;(prisma.tableView.update as jest.Mock).mockResolvedValue(mockUpdated)
+
+      const request = new Request('http://localhost:3000/api/tables/10/views', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          viewId: 5,
+          name: '更新名稱',
+        }),
+      })
+
+      const response = await PATCH(request, { params: Promise.resolve({ tableId: '10' }) })
+      expect(response.status).toBe(200)
+
+      const updateCall = (prisma.tableView.update as jest.Mock).mock.calls[0][0]
+      expect(updateCall.data).not.toHaveProperty('rowHeight')
+    })
+
     const patchView = (body: Record<string, unknown>) => {
       ;(prisma.tableView.update as jest.Mock).mockResolvedValue({ id: 1, tableId: 10 })
       return PATCH(

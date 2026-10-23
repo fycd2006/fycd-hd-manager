@@ -109,6 +109,7 @@ model TableView {
   groupByField String?
   groupByRules String?       @db.Text         // JSON: GroupByRule[]
   aggregations String?       @db.Text         // JSON: Record<string, string> (mapping fieldId to aggregation mode)
+  rowHeight    String?       @default("small")
   shareToken   String?       @unique // public form share token (form views only)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -237,5 +238,3 @@ model PasswordResetToken {
 
   @@index([email])
 }
-
-

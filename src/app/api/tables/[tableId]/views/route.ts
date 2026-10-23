@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
 import { createServerTiming } from '@/lib/serverTiming'
 import { z } from 'zod'
+import { ROW_HEIGHTS } from '@/modules/database/utils/gridDisplay'
 
 const createViewSchema = z.object({
   name: z.string().min(1, '視圖名稱與類型為必填'),
@@ -34,6 +35,7 @@ const updateViewSchema = z.object({
   groupByField: z.string().nullable().optional(),
   groupByRules: ruleListSchema,
   aggregations: z.any().optional(),
+  rowHeight: z.enum(ROW_HEIGHTS).optional(),
 })
 
 export const GET = withApiHandler<{ tableId: string }>(
@@ -103,7 +105,7 @@ export const PATCH = withApiHandler<{ tableId: string }, z.infer<typeof updateVi
       return typeof val === 'string' ? val : JSON.stringify(val)
     }
 
-    const { name, filters, sortField, sortOrder, sortRules, hiddenFields, columnWidths, rowColors, groupByField, groupByRules, aggregations } = body!
+    const { name, filters, sortField, sortOrder, sortRules, hiddenFields, columnWidths, rowColors, groupByField, groupByRules, aggregations, rowHeight } = body!
 
     // Keep the legacy single-rule columns in sync with the first rule unless sent explicitly
     const primarySort = sortRules?.[0]
@@ -130,6 +132,7 @@ export const PATCH = withApiHandler<{ tableId: string }, z.infer<typeof updateVi
         }),
         ...(groupByField !== undefined && { groupByField }),
         ...(aggregations !== undefined && { aggregations: toJsonString(aggregations) }),
+        ...(rowHeight !== undefined && { rowHeight }),
       }
     })
 

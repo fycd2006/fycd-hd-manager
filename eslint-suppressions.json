@@ -677,7 +677,7 @@
   },
   "src/modules/database/components/toolbar/ViewToolbar.tsx": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 3
+      "count": 2
     }
   },
   "src/modules/database/components/toolbar/menu/ColorMenu.tsx": {

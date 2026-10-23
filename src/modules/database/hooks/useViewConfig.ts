@@ -10,7 +10,9 @@ import type {
   GroupByRule,
   SortRule,
   ViewConfigPatch,
+  RowHeight,
 } from '@/modules/database/types'
+import { normalizeRowHeight } from '@/modules/database/utils/gridDisplay'
 
 interface UseViewConfigParams {
   activeTableId: number | null
@@ -45,10 +47,12 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
   const [showGroupByPanel, setShowGroupByPanel] = useState(false)
   const [groupByField, setGroupByField] = useState<string | null>(null)
   const [groupByRules, setGroupByRules] = useState<GroupByRule[]>([])
+  const [rowHeight, setRowHeightState] = useState<RowHeight>('small')
 
   // Apply a view's persisted config to local state
   const applyViewConfig = useCallback((view: TableView) => {
     setCurrentView(view.type)
+    setRowHeightState(normalizeRowHeight(view.rowHeight))
 
     /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
     const safeParse = (val: unknown, fallback: any): any => {
@@ -166,6 +170,14 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
     } catch { }
   }, [activeTableId])
 
+  const setRowHeight = useCallback((v: RowHeight) => {
+    const normalized = normalizeRowHeight(v)
+    setRowHeightState(normalized)
+    if (activeViewId) {
+      saveViewConfig(activeViewId, { rowHeight: normalized })
+    }
+  }, [activeViewId, saveViewConfig])
+
   // Toggle sort on a field
   const toggleSort = useCallback((fieldKey: string) => {
     let nextOrder: 'asc' | 'desc' = 'asc'
@@ -272,6 +284,7 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
           groupByField: sourceView.groupByField,
           groupByRules: sourceView.groupByRules,
           aggregations: sourceView.aggregations,
+          rowHeight: normalizeRowHeight(sourceView.rowHeight),
         }
         await saveViewConfig(result.view.id, viewConfig)
         const fullView: TableView = {
@@ -282,6 +295,7 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
           columnWidths: typeof viewConfig.columnWidths === 'string' || viewConfig.columnWidths === null ? viewConfig.columnWidths : JSON.stringify(viewConfig.columnWidths),
           rowColors: typeof viewConfig.rowColors === 'string' || viewConfig.rowColors === null ? viewConfig.rowColors : JSON.stringify(viewConfig.rowColors),
           aggregations: typeof viewConfig.aggregations === 'string' || viewConfig.aggregations === null ? viewConfig.aggregations : JSON.stringify(viewConfig.aggregations),
+          rowHeight: normalizeRowHeight(viewConfig.rowHeight),
         } as TableView
         setViews(prev => [...prev.filter(v => v.id !== result.view!.id), fullView])
         setActiveViewId(result.view.id)
@@ -348,6 +362,7 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
     setSortField(null)
     setSortOrder('asc')
     setGroupByField(null)
+    setRowHeightState('small')
   }, [])
 
   return {
@@ -372,6 +387,7 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
     showGroupByPanel, setShowGroupByPanel,
     groupByField, setGroupByField,
     groupByRules, setGroupByRules,
+    rowHeight, setRowHeight,
     // Functions
     applyViewConfig,
     saveViewConfig,

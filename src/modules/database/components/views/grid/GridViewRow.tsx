@@ -325,7 +325,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
             </div>
           </div>
         ) : (
-          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', color: isRowSelected ? '#3F6212' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
+          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--grid-font-size-sm, 11px)', color: isRowSelected ? '#3F6212' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
             {rowIndex + 1}
           </span>
         )}

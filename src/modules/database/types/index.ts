@@ -3,6 +3,9 @@
  * Centralized types for all database-related entities
  */
 
+import type { RowHeight } from '../utils/gridDisplay'
+export type { RowHeight, FontScale } from '../utils/gridDisplay'
+
 // =============================================
 // User & Authentication
 // =============================================
@@ -99,6 +102,7 @@ export interface TableView {
   groupByRules?: GroupByRule[] | string | null
   rowColors: string | null
   aggregations?: string | null
+  rowHeight?: string | null
 }
 
 export type ViewConfigPatch = {
@@ -114,6 +118,7 @@ export type ViewConfigPatch = {
   groupByRules?: GroupByRule[] | string | null
   rowColors?: RowColorRule[] | string | null
   aggregations?: Record<string | number, string> | string | null
+  rowHeight?: RowHeight | string | null
 }
 
 export interface GroupCollapseState {

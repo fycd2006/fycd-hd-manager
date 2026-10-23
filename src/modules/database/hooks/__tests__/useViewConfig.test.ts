@@ -66,3 +66,109 @@ describe('useViewConfig — multi-level sort persistence', () => {
     }))
   })
 })
+
+describe('useViewConfig - rowHeight persistence', () => {
+  const mockSetActiveViewId = jest.fn()
+  const mockAddToast = jest.fn()
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('normalizes rowHeight when applyViewConfig is called', () => {
+    const { result } = renderHook(() =>
+      useViewConfig({
+        activeTableId: 10,
+        activeViewId: 1,
+        setActiveViewId: mockSetActiveViewId,
+        addToast: mockAddToast,
+      })
+    )
+
+    // rowHeight: null -> 'small'
+    act(() => {
+      result.current.applyViewConfig({ ...baseView, rowHeight: null })
+    })
+    expect(result.current.rowHeight).toBe('small')
+
+    // rowHeight: 'extra' -> 'extra'
+    act(() => {
+      result.current.applyViewConfig({ ...baseView, rowHeight: 'extra' })
+    })
+    expect(result.current.rowHeight).toBe('extra')
+
+    // rowHeight: 'huge' (invalid) -> 'small'
+    act(() => {
+      result.current.applyViewConfig({ ...baseView, rowHeight: 'huge' as unknown as string })
+    })
+    expect(result.current.rowHeight).toBe('small')
+  })
+
+  it('calls viewService.updateViewConfig when setRowHeight is called with activeViewId', async () => {
+    ;(viewService.updateViewConfig as jest.Mock).mockResolvedValue({ ok: true })
+
+    const { result } = renderHook(() =>
+      useViewConfig({
+        activeTableId: 10,
+        activeViewId: 1,
+        setActiveViewId: mockSetActiveViewId,
+        addToast: mockAddToast,
+      })
+    )
+
+    act(() => {
+      result.current.setRowHeight('medium')
+    })
+
+    expect(result.current.rowHeight).toBe('medium')
+    expect(viewService.updateViewConfig).toHaveBeenCalledWith(
+      10,
+      1,
+      expect.objectContaining({ rowHeight: 'medium' })
+    )
+  })
+
+  it('preserves source view rowHeight on handleDuplicateView', async () => {
+    const sourceView: TableView = {
+      ...baseView,
+      id: 5,
+      name: 'Source View',
+      rowHeight: 'large',
+    }
+
+    const duplicatedView: TableView = {
+      ...sourceView,
+      id: 6,
+      name: 'Source View (Copy)',
+    }
+
+    ;(viewService.createView as jest.Mock).mockResolvedValue({
+      ok: true,
+      view: duplicatedView,
+    })
+    ;(viewService.updateViewConfig as jest.Mock).mockResolvedValue({ ok: true })
+
+    const { result } = renderHook(() =>
+      useViewConfig({
+        activeTableId: 10,
+        activeViewId: 5,
+        setActiveViewId: mockSetActiveViewId,
+        addToast: mockAddToast,
+      })
+    )
+
+    act(() => {
+      result.current.setViews([sourceView])
+    })
+
+    await act(async () => {
+      await result.current.handleDuplicateView(5)
+    })
+
+    expect(viewService.updateViewConfig).toHaveBeenCalledWith(
+      10,
+      6,
+      expect.objectContaining({ rowHeight: 'large' })
+    )
+  })
+})

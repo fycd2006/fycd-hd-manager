@@ -98,7 +98,7 @@ export const LongTextCellEditor: React.FC<LongTextCellEditorProps> = ({
             background: '#f8fafc',
             flexShrink: 0,
           }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>{fieldName}</span>
+            <span style={{ fontSize: 'var(--grid-font-size, 13px)', fontWeight: 600, color: '#334155' }}>{fieldName}</span>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <button
                 onClick={() => setIsExpanded(false)}
@@ -148,10 +148,10 @@ export const LongTextCellEditor: React.FC<LongTextCellEditorProps> = ({
             background: '#f8fafc',
             flexShrink: 0,
           }}>
-            <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+            <span style={{ fontSize: 'var(--grid-font-size-sm, 11px)', color: '#94a3b8' }}>
               {charCount} 字元 · {wordCount} 詞
             </span>
-            <span style={{ fontSize: '11px', color: '#94a3b8' }}>自動儲存</span>
+            <span style={{ fontSize: 'var(--grid-font-size-sm, 11px)', color: '#94a3b8' }}>自動儲存</span>
           </div>
         </div>
       </ModalOverlay>
@@ -195,7 +195,7 @@ export const LongTextCellEditor: React.FC<LongTextCellEditorProps> = ({
         style={{
           flex: 1,
           minHeight: '100px',
-          fontSize: '13px',
+          fontSize: 'var(--grid-font-size, 13px)',
           fontFamily: 'inherit',
           color: '#0f172a',
           padding: '8px 10px',
@@ -217,7 +217,7 @@ export const LongTextCellEditor: React.FC<LongTextCellEditorProps> = ({
         borderRadius: '0 0 4px 4px',
         flexShrink: 0,
       }}>
-        <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+        <span style={{ fontSize: 'var(--grid-font-size-sm, 11px)', color: '#94a3b8' }}>
           {charCount} 字元
         </span>
         <button
@@ -229,7 +229,7 @@ export const LongTextCellEditor: React.FC<LongTextCellEditorProps> = ({
           style={{
             display: 'inline-flex', alignItems: 'center', gap: '4px',
             padding: '2px 6px', border: '1px solid #cbd5e1', borderRadius: '4px',
-            background: '#fff', cursor: 'pointer', fontSize: '11px', color: '#475569',
+            background: '#fff', cursor: 'pointer', fontSize: 'var(--grid-font-size-sm, 11px)', color: '#475569',
           }}
           title="展開全螢幕"
         >

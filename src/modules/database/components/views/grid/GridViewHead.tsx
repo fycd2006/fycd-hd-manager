@@ -108,9 +108,9 @@ const GridViewHeadInner: React.FC<GridViewHeadProps> = ({
         display: 'flex', 
         width: `${headWidth}px`, 
         minWidth: '100%', 
-        height: '36px', 
-        minHeight: '36px', 
-        maxHeight: '36px', 
+        height: 'var(--grid-header-height, 36px)', 
+        minHeight: 'var(--grid-header-height, 36px)', 
+        maxHeight: 'var(--grid-header-height, 36px)', 
         position: 'relative', 
         boxSizing: 'border-box',
         background: '#ffffff',
@@ -242,7 +242,7 @@ const GridViewHeadInner: React.FC<GridViewHeadProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, pointerEvents: 'none' }}>
               <IconComponent style={{ width: '14px', height: '14px', color: isSorted ? '#3F6212' : '#64748b', flexShrink: 0 }} />
-              <span style={{ fontSize: '13px', fontWeight: isSorted ? 600 : 500, color: isSorted ? '#3F6212' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ fontSize: 'var(--grid-font-size-head, 12px)', fontWeight: isSorted ? 600 : 500, color: isSorted ? '#3F6212' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {field.name}
               </span>
             </div>

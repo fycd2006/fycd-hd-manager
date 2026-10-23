@@ -34,6 +34,7 @@ import { ToastContainer } from '@/components/ui/ToastContainer'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
 import { useViewConfig } from '@/modules/database/hooks/useViewConfig'
+import { useGridFontScale } from '@/modules/database/hooks/useGridFontScale'
 import { useRealtimeSync } from '@/modules/database/hooks/useRealtimeSync'
 import { useFieldOperations } from '@/modules/database/hooks/useFieldOperations'
 import { useMoveOperations } from '@/modules/database/hooks/useMoveOperations'
@@ -154,6 +155,7 @@ export default function Home() {
     showGroupByPanel, setShowGroupByPanel,
     groupByField, setGroupByField,
     groupByRules, setGroupByRules,
+    rowHeight, setRowHeight,
     applyViewConfig,
     saveViewConfig,
     toggleSort,
@@ -239,7 +241,7 @@ export default function Home() {
   const [renameType, setRenameType] = useState<'workspace' | 'database' | 'table' | null>(null)
   const [renameId, setRenameId] = useState<number | null>(null)
   const [renameNameValue, setRenameNameValue] = useState('')
-  const [rowHeightSize, setRowHeightSize] = useState<'small' | 'medium' | 'large' | 'extra'>('small')
+  const [fontScale, setFontScale] = useGridFontScale()
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [showRecentlyDeleted, setShowRecentlyDeleted] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<{ action: 'delete_workspace' | 'delete_database'; id: number; label: string } | null>(null)
@@ -1274,8 +1276,10 @@ export default function Home() {
               setGroupByField={setGroupByField}
               groupCollapseState={groupCollapseState}
               setGroupCollapseState={setGroupCollapseState}
-              rowHeightSize={rowHeightSize}
-              setRowHeightSize={setRowHeightSize}
+              rowHeight={rowHeight}
+              setRowHeight={setRowHeight}
+              fontScale={fontScale}
+              setFontScale={setFontScale}
               frozenColumnsCount={frozenColumnsCount}
               applyViewConfig={applyViewConfig}
               handleDuplicateView={handleDuplicateView}
