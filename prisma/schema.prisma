@@ -102,10 +102,12 @@ model TableView {
   filters      String?       @db.Text         // JSON: FilterRule[]
   sortField    String?
   sortOrder    String?       @default("asc")
+  sortRules    String?       @db.Text         // JSON: SortRule[]
   hiddenFields String?       @db.Text         // JSON: string[] (hidden field keys like field_3)
   columnWidths String?       @db.Text         // JSON: Record<string, number> (mapping field keys to widths)
   rowColors    String?       @db.Text         // JSON: { fieldKey, operator, value, color }[]
   groupByField String?
+  groupByRules String?       @db.Text         // JSON: GroupByRule[]
   aggregations String?       @db.Text         // JSON: Record<string, string> (mapping fieldId to aggregation mode)
   rowHeight    String?       @default("small")
   shareToken   String?       @unique // public form share token (form views only)
@@ -123,6 +125,9 @@ model Workspace {
   invitations WorkspaceInvitation[]
   teams       WorkspaceTeam[]
   createdAt   DateTime              @default(now())
+  deletedAt   DateTime?
+
+  @@index([deletedAt])
 }
 
 model WorkspaceUser {
@@ -181,16 +186,18 @@ model Database {
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tables      DatabaseTable[]
   createdAt   DateTime        @default(now())
+  deletedAt   DateTime?
 
   @@index([workspaceId])
+  @@index([deletedAt])
 }
 
 model RowComment {
   id        Int      @id @default(autoincrement())
   rowId     Int
   row       TableRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   content   String   @db.Text
   createdAt DateTime @default(now())
 

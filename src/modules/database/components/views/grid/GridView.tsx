@@ -7,7 +7,7 @@ import { ChevronRight, ChevronDown, Plus, Trash2, X, Copy } from 'lucide-react';
 import { TableField, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '@/modules/database/types';
 import { getOptionColor, parseSelectItems, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils';
 import { parseLatestCommentEntries } from './cells/LatestCommentModal';
-import { formatDateValue } from '@/modules/database/utils';
+import { formatFieldDate, cellDayInZone, resolveDateOptions, resolveTimeZone, normalizeDateInput } from '@/modules/database/utils/dateTime';
 import { GridViewHead } from './GridViewHead';
 import { GridViewRow } from './GridViewRow';
 import GridViewFieldFooter from '@/modules/database/components/table/GridViewFieldFooter';
@@ -63,7 +63,7 @@ export function formatCellForClipboard(val: any, field?: TableField | null, allF
     }
 
     if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') {
-      return formatDateValue(val);
+      return formatFieldDate(val, { ...resolveDateOptions(field.options, field.type), date_format: 'iso', date_time_format: '24', date_show_time_zone: false }, { fieldType: field.type });
     }
   }
 
@@ -263,9 +263,11 @@ export function parseGroupValue(
   }
 
   // 5. Date
-  if (field && (field.type === 'date' || field.type === 'created_at' || field.type === 'updated_at')) {
+  if (field && (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on')) {
     const dateStr = String(val).trim();
-    if (!dateStr) {
+    const options = resolveDateOptions(field.options, field.type);
+    const day = cellDayInZone(dateStr, resolveTimeZone(options));
+    if (!day) {
       return {
         key: '（空白）',
         displayTitle: '（空白未指定）',
@@ -273,9 +275,9 @@ export function parseGroupValue(
         isBlank: true,
       };
     }
-    const formatted = dateStr.length >= 10 ? dateStr.substring(0, 10) : dateStr;
+    const formatted = formatFieldDate(day, { ...options, date_include_time: false }, { fieldType: 'date' });
     return {
-      key: formatted,
+      key: day,
       displayTitle: formatted,
       badges: [{
         label: formatted,
@@ -423,6 +425,7 @@ interface GridViewProps {
   rowDetailsWidth?: number;
   onUpdateCell?: (rowId: number, fieldId: any, value?: any) => void;
   onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void;
+  recentlyRejected?: Set<string>;
   onAddRow?: () => void;
   onAddField?: () => void;
   onAddFieldPopover?: (position: { top: number; left: number }) => void;
@@ -514,6 +517,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onUpdateAggregations,
   onUpdateCell,
   onBatchUpdateCells,
+  recentlyRejected,
   onAddRow,
   onAddField,
   onAddFieldPopover,
@@ -959,7 +963,10 @@ export const GridView: React.FC<GridViewProps> = ({
       const sortedEntries = Array.from(map.entries()).sort(([keyA, dataA], [keyB, dataB]) => {
         if (dataA.isBlank && !dataB.isBlank) return 1;
         if (!dataA.isBlank && dataB.isBlank) return -1;
-        const cmp = dataA.displayTitle.localeCompare(dataB.displayTitle, 'zh-TW', { numeric: true });
+        const isDateGroup = field?.type === 'date' || field?.type === 'created_on' || field?.type === 'last_modified_on';
+        const cmp = isDateGroup
+          ? (keyA < keyB ? -1 : keyA > keyB ? 1 : 0)
+          : dataA.displayTitle.localeCompare(dataB.displayTitle, 'zh-TW', { numeric: true });
         return rule.order === 'desc' ? -cmp : cmp;
       });
 
@@ -1309,18 +1316,12 @@ export const GridView: React.FC<GridViewProps> = ({
 
     const rowMap = new Map<number, Record<string, any>>();
 
-    const sanitizePastedVal = (raw: string, field: TableField): any => {
-      const trimmed = (raw ?? '').trim();
-      if (field.type === 'number') {
-        return parseNumberInput(trimmed);
-      }
-      if (field.type === 'boolean') {
-        const lower = trimmed.toLowerCase();
-        if (['true', '1', 'yes', 'v', '是', '✓', 'ok'].includes(lower)) return true;
-        if (['false', '0', 'no', '否', 'x'].includes(lower)) return false;
-        return Boolean(trimmed);
-      }
-      return trimmed;
+    // Send the pasted text as-is (trimmed); the server parses and validates per field type.
+    // Date text is converted in the browser first so client-zone wall times use the viewer's zone.
+    const sanitizePastedVal = (raw: string, field?: TableField): string => {
+      const text = (raw ?? '').trim();
+      if (field?.type === 'date' && text) return normalizeDateInput(text, field.options) ?? text;
+      return text;
     };
 
     if (selectionBounds && selectionBounds.isMulti) {
@@ -2467,6 +2468,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                       fields={fields}
                                       rowColorRules={rowColorRules}
                                       rowDetailsWidth={rowDetailsWidth}
+                                      recentlyRejected={recentlyRejected}
                                       selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
                                       isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                                       initialTypeOverValue={editingCellInfo?.rowId === row.id && isEditing ? typeOverValue : undefined}
@@ -2608,6 +2610,7 @@ export const GridView: React.FC<GridViewProps> = ({
                         fields={fields}
                         rowColorRules={rowColorRules}
                         rowDetailsWidth={rowDetailsWidth}
+                        recentlyRejected={recentlyRejected}
                         selectedColumnIndex={editingCellInfo && editingCellInfo.rowId === row.id ? editingCellInfo.colIndex : (selectedCell?.[0] === rIndex ? selectedCell[1] : null)}
                         isCellEditing={isEditing && (editingCellInfo ? editingCellInfo.rowId === row.id : selectedCell?.[0] === rIndex)}
                         initialTypeOverValue={editingCellInfo?.rowId === row.id && isEditing ? typeOverValue : undefined}

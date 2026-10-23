@@ -4,6 +4,7 @@
  */
 
 import { TableField, TableRow, CellValue } from '../types'
+import { formatFieldDate, normalizeDateInput, resolveDateOptions } from './dateTime'
 
 /**
  * Parse a single CSV line handling quoted fields and escaped quotes
@@ -69,6 +70,12 @@ export const exportToCSV = (
             }
             return String(item)
           }).join('; ')
+        } else if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') {
+          valStr = formatFieldDate(
+            val,
+            { ...resolveDateOptions(field.options, field.type), date_format: 'iso', date_time_format: '24', date_show_time_zone: false },
+            { fieldType: field.type }
+          )
         } else {
           valStr = String(val)
         }
@@ -155,32 +162,20 @@ export const parseCSVFile = (text: string): { headers: string[]; rows: string[][
 }
 
 /**
- * Helper to convert raw string value to typed cell value
+ * Helper to prepare a raw CSV string for the server. Types (booleans, numbers...) are judged by the
+ * server's cell-write validation, so values are only trimmed; invalid cells come back as `rejected`.
  */
 function convertCSVValue(rawValue: string, field: TableField): CellValue {
   const trimmed = rawValue.trim()
   switch (field.type) {
-    case 'boolean':
-      return (
-        trimmed.toLowerCase() === 'true' ||
-        trimmed === '1' ||
-        trimmed === '是' ||
-        trimmed.toLowerCase() === 'yes' ||
-        trimmed.toLowerCase() === 'y'
-      )
-    case 'number':
-    case 'rating': {
-      if (trimmed === '') return null
-      const cleanNumStr = trimmed.replace(/,/g, '')
-      const num = Number(cleanNumStr)
-      return isNaN(num) ? null : num
-    }
     case 'multiple_select':
       return trimmed ? trimmed.split(/[,;]/).map(v => v.trim()).filter(Boolean) : []
     case 'link_row':
       return []
+    case 'date':
+      return normalizeDateInput(trimmed, field.options) ?? trimmed
     default:
-      return rawValue
+      return trimmed
   }
 }
 

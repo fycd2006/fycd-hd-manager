@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
+import { createServerTiming } from '@/lib/serverTiming'
 import { z } from 'zod'
 import { ROW_HEIGHTS } from '@/modules/database/utils/gridDisplay'
 
@@ -9,16 +10,30 @@ const createViewSchema = z.object({
   type: z.string().min(1, '視圖名稱與類型為必填'),
 })
 
+// Multi-level sort/group rules; the client may send them as an array or a JSON string
+const ruleListSchema = z.preprocess(
+  (val) => {
+    if (typeof val !== 'string') return val
+    try { return JSON.parse(val) } catch { return val }
+  },
+  z.array(z.object({
+    fieldKey: z.string().regex(/^field_\d+$/),
+    order: z.enum(['asc', 'desc']),
+  })).max(10).nullable().optional()
+)
+
 const updateViewSchema = z.object({
   viewId: z.union([z.number(), z.string()]),
   name: z.string().optional(),
   filters: z.any().optional(),
   sortField: z.string().nullable().optional(),
   sortOrder: z.string().nullable().optional(),
+  sortRules: ruleListSchema,
   hiddenFields: z.any().optional(),
   columnWidths: z.any().optional(),
   rowColors: z.any().optional(),
   groupByField: z.string().nullable().optional(),
+  groupByRules: ruleListSchema,
   aggregations: z.any().optional(),
   rowHeight: z.enum(ROW_HEIGHTS).optional(),
 })
@@ -28,24 +43,28 @@ export const GET = withApiHandler<{ tableId: string }>(
     const tid = parseInt(params.tableId)
     if (isNaN(tid)) return NextResponse.json({ error: '無效的 Table ID' }, { status: 400 })
 
-    let views = await prisma.tableView.findMany({
-      where: { tableId: tid },
-      orderBy: { createdAt: 'asc' }
+    const t = createServerTiming()
+    const views = await t.time('handler', async () => {
+      let found = await prisma.tableView.findMany({
+        where: { tableId: tid },
+        orderBy: { createdAt: 'asc' }
+      })
+
+      // If no views exist for this table, auto-create a default grid view
+      if (found.length === 0) {
+        const defaultView = await prisma.tableView.create({
+          data: {
+            tableId: tid,
+            name: '預設表格視圖',
+            type: 'grid'
+          }
+        })
+        found = [defaultView]
+      }
+      return found
     })
 
-    // If no views exist for this table, auto-create a default grid view
-    if (views.length === 0) {
-      const defaultView = await prisma.tableView.create({
-        data: {
-          tableId: tid,
-          name: '預設表格視圖',
-          type: 'grid'
-        }
-      })
-      views = [defaultView]
-    }
-
-    return views
+    return NextResponse.json(views, { headers: { 'Server-Timing': t.header() } })
   },
   {
     auth: { action: 'canViewData' },
@@ -86,18 +105,31 @@ export const PATCH = withApiHandler<{ tableId: string }, z.infer<typeof updateVi
       return typeof val === 'string' ? val : JSON.stringify(val)
     }
 
-    const { name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField, aggregations, rowHeight } = body!
+    const { name, filters, sortField, sortOrder, sortRules, hiddenFields, columnWidths, rowColors, groupByField, groupByRules, aggregations, rowHeight } = body!
+
+    // Keep the legacy single-rule columns in sync with the first rule unless sent explicitly
+    const primarySort = sortRules?.[0]
+    const primaryGroup = groupByRules?.[0]
 
     const updated = await prisma.tableView.update({
       where: { id: vid, tableId: tid },
       data: {
         ...(name !== undefined && { name }),
         ...(filters !== undefined && { filters: toJsonString(filters) }),
+        ...(sortRules !== undefined && {
+          sortRules: toJsonString(sortRules),
+          sortField: primarySort?.fieldKey ?? null,
+          sortOrder: primarySort?.order ?? 'asc',
+        }),
         ...(sortField !== undefined && { sortField }),
         ...(sortOrder !== undefined && { sortOrder }),
         ...(hiddenFields !== undefined && { hiddenFields: toJsonString(hiddenFields) }),
         ...(columnWidths !== undefined && { columnWidths: toJsonString(columnWidths) }),
         ...(rowColors !== undefined && { rowColors: toJsonString(rowColors) }),
+        ...(groupByRules !== undefined && {
+          groupByRules: toJsonString(groupByRules),
+          groupByField: primaryGroup?.fieldKey ?? null,
+        }),
         ...(groupByField !== undefined && { groupByField }),
         ...(aggregations !== undefined && { aggregations: toJsonString(aggregations) }),
         ...(rowHeight !== undefined && { rowHeight }),

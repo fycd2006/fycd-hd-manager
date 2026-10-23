@@ -5,6 +5,7 @@
 
 import { TableRow, CellValue } from '../types'
 import { getSocketId } from '@/lib/pusher-client'
+import { localWriteTracker } from '../cache/localWriteTracker'
 
 export interface FetchRowsResponse {
   rows: TableRow[]
@@ -53,6 +54,7 @@ export async function fetchRows(
  * Create a new row
  */
 export const createRow = async (tableId: number, data: Record<string, CellValue>): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows`, {
@@ -67,6 +69,8 @@ export const createRow = async (tableId: number, data: Record<string, CellValue>
     return { ok: false, error: resData.error || '新增列失敗' }
   } catch {
     return { ok: false, error: '新增列失敗' }
+  } finally {
+    endWrite()
   }
 }
 
@@ -80,6 +84,7 @@ export const updateCell = async (
   value: CellValue,
   options?: { signal?: AbortSignal }
 ): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows`, {
@@ -95,6 +100,8 @@ export const updateCell = async (
     return { ok: false, error: data.error || '更新失敗' }
   } catch {
     return { ok: false, error: '更新失敗' }
+  } finally {
+    endWrite()
   }
 }
 
@@ -105,7 +112,13 @@ export const updateRow = async (
   tableId: number,
   rowId: number,
   data: Record<string, any>
-): Promise<{ ok: boolean; row?: TableRow; error?: string }> => {
+): Promise<{
+  ok: boolean
+  row?: TableRow
+  error?: string
+  rejected?: Array<{ rowId: number; fieldId: number; code: string; reason: string }>
+}> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
@@ -115,11 +128,13 @@ export const updateRow = async (
     })
     const resData = await res.json()
     if (res.ok) {
-      return { ok: true }
+      return { ok: true, rejected: resData.rejected }
     }
     return { ok: false, error: resData.error || '更新列失敗' }
   } catch {
     return { ok: false, error: '更新列失敗' }
+  } finally {
+    endWrite()
   }
 }
 
@@ -129,7 +144,13 @@ export const updateRow = async (
 export const batchUpdateRows = async (
   tableId: number,
   updates: Array<{ rowId: number; data: Record<string, any> }>
-): Promise<{ ok: boolean; updates?: Array<{ rowId: number; data: Record<string, any> }>; error?: string }> => {
+): Promise<{
+  ok: boolean
+  updates?: Array<{ rowId: number; data: Record<string, any> }>
+  rejected?: Array<{ rowId: number; fieldId: number; code: string; reason: string }>
+  error?: string
+}> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
@@ -139,11 +160,13 @@ export const batchUpdateRows = async (
     })
     const resData = await res.json()
     if (res.ok) {
-      return { ok: true, updates: resData.updates }
+      return { ok: true, updates: resData.updates, rejected: resData.rejected }
     }
     return { ok: false, error: resData.error || '批次更新失敗' }
   } catch {
     return { ok: false, error: '批次更新失敗' }
+  } finally {
+    endWrite()
   }
 }
 
@@ -151,6 +174,7 @@ export const batchUpdateRows = async (
  * Delete a row
  */
 export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: boolean; error?: string }> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const query = socketId ? `?rowId=${rowId}&socket_id=${encodeURIComponent(socketId)}` : `?rowId=${rowId}`
@@ -164,6 +188,8 @@ export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: b
     return { ok: false, error: data.error || '刪除列失敗' }
   } catch {
     return { ok: false, error: '刪除列失敗' }
+  } finally {
+    endWrite()
   }
 }
 
@@ -171,6 +197,7 @@ export const deleteRow = async (tableId: number, rowId: number): Promise<{ ok: b
  * Reorder rows
  */
 export const reorderRows = async (tableId: number, rowIds: number[]): Promise<{ ok: boolean; error?: string }> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/reorder`, {
@@ -185,6 +212,8 @@ export const reorderRows = async (tableId: number, rowIds: number[]): Promise<{ 
     return { ok: false, error: data.error || '調整列順序失敗' }
   } catch {
     return { ok: false, error: '調整列順序失敗' }
+  } finally {
+    endWrite()
   }
 }
 
@@ -194,7 +223,13 @@ export const reorderRows = async (tableId: number, rowIds: number[]): Promise<{ 
 export const batchCreateRows = async (
   tableId: number,
   rows: Array<{ clientId: string; data: Record<string, any> }>
-): Promise<{ ok: boolean; rows?: TableRow[]; error?: string }> => {
+): Promise<{
+  ok: boolean
+  rows?: TableRow[]
+  rejected?: Array<{ clientId: string; fieldId: number; code: string; reason: string }>
+  error?: string
+}> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
@@ -204,11 +239,13 @@ export const batchCreateRows = async (
     })
     const resData = await res.json()
     if (res.ok) {
-      return { ok: true, rows: resData.rows }
+      return { ok: true, rows: resData.rows, rejected: resData.rejected }
     }
     return { ok: false, error: resData.error || '批次新增列失敗' }
   } catch {
     return { ok: false, error: '批次新增列失敗' }
+  } finally {
+    endWrite()
   }
 }
 
@@ -219,6 +256,7 @@ export const batchDeleteRows = async (
   tableId: number,
   rowIds: number[]
 ): Promise<{ ok: boolean; count?: number; error?: string }> => {
+  const endWrite = localWriteTracker.beginWrite()
   try {
     const socketId = getSocketId()
     const res = await fetch(`/api/tables/${tableId}/rows/batch`, {
@@ -233,5 +271,7 @@ export const batchDeleteRows = async (
     return { ok: false, error: resData.error || '批次刪除列失敗' }
   } catch {
     return { ok: false, error: '批次刪除列失敗' }
+  } finally {
+    endWrite()
   }
 }

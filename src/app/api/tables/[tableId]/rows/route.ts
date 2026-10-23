@@ -4,16 +4,18 @@ import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
+import { createServerTiming } from '@/lib/serverTiming'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds, type LinkSyncResult } from '@/modules/database/services/linkRowSync'
 import { authorizeLinkRowOperation } from '@/modules/database/services/linkRowOperations'
 import { softDeleteMasterViewOverrides } from '@/modules/database/services/masterViewOverride'
 import { invalidateMasterViewCache, invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
-import { FieldRegistry } from '@/modules/database/fields/types'
 import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 import { createTableRow } from '@/modules/database/services/createRow'
 import { safeJsonParse } from '@/lib/json-utils'
 import { triggerTableEvent } from '@/lib/pusher-server'
+import { prepareCellWrites, applyChoiceRemap, formatRejection, type FieldMeta } from '@/modules/database/services/cellWrite'
+import { applyOptionAdditions } from '@/modules/database/services/cellWriteOptions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -28,12 +30,14 @@ export async function GET(
   { params }: { params: Promise<{ tableId: string }> }
 ) {
   const executeQuery = async () => {
+    const t = createServerTiming()
+    const totalStart = performance.now()
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
     // 讀取資料列同樣需要登入且為工作區成員（含 viewer 角色）
-    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canViewData' })
+    const { errorResponse } = await t.time('auth', () => authorizeAction({ tableId: id, action: 'canViewData' }))
     if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
@@ -45,6 +49,7 @@ export async function GET(
     const pageParam = searchParams.get('page')
     const pageSizeParam = searchParams.get('pageSize')
 
+    const queryStart = performance.now()
     const result = await getPopulatedTableRows(id, {
       rowId: rowIdParam ? parseInt(rowIdParam, 10) : undefined,
       sortField,
@@ -52,13 +57,17 @@ export async function GET(
       filterParam,
       searchQuery,
       pageParam,
-      pageSizeParam
+      pageSizeParam,
+      timing: t,
     })
+    t.add('query', performance.now() - queryStart - t.get('populate'))
 
+    t.add('total', performance.now() - totalStart)
     const noCacheHeaders = {
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
+      'Server-Timing': t.header(),
     }
 
     if (result.isPaginated) {
@@ -111,7 +120,7 @@ export async function POST(
     const input = { ...(body ?? {}), ...(body?.data ?? {}) }
     const username = await getSessionUsername()
 
-    const result = await createTableRow({ tableId: id, input, username })
+    const result = await createTableRow({ tableId: id, input, username, canAddOptions: true })
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
@@ -119,6 +128,9 @@ export async function POST(
     const createdRow = result.row
     const socketId = body?.socket_id || body?.data?.socket_id
     triggerTableEvent(id, 'row-created', { row: createdRow }, socketId)
+    for (const u of result.updatedFields ?? []) {
+      triggerTableEvent(id, 'field-updated', { field: u })
+    }
 
     return NextResponse.json(createdRow, { status: 201 })
   } catch (error: unknown) {
@@ -127,7 +139,28 @@ export async function POST(
   }
 }
 
-import { validateRowPatchPayload } from '@/modules/database/services/rowValidation'
+function buildSetFragments(data: Record<string, unknown>): Prisma.Sql[] {
+  const setFragments: Prisma.Sql[] = []
+  for (const [k, val] of Object.entries(data)) {
+    const jsonPath = `$.${k}`
+    if (val === null || val === undefined) {
+      setFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
+    } else if (typeof val === 'number') {
+      if (Number.isFinite(val)) {
+        setFragments.push(Prisma.sql`${jsonPath}, ${val}`)
+      } else {
+        setFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
+      }
+    } else if (typeof val === 'boolean') {
+      setFragments.push(Prisma.sql`${jsonPath}, CAST(${val ? 'true' : 'false'} AS JSON)`)
+    } else if (typeof val === 'object') {
+      setFragments.push(Prisma.sql`${jsonPath}, CAST(${JSON.stringify(val)} AS JSON)`)
+    } else {
+      setFragments.push(Prisma.sql`${jsonPath}, ${String(val)}`)
+    }
+  }
+  return setFragments
+}
 
 export async function PATCH(
   request: Request,
@@ -171,8 +204,7 @@ export async function PATCH(
     }
 
     const username = await getSessionUsername()
-    const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-    const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
+    const nowStr = new Date().toISOString()
 
     let updateMap: Record<string, any> = {}
     if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
@@ -182,51 +214,52 @@ export async function PATCH(
       updateMap[fieldKey] = value
     }
 
-    // Auto-update audit fields if present
+    // 1. Unified cell-write validation (any rejection rejects the whole request)
+    const fieldMetas: FieldMeta[] = fields.map((f) => ({
+      id: f.id,
+      name: f.name,
+      type: f.type,
+      options: typeof f.options === 'string' ? safeJsonParse(f.options, null) : f.options,
+    }))
+    const currentData = safeJsonParse<Record<string, unknown>>(currentRow.data, {})
+    const prepared = prepareCellWrites({
+      fields: fieldMetas,
+      input: updateMap,
+      mode: 'update',
+      canAddOptions: true,
+      actor: { username },
+      existing: currentData,
+    })
+    if (prepared.rejected.length > 0) {
+      const first = prepared.rejected[0]
+      const rejectedField = fields.find((f) => f.id === first.fieldId)
+      return NextResponse.json({ error: formatRejection(rejectedField?.name ?? `field_${first.fieldId}`, first) }, { status: 400 })
+    }
+    const hasOptionAdditions = Object.keys(prepared.optionAdditions).length > 0
+
+    // Server-owned audit fields are set after validation
+    const writeData: Record<string, unknown> = { ...prepared.data }
     for (const f of fields) {
       const key = `field_${f.id}`
       if (f.type === 'last_modified_by') {
-        updateMap[key] = username
+        writeData[key] = username
       } else if (f.type === 'last_modified_on') {
-        updateMap[key] = nowStr
+        writeData[key] = nowStr
       }
     }
 
-    // 1. Zod Schema Dynamic Validation
-    const validationRes = validateRowPatchPayload(updateMap, fields)
-    if (!validationRes.valid) {
-      return NextResponse.json({ error: validationRes.error }, { status: 400 })
-    }
-
-    // 2. FieldRegistry validation / transformation
-    for (const f of fields) {
-      const key = `field_${f.id}`
-      if (key in updateMap && f.type !== 'last_modified_by' && f.type !== 'last_modified_on') {
-        const fOpts = typeof f.options === 'string' ? safeJsonParse(f.options, {}) : (f.options || {})
-        const fieldType = FieldRegistry.get(f.type)
-        const validateRes = fieldType.validateValue(updateMap[key], fOpts)
-        if (!validateRes.valid) {
-          return NextResponse.json({ error: `欄位 [${f.name}] 驗證失敗: ${validateRes.error}` }, { status: 400 })
-        }
-        updateMap[key] = validateRes.parsedValue
-      }
-    }
-
-    const validFieldKeys = new Set(fields.map((f) => `field_${f.id}`))
-    const entries = Object.entries(updateMap).filter(([k]) => /^field_\d+$/.test(k) && validFieldKeys.has(k))
+    const entries = Object.entries(writeData)
 
     if (entries.length > 0) {
-      const currentData = safeJsonParse<Record<string, any>>(currentRow.data, {})
-
       // Detect link_row field changes to trigger bi-directional synchronization and validate target permissions
       const linkRowFields = fields.filter((f) => f.type === 'link_row')
       const linkRowSyncTasks: Promise<LinkSyncResult | null>[] = []
 
       for (const f of linkRowFields) {
         const key = `field_${f.id}`
-        if (key in updateMap) {
+        if (key in writeData) {
           const oldVal = currentData[key]
-          const newVal = updateMap[key]
+          const newVal = writeData[key]
 
           const oldIds = parseLinkRowIds(oldVal)
           const newIds = parseLinkRowIds(newVal)
@@ -257,30 +290,27 @@ export async function PATCH(
       }
 
       // 3. MySQL JSON_SET Atomic Parameterized Partial Update
-      const setFragments: Prisma.Sql[] = []
-      for (const [k, val] of entries) {
-        const jsonPath = `$.${k}`
-        if (val === null || val === undefined) {
-          setFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
-        } else if (typeof val === 'number') {
-          if (Number.isFinite(val)) {
-            setFragments.push(Prisma.sql`${jsonPath}, ${val}`)
-          } else {
-            setFragments.push(Prisma.sql`${jsonPath}, CAST('null' AS JSON)`)
-          }
-        } else if (typeof val === 'boolean') {
-          setFragments.push(Prisma.sql`${jsonPath}, CAST(${val ? 'true' : 'false'} AS JSON)`)
-        } else if (typeof val === 'object') {
-          setFragments.push(Prisma.sql`${jsonPath}, CAST(${JSON.stringify(val)} AS JSON)`)
-        } else {
-          setFragments.push(Prisma.sql`${jsonPath}, ${String(val)}`)
-        }
-      }
-
+      // Option additions (new select choices) and the cell write share one transaction.
       const now = new Date()
-      await prisma.$executeRaw(
-        Prisma.sql`UPDATE TableRow SET data = JSON_SET(COALESCE(data, '{}'), ${Prisma.join(setFragments, ', ')}), updatedAt = ${now} WHERE id = ${rid} AND tableId = ${tid} AND deletedAt IS NULL`
-      )
+      if (hasOptionAdditions) {
+        let updatedFields: Array<{ id: number; options: unknown }> = []
+        await prisma.$transaction(async (tx) => {
+          const applied = await applyOptionAdditions(tx, tid, prepared.optionAdditions)
+          updatedFields = applied.updated
+          const finalData = applyChoiceRemap(writeData, fieldMetas, applied.remap)
+          await tx.$executeRaw(
+            Prisma.sql`UPDATE TableRow SET data = JSON_SET(COALESCE(data, '{}'), ${Prisma.join(buildSetFragments(finalData), ', ')}), updatedAt = ${now} WHERE id = ${rid} AND tableId = ${tid} AND deletedAt IS NULL`
+          )
+        })
+        for (const u of updatedFields) {
+          const original = fields.find((f) => f.id === u.id)
+          triggerTableEvent(tid, 'field-updated', { field: { ...original, ...u } })
+        }
+      } else {
+        await prisma.$executeRaw(
+          Prisma.sql`UPDATE TableRow SET data = JSON_SET(COALESCE(data, '{}'), ${Prisma.join(buildSetFragments(writeData), ', ')}), updatedAt = ${now} WHERE id = ${rid} AND tableId = ${tid} AND deletedAt IS NULL`
+        )
+      }
 
       let updatedRow = await prisma.tableRow.findUnique({
         where: { id: rid },

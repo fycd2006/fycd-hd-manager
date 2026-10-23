@@ -6,6 +6,7 @@ import { useI18n } from '@/lib/i18n/i18nContext'
 import { parseSelectItems } from '../grid/cells/utils'
 import { KanbanViewSkeleton } from './KanbanViewSkeleton'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
+import { formatFieldDate } from '@/modules/database/utils/dateTime'
 
 interface TableField {
   id: number
@@ -277,6 +278,9 @@ export default function KanbanView({
                                       if (val == null || val === '') return null
                                       
                                       let displayVal = String(val)
+                                      if (f.type === 'date' || f.type === 'created_on' || f.type === 'last_modified_on') {
+                                        displayVal = formatFieldDate(val, f.options, { fieldType: f.type })
+                                      }
                                       // Format object list for links
                                       if (f.type === 'link_row' && Array.isArray(val)) {
                                         displayVal = val.map(item => typeof item === 'object' ? (item as any)?.value : item).join(', ')

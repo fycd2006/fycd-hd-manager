@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
 import { getSessionUser } from '@/lib/auth'
+import { createServerTiming } from '@/lib/serverTiming'
 import { createGeneratedColumn } from '@/modules/database/services/schemaService'
 import { triggerTableEvent } from '@/lib/pusher-server'
 import { z } from 'zod'
@@ -20,11 +21,12 @@ export const GET = withApiHandler<{ tableId: string }>(
     const id = parseInt(params.tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    const fields = await prisma.tableField.findMany({
+    const t = createServerTiming()
+    const fields = await t.time('handler', () => prisma.tableField.findMany({
       where: { tableId: id, deletedAt: null },
       orderBy: { order: 'asc' },
-    })
-    return fields
+    }))
+    return NextResponse.json(fields, { headers: { 'Server-Timing': t.header() } })
   },
   {
     auth: { action: 'canViewData' },
@@ -74,8 +76,6 @@ export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createFie
       try {
         const sessionUser = await getSessionUser()
         const currentUsername = sessionUser?.username || '系統 (System)'
-        const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
-        const nowStr = new Date().toLocaleDateString('zh-TW', dateOpt)
 
         const existingRows = await prisma.tableRow.findMany({
           where: { tableId: id, deletedAt: null }
@@ -90,7 +90,7 @@ export const POST = withApiHandler<{ tableId: string }, z.infer<typeof createFie
                 if (type === 'created_by' || type === 'last_modified_by') {
                   dataObj[key] = currentUsername
                 } else {
-                  dataObj[key] = new Date(r.createdAt || Date.now()).toLocaleDateString('zh-TW', dateOpt) || nowStr
+                  dataObj[key] = new Date(r.createdAt || Date.now()).toISOString()
                 }
               }
               await tx.tableRow.update({

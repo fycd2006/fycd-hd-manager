@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 
 export async function GET(request: Request) {
   try {
@@ -51,21 +52,40 @@ export async function GET(request: Request) {
       },
     })
 
-    // 3. Delete fields soft-deleted > 30 days
-    const deletedFieldsResult = await prisma.tableField.deleteMany({
-      where: {
-        deletedAt: {
-          lte: cutoffDate,
-          not: null,
-        },
+    // 3. Delete fields soft-deleted > 30 days, then clear lookup/rollup references to each
+    const expiredWhere = {
+      deletedAt: {
+        lte: cutoffDate,
+        not: null,
       },
+    }
+    const expiredFields = await prisma.tableField.findMany({
+      where: expiredWhere,
+      select: { id: true },
     })
+    const expiredFieldIds = expiredFields.map((f) => f.id)
+    // Clean references first so a failure leaves the fields in place for the next run.
+    for (const id of expiredFieldIds) {
+      await cleanupFieldDependencies(id)
+    }
+    const deletedFieldsResult =
+      expiredFieldIds.length > 0
+        ? await prisma.tableField.deleteMany({ where: { id: { in: expiredFieldIds } } })
+        : { count: 0 }
+
+    // 4. Delete databases soft-deleted > 30 days (children cascade)
+    const deletedDatabasesResult = await prisma.database.deleteMany({ where: expiredWhere })
+
+    // 5. Delete workspaces soft-deleted > 30 days (children cascade)
+    const deletedWorkspacesResult = await prisma.workspace.deleteMany({ where: expiredWhere })
 
     const summary = {
       message: 'Trash cleanup completed successfully',
       deletedRows: deletedRowsResult.count,
       deletedTables: deletedTablesResult.count,
       deletedFields: deletedFieldsResult.count,
+      deletedDatabases: deletedDatabasesResult.count,
+      deletedWorkspaces: deletedWorkspacesResult.count,
       retentionDays: RETENTION_DAYS,
       executedAt: new Date().toISOString(),
     }

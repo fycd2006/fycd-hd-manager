@@ -2,6 +2,8 @@ import prisma from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
+import type { ServerTiming } from '@/lib/serverTiming'
+import { cellDayInZone, resolveDateOptions, resolveTimeZone } from '../utils/dateTime'
 
 export interface QueryOptions {
   rowId?: number | string | null
@@ -11,6 +13,7 @@ export interface QueryOptions {
   searchQuery?: string | null
   pageParam?: string | null
   pageSizeParam?: string | null
+  timing?: ServerTiming
 }
 
 export interface ParsedRow {
@@ -195,10 +198,12 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 
   lookupFields.forEach(lf => {
     const opts = safeJsonParse(lf.options, {} as any)
-    if (opts.relationFieldId && opts.targetFieldId) {
+    const relationFieldId = Number(opts.relationFieldId)
+    const targetFieldId = Number(opts.targetFieldId)
+    if (relationFieldId > 0 && targetFieldId > 0) {
       activeRelationFields[lf.id] = {
-        relationFieldId: opts.relationFieldId,
-        targetFieldId: opts.targetFieldId,
+        relationFieldId,
+        targetFieldId,
         type: 'lookup'
       }
     }
@@ -206,15 +211,36 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 
   rollupFields.forEach(rf => {
     const opts = safeJsonParse(rf.options, {} as any)
-    if (opts.relationFieldId && opts.targetFieldId) {
+    const relationFieldId = Number(opts.relationFieldId)
+    const targetFieldId = Number(opts.targetFieldId)
+    if (relationFieldId > 0 && targetFieldId > 0) {
       activeRelationFields[rf.id] = {
-        relationFieldId: opts.relationFieldId,
-        targetFieldId: opts.targetFieldId,
+        relationFieldId,
+        targetFieldId,
         type: 'rollup',
         rollupFunction: opts.rollupFunction || 'sum'
       }
     }
   })
+
+  // A lookup/rollup is unset when either referenced field is not active (soft-deleted or purged)
+  const referencedFieldIds = new Set<number>()
+  Object.values(activeRelationFields).forEach(ref => {
+    referencedFieldIds.add(ref.relationFieldId)
+    referencedFieldIds.add(ref.targetFieldId)
+  })
+  if (referencedFieldIds.size > 0) {
+    const activeFieldRows = await prisma.tableField.findMany({
+      where: { id: { in: Array.from(referencedFieldIds) }, deletedAt: null },
+      select: { id: true },
+    })
+    const activeFieldIds = new Set(activeFieldRows.map(f => f.id))
+    for (const [id, ref] of Object.entries(activeRelationFields)) {
+      if (!activeFieldIds.has(ref.relationFieldId) || !activeFieldIds.has(ref.targetFieldId)) {
+        delete activeRelationFields[Number(id)]
+      }
+    }
+  }
 
   rows.forEach(row => {
     Object.values(activeRelationFields).forEach(ref => {
@@ -347,6 +373,10 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
       if (ref.type === 'lookup') {
         newData[destKey] = values.join(', ')
       } else if (ref.type === 'rollup') {
+        if (ref.rollupFunction === 'concat') {
+          newData[destKey] = values.join(', ')
+          return
+        }
         const numValues = values.map(Number).filter(n => !isNaN(n))
         if (numValues.length === 0) {
           newData[destKey] = 0
@@ -357,8 +387,12 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
           newData[destKey] = numValues.reduce((a, b) => a + b, 0)
         } else if (ref.rollupFunction === 'count') {
           newData[destKey] = numValues.length
-        } else if (ref.rollupFunction === 'average') {
+        } else if (ref.rollupFunction === 'avg' || ref.rollupFunction === 'average') {
           newData[destKey] = numValues.reduce((a, b) => a + b, 0) / numValues.length
+        } else if (ref.rollupFunction === 'min') {
+          newData[destKey] = Math.min(...numValues)
+        } else if (ref.rollupFunction === 'max') {
+          newData[destKey] = Math.max(...numValues)
         } else {
           newData[destKey] = 0
         }
@@ -396,14 +430,13 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 
     auditFields.forEach(af => {
       const destKey = `field_${af.id}`
-      const dateOpt = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' } as const
 
       switch (af.type) {
         case 'created_on':
-          newData[destKey] = new Date(row.createdAt).toLocaleDateString('zh-TW', dateOpt)
+          newData[destKey] = new Date(row.createdAt).toISOString()
           break
         case 'last_modified_on':
-          newData[destKey] = new Date(row.updatedAt).toLocaleDateString('zh-TW', dateOpt)
+          newData[destKey] = new Date(row.updatedAt).toISOString()
           break
         case 'created_by':
         case 'last_modified_by': {
@@ -423,7 +456,7 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 }
 
 export async function getPopulatedTableRows(tableId: number, options: QueryOptions) {
-  const { rowId, sortField, sortOrder = 'asc', filterParam, searchQuery, pageParam, pageSizeParam } = options
+  const { rowId, sortField, sortOrder = 'asc', filterParam, searchQuery, pageParam, pageSizeParam, timing } = options
 
   // 1. Fetch fields to identify special field types
   const fields = await prisma.tableField.findMany({
@@ -511,8 +544,8 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
         : Prisma.sql`SELECT id, clientId, tableId, data, \`order\`, createdAt, updatedAt, deletedAt FROM TableRow WHERE ${whereSql} ORDER BY ${effectiveOrder}`
     )
 
-    let rawParsed = rawRows.map(sanitizeRawRow)
-    const populated = await populateRows(rawParsed, fields)
+    const rawParsed = rawRows.map(sanitizeRawRow)
+    const populated = await (timing ? timing.time('populate', () => populateRows(rawParsed, fields)) : populateRows(rawParsed, fields))
 
     if (wantPagination) {
       return {
@@ -562,7 +595,7 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
   })
 
   let parsed: ParsedRow[] = rows.map(r => ({ ...r, data: safeJsonParse<Record<string, any>>(r.data, {}) }))
-  parsed = await populateRows(parsed, fields)
+  parsed = await (timing ? timing.time('populate', () => populateRows(parsed, fields)) : populateRows(parsed, fields))
 
   // Apply filters (operates on populated values)
   if (parsedFilter) {
@@ -578,20 +611,18 @@ export async function getPopulatedTableRows(tableId: number, options: QueryOptio
         case 'higher_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) >= Number(filterValue)
         case 'lower_than': return !isNaN(Number(cellValue)) && Number(cellValue) < Number(filterValue)
         case 'lower_than_or_equal': return !isNaN(Number(cellValue)) && Number(cellValue) <= Number(filterValue)
-        case 'date_equal': {
-          const d1 = new Date(cellValue).getTime()
-          const d2 = new Date(filterValue).getTime()
-          return !isNaN(d1) && !isNaN(d2) && new Date(d1).toDateString() === new Date(d2).toDateString()
-        }
-        case 'date_before': {
-          const d1 = new Date(cellValue).getTime()
-          const d2 = new Date(filterValue).getTime()
-          return !isNaN(d1) && !isNaN(d2) && d1 < d2
-        }
+        case 'date_equal':
+        case 'date_before':
         case 'date_after': {
-          const d1 = new Date(cellValue).getTime()
-          const d2 = new Date(filterValue).getTime()
-          return !isNaN(d1) && !isNaN(d2) && d1 > d2
+          const fieldMeta = fieldByKey.get(fieldKey)
+          const cellDay = cellDayInZone(
+            row.data[fieldKey],
+            resolveTimeZone(resolveDateOptions(fieldMeta?.options, fieldMeta?.type)),
+          )
+          const targetDay = filterValue.trim()
+          if (!cellDay || !targetDay) return false
+          if (operator === 'date_equal') return cellDay === targetDay
+          return operator === 'date_before' ? cellDay < targetDay : cellDay > targetDay
         }
         case 'not_empty': return cellValue !== '' && cellValue !== 'null' && cellValue !== 'undefined'
         case 'empty': return cellValue === '' || cellValue === 'null' || cellValue === 'undefined'

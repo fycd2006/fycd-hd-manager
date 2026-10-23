@@ -7,6 +7,7 @@ import '@testing-library/jest-dom';
 import { render, fireEvent, screen, waitFor } from '@testing-library/react';
 import { LatestCommentModal } from '../cells/LatestCommentModal';
 import { doesCellMatchFilter } from '../cells/utils';
+import { GridViewCell } from '../GridViewCell';
 import { exportToCSV } from '@/modules/database/utils/csv';
 import type { TableField, TableRow } from '@/modules/database/types';
 
@@ -84,6 +85,40 @@ describe('Latest Comment Field (P0 Fixes)', () => {
     expect(updatedList.length).toBe(1);
     expect(updatedList[0].user).toBe('張經理');
     expect(updatedList[0].content).toBe('今日進料檢驗合格');
+  });
+
+  describe('grid cell display', () => {
+    const field: TableField = { id: 10, tableId: 1, name: '最新留言', type: 'latest_comment', order: 0, options: null };
+    const comments = [
+      { id: '1', user: '王大同', time: '2026/09/01 10:00:00', content: '第一筆' },
+      { id: '2', user: '李工程師', time: '2026/09/03 08:05:00', content: '第二筆最新' },
+    ];
+
+    const renderGridCell = () => render(
+      <GridViewCell
+        rowId={1}
+        field={field}
+        value={comments}
+        isSelected={false}
+        isEditing={false}
+        onSelect={jest.fn()}
+        onStartEdit={jest.fn()}
+        onUpdate={jest.fn()}
+        onCancelEdit={jest.fn()}
+      />
+    );
+
+    it('shows only the date of the latest comment, without the comment count', () => {
+      const { container } = renderGridCell();
+      expect(screen.getByText('2026/09/03')).toBeInTheDocument();
+      expect(container).not.toHaveTextContent('則');
+    });
+
+    it('does not clamp the content to two lines so taller rows can show more', () => {
+      renderGridCell();
+      const content = screen.getByText('第二筆最新');
+      expect(content.getAttribute('style')).not.toMatch(/line-clamp/i);
+    });
   });
 
   it('correctly filters latest_comment rows with doesCellMatchFilter', () => {

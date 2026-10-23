@@ -6,7 +6,7 @@ import type {
   TableRow,
   TableView,
   ViewType,
-  FilterRule,
+  FilterItem,
   SortRule,
   RowColorRule,
   GroupByRule,
@@ -31,7 +31,7 @@ export interface TableContextValue {
   views: TableView[]
   activeViewId: number | null
   currentView: ViewType
-  filterRules: FilterRule[]
+  filterRules: FilterItem[]
   sortRules: SortRule[]
   hiddenFieldKeys: string[]
   rowColorRules: RowColorRule[]
@@ -40,7 +40,7 @@ export interface TableContextValue {
   saveViewConfig: (viewId: number, config: Partial<TableView>) => Promise<void>
   toggleSort: (fieldKey: string) => void
   setColumnWidths: React.Dispatch<React.SetStateAction<Record<string, number>>>
-  setFilterRules: (rules: FilterRule[]) => void
+  setFilterRules: (rules: FilterItem[]) => void
   setHiddenFieldKeys: (keys: string[]) => void
   setRowColorRules: (rules: RowColorRule[]) => void
   setGroupByRules: (rules: GroupByRule[]) => void
@@ -54,6 +54,7 @@ export interface TableContextValue {
     skipPushHistory?: boolean
   ) => Promise<void>
   batchUpdateCells: (updates: Array<{ rowId: number; data: Record<string, CellValue> }>) => Promise<void>
+  recentlyRejected: Set<string>
   addRow: (overrides?: Record<string, CellValue>) => Promise<void>
   batchAddRows: (rowsToCreate: Array<Record<string, CellValue>>) => Promise<void>
   deleteRow?: (rowId: number) => void

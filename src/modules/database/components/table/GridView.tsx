@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import type { TableField, TableRow, FilterRule, RowColorRule, GroupCollapseState, GroupByRule } from '@/modules/database/types'
+import type { TableField, TableRow, FilterItem, RowColorRule, GroupCollapseState, GroupByRule } from '@/modules/database/types'
 import { GridView as GridViewContent, RowData } from '../views/grid/GridView'
 import { WorkspaceGridSkeleton } from './WorkspaceGridSkeleton'
 
@@ -24,7 +24,7 @@ interface GridViewProps {
   editingCell?: { rowId: number; fieldKey: string } | null
   editInputRef?: React.RefObject<HTMLInputElement | null>
   searchQuery?: string
-  filterRules?: FilterRule[]
+  filterRules?: FilterItem[]
   readOnly?: boolean
   
   // Callbacks
@@ -50,6 +50,7 @@ interface GridViewProps {
   onAddFieldPopover?: (pos: { top: number; left: number }) => void
   onUpdateCell?: (rowId: number, fieldKey: string, value: any) => void
   onBatchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => void
+  recentlyRejected?: Set<string>
   onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void
   onOpenFieldContextMenu?: (field: TableField, x: number, y: number) => void
   onUndo?: () => Promise<boolean | void> | boolean | void
@@ -94,6 +95,7 @@ export default function GridView({
   onHandleResizeEnd,
   onUpdateCell,
   onBatchUpdateCells,
+  recentlyRejected,
   onUpdateField,
   onOpenFieldContextMenu,
   onExpandRow,
@@ -208,6 +210,7 @@ export default function GridView({
           rowColorRules={rowColorRules}
           onUpdateCell={handleUpdateCell}
           onBatchUpdateCells={readOnly ? undefined : onBatchUpdateCells}
+          recentlyRejected={recentlyRejected}
           onAddRow={readOnly ? () => {} : onAddRow}
           onAddField={readOnly ? () => {} : onShowNewFieldModal}
           onAddFieldPopover={readOnly ? undefined : onAddFieldPopover}

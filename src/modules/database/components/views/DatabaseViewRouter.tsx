@@ -5,8 +5,9 @@ import KanbanView from './kanban/KanbanView'
 import CalendarView from './calendar/CalendarView'
 import TimelineView from './timeline/TimelineView'
 import FormView from './form/FormView'
-import type { TableView, TableField, TableRow, ViewType, FilterRule, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '../../types'
-import { formatDateValue } from '../../utils'
+import type { TableView, TableField, TableRow, ViewType, FilterItem, RowColorRule, GroupCollapseState, GroupByRule, SortRule } from '../../types'
+import { formatFieldDate } from '@/modules/database/utils/dateTime'
+import { useI18n } from '@/lib/i18n/i18nContext'
 
 interface DatabaseViewRouterProps {
   currentView: ViewType
@@ -30,11 +31,12 @@ interface DatabaseViewRouterProps {
   editingCell: { rowId: number; fieldKey: string } | null
   editInputRef: React.RefObject<HTMLInputElement | null>
   searchQuery: string
-  filterRules: FilterRule[]
+  filterRules: FilterItem[]
   groupedRows: Record<string, TableRow[]>
   getRowBgColorClass: (row: TableRow) => string
   updateCell: (rowId: number, fieldKey: string, value: any) => Promise<void>
   batchUpdateCells?: (updates: Array<{ rowId: number; data: Record<string, any> }>) => Promise<void>
+  recentlyRejected?: Set<string>
   toggleSort: (fieldKey: string) => void
   setEditingFieldId: (id: number | null) => void
   setEditingFieldName: (name: string) => void
@@ -97,6 +99,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   getRowBgColorClass,
   updateCell,
   batchUpdateCells,
+  recentlyRejected,
   toggleSort,
   setEditingFieldId,
   setEditingFieldName,
@@ -127,6 +130,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
   stageMoveRows,
   cancelMoveRows,
 }) => {
+  const { locale } = useI18n()
   const activeView = views?.find(v => v.id === activeViewId)
 
   return (
@@ -160,6 +164,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           isOffline={isOffline}
           onUpdateCell={updateCell}
           onBatchUpdateCells={batchUpdateCells}
+          recentlyRejected={recentlyRejected}
           onBatchAddRows={batchAddRows}
           frozenColumnsCount={frozenColumnsCount}
           columnWidths={columnWidths}
@@ -185,7 +190,7 @@ export const DatabaseViewRouter: React.FC<DatabaseViewRouterProps> = ({
           renderCellContent={(row: TableRow, field: TableField) => {
             const val = row.data[`field_${field.id}`]
             if (val === null || val === undefined) return ''
-            if (field.type === 'date') return formatDateValue(val)
+            if (field.type === 'date' || field.type === 'created_on' || field.type === 'last_modified_on') return formatFieldDate(val, field.options, { locale, fieldType: field.type })
             if (Array.isArray(val)) {
               return val.map((item, i) => (
                 <span key={i} className="tag">

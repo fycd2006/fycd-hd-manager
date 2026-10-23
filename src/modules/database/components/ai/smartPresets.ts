@@ -1,4 +1,5 @@
 import { extractChoices } from '@/modules/database/fields/types'
+import { choiceLabel } from '@/modules/database/fields/types/selectChoices'
 import type { TableField, TableRow, DynamicTable } from '@/modules/database/types'
 
 export interface SmartPresetAction {
@@ -54,7 +55,7 @@ export function generateSmartPresets({
     if (selectFields.length > 0) {
       const sf = selectFields[0]
       const choices = extractChoices(sf.options)
-      const choiceName = choices[0]?.name || choices[0]?.value || '已完成'
+      const choiceName = choiceLabel(choices[0]) || '已完成'
       result.push({
         prompt: `將選取的 ${selectedRowIds.length} 筆資料之「${sf.name}」設為「${choiceName}」`,
         label: `批次設定「${sf.name}」`,
@@ -79,7 +80,7 @@ export function generateSmartPresets({
   // 2. Select Fields: Batch fill empty values & distribution stats
   for (const sf of selectFields.slice(0, 2)) {
     const choices = extractChoices(sf.options)
-    const choiceName = choices[0]?.name || choices[0]?.value
+    const choiceName = choiceLabel(choices[0])
     if (choiceName) {
       result.push({
         prompt: `將所有尚未填寫「${sf.name}」的列設為「${choiceName}」`,
@@ -129,7 +130,7 @@ export function generateSmartPresets({
     if (selectFields.length > 0) {
       const sf = selectFields[0]
       const choices = extractChoices(sf.options)
-      const choiceName = choices[0]?.name || choices[0]?.value || '一般'
+      const choiceName = choiceLabel(choices[0]) || '一般'
       result.push({
         prompt: `新增一筆「${primaryField.name}」為「新項目」且「${sf.name}」為「${choiceName}」的資料列`,
         label: `新增「${primaryField.name}」資料列`,

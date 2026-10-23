@@ -19,6 +19,8 @@ jest.mock('@/lib/pusher-server', () => ({
 const tx = {
   databaseTable: { findUnique: jest.fn(), update: jest.fn() },
   tableRow: { findMany: jest.fn(), createMany: jest.fn() },
+  tableField: { findFirst: jest.fn(), update: jest.fn() },
+  $queryRaw: jest.fn(),
 }
 
 jest.mock('@/lib/prisma', () => ({
@@ -116,6 +118,43 @@ describe('POST /api/tables/[tableId]/rows/move', () => {
     expect(triggerTableEvent).toHaveBeenCalledWith(20, 'rows-batch-changed', expect.any(Object), 'sock')
   })
 
+  it('broadcasts field-updated for a server-added option to every client, including the originator', async () => {
+    const srcSelect = { id: 3, tableId: 20, name: '類別', type: 'single_select', options: { choices: [] } }
+    const dstSelect = { id: 13, tableId: 10, name: '類別', type: 'single_select', options: { choices: [] } }
+    fieldsFor([...sourceFields, srcSelect], [...targetFields, dstSelect])
+    tx.tableField.findFirst.mockResolvedValue(dstSelect)
+    tx.tableField.update.mockImplementation(async ({ data }) => ({ id: 13, options: data.options }))
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_3: '新選項' } }],
+      socket_id: 'sock',
+    })
+
+    expect(res.status).toBe(200)
+    const fieldEvents = (triggerTableEvent as jest.Mock).mock.calls.filter((c) => c[1] === 'field-updated')
+    expect(fieldEvents).toHaveLength(1)
+    expect(fieldEvents[0]).toHaveLength(3)
+    expect(fieldEvents[0][2].field).toEqual(expect.objectContaining({ id: 13, name: '類別' }))
+  })
+
+  it('keeps the original author and time of existing comments when moving a row', async () => {
+    const srcComment = { id: 3, tableId: 20, name: '備註', type: 'latest_comment', options: null }
+    const dstComment = { id: 13, tableId: 10, name: '備註', type: 'latest_comment', options: null }
+    fieldsFor([...sourceFields, srcComment], [...targetFields, dstComment])
+    const stored = [{ id: 'c-1', user: 'bob', time: '2026/01/02 03:04:05', content: '原留言' }]
+    ;(prisma.tableRow.findMany as jest.Mock).mockResolvedValue([{ id: 5, data: { field_3: stored } }])
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_3: [{ id: 'c-1', user: 'mallory', time: 'now', content: '原留言' }] } }],
+    })
+
+    expect(res.status).toBe(200)
+    const created = tx.tableRow.createMany.mock.calls[0][0].data[0].data
+    expect(created.field_13).toEqual([expect.objectContaining({ id: 'c-1', user: 'bob', time: '2026/01/02 03:04:05', content: '原留言' })])
+  })
+
   it('rejects a value that fails target field validation before writing anything', async () => {
     const res = await move({
       sourceTableId: 20,
@@ -125,6 +164,46 @@ describe('POST /api/tables/[tableId]/rows/move', () => {
     expect(res.status).toBe(400)
     expect(prisma.$transaction).not.toHaveBeenCalled()
     expect(prisma.tableRow.deleteMany).not.toHaveBeenCalled()
+  })
+
+  it('names the field and reason when a value fails target validation', async () => {
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_2: 'abc' } }],
+    })
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toContain('欄位 [數量] 驗證失敗：')
+  })
+
+  it('applies target field options stored as a JSON string', async () => {
+    fieldsFor(sourceFields, [targetFields[0], { ...targetFields[1], options: JSON.stringify({ min: 0 }) }])
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'c1', sourceRowId: 5, data: { field_2: '-5' } }],
+    })
+
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toContain('不能小於 0')
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('does not carry the source autonumber value; the target assigns its own', async () => {
+    fieldsFor(
+      [...sourceFields, { id: 3, tableId: 20, name: '編號', type: 'autonumber', options: null }],
+      [...targetFields, { id: 13, tableId: 10, name: '編號', type: 'autonumber', options: null }],
+    )
+    tx.databaseTable.findUnique.mockResolvedValue({ id: 10, autonumberCounter: 7 })
+    tx.databaseTable.update.mockResolvedValue({ autonumberCounter: 8 })
+
+    const res = await move({
+      sourceTableId: 20,
+      rows: [{ clientId: 'a', sourceRowId: 5, data: { field_1: 'x', field_3: 99 } }],
+    })
+
+    expect(res.status).toBe(200)
+    expect(tx.tableRow.createMany.mock.calls[0][0].data[0].data.field_13).toBe(8)
   })
 
   it('allocates autonumbers on the target table', async () => {

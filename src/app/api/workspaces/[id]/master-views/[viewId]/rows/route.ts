@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
+import prisma from '@/lib/prisma'
 import { authorizeAction } from '@/lib/authorize'
+import { safeJsonParse } from '@/lib/json-utils'
+import { prepareCellWrites, formatRejection } from '@/modules/database/services/cellWrite'
 import {
   upsertMasterViewOverride,
   revertMasterViewOverride,
@@ -24,7 +27,7 @@ export async function PATCH(
     }
 
     // Must have canEditData on the workspace to modify master view overrides
-    const { errorResponse } = await authorizeAction({ workspaceId, action: 'canEditData' })
+    const { errorResponse, auth } = await authorizeAction({ workspaceId, action: 'canEditData' })
     if (errorResponse) return errorResponse
 
     let body: any
@@ -46,11 +49,49 @@ export async function PATCH(
       return NextResponse.json({ error: 'overrides 必須為有效的物件格式' }, { status: 400 })
     }
 
+    // Overrides are cell values of the source table, so they follow the source field rules.
+    // Overrides never add select options (that would change the source table's schema).
+    const sourceFields = await prisma.tableField.findMany({ where: { tableId: srcTableId, deletedAt: null } })
+    const sourceFieldIds = new Set(sourceFields.map((f) => `field_${f.id}`))
+    const strayKey = Object.keys(overrides).find((k) => !sourceFieldIds.has(k))
+    if (strayKey !== undefined) {
+      return NextResponse.json({ error: `覆寫欄位不屬於來源資料表：${strayKey}` }, { status: 400 })
+    }
+
+    // The value the user sees (and edits) is the source row with the active overrides on top
+    const sourceRow = await prisma.tableRow.findFirst({ where: { id: srcRowId, tableId: srcTableId, deletedAt: null } })
+    const activeOverride = await prisma.masterViewOverride.findUnique({
+      where: { masterViewId_sourceTableId_sourceRowId: { masterViewId, sourceTableId: srcTableId, sourceRowId: srcRowId } },
+    })
+    const existing = {
+      ...safeJsonParse<Record<string, unknown>>(sourceRow?.data, {}),
+      ...(activeOverride && !activeOverride.deletedAt ? safeJsonParse<Record<string, unknown>>(activeOverride.overrides, {}) : {}),
+    }
+
+    const prepared = prepareCellWrites({
+      fields: sourceFields.map((f) => ({
+        id: f.id,
+        name: f.name,
+        type: f.type,
+        options: typeof f.options === 'string' ? safeJsonParse(f.options, null) : f.options,
+      })),
+      input: overrides,
+      mode: 'update',
+      canAddOptions: false,
+      actor: { username: auth?.user.username ?? '系統 (System)' },
+      existing,
+    })
+    if (prepared.rejected.length > 0) {
+      const first = prepared.rejected[0]
+      const fieldName = sourceFields.find((f) => f.id === first.fieldId)?.name ?? `field_${first.fieldId}`
+      return NextResponse.json({ error: formatRejection(fieldName, first) }, { status: 400 })
+    }
+
     const result = await upsertMasterViewOverride({
       masterViewId,
       sourceTableId: srcTableId,
       sourceRowId: srcRowId,
-      overrides,
+      overrides: prepared.data,
     })
 
     // Invalidate master view cache

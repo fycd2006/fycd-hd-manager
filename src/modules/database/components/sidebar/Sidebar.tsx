@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { motion } from 'motion/react'
 import type { Workspace, User } from '@/modules/database/types'
+import { useHoverPrefetch } from '@/modules/database/cache/useHoverPrefetch'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FycdLogo } from '@/components/brand/FycdLogo'
 import {
@@ -69,6 +70,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
+  ArchiveRestore,
 } from 'lucide-react'
 import {
   AnimatedHome,
@@ -94,6 +96,7 @@ interface SidebarProps {
   memberCount?: number
   notificationCount?: number
   onShowMembersModal?: () => void
+  onOpenRecentlyDeleted?: () => void
   onShowNotificationsModal?: () => void
   onShowUserSettingsModal?: () => void
   onShowSubscriptionModal?: () => void
@@ -105,6 +108,7 @@ interface SidebarProps {
   onToggleDatabaseCollapse: (dbId: number) => void
   onSetActiveWorkspaceId: (wsId: number) => void
   onSetActiveTableId: (tableId: number) => void
+  onTablePrefetch?: (tableId: number) => void
   onShowWorkspaceModal: () => void
   onShowDatabaseModal: (wsId: number) => void
   onShowCreateTableModal?: (dbId: number) => void
@@ -135,6 +139,7 @@ export default function AppSidebar({
   memberCount,
   notificationCount = 0,
   onShowMembersModal,
+  onOpenRecentlyDeleted,
   onShowNotificationsModal,
   onShowUserSettingsModal,
   onShowSubscriptionModal,
@@ -144,6 +149,7 @@ export default function AppSidebar({
   onToggleDatabaseCollapse,
   onSetActiveWorkspaceId,
   onSetActiveTableId,
+  onTablePrefetch,
   onShowWorkspaceModal,
   onShowDatabaseModal,
   onShowCreateTableModal,
@@ -160,6 +166,7 @@ export default function AppSidebar({
   onMoveTableToDatabase,
 }: SidebarProps) {
   const { t } = useI18n()
+  const getPrefetchHandlers = useHoverPrefetch(onTablePrefetch)
 
   // Drag and drop state for tables
   const [draggedItem, setDraggedItem] = useState<{ type: 'database' | 'table'; id: number; sourceDbId?: number } | null>(null)
@@ -169,6 +176,40 @@ export default function AppSidebar({
   const canManageStructure = userPermissions?.canManageStructure ?? true
 
   const userInitials = (currentUser?.username || currentUser?.email || 'U').slice(0, 2).toUpperCase()
+
+  // 收合／展開按鈕常駐於側邊欄頂端：展開時在工作區切換器右側，收合時獨占一列在最上方
+  const sidebarToggle = (
+    <button
+      type="button"
+      title={isSidebarCollapsed ? (t('nav.expandSidebar') || '展開側邊欄') : (t('nav.collapseSidebar') || '收合側邊欄')}
+      aria-label={isSidebarCollapsed ? (t('nav.expandSidebar') || '展開側邊欄') : (t('nav.collapseSidebar') || '收合側邊欄')}
+      aria-expanded={!isSidebarCollapsed}
+      onClick={(e) => {
+        e.stopPropagation()
+        onToggleSidebarCollapse?.()
+      }}
+      style={{
+        width: '32px',
+        height: '32px',
+        minWidth: '32px',
+        borderRadius: '8px',
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#64748b',
+        flexShrink: 0,
+        transition: 'background-color 0.15s ease, color 0.15s ease',
+      }}
+      className="hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+    >
+      {isSidebarCollapsed
+        ? <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
+        : <PanelLeftClose style={{ width: '18px', height: '18px' }} />}
+    </button>
+  )
 
   return (
     <SidebarProvider open={!isSidebarCollapsed} onOpenChange={() => onToggleSidebarCollapse?.()}>
@@ -194,8 +235,9 @@ export default function AppSidebar({
         <Sidebar collapsible="none" className="w-full h-full bg-slate-50/50 dark:bg-slate-900/50 border-none">
           {/* 1. Header: Workspace Switcher & Collapse Toggle */}
           <SidebarHeader style={{ height: '52px', minHeight: '52px', maxHeight: '52px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-b border-slate-200/60 dark:border-slate-800/60">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '4px' }}>
-              <SidebarMenu style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', flexDirection: isSidebarCollapsed ? 'column' : 'row', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between', width: '100%', gap: isSidebarCollapsed ? '6px' : '4px' }}>
+              {isSidebarCollapsed && sidebarToggle}
+              <SidebarMenu style={{ flex: isSidebarCollapsed ? undefined : 1, width: isSidebarCollapsed ? '100%' : undefined, minWidth: 0 }}>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -331,35 +373,7 @@ export default function AppSidebar({
             </SidebarMenuItem>
           </SidebarMenu>
 
-          {/* Sidebar Collapse Toggle Button */}
-          {!isSidebarCollapsed && (
-            <button
-              type="button"
-              title={t('nav.collapseSidebar') || '收合側邊欄'}
-              onClick={(e) => {
-                e.stopPropagation()
-                onToggleSidebarCollapse?.()
-              }}
-              style={{
-                width: '28px',
-                height: '28px',
-                minWidth: '28px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#64748b',
-                flexShrink: 0,
-                transition: 'all 0.15s ease',
-              }}
-              className="hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
-            >
-              <PanelLeftClose style={{ width: '16px', height: '16px' }} />
-            </button>
-          )}
+          {!isSidebarCollapsed && sidebarToggle}
         </div>
       </SidebarHeader>
 
@@ -409,6 +423,18 @@ export default function AppSidebar({
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {onOpenRecentlyDeleted && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={onOpenRecentlyDeleted}
+                    tooltip={isSidebarCollapsed ? (t('nav.recentlyDeleted') || '最近刪除') : undefined}
+                  >
+                    <ArchiveRestore style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.recentlyDeleted') || '最近刪除'}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroup>
 
@@ -584,6 +610,7 @@ export default function AppSidebar({
                                       <SidebarMenuSubButton
                                         isActive={isActive}
                                         onClick={() => onSetActiveTableId(table.id)}
+                                        {...getPrefetchHandlers(table.id)}
                                         onDoubleClick={(e) => {
                                           e.stopPropagation()
                                           if (canManageStructure) {

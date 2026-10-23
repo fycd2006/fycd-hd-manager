@@ -30,3 +30,6 @@ paths:
 - `rows/move` 只授權來源與目標表，卻直接用前端給的 `sourceRowId` 執行 `delete({ where: { id } })`，可硬刪任何工作區的資料列 → body 裡帶的子資源 id（rowId、fieldId 等）在任何寫入前先用 `findMany({ where: { id: { in }, tableId, deletedAt: null } })` 確認全數屬於已授權的表，數量不符回 404；刪除也帶 `tableId`
 - `rows/comments` GET 依 URL `tableId` 授權，卻只用 query 的 `rowId` 查留言，可讀其他工作區留言 → query string 帶的子資源 id 也要先 `findFirst({ where: { id, tableId } })` 確認屬於授權的表，找不到回 404，再讀關聯資料
 - 通知「接受邀請」把通知 payload 的 `workspaceId`／`role` 當授權依據每次 upsert，被移除者可用舊通知重新加入 → 成員資格只能來自現有成員或仍存在且 email 相符的 `WorkspaceInvitation`；已處理（`read`）的通知回 409，不覆寫既有角色
+- 寫入路徑各自驗證導致同一個值結果不同 → 新增的寫入路徑一律呼叫 `prepareCellWrites`（批次用 `prepareBatchCellWrites`），不要直接呼叫 `FieldRegistry.validateValue`
+- rollup 下拉選單送 `avg`／`min`／`max`／`concat`，`rowQuery.ts` 只認 `sum`／`count`／`average`，其餘靜默算成 0 → 新增或改 `rollupFunction` 選項時，同步改 `rowQuery.ts` 的 rollup 分支，並在 `rowQuery.test.ts` 的 `it.each` 加一列
+- 資料表軟刪除後 authorizeAction 以 deletedAt: null 查表，PATCH 還原永遠 404 → 需要讀已刪除項目的路徑用 includeDeleted: true，新增還原路徑時補測試

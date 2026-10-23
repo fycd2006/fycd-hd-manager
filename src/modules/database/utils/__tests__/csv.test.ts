@@ -1,5 +1,6 @@
-import { parseCSVFile, parseCSVLine, csvRowToTableRow } from '../csv'
-import type { TableField } from '../../types'
+/** @jest-environment jsdom */
+import { parseCSVFile, parseCSVLine, csvRowToTableRow, exportToCSV } from '../csv'
+import type { TableField, TableRow } from '../../types'
 
 describe('CSV Utilities', () => {
   describe('parseCSVLine', () => {
@@ -61,6 +62,51 @@ Third line"
     })
   })
 
+  describe('date fields', () => {
+    const dateField: TableField = {
+      id: 3,
+      tableId: 1,
+      name: 'When',
+      type: 'date',
+      order: 1,
+      options: JSON.stringify({ date_include_time: true, date_format: 'us', date_time_zone: 'Asia/Taipei' }),
+    }
+
+    it('exports dates as ISO wall time in the field time zone', () => {
+      let captured = ''
+      const OriginalBlob = global.Blob
+      global.Blob = class {
+        constructor(parts: BlobPart[]) {
+          captured = parts.join('')
+        }
+      } as unknown as typeof Blob
+      const createUrl = jest.fn(() => 'blob:x')
+      ;(URL as unknown as { createObjectURL: unknown }).createObjectURL = createUrl
+      ;(URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = jest.fn()
+      const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      try {
+        const rows = [
+          { id: 1, tableId: 1, order: 0, createdAt: '', data: { field_3: '2026-10-18T06:30:00.000Z' } },
+        ] as unknown as TableRow[]
+        exportToCSV([dateField], rows, [], 't')
+      } finally {
+        global.Blob = OriginalBlob
+        click.mockRestore()
+      }
+      expect(captured).toContain('"2026-10-18 14:30"')
+    })
+
+    it('imports wall time in the field time zone as a UTC instant', () => {
+      expect(csvRowToTableRow(['2026-10-18 14:30'], ['When'], [dateField])).toEqual({
+        field_3: '2026-10-18T06:30:00.000Z',
+      })
+    })
+
+    it('keeps the raw string when the date cannot be parsed', () => {
+      expect(csvRowToTableRow(['abc'], ['When'], [dateField])).toEqual({ field_3: 'abc' })
+    })
+  })
+
   describe('csvRowToTableRow', () => {
     const mockFields: TableField[] = [
       { id: 10, tableId: 1, name: '姓名', type: 'text', order: 1, options: null },
@@ -77,20 +123,29 @@ Third line"
       const result = csvRowToTableRow(csvRow, headers, mockFields)
 
       expect(result['field_10']).toBe('王大明')
-      expect(result['field_11']).toBe(1250)
-      expect(result['field_12']).toBe(true)
+      expect(result['field_11']).toBe('1,250')
+      expect(result['field_12']).toBe('是')
     })
 
-    it('correctly converts numbers, booleans, and multi-select tags', () => {
+    it('trims values, leaves type judgement to the server, and splits multi-select tags', () => {
       const headers = ['姓名', '年齡', '已繳費', '標籤']
       const csvRow = ['李小華', '28', 'false', '開發, 設計; 行銷']
 
       const result = csvRowToTableRow(csvRow, headers, mockFields)
 
       expect(result['field_10']).toBe('李小華')
-      expect(result['field_11']).toBe(28)
-      expect(result['field_12']).toBe(false)
+      expect(result['field_11']).toBe('28')
+      expect(result['field_12']).toBe('false')
       expect(result['field_13']).toEqual(['開發', '設計', '行銷'])
+    })
+
+    it('does not pre-convert types: invalid numbers and booleans reach the server as trimmed text', () => {
+      const headers = ['姓名', '年齡', '已繳費']
+      const result = csvRowToTableRow(['  王小明  ', ' 十八 ', ' 也許 '], headers, mockFields)
+
+      expect(result['field_10']).toBe('王小明')
+      expect(result['field_11']).toBe('十八')
+      expect(result['field_12']).toBe('也許')
     })
 
     it('supports positional fallback for backward compatibility', () => {
@@ -99,8 +154,8 @@ Third line"
       const result = csvRowToTableRow(csvRow, mockFields)
 
       expect(result['field_10']).toBe('張三')
-      expect(result['field_11']).toBe(35)
-      expect(result['field_12']).toBe(true)
+      expect(result['field_11']).toBe('35')
+      expect(result['field_12']).toBe('true')
     })
   })
 })

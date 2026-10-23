@@ -3,13 +3,15 @@
  */
 
 import { renderHook, act } from '@testing-library/react';
-import { useRowOperations } from '../useRowOperations';
+import { useRowOperations, stripReadOnlyCells } from '../useRowOperations';
 import * as rowService from '@/modules/database/services/row';
 import { TableRow, TableField } from '@/modules/database/types';
 
 jest.mock('@/modules/database/services/row', () => ({
   reorderRows: jest.fn().mockResolvedValue({ ok: true }),
   updateRow: jest.fn().mockResolvedValue({ ok: true }),
+  batchCreateRows: jest.fn(),
+  createRow: jest.fn(),
 }));
 
 describe('useRowOperations - Batch Multi-Row Reorder', () => {
@@ -127,6 +129,38 @@ describe('useRowOperations - Batch Multi-Row Reorder', () => {
     expect(rowService.updateRow).toHaveBeenCalledWith(1, 102, { field_2: 'Doing' });
   });
 
+  it('reverts the optimistic group move and toasts the summary when the server rejects the group cell', async () => {
+    (rowService.updateRow as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      rejected: [{ rowId: 101, fieldId: 2, code: 'read_only', reason: '此欄位為唯讀，無法寫入' }],
+    });
+    const { result } = renderHook(() =>
+      useRowOperations({
+        activeTableId: 1,
+        activeViewId: 10,
+        fields: mockFields,
+        rows: initialRows,
+        setRows,
+        displayRows: initialRows,
+        groupByField: 'field_2',
+        addToast,
+        setSortField,
+        setSortRules,
+        setSortOrder,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleReorderRows(0, 2);
+    });
+
+    // last setRows restores the original rows (row 101 keeps 'Todo' and its position)
+    const last = setRows.mock.calls[setRows.mock.calls.length - 1][0];
+    expect(last).toEqual(initialRows);
+    expect(rowService.reorderRows).not.toHaveBeenCalled();
+    expect(addToast).toHaveBeenCalledWith('已寫入 0 格，1 格未寫入：Status 此欄位為唯讀，無法寫入', 'info');
+  });
+
   it('supports single number input for backwards compatibility', async () => {
     const { result } = renderHook(() =>
       useRowOperations({
@@ -152,5 +186,81 @@ describe('useRowOperations - Batch Multi-Row Reorder', () => {
     const updated = setRows.mock.calls[0][0];
     expect(updated.map((r: TableRow) => r.id)).toEqual([102, 101, 103, 104]);
     expect(addToast).toHaveBeenCalledWith('已儲存資料列順序', 'success');
+  });
+});
+
+describe('stripReadOnlyCells', () => {
+  it('removes every read-only field type and keeps writable cells', () => {
+    const types = ['formula', 'lookup', 'rollup', 'count', 'autonumber', 'uuid', 'created_on', 'created_by', 'last_modified_on', 'last_modified_by', 'edit_row_link'];
+    const fields = [{ id: 1, type: 'text' }, ...types.map((t, i) => ({ id: i + 2, type: t }))];
+    const data: Record<string, unknown> = { field_1: 'keep' };
+    types.forEach((_, i) => { data[`field_${i + 2}`] = 'x'; });
+    expect(stripReadOnlyCells(data, fields)).toEqual({ field_1: 'keep' });
+    expect(data.field_2).toBe('x');
+  });
+});
+
+describe('useRowOperations - batchAddRows rejected cells', () => {
+  const fields: TableField[] = [
+    { id: 1, name: '數量', type: 'number', tableId: 1, order: 0, options: null },
+  ];
+
+  it('toasts the rejected summary when the batch POST reports rejected cells', async () => {
+    const addToast = jest.fn();
+    const setRows = jest.fn();
+    (rowService.batchCreateRows as jest.Mock).mockResolvedValue({
+      ok: true,
+      rows: [{ id: 1, tableId: 1, order: 1, data: { field_1: null }, createdAt: '', updatedAt: '' }],
+      rejected: [{ clientId: 'c1', fieldId: 1, code: 'invalid_number', reason: '必須是有效的數字' }],
+    });
+    const { result } = renderHook(() =>
+      useRowOperations({
+        activeTableId: 1,
+        fields,
+        rows: [],
+        setRows,
+        displayRows: [],
+        addToast,
+        setSortField: jest.fn(),
+        setSortRules: jest.fn(),
+        setSortOrder: jest.fn(),
+      })
+    );
+    await act(async () => {
+      await result.current.batchAddRows([{ field_1: 'abc' }, { field_1: '5' }]);
+    });
+    expect(addToast).toHaveBeenCalledWith('已寫入 1 格，1 格未寫入：數量 必須是有效的數字', 'info');
+  });
+});
+
+describe('useRowOperations - addRow copying the last row', () => {
+  it('does not copy read-only or latest_comment cells from the previous row', async () => {
+    const fields: TableField[] = [
+      { id: 1, name: '名稱', type: 'text', tableId: 1, order: 0, options: null },
+      { id: 2, name: '備註', type: 'latest_comment', tableId: 1, order: 1, options: null },
+      { id: 3, name: '編號', type: 'autonumber', tableId: 1, order: 2, options: null },
+    ];
+    const rows: TableRow[] = [{
+      id: 1, tableId: 1, order: 0, createdAt: '', updatedAt: '',
+      data: { field_1: '高麗菜', field_2: [{ id: 'c1', user: 'bob', time: 't', content: '舊留言' }], field_3: 7 },
+    }];
+    (rowService.createRow as jest.Mock).mockResolvedValue({ ok: false });
+    const { result } = renderHook(() =>
+      useRowOperations({
+        activeTableId: 1,
+        fields,
+        rows,
+        setRows: jest.fn(),
+        displayRows: rows,
+        addToast: jest.fn(),
+        setSortField: jest.fn(),
+        setSortRules: jest.fn(),
+        setSortOrder: jest.fn(),
+      })
+    );
+    await act(async () => {
+      await result.current.addRow(undefined, true);
+    });
+    expect(rowService.createRow).toHaveBeenCalledWith(1, { field_1: '高麗菜' });
   });
 });

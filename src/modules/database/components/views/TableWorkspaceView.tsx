@@ -16,14 +16,12 @@ import type {
   TableView,
   GroupCollapseState,
   SortRule,
-  FilterRule,
+  FilterItem,
   RowColorRule,
   GroupByRule,
 } from '@/modules/database/types'
 
 export interface TableWorkspaceViewProps {
-  isSidebarCollapsed: boolean
-  setIsSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>> | ((v: boolean) => void)
   currentUserRolePermissions: {
     canManageStructure?: boolean
     canEditData?: boolean
@@ -98,8 +96,6 @@ export interface TableWorkspaceViewProps {
 }
 
 export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
-  isSidebarCollapsed,
-  setIsSidebarCollapsed,
   currentUserRolePermissions,
   currentUser,
   activeWorkspaceId,
@@ -187,6 +183,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
     setGroupByRules,
     updateCell,
     batchUpdateCells,
+    recentlyRejected,
     addRow,
     batchAddRows,
     deleteRow,
@@ -248,11 +245,10 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
       >
         {/* View selector and header toolbar */}
         <ViewToolbar
+          rows={rows}
           isAiOpen={isAiOpen}
           onToggleAiOpen={() => setIsAiOpen(prev => !prev)}
         canManageStructure={currentUserRolePermissions.canManageStructure}
-        isSidebarCollapsed={isSidebarCollapsed}
-        setIsSidebarCollapsed={setIsSidebarCollapsed}
         views={views}
         activeViewId={activeViewId}
         setActiveViewId={(id) => {
@@ -288,7 +284,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
           }
         }}
         filterRules={filterRules}
-        setFilterRules={(rules: FilterRule[]) => {
+        setFilterRules={(rules: FilterItem[]) => {
           setFilterRules(rules)
           if (activeViewId) {
             saveViewConfig(activeViewId, {
@@ -418,6 +414,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
                 getRowBgColorClass={getRowBgColorClass}
                 updateCell={updateCell}
                 batchUpdateCells={batchUpdateCells}
+                recentlyRejected={recentlyRejected}
                 toggleSort={toggleSort}
                 setEditingFieldId={setEditingFieldId}
                 setEditingFieldName={setEditingFieldName}

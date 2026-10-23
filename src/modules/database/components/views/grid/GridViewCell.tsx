@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Maximize2, Minimize2, Star, Search, Link2, Mail, Clock, Sparkles, AlertTriangle, ExternalLink, ArrowUpRight, MessageSquare, Send, Edit2, Trash2, Check, X, Paperclip } from 'lucide-react';
 import { TableField } from '@/modules/database/types';
-import { formatDateValue } from '@/modules/database/utils';
+import { formatFieldDate, toEditorValue, fromEditorValue, resolveDateOptions } from '@/modules/database/utils/dateTime';
+import { useI18n } from '@/lib/i18n/i18nContext';
 import { CardDrawer } from '@/modules/database/components/cards';
 import ModalOverlay from '@/components/ui/ModalOverlay';
 import PopoverPortal from '@/components/ui/PopoverPortal';
@@ -12,6 +13,7 @@ export { parseNumberInput, formatNumberValue };
 
 import { LatestCommentModal, parseLatestCommentEntries, type CommentLogEntry } from './cells/LatestCommentModal';
 export { LatestCommentModal, parseLatestCommentEntries, type CommentLogEntry };
+import { avatarColor, avatarInitial, formatCommentDate } from './cells/commentUtils';
 
 
 
@@ -106,6 +108,7 @@ interface GridViewCellProps {
   rangeEdges?: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   isPrimary?: boolean;
   rowColorBg?: string | null;
+  isRejected?: boolean;
   rowDetailsWidth?: number;
   initialTypeOverValue?: string | null;
   onSelect: (e?: React.MouseEvent) => void;
@@ -114,7 +117,7 @@ interface GridViewCellProps {
   onAutoFillDown?: () => void;
   onStartEdit: (initialVal?: string) => void;
   onUpdate: (val: any) => void;
-  onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void;
+  onUpdateField?: (fieldId: number, updates: Partial<TableField>) => void | Promise<unknown>;
   onCancelEdit: () => void;
   onNavigateCell?: (direction: 'nextRow' | 'prevRow' | 'nextCol' | 'prevCol') => void;
   onContextMenu?: (e: React.MouseEvent) => void;
@@ -133,6 +136,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   rangeEdges,
   isPrimary = false,
   rowColorBg,
+  isRejected = false,
   rowDetailsWidth = 56,
   initialTypeOverValue,
   onSelect,
@@ -140,16 +144,19 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   onStartAutofill,
   onAutoFillDown,
   onStartEdit,
-  onUpdate,
+  onUpdate: onUpdateProp,
   onUpdateField,
   onCancelEdit,
   onNavigateCell,
   onContextMenu,
 }) => {
+  const { locale } = useI18n();
+  const isDateTimeEditor = field.type === 'date' && resolveDateOptions(field.options, field.type).date_include_time;
+  const commitDateVal = (v: string): unknown => (isDateTimeEditor ? fromEditorValue(v, field.options) : v);
   const getInitialStringValue = (val: any, type: string): string => {
     if (val === null || val === undefined) return type === 'multiple_select' ? '[]' : '';
     if (type === 'boolean') return String(val);
-    if (type === 'date') return formatDateValue(val);
+    if (type === 'date') return toEditorValue(val, field.options);
     if (type === 'multiple_select') {
       const items = parseSelectItems(val, field.options);
       return JSON.stringify(items);
@@ -241,6 +248,26 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const localValRef = useRef(localVal);
   const hasCommittedRef = useRef(false);
+  // Inline option creation sends the option NAME in the cell write. Until the field update commits, the
+  // server would auto-add its own choice that the client's whole-options overwrite then orphans, so cell
+  // writes queue (in order) behind an in-flight field update.
+  const writeQueueRef = useRef<Promise<void> | null>(null);
+  const enqueueWrite = useCallback((step: () => unknown) => {
+    const next = Promise.resolve(writeQueueRef.current).then(step).then(() => {}, () => {});
+    writeQueueRef.current = next;
+    void next.then(() => { if (writeQueueRef.current === next) writeQueueRef.current = null; });
+  }, []);
+  const awaitFieldUpdate = useCallback((pending: void | Promise<unknown>) => {
+    if (pending instanceof Promise) enqueueWrite(() => pending);
+  }, [enqueueWrite]);
+  const onUpdate = useCallback((val: unknown) => {
+    if (writeQueueRef.current) enqueueWrite(() => onUpdateProp(val));
+    else onUpdateProp(val);
+  }, [enqueueWrite, onUpdateProp]);
+  const commitEdit = (v: string) => {
+    if (isDateTimeEditor && v === toEditorValue(value, field.options)) return;
+    onUpdate(commitDateVal(v));
+  };
   const longTextDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [selectActiveIndex, setSelectActiveIndex] = useState<number>(0);
 
@@ -314,7 +341,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         if (field.type === 'number') {
           onUpdate(parseNumberInput(localValRef.current));
         } else {
-          onUpdate(localValRef.current);
+          commitEdit(localValRef.current);
         }
       }
     }
@@ -331,6 +358,13 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
 
   // Hover state for showing + button on empty link_row cells
   const [isCellHovered, setIsCellHovered] = useState(false);
+  // 編輯器可能掛在 portal（document.body），開始編輯時滑鼠離開格子 DOM 不會觸發 onMouseLeave，
+  // 編輯結束後 hover 會卡住（灰底殘留），所以進入編輯時直接清掉
+  const [prevIsEditing, setPrevIsEditing] = useState(isEditing);
+  if (prevIsEditing !== isEditing) {
+    setPrevIsEditing(isEditing);
+    if (isEditing) setIsCellHovered(false);
+  }
   const [isLongTextExpanded, setIsLongTextExpanded] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
   const longTextRef = useRef<HTMLTextAreaElement>(null);
@@ -343,7 +377,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
     if (typeof ResizeObserver === 'undefined') return;
 
     const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         if (entry.contentRect && entry.contentRect.width > 0) {
           setMeasuredWidth(entry.contentRect.width);
         }
@@ -940,7 +974,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: valToCreate, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
                             setLocalVal(valToCreate);
                             onUpdate(valToCreate);
@@ -954,7 +988,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
                             setLocalVal(val);
                             onUpdate(val);
@@ -1017,7 +1051,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                             const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                             const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                             const newChoiceObjs = [...choiceObjs, { id: newId, name: valToCreate, color: newColor }];
-                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                           }
                           setLocalVal(valToCreate);
                           onUpdate(valToCreate);
@@ -1161,9 +1195,9 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
-                            let nextItems = [...currentItems];
+                            const nextItems = [...currentItems];
                             if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
                               nextItems.push(val);
                             }
@@ -1180,9 +1214,9 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                               const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                               const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                               const newChoiceObjs = [...choiceObjs, { id: newId, name: val, color: newColor }];
-                              onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                              awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                             }
-                            let nextItems = [...currentItems];
+                            const nextItems = [...currentItems];
                             if (!nextItems.some(item => item.toLowerCase() === val.toLowerCase())) {
                               nextItems.push(val);
                             }
@@ -1253,7 +1287,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                             const newId = 'opt_' + Math.random().toString(36).substr(2, 9);
                             const newColor = BASEROW_PALETTE[choiceObjs.length % BASEROW_PALETTE.length].bg;
                             const newChoiceObjs = [...choiceObjs, { id: newId, name: valToAdd, color: newColor }];
-                            onUpdateField(field.id, { options: { choices: newChoiceObjs } as any });
+                            awaitFieldUpdate(onUpdateField(field.id, { options: { choices: newChoiceObjs } as any }));
                           }
                           const nextItems = [...currentItems, valToAdd];
                           const nextVal = JSON.stringify(nextItems);
@@ -1471,6 +1505,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
             show={true}
             fieldName={field.name}
             value={value}
+            initialText={initialTypeOverValue ?? ''}
             onChange={(newEntries) => {
               onUpdate(newEntries);
             }}
@@ -1486,7 +1521,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         return null;
       }
 
-      const inputType = field.type === 'date' ? 'date' 
+      const inputType = field.type === 'date' ? (isDateTimeEditor ? 'datetime-local' : 'date') 
         : field.type === 'email' ? 'email' 
         : field.type === 'url' ? 'url' 
         : (field.type === 'phone' || field.type === 'phone_number') ? 'tel' 
@@ -1506,7 +1541,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
           onChange={(e) => {
             const nextVal = e.target.value;
             setLocalVal(nextVal);
-            if (field.type === 'date' && nextVal) {
+            if (field.type === 'date' && !isDateTimeEditor && nextVal) {
               onUpdate(nextVal);
             }
           }}
@@ -1515,7 +1550,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
             if (field.type === 'number') {
               onUpdate(parseNumberInput(localVal));
             } else {
-              onUpdate(localVal);
+              commitEdit(localVal);
             }
             onCancelEdit();
           }}
@@ -1527,7 +1562,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
               if (field.type === 'number') {
                 onUpdate(parseNumberInput(localVal));
               } else {
-                onUpdate(localVal);
+                commitEdit(localVal);
               }
               onCancelEdit();
               onNavigateCell?.(isShift ? 'prevRow' : 'nextRow');
@@ -1538,7 +1573,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
               if (field.type === 'number') {
                 onUpdate(parseNumberInput(localVal));
               } else {
-                onUpdate(localVal);
+                commitEdit(localVal);
               }
               onCancelEdit();
               onNavigateCell?.(isShift ? 'prevCol' : 'nextCol');
@@ -1682,37 +1717,37 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
       const entries = parseLatestCommentEntries(value);
       const latest = entries.length > 0 ? entries[entries.length - 1] : null;
 
-      const getDateOnly = (timeStr?: string) => {
-        if (!timeStr) return '';
-        const trimmed = timeStr.trim();
-        if (trimmed.includes(' ')) return trimmed.split(' ')[0];
-        if (trimmed.includes('T')) return trimmed.split('T')[0];
-        return trimmed;
-      };
-
       return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', padding: '0 8px', height: '100%', width: '100%', overflow: 'hidden' }}>
           {latest ? (
             <>
+              <span
+                className="lc-avatar"
+                aria-hidden="true"
+                title={latest.user}
+                style={{ background: avatarColor(latest.user), width: 18, height: 18, fontSize: 9 }}
+              >
+                {avatarInitial(latest.user)}
+              </span>
               <span
                 style={{
                   fontSize: '12px',
                   color: '#334155',
                   whiteSpace: 'normal',
                   wordBreak: 'break-word',
-                  lineHeight: '1.3',
+                  lineHeight: '16px',
                   overflow: 'hidden',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
+                  // 依列高顯示整數行，不會露出半行
+                  maxHeight: 'round(down, 100%, 16px)',
                   flex: 1,
+                  minWidth: 0,
                 }}
-                title={latest.content}
+                title={`${latest.user}：${latest.content}`}
               >
                 {latest.content}
               </span>
-              <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }}>
-                {getDateOnly(latest.time)}
+              <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }} title={latest.time}>
+                {formatCommentDate(latest.time)}
               </span>
             </>
           ) : (
@@ -1962,7 +1997,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
     }
 
     if (field.type === 'created_on' || field.type === 'last_modified_on') {
-      const dStr = value ? formatDateValue(value) : '';
+      const dStr = value ? formatFieldDate(value, field.options, { locale, fieldType: field.type }) : '';
       if (!dStr) return null;
       return (
         <span style={{ padding: '0 8px', fontSize: '12px', color: '#64748b', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', maxHeight: '100%' }}>
@@ -2081,7 +2116,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
     }
 
     if (field.type === 'date') {
-      const dateDisplay = formatDateValue(value);
+      const dateDisplay = formatFieldDate(value, field.options, { locale, fieldType: field.type });
       return (
         <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere', overflow: 'hidden', width: '100%', padding: '0 8px', fontSize: '13px', color: '#1e293b', maxHeight: '100%', lineHeight: '1.35' }}>
           {dateDisplay}
@@ -2232,7 +2267,7 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
         touchAction: isEditing ? 'auto' : 'manipulation',
         zIndex: isEditing ? 100 : (isPrimary ? 14 : (isSelected || isInRange ? 10 : undefined))
       }}
-      className={`grid-view__column ${isSelected || isInRange ? 'active' : ''}`}
+      className={`grid-view__column ${isSelected || isInRange ? 'active' : ''}${isRejected ? ' grid-cell--rejected' : ''}`}
     >
       {renderCellContent()}
 
@@ -2279,6 +2314,7 @@ export const GridViewCell = React.memo<GridViewCellProps>(GridViewCellInner, (pr
     prev.isRowHovered === next.isRowHovered &&
     prev.isPrimary === next.isPrimary &&
     prev.rowColorBg === next.rowColorBg &&
+    prev.isRejected === next.isRejected &&
     prev.rowDetailsWidth === next.rowDetailsWidth &&
     prev.initialTypeOverValue === next.initialTypeOverValue &&
     prev.rangeEdges?.top === next.rangeEdges?.top &&

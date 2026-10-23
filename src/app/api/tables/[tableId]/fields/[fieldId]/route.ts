@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
-import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 import { createGeneratedColumn, dropGeneratedColumn } from '@/modules/database/services/schemaService'
 import { migrateSelectFieldsForTable } from '@/modules/database/services/selectFieldMigration'
 import { authorizeAction } from '@/lib/authorize'
@@ -108,8 +107,6 @@ export const DELETE = withApiHandler<{ tableId: string; fieldId: string }>(
     if (oldField.isIndexed) {
       await dropGeneratedColumn(fid).catch(err => console.error('[Schema DDL Error]', err))
     }
-    
-    await cleanupFieldDependencies(fid)
 
     const socketId = request.headers.get('x-socket-id') || undefined
     triggerTableEvent(tid, 'field-deleted', { fieldId: fid }, socketId)

@@ -182,7 +182,7 @@
   },
   "src/app/api/database/import/airtable/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
+      "count": 2
     }
   },
   "src/app/api/form/[token]/route.ts": {
@@ -243,10 +243,7 @@
   },
   "src/app/api/tables/[tableId]/rows/batch/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 12
-    },
-    "prefer-const": {
-      "count": 4
+      "count": 10
     }
   },
   "src/app/api/tables/[tableId]/rows/comments/route.ts": {
@@ -256,10 +253,7 @@
   },
   "src/app/api/tables/[tableId]/rows/move/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
-    },
-    "prefer-const": {
-      "count": 2
+      "count": 3
     }
   },
   "src/app/api/tables/[tableId]/rows/renormalize/route.ts": {
@@ -274,7 +268,7 @@
   },
   "src/app/api/tables/[tableId]/rows/route.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 7
+      "count": 6
     },
     "prefer-const": {
       "count": 2
@@ -550,11 +544,6 @@
       "count": 1
     }
   },
-  "src/modules/database/components/intro/FYCDBrandIntro.tsx": {
-    "react-hooks/set-state-in-effect": {
-      "count": 1
-    }
-  },
   "src/modules/database/components/menu/ViewContextMenu.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
@@ -728,15 +717,12 @@
   },
   "src/modules/database/components/views/grid/GridView.tsx": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 63
+      "count": 62
     }
   },
   "src/modules/database/components/views/grid/GridViewCell.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 30
-    },
-    "prefer-const": {
-      "count": 3
     },
     "react-hooks/immutability": {
       "count": 1
@@ -821,9 +807,6 @@
   "src/modules/database/components/views/grid/cells/utils.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 18
-    },
-    "prefer-const": {
-      "count": 1
     }
   },
   "src/modules/database/components/views/kanban/KanbanView.tsx": {
@@ -870,12 +853,12 @@
   },
   "src/modules/database/fields/FieldRegistry.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 4
+      "count": 3
     }
   },
   "src/modules/database/fields/FieldType.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 9
+      "count": 8
     }
   },
   "src/modules/database/fields/types/BooleanFieldType.ts": {
@@ -890,12 +873,12 @@
   },
   "src/modules/database/fields/types/LatestCommentFieldType.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 5
+      "count": 4
     }
   },
   "src/modules/database/fields/types/MultipleSelectFieldType.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 8
+      "count": 5
     }
   },
   "src/modules/database/fields/types/NumberFieldType.ts": {
@@ -910,7 +893,7 @@
   },
   "src/modules/database/fields/types/SingleSelectFieldType.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 10
+      "count": 5
     }
   },
   "src/modules/database/fields/types/TextFieldType.ts": {
@@ -981,7 +964,7 @@
   },
   "src/modules/database/services/createRow.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "src/modules/database/services/linkRowSync.ts": {
@@ -1025,14 +1008,6 @@
   "src/modules/database/services/rowQuery.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 12
-    },
-    "prefer-const": {
-      "count": 1
-    }
-  },
-  "src/modules/database/services/rowValidation.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 3
     }
   },
   "src/modules/database/services/schemaService.ts": {

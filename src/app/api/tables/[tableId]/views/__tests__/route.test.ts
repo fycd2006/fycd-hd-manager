@@ -44,6 +44,14 @@ describe('Route Handler Integration: /api/tables/[tableId]/views', () => {
       expect(data).toEqual(mockViews)
     })
 
+    it('sets Server-Timing header on GET', async () => {
+      ;(prisma.tableView.findMany as jest.Mock).mockResolvedValue([{ id: 1, tableId: 10 }])
+      const response = await GET(new Request('http://localhost:3000/api/tables/10/views'), {
+        params: Promise.resolve({ tableId: '10' }),
+      })
+      expect(response.headers.get('Server-Timing')).toContain('handler;dur=')
+    })
+
     it('auto-creates default grid view if no views exist', async () => {
       ;(prisma.tableView.findMany as jest.Mock).mockResolvedValue([])
       const createdDefault = { id: 2, tableId: 10, name: '預設表格視圖', type: 'grid' }
@@ -228,6 +236,76 @@ describe('Route Handler Integration: /api/tables/[tableId]/views', () => {
 
       const updateCall = (prisma.tableView.update as jest.Mock).mock.calls[0][0]
       expect(updateCall.data).not.toHaveProperty('rowHeight')
+    })
+
+    const patchView = (body: Record<string, unknown>) => {
+      ;(prisma.tableView.update as jest.Mock).mockResolvedValue({ id: 1, tableId: 10 })
+      return PATCH(
+        new Request('http://localhost:3000/api/tables/10/views', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ viewId: 1, ...body }),
+        }),
+        { params: Promise.resolve({ tableId: '10' }) }
+      )
+    }
+    const savedData = () => (prisma.tableView.update as jest.Mock).mock.calls[0][0].data
+
+    const twoSorts = [{ fieldKey: 'field_2', order: 'desc' }, { fieldKey: 'field_3', order: 'asc' }]
+
+    it('saves sortRules array as JSON and syncs primary sortField', async () => {
+      const response = await patchView({ sortRules: twoSorts })
+      expect(response.status).toBe(200)
+      expect(savedData()).toEqual(expect.objectContaining({
+        sortRules: '[{"fieldKey":"field_2","order":"desc"},{"fieldKey":"field_3","order":"asc"}]',
+        sortField: 'field_2',
+        sortOrder: 'desc',
+      }))
+    })
+
+    it('accepts sortRules as JSON string', async () => {
+      const response = await patchView({ sortRules: JSON.stringify(twoSorts) })
+      expect(response.status).toBe(200)
+      expect(savedData()).toEqual(expect.objectContaining({
+        sortRules: '[{"fieldKey":"field_2","order":"desc"},{"fieldKey":"field_3","order":"asc"}]',
+        sortField: 'field_2',
+        sortOrder: 'desc',
+      }))
+    })
+
+    it('clears primary sort when sortRules is empty', async () => {
+      await patchView({ sortRules: [] })
+      expect(savedData()).toEqual(expect.objectContaining({ sortRules: '[]', sortField: null, sortOrder: 'asc' }))
+    })
+
+    it('explicit sortField wins over sync', async () => {
+      await patchView({ sortRules: twoSorts, sortField: 'field_9' })
+      expect(savedData()).toEqual(expect.objectContaining({ sortField: 'field_9' }))
+    })
+
+    it('saves groupByRules and syncs groupByField', async () => {
+      await patchView({ groupByRules: [{ fieldKey: 'field_5', order: 'asc' }] })
+      expect(savedData()).toEqual(expect.objectContaining({
+        groupByRules: '[{"fieldKey":"field_5","order":"asc"}]',
+        groupByField: 'field_5',
+      }))
+    })
+
+    it('clears groupByField when groupByRules is empty', async () => {
+      await patchView({ groupByRules: [] })
+      expect(savedData()).toEqual(expect.objectContaining({ groupByRules: '[]', groupByField: null }))
+    })
+
+    it.each([
+      ['non field key', { sortRules: [{ fieldKey: 'name', order: 'asc' }] }],
+      ['bad order', { sortRules: [{ fieldKey: 'field_1', order: 'up' }] }],
+      ['more than 10 rules', { sortRules: Array.from({ length: 11 }, (_, i) => ({ fieldKey: `field_${i + 1}`, order: 'asc' })) }],
+      ['invalid JSON string', { sortRules: 'not json' }],
+      ['bad group rule', { groupByRules: [{ fieldKey: 'field_x', order: 'asc' }] }],
+    ])('rejects %s with 400', async (_label, body) => {
+      const response = await patchView(body)
+      expect(response.status).toBe(400)
+      expect(prisma.tableView.update).not.toHaveBeenCalled()
     })
   })
 

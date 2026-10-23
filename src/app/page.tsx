@@ -10,8 +10,10 @@ import { PanelLeft, PanelLeftClose, LayoutGrid, Kanban, LayoutTemplate, Calendar
 import dynamic from 'next/dynamic'
 import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
 import { useUndoRedo } from '@/hooks/useUndoRedo'
-import { AuthScreen } from '@/modules/database/components/auth'
+import { AuthScreen, AppShellSkeleton } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
+import { DeleteConfirmModal } from '@/modules/database/components/modals/DeleteConfirmModal'
+import { RecentlyDeletedModal } from '@/modules/database/components/modals/RecentlyDeletedModal'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
 
 const AirtableImportModal = dynamic(() => import('@/modules/database/components/import/AirtableImportModal').then(m => m.AirtableImportModal), { ssr: false })
@@ -27,6 +29,7 @@ import GridView from '@/modules/database/components/table/GridView'
 import { FieldContextMenu } from '@/modules/database/components/menu/FieldContextMenu'
 import { parseSelectItems, evaluateCellCondition, parseNumberInput } from '@/modules/database/components/views/grid/cells/utils'
 import { normalizeRowData } from '@/modules/database/utils/normalizeRowData'
+import { evaluateFilters } from '@/modules/database/utils/filterEvaluation'
 import { ToastContainer } from '@/components/ui/ToastContainer'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FIELD_TYPE_ICONS, FIELD_TYPE_LABELS, Icons } from '@/modules/database/constants'
@@ -56,7 +59,6 @@ import WorkspaceDashboard from '@/modules/database/components/dashboard/Workspac
 import MobileBottomNav from '@/modules/database/components/navigation/MobileBottomNav'
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { FYCDBrandLoading } from '@/components/fycd/FYCDBrandLoading'
-import { FycdLogo } from '@/components/brand/FycdLogo'
 import {
   useAuthStore,
   useThemeStore,
@@ -65,8 +67,12 @@ import {
 } from '@/modules/database/store'
 import * as workspaceService from '@/modules/database/services/workspace'
 import * as fieldService from '@/modules/database/services/field'
-import * as rowService from '@/modules/database/services/row'
-import * as viewService from '@/modules/database/services/view'
+import { tableDataCache } from '@/modules/database/cache/tableDataCache'
+import { runTableLoad } from '@/modules/database/cache/runTableLoad'
+import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
+import { pushRecentTable } from '@/modules/database/cache/recentTables'
+import { useIdlePrefetch } from '@/modules/database/cache/useIdlePrefetch'
+import { buildWriteBackEntry, type TableSnapshot } from '@/modules/database/cache/writeBack'
 import * as userService from '@/modules/database/services/user'
 import * as trashService from '@/modules/database/services/trash'
 import { createDatabaseFromTemplate, TemplateKey } from '@/modules/database/services/templateService'
@@ -82,7 +88,6 @@ import type {
   ViewType,
   SortOrder,
   ViewConfigPatch,
-  TableView,
   Toast,
   ContextMenu,
   FilterRule,
@@ -106,6 +111,8 @@ export default function Home() {
   // Local UI State (Not yet extracted to stores)
   // ============================================
   const [fields, setFields] = useState<TableField[]>([])
+  // Table whose fields/rows/views are on screen; set together with them, so it lags activeTableId after a switch
+  const [dataTableId, setDataTableId] = useState<number | null>(null)
   // Real-time updates indicator
   const [isSyncing, setIsSyncing] = useState(false)
 
@@ -236,6 +243,8 @@ export default function Home() {
   const [renameNameValue, setRenameNameValue] = useState('')
   const [fontScale, setFontScale] = useGridFontScale()
   const [showRenameModal, setShowRenameModal] = useState(false)
+  const [showRecentlyDeleted, setShowRecentlyDeleted] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ action: 'delete_workspace' | 'delete_database'; id: number; label: string } | null>(null)
   const [showTableModal, setShowTableModal] = useState(false)
   const [modalDbIdForTable, setModalDbIdForTable] = useState<number | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -348,44 +357,94 @@ export default function Home() {
   }, [undo, redo, wsState.activeTableId])
 
   const tableFetchRequestId = useRef<number>(0)
+  // Forced refetch used after a background refresh is discarded as stale (set below fetchTableData)
+  const retryTableLoadRef = useRef<(tableId: number) => void>(() => {})
 
   // Fetch table data using parallel services with race-condition protection & atomic state hydration
-  const fetchTableData = useCallback(async (tableId: number) => {
+  const fetchTableData = useCallback(async (tableId: number, opts: { force?: boolean } = {}) => {
     const currentRequestId = ++tableFetchRequestId.current
-    setGridLoading(true)
-    try {
-      const [fieldsData, rowsData, viewsData] = await Promise.all([
-        fieldService.fetchFields(tableId),
-        rowService.fetchRows(tableId),
-        viewService.fetchViews(tableId),
-      ])
+    // Drop stale results if the user switched to another table before this finished
+    const isCurrent = () => currentRequestId === tableFetchRequestId.current
 
-      // Drop stale response if user switched to another table before this finished
-      if (currentRequestId !== tableFetchRequestId.current) return
+    // Dev-only timing of a table switch: start → first data applied, tagged cache-hit / cache-miss
+    const measure = process.env.NODE_ENV === 'development' && !opts.force && typeof performance !== 'undefined' && typeof performance.mark === 'function'
+    const startMark = `table-switch:start:${tableId}`
+    const appliedMark = `table-switch:applied:${tableId}`
+    let applied = false
+    const markApplied = () => {
+      if (!measure || applied) return
+      applied = true
+      performance.mark(appliedMark)
+    }
+    if (measure) performance.mark(startMark)
 
-      setFields(fieldsData)
-      mergeServerRows(rowsData)
+    const result = await runTableLoad(tableId, opts, {
+      cache: tableDataCache,
+      isCurrent,
+      applyFull: (entry) => {
+        setFields(entry.fields)
+        mergeServerRows(entry.rows)
+        setDataTableId(tableId)
 
-      if (Array.isArray(viewsData) && viewsData.length > 0) {
-        setViews(viewsData)
-        const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
-        const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
-        const targetView = (savedViewId && viewsData.find(v => v.id === savedViewId)) || viewsData[0]
-        wsActions.setActiveViewId(targetView.id)
-        applyViewConfig(targetView)
-      } else {
-        resetViewState()
+        const viewsData = entry.views
+        if (Array.isArray(viewsData) && viewsData.length > 0) {
+          setViews(viewsData)
+          const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
+          const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
+          const targetView = (savedViewId && viewsData.find(v => v.id === savedViewId)) || viewsData[0]
+          wsActions.setActiveViewId(targetView.id)
+          applyViewConfig(targetView)
+        } else {
+          resetViewState()
+        }
+        markApplied()
+      },
+      applyRefresh: (entry, viewsChanged) => {
+        setFields(entry.fields)
+        mergeServerRows(entry.rows)
+        setDataTableId(tableId)
+        if (viewsChanged) setViews(entry.views)
+      },
+      setLoading: setGridLoading,
+      onError: (error) => {
+        console.error('Failed to load table data:', error)
+        uiActions.addToast(t('toasts.loadTableFailed'), 'error')
+      },
+      writes: localWriteTracker,
+    })
+
+    // The refresh raced a local row write and was discarded: once all writes settle, refetch
+    // (the retry follows the same rule, so this converges). Skip if another load has started since.
+    if (result === 'stale' && isCurrent()) {
+      const retry = () => {
+        if (isCurrent()) retryTableLoadRef.current(tableId)
       }
-    } catch (error) {
-      if (currentRequestId !== tableFetchRequestId.current) return
-      console.error('Failed to load table data:', error)
-      uiActions.addToast(t('toasts.loadTableFailed'), 'error')
-    } finally {
-      if (currentRequestId === tableFetchRequestId.current) {
-        setGridLoading(false)
+      if (localWriteTracker.inFlight() === 0) retry()
+      else localWriteTracker.onSettled(retry)
+    }
+
+    if (measure) {
+      try {
+        if (applied) {
+          // 'stale' only comes from the cache-hit path
+          const name = `table-switch:${tableId}:${result === 'stale' ? 'cache-hit' : result}`
+          const entry = performance.measure(name, startMark, appliedMark)
+          console.debug(`[${name}] ${Math.round(entry?.duration ?? 0)}ms`)
+        }
+      } catch {
+        // Marks may already be cleared by an overlapping load of the same table
       }
+      performance.clearMarks(startMark)
+      performance.clearMarks(appliedMark)
     }
   }, [uiActions, mergeServerRows, t, wsActions, applyViewConfig, resetViewState, setViews])
+
+  // Refresh the table already on screen: force skips re-applying the cached entry, so local edits
+  // made since the last load don't flash back to cached values. Only the switch effect uses the cache.
+  const refetchTableData = useCallback((tableId: number) => fetchTableData(tableId, { force: true }), [fetchTableData])
+  useEffect(() => {
+    retryTableLoadRef.current = (tableId: number) => { void refetchTableData(tableId) }
+  }, [refetchTableData])
 
   // New Field scroll trigger
   const [newFieldScrollTrigger, setNewFieldScrollTrigger] = useState(0)
@@ -425,7 +484,7 @@ export default function Home() {
     rows,
     operations,
     dispatch,
-    fetchTableData,
+    fetchTableData: refetchTableData,
     addToast: uiActions.addToast,
   })
 
@@ -447,12 +506,21 @@ export default function Home() {
     workspaces: wsState.workspaces,
     setFields,
     setGridLoading,
-    fetchTableData,
+    fetchTableData: refetchTableData,
     addToast: uiActions.addToast,
   })
 
+  // Latest on-screen data of the table being shown; written back to the cache when switching away
+  const snapshotRef = useRef<TableSnapshot | null>(null)
+  const switchedTableIdRef = useRef<number | null | undefined>(undefined)
+
   // Load table data and reset transient UI state when activeTableId changes
   useEffect(() => {
+    // fetchTableData's identity also changes right after a switch (CLEAR_TABLE_OPERATIONS gives
+    // mergeServerRows a new identity); only act on an actual table change
+    if (switchedTableIdRef.current === wsState.activeTableId) return
+    switchedTableIdRef.current = wsState.activeTableId
+
     // Reset all transient UI states on table switch
     setEditingCell(null)
     setSelectedRow(null)
@@ -461,10 +529,22 @@ export default function Home() {
     setFieldContextMenu(null)
     setSearchQuery('')
 
+    // Write the previous table's live state (including local edits) back to the cache
+    const snapshot = snapshotRef.current
+    if (snapshot?.tableId && snapshot.tableId !== wsState.activeTableId) {
+      const writeBack = buildWriteBackEntry(snapshot, tableDataCache.get(snapshot.tableId))
+      if (writeBack) tableDataCache.set(snapshot.tableId, writeBack)
+    }
+
     if (wsState.activeTableId) {
-      setGridLoading(true)
-      setFields([])
-      setRows([])
+      if (!tableDataCache.get(wsState.activeTableId)) {
+        setGridLoading(true)
+        setFields([])
+        setRows([])
+      } else {
+        // A previous uncached load may have left the skeleton on; cached data is applied synchronously
+        setGridLoading(false)
+      }
       fetchTableData(wsState.activeTableId)
     } else {
       setFields([])
@@ -473,8 +553,15 @@ export default function Home() {
     }
   }, [wsState.activeTableId, fetchTableData, setSearchQuery, setRows, setFields])
 
+  // Declared after the switch effect so the switch effect still sees the previous table's snapshot.
+  // In the first commit after a switch this stores the new id with the previous table's data;
+  // dataTableId still names the previous table then, so buildWriteBackEntry refuses to write it back.
+  useEffect(() => {
+    snapshotRef.current = { tableId: wsState.activeTableId, dataTableId, fields, rows, views, operations }
+  })
+
   // Cell and batch editing hook
-  const { updateCell, batchUpdateCells } = useCellEdit({
+  const { updateCell, batchUpdateCells, recentlyRejected } = useCellEdit({
     activeTableId: wsState.activeTableId,
     rows,
     setRows,
@@ -490,13 +577,13 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       ;(window as any).updateCell = updateCell
-      ;(window as any).fetchTableData = fetchTableData
+      ;(window as any).fetchTableData = refetchTableData
       ;(window as any).dispatchTableOp = dispatch
       ;(window as any).rows = rows
       ;(window as any).fields = fields
       ;(window as any).__activeTableId = wsState.activeTableId
     }
-  }, [updateCell, fetchTableData, dispatch, rows, fields, wsState.activeTableId])
+  }, [updateCell, refetchTableData, dispatch, rows, fields, wsState.activeTableId])
 
 
 
@@ -546,20 +633,7 @@ export default function Home() {
 
     // Advanced filters
     if (Array.isArray(filterRules) && filterRules.length > 0) {
-      result = result.filter(row => {
-        if (filterType === 'OR') {
-          return filterRules.some(rule => {
-            const val = getCellValue(row, rule.fieldKey)
-            const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
-            return evaluateCellCondition(val, field, rule.operator, rule.value)
-          })
-        }
-        return filterRules.every(rule => {
-          const val = getCellValue(row, rule.fieldKey)
-          const field = fields.find(f => `field_${f.id}` === rule.fieldKey || String(f.id) === rule.fieldKey || f.name === rule.fieldKey)
-          return evaluateCellCondition(val, field, rule.operator, rule.value)
-        })
-      })
+      result = result.filter(row => evaluateFilters(row, filterType, filterRules, fields))
     }
 
     // Defer re-sorting if a cell is currently being edited
@@ -768,6 +842,27 @@ export default function Home() {
     }
   }
 
+  // 記錄最近開過的表，並在閒置時預載
+  useEffect(() => {
+    if (wsState.activeWorkspaceId && wsState.activeTableId) {
+      pushRecentTable(wsState.activeWorkspaceId, wsState.activeTableId)
+    }
+  }, [wsState.activeWorkspaceId, wsState.activeTableId])
+
+  const validTableIds = useMemo(
+    () =>
+      (wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId)?.databases ?? [])
+        .flatMap(d => d.tables)
+        .map(t => t.id),
+    [wsState.workspaces, wsState.activeWorkspaceId]
+  )
+  useIdlePrefetch({
+    workspaceId: wsState.activeWorkspaceId,
+    activeTableId: wsState.activeTableId,
+    validTableIds,
+    prefetch: tableDataCache.prefetch,
+  })
+
   // Get active table
   const activeTable = wsState.workspaces
     .flatMap(w => w.databases)
@@ -811,11 +906,12 @@ export default function Home() {
 
     updateCell,
     batchUpdateCells,
+    recentlyRejected,
     addRow,
     batchAddRows,
     deleteRow,
     duplicateRow,
-    fetchTableData,
+    fetchTableData: refetchTableData,
 
     createField,
     deleteField,
@@ -863,11 +959,12 @@ export default function Home() {
     createView,
     updateCell,
     batchUpdateCells,
+    recentlyRejected,
     addRow,
     batchAddRows,
     deleteRow,
     duplicateRow,
-    fetchTableData,
+    refetchTableData,
     createField,
     deleteField,
     handleUpdateField,
@@ -898,85 +995,11 @@ export default function Home() {
   )
 
   if (authState.authLoading) {
-    const isDark = themeState.theme === 'dark'
     return (
       <>
-      {brandOverlay}
-      <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', backgroundColor: isDark ? '#0f172a' : '#fafafa' }}>
-        {/* Top Brand Accent Line */}
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '3px',
-          zIndex: 50,
-          background: 'linear-gradient(90deg, #39452B 0%, #F58220 50%, #39452B 100%)',
-          backgroundSize: '200% 100%',
-          animation: 'fycdTopBarShimmer 2s ease-in-out infinite'
-        }} />
-
-        {/* Sidebar Skeleton */}
-        <div style={{ width: '240px', height: '100%', borderRight: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, padding: '16px', display: 'flex', flexDirection: 'column', gap: '20px', backgroundColor: isDark ? '#1e293b' : '#ffffff', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FycdLogo variant="icon" height={24} />
-            <div className="fycd-skeleton" style={{ width: '110px', height: '16px', borderRadius: '4px' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-            {[85, 65, 75, 55, 80].map((w, i) => (
-              <div key={i} className="fycd-skeleton" style={{ width: `${w}%`, height: '16px', borderRadius: '4px' }} />
-            ))}
-          </div>
-        </div>
-
-        {/* Main Content Skeleton */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-          {/* View Toolbar Skeleton */}
-          <div style={{ height: '44px', borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, display: 'flex', alignItems: 'center', padding: '0 16px', gap: '14px', backgroundColor: isDark ? '#1e293b' : '#ffffff' }}>
-            <div className="fycd-skeleton" style={{ width: '110px', height: '22px', borderRadius: '6px' }} />
-            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
-            <div className="fycd-skeleton" style={{ width: '75px', height: '22px', borderRadius: '6px' }} />
-          </div>
-
-          {/* Grid Skeleton */}
-          <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: isDark ? '#0f172a' : '#ffffff' }}>
-            <div style={{ display: 'flex', gap: '8px', height: '32px' }}>
-              {[1, 2, 3, 4, 5].map(col => (
-                <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
-              ))}
-            </div>
-            {[1, 2, 3, 4, 5, 6, 7].map(row => (
-              <div key={row} style={{ display: 'flex', gap: '8px', height: '34px' }}>
-                {[1, 2, 3, 4, 5].map(col => (
-                  <div key={col} className="fycd-skeleton" style={{ flex: 1, borderRadius: '4px' }} />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <style jsx>{`
-          @keyframes fycdTopBarShimmer {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-          }
-        `}</style>
-      </div>
+        {brandOverlay}
+        <AppShellSkeleton />
       </>
-    )
-  }
-
-  // Show clean brand loading during initial authLoading to prevent FOAC
-  if (authState.authLoading) {
-    return (
-      <div className={`app-container theme-${themeState.theme}`} style={{ width: '100vw', height: '100vh', background: themeState.theme === 'dark' ? '#18191b' : '#f4f5f7' }}>
-        <FYCDBrandLoading
-          show={showBrandLoading}
-          workspaceReady={workspaceReady}
-          onExitComplete={handleExitComplete}
-        />
-      </div>
     )
   }
 
@@ -1092,9 +1115,31 @@ export default function Home() {
     <TableProvider value={tableContextValue}>
       <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning>
       <ToastContainer toasts={uiState.toasts} />
+      <RecentlyDeletedModal
+        open={showRecentlyDeleted}
+        onClose={() => setShowRecentlyDeleted(false)}
+        onRestored={() => { void wsActions.fetchWorkspaces() }}
+      />
+      <DeleteConfirmModal
+        open={pendingDelete !== null}
+        kind={pendingDelete?.action === 'delete_database' ? 'database' : 'workspace'}
+        name={pendingDelete?.label ?? ''}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          const res = await wsActions.deleteWorkspaceOrDb(pendingDelete.action, pendingDelete.id)
+          if (res.ok) {
+            uiActions.addToast(pendingDelete.action === 'delete_database' ? '資料庫已移到最近刪除' : '工作區已移到最近刪除', 'success')
+            setPendingDelete(null)
+          } else {
+            uiActions.addToast(res.error || '刪除失敗', 'error')
+          }
+        }}
+      />
 
       <div className="layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
         <Sidebar
+          onTablePrefetch={tableDataCache.prefetch}
           currentUser={authState.currentUser}
           userPermissions={currentUserRolePermissions}
           workspaces={wsState.workspaces}
@@ -1109,6 +1154,7 @@ export default function Home() {
           memberCount={workspaceMemberCount}
           notificationCount={unreadNotificationsCount}
           onShowMembersModal={() => setShowMembersModal(true)}
+          onOpenRecentlyDeleted={() => setShowRecentlyDeleted(true)}
           onShowNotificationsModal={() => setShowNotificationsModal(true)}
           onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
           onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
@@ -1134,15 +1180,14 @@ export default function Home() {
           onSetRenameNameValue={setRenameNameValue}
           onShowRenameModal={() => setShowRenameModal(true)}
           onDeleteWorkspaceOrDb={(action: 'delete_workspace' | 'delete_database', id: number, label: string) => {
-            if (confirm(`確定要刪除「${label}」？`)) {
-              wsActions.deleteWorkspaceOrDb(action, id)
-            }
+            setPendingDelete({ action, id, label })
           }}
           onDeleteTable={async (tableId: number, tableName: string) => {
-            if (confirm(`確定要刪除資料表「${tableName}」？`)) {
+            if (confirm(t('trash.deleteTableConfirm', { name: tableName }) || `確定要刪除資料表「${tableName}」？30 天內可以在「最近刪除」還原。`)) {
               try {
                 const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                 if (res.ok) {
+                  tableDataCache.invalidate(tableId)
                   uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
                   if (wsState.activeTableId === tableId) {
                     wsActions.setActiveTableId(0)
@@ -1167,6 +1212,8 @@ export default function Home() {
           {!wsState.activeTableId || wsState.activeTableId === 0 ? (
             <div key="workspace_dashboard" className="animate-view-transition" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <WorkspaceDashboard
+                onTablePrefetch={tableDataCache.prefetch}
+                theme={themeState.theme}
                 currentUser={authState.currentUser}
                 activeWorkspace={activeWorkspaceObj || null}
                 workspaces={wsState.workspaces}
@@ -1185,15 +1232,14 @@ export default function Home() {
                 onSetRenameNameValue={setRenameNameValue}
                 onShowRenameModal={() => setShowRenameModal(true)}
                 onDeleteWorkspaceOrDb={(action, id, label) => {
-                  if (confirm(`確定要刪除「${label}」？`)) {
-                    wsActions.deleteWorkspaceOrDb(action, id)
-                  }
+                  setPendingDelete({ action, id, label })
                 }}
                 onDeleteTable={async (tableId, tableName) => {
-                  if (confirm(`確定要刪除資料表「${tableName}」？`)) {
+                  if (confirm(t('trash.deleteTableConfirm', { name: tableName }) || `確定要刪除資料表「${tableName}」？30 天內可以在「最近刪除」還原。`)) {
                     try {
                       const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                       if (res.ok) {
+                        tableDataCache.invalidate(tableId)
                         uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
                         if (wsState.activeTableId === tableId) {
                           wsActions.setActiveTableId(0)
@@ -1213,8 +1259,6 @@ export default function Home() {
             </div>
           ) : (
             <TableWorkspaceView
-              isSidebarCollapsed={isSidebarCollapsed}
-              setIsSidebarCollapsed={setIsSidebarCollapsed}
               currentUserRolePermissions={currentUserRolePermissions}
               currentUser={authState.currentUser}
               activeWorkspaceId={wsState.activeWorkspaceId}
@@ -1272,7 +1316,7 @@ export default function Home() {
               onSetActiveWorkspaceId={wsActions.setActiveWorkspaceId}
               onSetActiveTableId={wsActions.setActiveTableId}
               addToast={uiActions.addToast}
-              fetchTableData={fetchTableData}
+              fetchTableData={refetchTableData}
               isOffline={isOffline}
               newFieldScrollTrigger={newFieldScrollTrigger}
             />
@@ -1331,7 +1375,7 @@ export default function Home() {
         setWorkspaceMemberCount={setWorkspaceMemberCount}
         showNotificationsModal={showNotificationsModal}
         setShowNotificationsModal={setShowNotificationsModal}
-        onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId) }}
+        onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId, { force: true }) }}
         onOpenAirtableImport={() => setShowAirtableModal(true)}
       />
 

@@ -27,6 +27,7 @@ describe('getPopulatedTableRows', () => {
         { id: 1, tableId: 1, name: 'TargetRowLink', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
         { id: 2, tableId: 1, name: 'TargetLookup', type: 'lookup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10 }) },
       ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
       .mockResolvedValueOnce([
         { id: 10, tableId: 2, name: 'TargetName', type: 'text' },
       ]);
@@ -65,6 +66,7 @@ describe('getPopulatedTableRows', () => {
         { id: 1, tableId: 1, name: 'TargetRowLink', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
         { id: 2, tableId: 1, name: 'TargetLookup', type: 'lookup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10 }) },
       ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
       .mockResolvedValueOnce([
         { id: 10, tableId: 2, name: 'TargetTags', type: 'multiple_select' },
       ]);
@@ -118,6 +120,31 @@ describe('getPopulatedTableRows', () => {
 
     const result = await getPopulatedTableRows(1, {})
     expect(result.rows![0].data['field_1']).toBe('JohnDoe')
+  })
+
+  it('emits created_on and last_modified_on as UTC ISO strings', async () => {
+    (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 1, tableId: 1, name: 'Created', type: 'created_on', options: null },
+      { id: 2, tableId: 1, name: 'Modified', type: 'last_modified_on', options: null },
+    ]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 101,
+        tableId: 1,
+        data: {},
+        order: 1,
+        createdAt: new Date('2026-10-18T06:30:00.000Z'),
+        updatedAt: new Date('2026-10-19T01:05:00.000Z'),
+        deletedAt: null,
+      },
+    ]);
+
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([]);
+
+    const result = await getPopulatedTableRows(1, {})
+    expect(result.rows![0].data['field_1']).toBe('2026-10-18T06:30:00.000Z')
+    expect(result.rows![0].data['field_2']).toBe('2026-10-19T01:05:00.000Z')
   })
 
   it('filters out soft-deleted or non-existent target rows from link_row display values completely', async () => {
@@ -259,6 +286,120 @@ describe('getPopulatedTableRows', () => {
   })
 })
 
+describe('getPopulatedTableRows lookup references to inactive fields', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  async function lookupResult(activeIds: number[]) {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'Link', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+        { id: 2, tableId: 1, name: 'Lookup', type: 'lookup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10 }) },
+      ])
+      .mockResolvedValueOnce(activeIds.map(id => ({ id })))
+      .mockResolvedValueOnce([{ id: 10, tableId: 2, name: 'Name', type: 'text' }]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      { id: 101, tableId: 1, data: { field_1: '[501]' }, order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ]);
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 501, tableId: 2, data: JSON.stringify({ field_10: 'Product Alpha' }), order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ])
+
+    const result = await getPopulatedTableRows(1, {})
+    return result.rows![0].data['field_2']
+  }
+
+  it('skips a lookup whose target field is soft deleted', async () => {
+    expect(await lookupResult([1])).not.toBe('Product Alpha')
+    expect(prisma.tableField.findMany).toHaveBeenCalledWith({
+      where: { id: { in: expect.arrayContaining([1, 10]) }, deletedAt: null },
+      select: { id: true },
+    })
+  })
+
+  it('computes the lookup again once the target field is active', async () => {
+    expect(await lookupResult([1, 10])).toBe('Product Alpha')
+  })
+})
+
+describe('getPopulatedTableRows rollup functions', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  async function rollupOf(rollupFunction: string) {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'Items', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+        { id: 2, tableId: 1, name: 'Total', type: 'rollup', options: JSON.stringify({ relationFieldId: 1, targetFieldId: 10, rollupFunction }) },
+      ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
+      .mockResolvedValueOnce([
+        { id: 10, tableId: 2, name: 'Amount', type: 'number' },
+      ]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      {
+        id: 101,
+        tableId: 1,
+        data: { field_1: '[501,502,503]' },
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    ]);
+
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce(
+      [[501, 4], [502, 2], [503, 9]].map(([id, amount]) => ({
+        id,
+        tableId: 2,
+        data: JSON.stringify({ field_10: amount }),
+        order: 1,
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      }))
+    )
+
+    const result = await getPopulatedTableRows(1, {})
+    return result.rows![0].data['field_2']
+  }
+
+  it.each([
+    ['sum', 15],
+    ['count', 3],
+    ['avg', 5],
+    ['average', 5],
+    ['min', 2],
+    ['max', 9],
+    ['concat', '4, 2, 9'],
+  ])('computes rollup function %s', async (fn, expected) => {
+    expect(await rollupOf(fn)).toBe(expected)
+  })
+})
+
+describe('getPopulatedTableRows date filter', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('compares date_equal by day in the field time zone', async () => {
+    (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 3, tableId: 1, name: 'When', type: 'date', options: JSON.stringify({ date_include_time: true, date_time_zone: 'Asia/Taipei' }) },
+    ]);
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 1, tableId: 1, data: JSON.stringify({ field_3: '2026-10-17T23:59:00.000Z' }), order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+      { id: 2, tableId: 1, data: JSON.stringify({ field_3: '2026-10-17T15:59:00.000Z' }), order: 2, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ])
+
+    const result = await getPopulatedTableRows(1, { filterParam: 'field_3:date_equal:2026-10-18' })
+    expect(result.rows!.map(r => r.id)).toEqual([1])
+  })
+})
+
 describe('cleanupFieldDependencies', () => {
   it('cleans up invalid relationFieldId or targetFieldId on dependent lookup fields when target field is deleted', async () => {
     (prisma.tableField.findMany as jest.Mock).mockResolvedValueOnce([
@@ -272,5 +413,37 @@ describe('cleanupFieldDependencies', () => {
       where: { id: 99 },
       data: { options: { relationFieldId: 10, targetFieldId: null } }
     })
+  })
+})
+
+describe('getPopulatedTableRows string ids in legacy lookup options', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('coerces ids to numbers for the active field query and still computes the lookup', async () => {
+    (prisma.tableField.findMany as jest.Mock)
+      .mockResolvedValueOnce([
+        { id: 1, tableId: 1, name: 'Link', type: 'link_row', options: JSON.stringify({ targetTableId: 2 }) },
+        { id: 2, tableId: 1, name: 'Lookup', type: 'lookup', options: JSON.stringify({ relationFieldId: '1', targetFieldId: '10' }) },
+        { id: 3, tableId: 1, name: 'Bad', type: 'lookup', options: JSON.stringify({ relationFieldId: 'abc', targetFieldId: '10' }) },
+      ])
+      .mockResolvedValueOnce([{ id: 1 }, { id: 10 }])
+      .mockResolvedValueOnce([{ id: 10, tableId: 2, name: 'Name', type: 'text' }]);
+
+    (prisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
+      { id: 101, tableId: 1, data: { field_1: '[501]' }, order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ]);
+    (prisma.tableRow.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 501, tableId: 2, data: JSON.stringify({ field_10: 'Product Alpha' }), order: 1, createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-01'), deletedAt: null },
+    ])
+
+    const result = await getPopulatedTableRows(1, {})
+
+    expect(prisma.tableField.findMany).toHaveBeenCalledWith({
+      where: { id: { in: [1, 10] }, deletedAt: null },
+      select: { id: true },
+    })
+    expect(result.rows![0].data['field_2']).toBe('Product Alpha')
   })
 })

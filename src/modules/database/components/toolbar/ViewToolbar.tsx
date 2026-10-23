@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import { PanelLeft, PanelLeftClose, PanelLeftOpen, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload, Sparkles } from 'lucide-react'
-import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule, RowHeight } from '@/modules/database/types'
+import type { TableView, TableField, TableRow, FilterItem, FilterRule, RowColorRule, GroupByRule, SortRule, RowHeight } from '@/modules/database/types'
 import { ROW_HEIGHTS, ROW_HEIGHT_LABELS, FONT_SCALES, FONT_SCALE_LABELS, type FontScale } from '@/modules/database/utils/gridDisplay'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
@@ -18,9 +18,6 @@ import { AiAssistantModal } from '@/modules/database/components/ai/AiAssistantMo
 
 
 interface ViewToolbarProps {
-  // Sidebar state
-  isSidebarCollapsed: boolean
-  setIsSidebarCollapsed: (v: boolean) => void
 
   // View state
   views: TableView[]
@@ -46,8 +43,8 @@ interface ViewToolbarProps {
   setSortRules?: (v: SortRule[]) => void
 
   // Filter
-  filterRules: FilterRule[]
-  setFilterRules: (v: FilterRule[]) => void
+  filterRules: FilterItem[]
+  setFilterRules: (v: FilterItem[]) => void
   filterType?: 'AND' | 'OR'
   setFilterType?: (v: 'AND' | 'OR') => void
 
@@ -64,6 +61,7 @@ interface ViewToolbarProps {
 
   // Fields (hide/show)
   fields: TableField[]
+  rows?: TableRow[]
   hiddenFieldKeys: string[]
   setHiddenFieldKeys: (v: string[]) => void
 
@@ -92,8 +90,6 @@ interface ViewToolbarProps {
 }
 
 export function ViewToolbar({
-  isSidebarCollapsed,
-  setIsSidebarCollapsed,
   views,
   activeViewId,
   setActiveViewId,
@@ -123,6 +119,7 @@ export function ViewToolbar({
   setGroupByRules,
   onToggleCollapseAllGroups,
   fields,
+  rows,
   hiddenFieldKeys,
   setHiddenFieldKeys,
   rowHeight = 'small',
@@ -757,33 +754,6 @@ export function ViewToolbar({
               msOverflowStyle: 'none',
             }}
           >
-            {/* Sidebar Toggle Button (Shown only when sidebar is collapsed) */}
-            {isSidebarCollapsed && (
-              <button
-                type="button"
-                title={t('nav.expandSidebar') || '展開側邊欄'}
-                onClick={() => setIsSidebarCollapsed(false)}
-                style={{
-                  border: 'none',
-                  background: '#f0fdf4',
-                  color: '#059669',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '6px',
-                  marginRight: '8px',
-                  flexShrink: 0,
-                  transition: 'all 0.15s ease',
-                }}
-                className="hover:bg-emerald-100/70 dark:hover:bg-emerald-950/40 hover:text-emerald-700 transition-colors"
-              >
-                <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
-              </button>
-            )}
-
             <ul className="header__filter" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <li ref={viewContextRef} className="header__filter-item header__filter-item--grids" style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
               <a 
@@ -1478,6 +1448,7 @@ export function ViewToolbar({
                 setFilterRules={setFilterRules}
                 filterType={filterType}
                 setFilterType={setFilterType}
+                rows={rows}
               />
             )}
 

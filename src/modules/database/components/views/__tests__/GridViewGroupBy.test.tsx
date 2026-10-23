@@ -164,3 +164,20 @@ describe('GridView Group By & Group Aggregations', () => {
 
 
 
+
+describe('GridView date grouping order', () => {
+  test('sorts date groups chronologically by day, not by the formatted title', () => {
+    const fields: TableField[] = [
+      { id: 1, tableId: 10, name: '名稱', type: 'text', order: 1, width: 180, options: null },
+      { id: 2, tableId: 10, name: '日期', type: 'date', order: 2, width: 160, options: JSON.stringify({ date_format: 'us' }) },
+    ]
+    const rows = [
+      { id: 1, order: 1, values: { 1: 'A', 2: '2026-01-05' }, data: { field_1: 'A', field_2: '2026-01-05' } },
+      { id: 2, order: 2, values: { 1: 'B', 2: '2025-12-01' }, data: { field_1: 'B', field_2: '2025-12-01' } },
+    ]
+    render(<GridView fields={fields} rows={rows} groupByRules={[{ fieldKey: 'field_2', order: 'asc' }]} />)
+    const dec = screen.getAllByText('12/01/2025')[0]
+    const jan = screen.getAllByText('01/05/2026')[0]
+    expect(dec.compareDocumentPosition(jan) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
