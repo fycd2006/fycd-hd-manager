@@ -164,12 +164,12 @@ describe('AppSidebar 收合／懸停浮出（Claude 風格）', () => {
     expect(panel).not.toHaveAttribute('aria-hidden')
     expect(screen.getByRole('button', { name: HOME_LABEL })).toBeInTheDocument()
 
-    // 浮出時，面板內的切換鈕 aria-expanded 為 true，外部按鈕退出無障礙樹
-    const panelToggle = panel.querySelector('[data-sidebar-toggle]') as HTMLElement
-    expect(panelToggle).toHaveAttribute('aria-expanded', 'true')
+    // 浮出時，頂層切換按鈕持續維持在最上層，畫面上始終只有這唯一的切換按鈕
+    const toggleButton = root.querySelector('[data-sidebar-toggle]') as HTMLElement
+    expect(toggleButton).not.toBeNull()
     const allAccessibleExpandButtons = screen.getAllByRole('button', { name: EXPAND_LABEL })
     expect(allAccessibleExpandButtons).toHaveLength(1)
-    expect(allAccessibleExpandButtons[0]).toBe(panelToggle)
+    expect(allAccessibleExpandButtons[0]).toBe(toggleButton)
   })
 
   it('離開浮出的側邊欄後短暫延遲再收回；延遲內移回則保持展開', () => {
@@ -217,14 +217,14 @@ describe('AppSidebar 收合／懸停浮出（Claude 風格）', () => {
     expect(root).toHaveAttribute('data-sidebar-mode', 'collapsed')
   })
 
-  it('浮出時點面板內的切換鈕會固定展開側邊欄', () => {
+  it('浮出時點切換鈕會固定展開側邊欄', () => {
     const onToggleSidebarCollapse = jest.fn()
-    const { panel } = renderSidebar({ isSidebarCollapsed: true, onToggleSidebarCollapse })
+    const { root } = renderSidebar({ isSidebarCollapsed: true, onToggleSidebarCollapse })
     fireEvent.mouseEnter(screen.getByRole('button', { name: EXPAND_LABEL }))
 
-    const panelToggle = panel.querySelector('[data-sidebar-toggle]') as HTMLElement
-    expect(panelToggle).toHaveAccessibleName(EXPAND_LABEL)
-    fireEvent.click(panelToggle)
+    const toggleButton = root.querySelector('[data-sidebar-toggle]') as HTMLElement
+    expect(toggleButton).toHaveAccessibleName(EXPAND_LABEL)
+    fireEvent.click(toggleButton)
     expect(onToggleSidebarCollapse).toHaveBeenCalledTimes(1)
   })
 

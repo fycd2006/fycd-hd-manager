@@ -254,24 +254,6 @@ export default function AppSidebar({
   const toggleLabel = isSidebarCollapsed ? (t('nav.expandSidebar') || '展開側邊欄') : (t('nav.collapseSidebar') || '收合側邊欄')
   const ToggleIcon = isSidebarCollapsed ? PanelLeftOpen : PanelLeftClose
 
-  // 面板內的切換鈕：固定在標頭最左側，與收合時的浮動鈕位置重疊
-  const sidebarToggle = (
-    <button
-      type="button"
-      data-sidebar-toggle=""
-      title={`${toggleLabel} (Ctrl+B)`}
-      aria-label={toggleLabel}
-      aria-expanded={mode !== 'collapsed'}
-      onClick={(e) => {
-        e.stopPropagation()
-        toggleSidebar(e.detail > 0)
-      }}
-      className={styles.toggle}
-    >
-      <ToggleIcon style={{ width: '18px', height: '18px' }} />
-    </button>
-  )
-
   return (
     <SidebarProvider open={!isSidebarCollapsed} onOpenChange={() => toggleSidebar(false)}>
       <div
@@ -279,6 +261,31 @@ export default function AppSidebar({
         data-sidebar-mode={mode}
         style={{ width: isSidebarCollapsed ? '0px' : '250px' }}
       >
+        {/* 常駐在左上角頂層的單一切換按鈕（z-index 始終高於面板，側邊欄從底下滑出，絕不重複跳閃） */}
+        <button
+          type="button"
+          data-sidebar-toggle=""
+          title={`${toggleLabel} (Ctrl+B)`}
+          aria-label={toggleLabel}
+          aria-expanded={!isSidebarCollapsed}
+          className={styles.toggleButton}
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleSidebar(e.detail > 0)
+          }}
+          onMouseEnter={() => {
+            if (!isSidebarCollapsed || suppressPeekRef.current) return
+            cancelPeekClose()
+            setIsPeeking(true)
+          }}
+          onMouseLeave={() => {
+            suppressPeekRef.current = false
+            if (isSidebarCollapsed) schedulePeekClose()
+          }}
+        >
+          <ToggleIcon style={{ width: '18px', height: '18px' }} />
+        </button>
+
         <div
           data-sidebar-panel=""
           className={styles.panel}
@@ -295,10 +302,11 @@ export default function AppSidebar({
         >
         <div className={styles.panelInner}>
         <Sidebar collapsible="none" className="w-full h-full border-none" style={{ background: 'transparent' }}>
-          {/* 1. Header: Collapse Toggle & Workspace Switcher */}
+          {/* 1. Header: Spacer for Top Toggle Button & Workspace Switcher */}
           <SidebarHeader style={{ height: '52px', minHeight: '52px', maxHeight: '52px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '4px' }}>
-              {sidebarToggle}
+              {/* 避讓頂層切換按鈕的佔位區（按鈕固定在 top: 10px, left: 8px） */}
+              <div style={{ width: '32px', height: '32px', minWidth: '32px', flexShrink: 0 }} aria-hidden="true" />
               <SidebarMenu style={{ flex: 1, minWidth: 0 }}>
                 <SidebarMenuItem>
                   <DropdownMenu onOpenChange={handleMenuOpenChange}>
@@ -855,29 +863,6 @@ export default function AppSidebar({
         </Sidebar>
         </div>
         </div>
-
-        {/* 收合時畫面上唯一的按鈕：碰到即浮出側邊欄，點擊則固定展開 */}
-        <button
-          type="button"
-          title={`${toggleLabel} (Ctrl+B)`}
-          aria-label={toggleLabel}
-          aria-expanded={mode !== 'collapsed'}
-          tabIndex={mode === 'collapsed' ? undefined : -1}
-          aria-hidden={mode === 'collapsed' ? undefined : true}
-          className={`${styles.toggle} ${styles.floatingToggle}`}
-          onClick={() => toggleSidebar(false)}
-          onMouseEnter={() => {
-            if (!isSidebarCollapsed || suppressPeekRef.current) return
-            cancelPeekClose()
-            setIsPeeking(true)
-          }}
-          onMouseLeave={() => {
-            suppressPeekRef.current = false
-            if (isSidebarCollapsed) schedulePeekClose()
-          }}
-        >
-          <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
-        </button>
       </div>
     </SidebarProvider>
   )
