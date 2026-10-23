@@ -23,6 +23,8 @@ export async function authorizeAction(
     databaseId?: number
     tableId?: number
     action: keyof RolePermissions
+    /** 為 true 時不排除已軟刪除的工作區／資料庫／資料表（僅供還原等操作使用）。 */
+    includeDeleted?: boolean
   }
 ): Promise<{ errorResponse?: NextResponse; auth?: AuthorizationResult }> {
   let user = await getSessionUser()
@@ -51,7 +53,7 @@ export async function authorizeAction(
   // Resolve via tableId if workspaceId not provided
   if (!resolvedWorkspaceId && options.tableId) {
     const table = await runDb(() => prisma.databaseTable.findFirst({
-      where: { id: options.tableId, deletedAt: null },
+      where: options.includeDeleted ? { id: options.tableId } : { id: options.tableId, deletedAt: null },
       include: { database: true }
     }))
     if (!table) {
@@ -78,11 +80,29 @@ export async function authorizeAction(
 
   // Resolve via databaseId if workspaceId not provided
   if (!resolvedWorkspaceId && options.databaseId) {
-    const db = await runDb(() => prisma.database.findUnique({
-      where: { id: options.databaseId }
+    const db = await runDb(() => prisma.database.findFirst({
+      where: options.includeDeleted
+        ? { id: options.databaseId }
+        : { id: options.databaseId, deletedAt: null }
     }))
-    if (db?.workspaceId) {
+    if (!db) {
+      return {
+        errorResponse: NextResponse.json({ error: '找不到對應的資料庫' }, { status: 404 })
+      }
+    }
+    if (db.workspaceId) {
       resolvedWorkspaceId = db.workspaceId
+    }
+  } else if (resolvedWorkspaceId && !options.includeDeleted && options.workspaceId) {
+    // 直接指定 workspaceId：已軟刪除的工作區視同不存在
+    const workspace = await runDb(() => prisma.workspace.findFirst({
+      where: { id: resolvedWorkspaceId, deletedAt: null },
+      select: { id: true }
+    }))
+    if (!workspace) {
+      return {
+        errorResponse: NextResponse.json({ error: '找不到對應的工作區' }, { status: 404 })
+      }
     }
   }
 

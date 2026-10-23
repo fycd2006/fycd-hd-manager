@@ -19,6 +19,10 @@ jest.mock('@/lib/prisma', () => ({
     },
     database: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+    },
+    workspace: {
+      findFirst: jest.fn(),
     },
     workspaceUser: {
       findUnique: jest.fn(),
@@ -34,6 +38,7 @@ jest.mock('@/lib/redis', () => ({
 describe('authorizeAction', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    ;(prisma.workspace.findFirst as jest.Mock).mockResolvedValue({ id: 1 })
     Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', writable: true })
   })
 
@@ -96,5 +101,80 @@ describe('authorizeAction', () => {
     })
     expect(result.errorResponse?.status).toBe(403)
     expect(setCache).not.toHaveBeenCalled()
+  })
+
+  describe('soft-deleted containers', () => {
+    beforeEach(() => {
+      ;(getSessionUser as jest.Mock).mockResolvedValue({ id: 1, role: 'user' })
+      ;(getCache as jest.Mock).mockResolvedValue(null)
+    })
+
+    it('returns 404 for a deleted workspace', async () => {
+      ;(prisma.workspace.findFirst as jest.Mock).mockResolvedValue(null)
+
+      const result = await authorizeAction({ workspaceId: 5, action: 'canViewData' })
+
+      expect(prisma.workspace.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 5, deletedAt: null } })
+      )
+      expect(result.errorResponse?.status).toBe(404)
+      expect((await result.errorResponse?.json()).error).toBe('找不到對應的工作區')
+    })
+
+    it('returns 404 for a deleted database', async () => {
+      ;(prisma.database.findFirst as jest.Mock).mockResolvedValue(null)
+
+      const result = await authorizeAction({ databaseId: 9, action: 'canViewData' })
+
+      expect(prisma.database.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 9, deletedAt: null } })
+      )
+      expect(result.errorResponse?.status).toBe(404)
+      expect((await result.errorResponse?.json()).error).toBe('找不到對應的資料庫')
+    })
+
+    it('returns 404 for a table stamped deleted with its workspace', async () => {
+      ;(prisma.databaseTable.findFirst as jest.Mock).mockResolvedValue(null)
+
+      const result = await authorizeAction({ tableId: 20, action: 'canViewData' })
+
+      expect(prisma.databaseTable.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 20, deletedAt: null } })
+      )
+      expect(result.errorResponse?.status).toBe(404)
+    })
+
+    it('includeDeleted does not filter deletedAt on the table path', async () => {
+      ;(prisma.databaseTable.findFirst as jest.Mock).mockResolvedValue({ id: 20, database: { workspaceId: 2 } })
+      ;(prisma.workspaceUser.findUnique as jest.Mock).mockResolvedValue({ role: 'admin' })
+
+      const result = await authorizeAction({ tableId: 20, action: 'canManageStructure', includeDeleted: true })
+
+      expect(prisma.databaseTable.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 20 } })
+      )
+      expect(result.errorResponse).toBeUndefined()
+    })
+
+    it('includeDeleted resolves a deleted workspace and still checks the role', async () => {
+      ;(prisma.workspaceUser.findUnique as jest.Mock).mockResolvedValue({ role: 'viewer' })
+
+      const result = await authorizeAction({ workspaceId: 5, action: 'canManageWorkspace', includeDeleted: true })
+
+      expect(prisma.workspace.findFirst).not.toHaveBeenCalled()
+      expect(result.errorResponse?.status).toBe(403)
+    })
+
+    it('includeDeleted resolves a deleted database without filtering deletedAt', async () => {
+      ;(prisma.database.findFirst as jest.Mock).mockResolvedValue({ id: 9, workspaceId: 3 })
+      ;(prisma.workspaceUser.findUnique as jest.Mock).mockResolvedValue({ role: 'admin' })
+
+      const result = await authorizeAction({ databaseId: 9, action: 'canManageStructure', includeDeleted: true })
+
+      expect(prisma.database.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 9 } })
+      )
+      expect(result.auth?.workspaceId).toBe(3)
+    })
   })
 })

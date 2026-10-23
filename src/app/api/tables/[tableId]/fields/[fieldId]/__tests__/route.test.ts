@@ -151,7 +151,7 @@ describe('DELETE /api/tables/[tableId]/fields/[fieldId]', () => {
     expect(prisma.tableField.update).not.toHaveBeenCalled()
   })
 
-  it('soft-deletes without touching row data, cleans dependencies and drops the generated column if indexed', async () => {
+  it('soft-deletes without touching row data and drops the generated column if indexed', async () => {
     ;(prisma.tableField.findUnique as jest.Mock).mockResolvedValue(field({ isIndexed: true }))
     const res = await del()
     expect(res.status).toBe(200)
@@ -162,8 +162,14 @@ describe('DELETE /api/tables/[tableId]/fields/[fieldId]', () => {
     // Residual field_50 keys stay in TableRow.data so the field can be restored from trash
     expect(prisma.$executeRaw).not.toHaveBeenCalled()
     expect(prisma.tableRow.update).not.toHaveBeenCalled()
-    expect(cleanupFieldDependencies).toHaveBeenCalledWith(50)
     expect(dropGeneratedColumn).toHaveBeenCalledWith(50)
+  })
+
+  it('DELETE soft deletes without clearing lookup/rollup references', async () => {
+    ;(prisma.tableField.findUnique as jest.Mock).mockResolvedValue(field())
+    const res = await del()
+    expect(res.status).toBe(200)
+    expect(cleanupFieldDependencies).not.toHaveBeenCalled()
   })
 
   it('rejects deleting a field that belongs to a different table than the URL (cross-table IDOR)', async () => {

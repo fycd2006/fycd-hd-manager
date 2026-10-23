@@ -10,3 +10,4 @@ export {
   ViewModal,
   FieldModal
 } from './Modals'
+export { DeleteConfirmModal } from './DeleteConfirmModal'
