@@ -62,7 +62,7 @@
 
 - 移除 `GridViewRow`／`grid.css` 中 32／36／40px 互相矛盾的 `--row-height` 後備值，統一由外層變數提供。
 - 表頭高度統一（現況 TSX 36px、CSS 44px）。
-- number、currency、percent、autonumber、count 類欄位：`text-align: right` + `font-variant-numeric: tabular-nums`，不再強制 monospace。
+- number、autonumber 欄位（GridViewCell 目前僅有這兩個數字顯示分支）：`text-align: right` + `font-variant-numeric: tabular-nums`，不再強制 monospace。
 
 ## 2. 架構與資料流
 

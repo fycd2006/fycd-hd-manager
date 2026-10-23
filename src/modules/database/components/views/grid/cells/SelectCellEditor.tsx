@@ -121,11 +121,11 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
           }}
         >
           {localVal ? (
-            <span style={{ ...getOptionColor(localVal, safeOptions), padding: '2px 8px', borderRadius: '9999px', fontSize: '12px', whiteSpace: 'nowrap' }}>
+            <span style={{ ...getOptionColor(localVal, safeOptions), padding: '2px 8px', borderRadius: '9999px', fontSize: 'var(--grid-font-size-sm, 11px)', whiteSpace: 'nowrap' }}>
               {displayStr}
             </span>
           ) : (
-            <span style={{ color: '#94a3b8', fontSize: '13px' }}>請選擇...</span>
+            <span style={{ color: '#94a3b8', fontSize: 'var(--grid-font-size, 13px)' }}>請選擇...</span>
           )}
           <div style={{ marginLeft: 'auto', color: '#64748b' }}>
             <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -184,7 +184,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                 }
               }}
               placeholder="搜尋或輸入新增..."
-              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
+              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: 'var(--grid-font-size, 13px)' }}
             />
           </div>
           <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
@@ -217,7 +217,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                   onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.background = '#f8fafc' }}
                   onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? '#f1f5f9' : 'transparent'}
                 >
-                  <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
+                  <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: 'var(--grid-font-size-sm, 11px)' }}>
                     {optName}
                   </span>
                 </div>
@@ -237,7 +237,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                   onUpdate(val);
                   onCancelEdit();
                 }}
-                style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
+                style={{ padding: '8px 12px', fontSize: 'var(--grid-font-size, 13px)', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
                 onMouseEnter={(e) => e.currentTarget.style.background = '#F4F4F5'}
                 onMouseLeave={(e) => e.currentTarget.style.background = '#F4F4F5'}
               >
@@ -245,7 +245,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
               </div>
             )}
             {filteredOptions.length === 0 && !comboSearch && (
-              <div style={{ padding: '12px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
+              <div style={{ padding: '12px', fontSize: 'var(--grid-font-size-sm, 11px)', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
             )}
           </div>
         </PopoverPortal>
@@ -289,7 +289,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
           const displayStr = selectedOpt ? selectedOpt.name : item;
           const { bg, text } = getOptionColor(item, safeOptions);
           return (
-            <span key={i} style={{ background: bg, color: text, padding: '2px 6px', borderRadius: '9999px', fontSize: '12px', display: 'flex', alignItems: 'center' }}>
+            <span key={i} style={{ background: bg, color: text, padding: '2px 6px', borderRadius: '9999px', fontSize: 'var(--grid-font-size-sm, 11px)', display: 'flex', alignItems: 'center' }}>
               {displayStr}
               <span 
                 onClick={() => {
@@ -366,7 +366,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
               }
             }}
             placeholder="搜尋或輸入新增..."
-            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: '13px' }}
+            style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', marginLeft: '8px', fontSize: 'var(--grid-font-size, 13px)' }}
           />
         </div>
         <div style={{ overflowY: 'auto', padding: '4px 0', flex: 1 }}>
@@ -409,7 +409,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                   onChange={() => {}} 
                   style={{ margin: 0, cursor: 'pointer', pointerEvents: 'none' }}
                 />
-                <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: '12px' }}>
+                <span style={{ background: bg, color: text, padding: '2px 8px', borderRadius: '9999px', fontSize: 'var(--grid-font-size-sm, 11px)' }}>
                   {optName}
                 </span>
               </div>
@@ -436,7 +436,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                 onUpdate(nextVal);
                 setComboSearch('');
               }}
-              style={{ padding: '8px 12px', fontSize: '13px', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
+              style={{ padding: '8px 12px', fontSize: 'var(--grid-font-size, 13px)', cursor: 'pointer', color: '#18181B', fontWeight: 500, background: '#F4F4F5' }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#F4F4F5'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#F4F4F5'}
             >
@@ -444,7 +444,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
             </div>
           )}
           {filteredOptions.length === 0 && !comboSearch && (
-            <div style={{ padding: '12px', fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
+            <div style={{ padding: '12px', fontSize: 'var(--grid-font-size-sm, 11px)', color: '#94a3b8', textAlign: 'center' }}>尚無選項，請直接輸入搜尋建立</div>
           )}
         </div>
       </PopoverPortal>

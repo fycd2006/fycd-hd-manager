@@ -194,7 +194,7 @@ export const LinkRowCellEditor: React.FC<LinkRowCellEditorProps> = ({
               placeholder="Search rows (支援全欄位比對)..."
               value={relationSearch}
               onChange={e => setRelationSearch(e.target.value)}
-              style={{ flex: 1, padding: '6px 12px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
+              style={{ flex: 1, padding: '6px 12px', fontSize: 'var(--grid-font-size, 13px)', border: '1px solid #cbd5e1', borderRadius: '6px', outline: 'none' }}
             />
             <button
               type="button"
@@ -205,7 +205,7 @@ export const LinkRowCellEditor: React.FC<LinkRowCellEditorProps> = ({
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '6px',
-                fontSize: '12px',
+                fontSize: 'var(--grid-font-size-sm, 11px)',
                 fontWeight: 600,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
@@ -218,12 +218,12 @@ export const LinkRowCellEditor: React.FC<LinkRowCellEditorProps> = ({
             </button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '12px', color: '#64748b' }}>
+            <span style={{ fontSize: 'var(--grid-font-size-sm, 11px)', color: '#64748b' }}>
               已選擇 {currentIds.length} 項{!allowMultiple && ' (單選)'}
             </span>
             <button
               onClick={() => handleConfirmRelation()}
-              style={{ padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+              style={{ padding: '6px 12px', background: '#e2e8f0', border: 'none', borderRadius: '6px', fontSize: 'var(--grid-font-size-sm, 11px)', fontWeight: 600, color: '#475569', cursor: 'pointer' }}
             >
               ✕ 完成關閉
             </button>
@@ -232,11 +232,11 @@ export const LinkRowCellEditor: React.FC<LinkRowCellEditorProps> = ({
 
         <div style={{ flex: 1, overflow: 'auto', background: '#ffffff' }}>
           {relationLoading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '13px' }}>
+            <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: 'var(--grid-font-size, 13px)' }}>
               載入關聯表格資料中...
             </div>
           ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 'var(--grid-font-size, 13px)', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f1f5f9', borderBottom: '2px solid #cbd5e1' }}>
                   <th style={{ width: '44px', padding: '10px 12px', textAlign: 'center' }}>選取</th>
@@ -250,53 +250,36 @@ export const LinkRowCellEditor: React.FC<LinkRowCellEditorProps> = ({
               <tbody>
                 {relationRows.length === 0 ? (
                   <tr>
-                    <td colSpan={targetFields.length + 1} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8', fontStyle: 'italic' }}>
-                      找不到符合條件的關聯列
+                    <td colSpan={targetFields.length + 1} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+                      無符合資料
                     </td>
                   </tr>
                 ) : (
-                  relationRows.map(r => {
-                    const isLinked = currentIds.includes(r.id);
+                  relationRows.map(row => {
+                    const isSelected = currentIds.includes(row.id);
                     return (
                       <tr
-                        key={r.id}
-                        onClick={() => toggleRowSelection(r)}
+                        key={row.id}
+                        onClick={() => toggleRowSelection(row)}
                         style={{
-                          borderBottom: '1px solid #e2e8f0',
-                          background: isLinked ? '#f0fdf4' : 'transparent',
                           cursor: 'pointer',
-                          transition: 'background 0.1s ease',
+                          backgroundColor: isSelected ? 'rgba(63, 98, 18, 0.08)' : 'transparent',
+                          borderBottom: '1px solid #e2e8f0',
                         }}
                       >
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                        <td style={{ textAlign: 'center', padding: '8px 12px' }}>
                           <input
-                            type="checkbox"
-                            checked={isLinked}
+                            type={allowMultiple ? 'checkbox' : 'radio'}
+                            checked={isSelected}
                             onChange={() => {}}
-                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                            style={{ cursor: 'pointer' }}
                           />
                         </td>
                         {targetFields.map(f => {
-                          const fKey = `field_${f.id}`;
-                          const cellVal = r.data?.[fKey];
-                          let displayCell = '';
-                          if (cellVal != null && cellVal !== '') {
-                            if (typeof cellVal === 'boolean') {
-                              displayCell = cellVal ? '✓' : '';
-                            } else if (Array.isArray(cellVal)) {
-                              displayCell = cellVal
-                                .map(item => (typeof item === 'object' && item !== null ? item.value || item.name || item.id : String(item)))
-                                .filter(Boolean)
-                                .join(', ');
-                            } else if (typeof cellVal === 'object') {
-                              displayCell = String(cellVal.value || cellVal.name || cellVal.id || '');
-                            } else {
-                              displayCell = String(cellVal);
-                            }
-                          }
+                          const val = row.data?.[`field_${f.id}`];
                           return (
-                            <td key={f.id} style={{ padding: '10px 12px', color: '#1e293b', borderRight: '1px solid #f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
-                              {displayCell}
+                            <td key={f.id} style={{ padding: '8px 12px', borderRight: '1px solid #f1f5f9', color: '#1e293b' }}>
+                              {val !== null && val !== undefined ? String(val) : ''}
                             </td>
                           );
                         })}
@@ -312,7 +295,7 @@ export const LinkRowCellEditor: React.FC<LinkRowCellEditorProps> = ({
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
           <button
             onClick={() => handleConfirmRelation()}
-            style={{ padding: '6px 16px', background: '#18181B', border: 'none', borderRadius: '6px', color: 'white', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+            style={{ padding: '6px 16px', background: '#18181B', border: 'none', borderRadius: '6px', color: 'white', fontSize: 'var(--grid-font-size-sm, 11px)', fontWeight: 600, cursor: 'pointer' }}
           >
             確認
           </button>
