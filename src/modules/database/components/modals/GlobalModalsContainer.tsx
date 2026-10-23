@@ -6,7 +6,7 @@ import RowEditModal from './RowEditModal'
 import MembersModal from './MembersModal'
 import NotificationsModal from './NotificationsModal'
 import { FieldContextMenu } from '../menu/FieldContextMenu'
-import type { TableField, TableRow, FilterRule } from '../../types'
+import type { TableField, TableRow, FilterItem } from '../../types'
 import type { WorkspaceState, WorkspaceActions } from '../../store/useWorkspaceStore'
 import * as fieldService from '../../services/field'
 import { useOptionalTableContext } from '../../context/TableContext'
@@ -52,8 +52,8 @@ interface GlobalModalsContainerProps {
   setShowNotificationsModal?: (show: boolean) => void
   fieldContextMenu?: { field: TableField; x: number; y: number } | null
   setFieldContextMenu?: (menu: { field: TableField; x: number; y: number } | null) => void
-  filterRules?: FilterRule[]
-  setFilterRules?: (rules: FilterRule[]) => void
+  filterRules?: FilterItem[]
+  setFilterRules?: (rules: FilterItem[]) => void
   hiddenFieldKeys?: string[]
   setHiddenFieldKeys?: (keys: string[]) => void
   saveViewConfig?: (viewId: number, updates: any) => Promise<void>
@@ -395,7 +395,7 @@ export default function GlobalModalsContainer(props: GlobalModalsContainerProps)
             }
           }}
           onCreateFilter={(field) => {
-            const newRules: FilterRule[] = [...filterRules, { fieldKey: `field_${field.id}`, operator: 'contains', value: '' }]
+            const newRules: FilterItem[] = [...filterRules, { fieldKey: `field_${field.id}`, operator: 'contains', value: '' }]
             setFilterRules(newRules)
             if (wsState.activeViewId) {
               saveViewConfig(wsState.activeViewId, { filters: JSON.stringify(newRules) })

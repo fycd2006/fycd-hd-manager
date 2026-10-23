@@ -9,16 +9,30 @@ const createViewSchema = z.object({
   type: z.string().min(1, '視圖名稱與類型為必填'),
 })
 
+// Multi-level sort/group rules; the client may send them as an array or a JSON string
+const ruleListSchema = z.preprocess(
+  (val) => {
+    if (typeof val !== 'string') return val
+    try { return JSON.parse(val) } catch { return val }
+  },
+  z.array(z.object({
+    fieldKey: z.string().regex(/^field_\d+$/),
+    order: z.enum(['asc', 'desc']),
+  })).max(10).nullable().optional()
+)
+
 const updateViewSchema = z.object({
   viewId: z.union([z.number(), z.string()]),
   name: z.string().optional(),
   filters: z.any().optional(),
   sortField: z.string().nullable().optional(),
   sortOrder: z.string().nullable().optional(),
+  sortRules: ruleListSchema,
   hiddenFields: z.any().optional(),
   columnWidths: z.any().optional(),
   rowColors: z.any().optional(),
   groupByField: z.string().nullable().optional(),
+  groupByRules: ruleListSchema,
   aggregations: z.any().optional(),
 })
 
@@ -89,18 +103,31 @@ export const PATCH = withApiHandler<{ tableId: string }, z.infer<typeof updateVi
       return typeof val === 'string' ? val : JSON.stringify(val)
     }
 
-    const { name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField, aggregations } = body!
+    const { name, filters, sortField, sortOrder, sortRules, hiddenFields, columnWidths, rowColors, groupByField, groupByRules, aggregations } = body!
+
+    // Keep the legacy single-rule columns in sync with the first rule unless sent explicitly
+    const primarySort = sortRules?.[0]
+    const primaryGroup = groupByRules?.[0]
 
     const updated = await prisma.tableView.update({
       where: { id: vid, tableId: tid },
       data: {
         ...(name !== undefined && { name }),
         ...(filters !== undefined && { filters: toJsonString(filters) }),
+        ...(sortRules !== undefined && {
+          sortRules: toJsonString(sortRules),
+          sortField: primarySort?.fieldKey ?? null,
+          sortOrder: primarySort?.order ?? 'asc',
+        }),
         ...(sortField !== undefined && { sortField }),
         ...(sortOrder !== undefined && { sortOrder }),
         ...(hiddenFields !== undefined && { hiddenFields: toJsonString(hiddenFields) }),
         ...(columnWidths !== undefined && { columnWidths: toJsonString(columnWidths) }),
         ...(rowColors !== undefined && { rowColors: toJsonString(rowColors) }),
+        ...(groupByRules !== undefined && {
+          groupByRules: toJsonString(groupByRules),
+          groupByField: primaryGroup?.fieldKey ?? null,
+        }),
         ...(groupByField !== undefined && { groupByField }),
         ...(aggregations !== undefined && { aggregations: toJsonString(aggregations) }),
       }

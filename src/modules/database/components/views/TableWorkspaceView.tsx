@@ -13,7 +13,7 @@ import type {
   TableView,
   GroupCollapseState,
   SortRule,
-  FilterRule,
+  FilterItem,
   RowColorRule,
   GroupByRule,
 } from '@/modules/database/types'
@@ -237,6 +237,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
       >
         {/* View selector and header toolbar */}
         <ViewToolbar
+          rows={rows}
           isAiOpen={isAiOpen}
           onToggleAiOpen={() => setIsAiOpen(prev => !prev)}
         canManageStructure={currentUserRolePermissions.canManageStructure}
@@ -275,7 +276,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
           }
         }}
         filterRules={filterRules}
-        setFilterRules={(rules: FilterRule[]) => {
+        setFilterRules={(rules: FilterItem[]) => {
           setFilterRules(rules)
           if (activeViewId) {
             saveViewConfig(activeViewId, {

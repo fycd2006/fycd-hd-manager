@@ -5,7 +5,7 @@ import * as viewService from '@/modules/database/services/view'
 import type {
   TableView,
   ViewType,
-  FilterRule,
+  FilterItem,
   RowColorRule,
   GroupByRule,
   SortRule,
@@ -33,7 +33,7 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
   const [sortRules, setSortRules] = useState<SortRule[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
-  const [filterRules, setFilterRules] = useState<FilterRule[]>([])
+  const [filterRules, setFilterRules] = useState<FilterItem[]>([])
   const [filterType, setFilterType] = useState<'AND' | 'OR'>('AND')
 
   // Hidden Fields & Row Colors Config
@@ -180,11 +180,14 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
       }
     }
 
+    // A header toggle replaces any saved multi-level sort with this single rule
+    const nextRules: SortRule[] = nextField ? [{ fieldKey: nextField, order: nextOrder }] : []
     setSortField(nextField)
     setSortOrder(nextOrder)
+    setSortRules(nextRules)
 
     if (activeViewId) {
-      saveViewConfig(activeViewId, { sortField: nextField, sortOrder: nextOrder })
+      saveViewConfig(activeViewId, { sortField: nextField, sortOrder: nextOrder, sortRules: nextRules })
     }
   }, [sortField, sortOrder, activeViewId, saveViewConfig])
 
@@ -262,10 +265,12 @@ export function useViewConfig({ activeTableId, activeViewId, setActiveViewId, ad
           filters: sourceView.filters,
           sortField: sourceView.sortField,
           sortOrder: sourceView.sortOrder,
+          sortRules: sourceView.sortRules,
           hiddenFields: sourceView.hiddenFields,
           columnWidths: sourceView.columnWidths,
           rowColors: sourceView.rowColors,
           groupByField: sourceView.groupByField,
+          groupByRules: sourceView.groupByRules,
           aggregations: sourceView.aggregations,
         }
         await saveViewConfig(result.view.id, viewConfig)
