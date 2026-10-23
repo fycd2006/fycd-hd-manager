@@ -599,6 +599,13 @@
   padding: 8px 16px;
   background: var(--dash-surface-muted);
   border-bottom: 1px solid var(--dash-border);
+  transition: padding-left var(--transition-sidebar);
+}
+
+@media (min-width: 1024px) {
+  :global(.layout__col-2.sidebar--collapsed) .masterBar {
+    padding-left: 48px;
+  }
 }
 
 .masterBack {

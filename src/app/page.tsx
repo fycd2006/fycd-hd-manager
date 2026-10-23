@@ -247,7 +247,7 @@ export default function Home() {
   const [pendingDelete, setPendingDelete] = useState<{ action: 'delete_workspace' | 'delete_database'; id: number; label: string } | null>(null)
   const [showTableModal, setShowTableModal] = useState(false)
   const [modalDbIdForTable, setModalDbIdForTable] = useState<number | null>(null)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const isSidebarCollapsed = uiState.sidebarCollapsed
   const [showAirtableModal, setShowAirtableModal] = useState(false)
   const [groupCollapseState, setGroupCollapseState] = useState<GroupCollapseState>({
     mode: 'expand',
@@ -1159,7 +1159,7 @@ export default function Home() {
           onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
           onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
           onToggleTheme={themeActions.toggleTheme}
-          onToggleSidebarCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onToggleSidebarCollapse={uiActions.toggleSidebarCollapsed}
           onLogout={authActions.logout}
           onToggleWorkspaceCollapse={wsActions.toggleWorkspaceCollapse}
           onToggleDatabaseCollapse={wsActions.toggleDatabaseCollapse}
@@ -1208,7 +1208,13 @@ export default function Home() {
           onReorderDatabases={wsActions.reorderDatabases}
         />
 
-        <div className="layout__col-2" style={{ left: isSidebarCollapsed ? '56px' : '250px', transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <div
+          className={`layout__col-2 ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`}
+          style={{
+            left: isSidebarCollapsed ? '0px' : '250px',
+            transition: 'left var(--transition-sidebar)',
+          }}
+        >
           {!wsState.activeTableId || wsState.activeTableId === 0 ? (
             <div key="workspace_dashboard" className="animate-view-transition" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <WorkspaceDashboard

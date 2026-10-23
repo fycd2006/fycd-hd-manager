@@ -480,6 +480,14 @@
 
 .layout__col-2-1.header {
   border-bottom: 1px solid var(--border-color);
+  transition: padding-left var(--transition-sidebar);
+}
+
+/* 側邊欄收合時，桌面工具列向右退縮以避開左上角浮動展開按鈕 */
+@media (min-width: 1024px) {
+  .layout__col-2.sidebar--collapsed .layout__col-2-1.header {
+    padding-left: 48px !important;
+  }
 }
 
 /* Mobile Toolbar Adaptations */

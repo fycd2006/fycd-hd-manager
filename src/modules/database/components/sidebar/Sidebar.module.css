@@ -1,0 +1,145 @@
+/*
+ * 側邊欄外殼（對齊 Claude 網頁版）
+ * - docked：固定展開，佔 250px 版面
+ * - collapsed：不佔版面，左上角只剩一顆切換鈕
+ * - peek：滑鼠碰到切換鈕時，面板浮在內容上方滑出；離開即收回
+ * 面板寬度固定，只用 transform 位移，展開／收合過程中內容不重排。
+ */
+.shell {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  overflow: visible;
+  transition: width var(--transition-sidebar);
+}
+
+.shell[data-sidebar-mode='peek'] {
+  z-index: var(--z-sticky);
+}
+
+.panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-color);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  transition:
+    transform var(--transition-sidebar),
+    box-shadow var(--transition-sidebar),
+    visibility 0s linear 0s;
+}
+
+.shell[data-sidebar-mode='peek'] .panel {
+  box-shadow: var(--shadow-lg);
+}
+
+/* 滑出畫面後才隱藏，讓收回動畫完整播放 */
+.shell[data-sidebar-mode='collapsed'] .panel {
+  transform: translate3d(-100%, 0, 0);
+  visibility: hidden;
+  box-shadow: none;
+  transition:
+    transform var(--transition-sidebar),
+    box-shadow var(--transition-sidebar),
+    visibility 0s linear var(--sidebar-motion-duration);
+}
+
+/* 面板內容在浮出時由左側淡入，避免整片生硬出現 */
+.panelInner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  opacity: 1;
+  transition: opacity var(--transition-sidebar);
+}
+
+.shell[data-sidebar-mode='collapsed'] .panelInner {
+  opacity: 0;
+}
+
+.toggle {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.toggle:active {
+  transform: scale(0.94);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+/* 收合時唯一留在畫面上的按鈕；位置與面板內切換鈕重疊，浮出時看起來是同一顆 */
+.floatingToggle {
+  position: absolute;
+  top: 10px;
+  left: 8px;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 160ms ease-out 120ms,
+    transform 160ms ease-out 120ms,
+    visibility 0s linear 0s,
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.floatingToggle:active {
+  transform: scale(0.94);
+}
+
+.shell[data-sidebar-mode='docked'] .floatingToggle,
+.shell[data-sidebar-mode='peek'] .floatingToggle {
+  opacity: 0;
+  transform: scale(0.9);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 80ms ease-out,
+    transform 80ms ease-out,
+    visibility 0s linear 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell,
+  .panel,
+  .panelInner,
+  .floatingToggle,
+  .shell[data-sidebar-mode] .panel,
+  .shell[data-sidebar-mode] .floatingToggle {
+    transition: none;
+  }
+}

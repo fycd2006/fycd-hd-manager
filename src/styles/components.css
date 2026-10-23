@@ -1055,14 +1055,6 @@ nextjs-portal,
   align-items: center !important;
 }
 
-/* 收合時頂端改為兩列（收合按鈕 + 工作區圖示），高度隨內容撐開 */
-.sidebar--collapsed [data-sidebar="header"] {
-  height: auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
-  padding: 10px 0 !important;
-}
-
 [data-sidebar="footer"] {
   height: 48px !important;
   min-height: 48px !important;

@@ -2,15 +2,12 @@
 
 ## 目前進度
 - PR #1–#38 全部已合併至 `main`。
-- PR #38 全站 UI/UX 樣式與 Design Tokens 統一整合 4 階段全數合併：
-  1. Phase 1（`b2a33a1`）：移除 `theme.css`，將圓角、陰影、z-index、過渡與語意邊框收斂至 `src/styles/tokens.css`。
-  2. Phase 2（`95f46cc`）：收斂 `src/components/ui/` 元件與 `components.css`，新增 `--brand-green-text` 解決暗色對比度。
-  3. Phase 3（`e7b496c`）：側邊欄、全域表單控制項與 13 個業務彈窗對齊 Token。
-  4. Phase 4（`b307426`）：工具列、儀表板、次要視圖、導覽抽屜與獨立頁面全站收斂，防退化測試擴充至 74 項全過。
-- `main` 分支本地 `npm run verify` 全部通過。
+- 側邊欄完成仿 Claude 網頁版升級：收合時完全不留窄欄（0px），左上角保留一顆平滑微縮的展開按鈕；滑鼠碰到展開按鈕時面板平滑浮出（Peek 懸停覆蓋，不推擠內容寬度），滑鼠移開或按 Esc 自動收回；支援點擊鎖定展開、Ctrl/⌘+B 全域快捷鍵、localStorage 記憶收合狀態、Portal 下拉選單開啟時防收回；收合時桌面工具列與儀表板自動退縮 48px 防遮擋；全面對齊 Design Tokens 與深色模式。
+- 本地 `npm run verify` 全部通過（typecheck、lint、jest 40 套件 276 測試、build:check）。
 
 ## 已做的決定
 - 全站設計 Token 唯一真相來源為 `src/styles/tokens.css`；深色模式一律使用 `[data-theme='dark']` / `.theme-dark`，禁止使用失效的 Tailwind `dark:*-slate-*` / `.dark` 選擇器。
+- 側邊欄改以 GPU 合成層 `transform: translate3d` 平滑位移；收合時主版面佔滿 100% 寬度，透過 `@media (min-width: 1024px)` 補償工具列左側間隔。
 - 驗證統一走 `npm run verify`；`npm run build` 會 db push 抹除資料，嚴禁本機執行。ESLint 舊錯凍結、新錯即失敗。
 - 儲存格寫入一律經 `prepareCellWrites`／`prepareBatchCellWrites`；安全修正一律先 `authorizeAction`。
 

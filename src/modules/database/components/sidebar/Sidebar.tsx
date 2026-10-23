@@ -1,18 +1,18 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { Workspace, User } from '@/modules/database/types'
 import { useHoverPrefetch } from '@/modules/database/cache/useHoverPrefetch'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FycdLogo } from '@/components/brand/FycdLogo'
+import styles from './Sidebar.module.css'
 import {
   SidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
-  SidebarRail,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupAction,
@@ -81,6 +81,9 @@ import {
   AnimatedFolderPlus,
   AnimatedPlus,
 } from '@/components/animate-ui/icons'
+
+// 離開浮出的面板後延遲收回，容忍游標短暫滑出邊界
+const PEEK_CLOSE_DELAY_MS = 250
 
 interface SidebarProps {
   currentUser: User
@@ -172,115 +175,163 @@ export default function AppSidebar({
   const [draggedItem, setDraggedItem] = useState<{ type: 'database' | 'table'; id: number; sourceDbId?: number } | null>(null)
   const [dropTarget, setDropTarget] = useState<{ type: 'database' | 'table'; id: number } | null>(null)
 
-  // 收合後滑鼠移入即暫時展開（浮在內容上方），移出即退回單一切換鈕的窄滑道
-  const [isHoverExpanded, setIsHoverExpanded] = useState(false)
-  const isRail = isSidebarCollapsed && !isHoverExpanded
+  // 收合後只剩左上角一顆切換鈕；滑鼠碰到它才讓面板浮出（peek），離開面板後稍等再收回
+  const [isPeeking, setIsPeeking] = useState(false)
+  // 外部 prop 變更為展開時，於 render 期間重置 peeking 狀態
+  const [prevCollapsed, setPrevCollapsed] = useState(isSidebarCollapsed)
+  if (prevCollapsed !== isSidebarCollapsed) {
+    setPrevCollapsed(isSidebarCollapsed)
+    if (!isSidebarCollapsed && isPeeking) {
+      setIsPeeking(false)
+    }
+  }
+
+  const mode: 'docked' | 'collapsed' | 'peek' = !isSidebarCollapsed
+    ? 'docked'
+    : isPeeking
+      ? 'peek'
+      : 'collapsed'
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pointerInsideRef = useRef(false)
+  const menuOpenRef = useRef(false)
+  // 點收合鈕後游標通常還停在原位，需先移開一次才允許再次浮出
+  const suppressPeekRef = useRef(false)
+
+  const cancelPeekClose = useCallback(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+  }, [])
+
+  const schedulePeekClose = useCallback(() => {
+    cancelPeekClose()
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null
+      if (!pointerInsideRef.current && !menuOpenRef.current && !draggedItem) setIsPeeking(false)
+    }, PEEK_CLOSE_DELAY_MS)
+  }, [cancelPeekClose, draggedItem])
+
+  useEffect(() => cancelPeekClose, [cancelPeekClose])
+
+  useEffect(() => {
+    if (!isSidebarCollapsed) {
+      cancelPeekClose()
+    }
+  }, [isSidebarCollapsed, cancelPeekClose])
+
+  useEffect(() => {
+    if (mode !== 'peek') return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !menuOpenRef.current) {
+        cancelPeekClose()
+        setIsPeeking(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mode, cancelPeekClose])
+
+  // 側邊欄內的下拉選單是 portal，滑鼠移進選單會觸發面板 mouseleave；選單開著時不收回
+  const handleMenuOpenChange = useCallback((open: boolean) => {
+    menuOpenRef.current = open
+    if (open) cancelPeekClose()
+    else if (!pointerInsideRef.current) schedulePeekClose()
+  }, [cancelPeekClose, schedulePeekClose])
+
+  const toggleSidebar = useCallback((fromPointer: boolean) => {
+    cancelPeekClose()
+    setIsPeeking(false)
+    suppressPeekRef.current = fromPointer && !isSidebarCollapsed
+    onToggleSidebarCollapse?.()
+  }, [cancelPeekClose, isSidebarCollapsed, onToggleSidebarCollapse])
 
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0]
   const canManageStructure = userPermissions?.canManageStructure ?? true
 
   const userInitials = (currentUser?.username || currentUser?.email || 'U').slice(0, 2).toUpperCase()
 
-  // 收合／展開按鈕常駐於側邊欄頂端：展開時在工作區切換器右側，收合時獨占一列在最上方
+  const toggleLabel = isSidebarCollapsed ? (t('nav.expandSidebar') || '展開側邊欄') : (t('nav.collapseSidebar') || '收合側邊欄')
+  const ToggleIcon = isSidebarCollapsed ? PanelLeftOpen : PanelLeftClose
+
+  // 面板內的切換鈕：固定在標頭最左側，與收合時的浮動鈕位置重疊
   const sidebarToggle = (
     <button
       type="button"
-      title={isSidebarCollapsed ? (t('nav.expandSidebar') || '展開側邊欄') : (t('nav.collapseSidebar') || '收合側邊欄')}
-      aria-label={isSidebarCollapsed ? (t('nav.expandSidebar') || '展開側邊欄') : (t('nav.collapseSidebar') || '收合側邊欄')}
-      aria-expanded={!isSidebarCollapsed}
+      data-sidebar-toggle=""
+      title={`${toggleLabel} (Ctrl+B)`}
+      aria-label={toggleLabel}
+      aria-expanded={mode !== 'collapsed'}
       onClick={(e) => {
         e.stopPropagation()
-        onToggleSidebarCollapse?.()
+        toggleSidebar(e.detail > 0)
       }}
-      style={{
-        width: '32px',
-        height: '32px',
-        minWidth: '32px',
-        borderRadius: '8px',
-        border: 'none',
-        background: 'transparent',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: '#64748b',
-        flexShrink: 0,
-        transition: 'background-color 0.15s ease, color 0.15s ease',
-      }}
-      className="hover:bg-slate-200/70 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
+      className={styles.toggle}
     >
-      {isSidebarCollapsed
-        ? <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
-        : <PanelLeftClose style={{ width: '18px', height: '18px' }} />}
+      <ToggleIcon style={{ width: '18px', height: '18px' }} />
     </button>
   )
 
   return (
-    <SidebarProvider open={!isSidebarCollapsed} onOpenChange={() => onToggleSidebarCollapse?.()}>
+    <SidebarProvider open={!isSidebarCollapsed} onOpenChange={() => toggleSidebar(false)}>
       <div
-        className={`layout__col-1 ${isRail ? 'sidebar--collapsed' : ''}`}
-        onMouseEnter={() => setIsHoverExpanded(true)}
-        onMouseLeave={() => setIsHoverExpanded(false)}
-        style={{
-          width: isRail ? '56px' : '250px',
-          minWidth: isRail ? '56px' : '250px',
-          maxWidth: isRail ? '56px' : '250px',
-          transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease',
-          boxShadow: isSidebarCollapsed && !isRail ? '4px 0 16px rgba(15, 23, 42, 0.08)' : undefined,
-          position: 'absolute',
-          top: 0,
-          bottom: 0,
-          left: 0,
-          zIndex: 10,
-          backgroundColor: '#ffffff',
-          borderRight: '1px solid #e2e8f0',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
+        className={`layout__col-1 ${styles.shell}`}
+        data-sidebar-mode={mode}
+        style={{ width: isSidebarCollapsed ? '0px' : '250px' }}
       >
-        <Sidebar collapsible="none" className="w-full h-full bg-slate-50/50 dark:bg-slate-900/50 border-none">
-          {/* 1. Header: Workspace Switcher & Collapse Toggle */}
-          <SidebarHeader style={{ height: '52px', minHeight: '52px', maxHeight: '52px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-b border-slate-200/60 dark:border-slate-800/60">
-            <div style={{ display: 'flex', flexDirection: isRail ? 'column' : 'row', alignItems: 'center', justifyContent: isRail ? 'center' : 'space-between', width: '100%', gap: isRail ? '6px' : '4px' }}>
-              {isRail && sidebarToggle}
-              <SidebarMenu style={{ flex: isRail ? undefined : 1, width: isRail ? '100%' : undefined, minWidth: 0, display: isRail ? 'none' : undefined }}>
+        <div
+          data-sidebar-panel=""
+          className={styles.panel}
+          aria-hidden={mode === 'collapsed' ? true : undefined}
+          inert={mode === 'collapsed'}
+          onMouseEnter={() => {
+            pointerInsideRef.current = true
+            cancelPeekClose()
+          }}
+          onMouseLeave={() => {
+            pointerInsideRef.current = false
+            if (isSidebarCollapsed) schedulePeekClose()
+          }}
+        >
+        <div className={styles.panelInner}>
+        <Sidebar collapsible="none" className="w-full h-full border-none" style={{ background: 'transparent' }}>
+          {/* 1. Header: Collapse Toggle & Workspace Switcher */}
+          <SidebarHeader style={{ height: '52px', minHeight: '52px', maxHeight: '52px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', gap: '4px' }}>
+              {sidebarToggle}
+              <SidebarMenu style={{ flex: 1, minWidth: 0 }}>
                 <SidebarMenuItem>
-                  <DropdownMenu>
+                  <DropdownMenu onOpenChange={handleMenuOpenChange}>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
                         size="lg"
-                        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: isRail ? 0 : '8px', padding: isRail ? '0 4px' : '0 8px', borderRadius: '8px', height: '42px', minHeight: '42px', maxHeight: '42px', justifyContent: isRail ? 'center' : 'flex-start' }}
-                        className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
+                        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', padding: '0 8px', borderRadius: '8px', height: '42px', minHeight: '42px', maxHeight: '42px', justifyContent: 'flex-start' }}
+                        className="hover:bg-[var(--bg-tertiary)] data-[state=open]:bg-[var(--bg-tertiary)] transition-colors"
                       >
                         <div
-                          style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: '#39452B', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}
+                          style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: 'var(--brand-green-main)', color: 'var(--text-inverse)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '13px', flexShrink: 0 }}
                           className="shadow-sm"
                         >
                           {activeWorkspace?.name?.[0]?.toUpperCase() || 'F'}
                         </div>
-                        {!isRail && (
-                          <>
-                            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
-                              <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                {activeWorkspace?.name || 'FYCD 工作區'}
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                                {activeWorkspace?.databases?.length || 0} 個資料庫
-                              </span>
-                            </div>
-                            <ChevronsUpDown style={{ width: '14px', height: '14px', marginLeft: 'auto', flexShrink: 0, color: '#94a3b8' }} />
-                          </>
-                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {activeWorkspace?.name || 'FYCD 工作區'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {activeWorkspace?.databases?.length || 0} 個資料庫
+                          </span>
+                        </div>
+                        <ChevronsUpDown style={{ width: '14px', height: '14px', marginLeft: 'auto', flexShrink: 0, color: 'var(--text-muted)' }} />
                       </SidebarMenuButton>
                     </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="w-64 rounded-xl shadow-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
+                  className="w-64 rounded-xl shadow-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)]"
                   align="start"
                   side="bottom"
                   sideOffset={4}
                 >
-                  <DropdownMenuLabel style={{ fontSize: '11px', fontWeight: 600, color: '#94a3b8', padding: '4px 8px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  <DropdownMenuLabel style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', padding: '4px 8px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                     工作區列表
                   </DropdownMenuLabel>
                   {workspaces.map((ws, index) => {
@@ -296,24 +347,24 @@ export default function AppSidebar({
                           padding: '6px 8px',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          backgroundColor: isSelected ? '#EEF0E8' : undefined,
+                          backgroundColor: isSelected ? 'var(--brand-green-light)' : undefined,
                         }}
-                        className="hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-slate-100 dark:focus:bg-slate-800 data-[highlighted]:bg-slate-100 dark:data-[highlighted]:bg-slate-800 transition-colors"
+                        className="hover:bg-[var(--bg-cell-hover)] focus:bg-[var(--bg-cell-hover)] data-[highlighted]:bg-[var(--bg-cell-hover)] transition-colors"
                       >
                         <div style={{
                           width: '24px',
                           height: '24px',
                           minWidth: '24px',
                           borderRadius: '6px',
-                          border: isSelected ? '1px solid #C9CFB8' : '1px solid #e2e8f0',
-                          background: isSelected ? '#EEF0E8' : '#f8fafc',
+                          border: isSelected ? '1px solid var(--brand-green-border)' : '1px solid var(--border-color)',
+                          background: isSelected ? 'var(--brand-green-light)' : 'var(--bg-tertiary)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 'bold',
                           fontSize: '11px',
                           flexShrink: 0,
-                          color: isSelected ? '#39452B' : '#334155'
+                          color: isSelected ? 'var(--brand-green-text)' : 'var(--text-secondary)'
                         }}>
                           {ws.name[0]?.toUpperCase() || 'W'}
                         </div>
@@ -325,11 +376,11 @@ export default function AppSidebar({
                           whiteSpace: 'nowrap',
                           fontSize: '13px',
                           fontWeight: isSelected ? 600 : 500,
-                          color: isSelected ? '#39452B' : '#0f172a'
+                          color: isSelected ? 'var(--brand-green-text)' : 'var(--text-primary)'
                         }}>
                           {ws.name}
                         </div>
-                        {isSelected && <Check style={{ width: '14px', height: '14px', color: '#39452B', marginLeft: 'auto', flexShrink: 0 }} />}
+                        {isSelected && <Check style={{ width: '14px', height: '14px', color: 'var(--brand-green-text)', marginLeft: 'auto', flexShrink: 0 }} />}
                         <DropdownMenuShortcut style={{ marginLeft: isSelected ? '4px' : 'auto' }}>⌘{index + 1}</DropdownMenuShortcut>
                       </DropdownMenuItem>
                     )
@@ -359,16 +410,16 @@ export default function AppSidebar({
                           onSetRenameNameValue(activeWorkspace.name)
                           onShowRenameModal()
                         }}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#475569' }}
-                        className="hover:bg-slate-100 dark:hover:bg-slate-800"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)' }}
+                        className="hover:bg-[var(--bg-cell-hover)]"
                       >
                         <Pencil style={{ width: '13px', height: '13px' }} />
                         <span>重新命名當前工作區</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => onDeleteWorkspaceOrDb('delete_workspace', activeWorkspace.id, activeWorkspace.name)}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#dc2626' }}
-                        className="hover:bg-red-50 dark:hover:bg-red-950/30"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: 'var(--danger)' }}
+                        className="hover:bg-[var(--bg-cell-hover)]"
                       >
                         <Trash2 style={{ width: '13px', height: '13px' }} />
                         <span>刪除當前工作區</span>
@@ -379,13 +430,11 @@ export default function AppSidebar({
               </DropdownMenu>
             </SidebarMenuItem>
           </SidebarMenu>
-
-          {!isRail && sidebarToggle}
         </div>
       </SidebarHeader>
 
         {/* 2. Content: Navigation & Databases/Tables Tree */}
-        <SidebarContent className="p-2 gap-3" style={{ display: isRail ? 'none' : undefined }}>
+        <SidebarContent className="p-2 gap-3">
           {/* Quick Platform Navigation Group */}
           <SidebarGroup className="p-0">
             <SidebarMenu>
@@ -393,7 +442,6 @@ export default function AppSidebar({
                 <SidebarMenuButton
                   isActive={!activeTableId || activeTableId === 0}
                   onClick={onSelectDashboard}
-                  tooltip={isRail ? (t('nav.home') || '首頁') : undefined}
                   className="data-[active=true]:bg-[var(--bg-cell-hover)] data-[active=true]:text-[var(--brand-green-text)] font-medium"
                 >
                   <AnimatedHome style={{ width: '16px', height: '16px', minWidth: '16px', color: 'var(--brand-green-text)', flexShrink: 0 }} />
@@ -404,12 +452,11 @@ export default function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={onShowNotificationsModal}
-                  tooltip={isRail ? (t('nav.notifications') || '通知中心') : undefined}
                 >
-                  <AnimatedBell style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
+                  <AnimatedBell style={{ width: '16px', height: '16px', minWidth: '16px', color: 'var(--text-muted)', flexShrink: 0 }} />
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.notifications') || '通知中心'}</span>
                   {notificationCount > 0 && (
-                    <SidebarMenuBadge style={{ background: 'var(--accent-primary)', color: '#ffffff' }}>
+                    <SidebarMenuBadge style={{ background: 'var(--accent-primary)', color: 'var(--text-inverse)' }}>
                       {notificationCount}
                     </SidebarMenuBadge>
                   )}
@@ -419,12 +466,11 @@ export default function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={onShowMembersModal}
-                  tooltip={isRail ? (t('nav.members') || '成員管理') : undefined}
                 >
-                  <AnimatedUsers style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
+                  <AnimatedUsers style={{ width: '16px', height: '16px', minWidth: '16px', color: 'var(--text-muted)', flexShrink: 0 }} />
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.members') || '成員管理'}</span>
                   {memberCount !== undefined && (
-                    <SidebarMenuBadge style={{ color: '#94a3b8' }}>
+                    <SidebarMenuBadge style={{ color: 'var(--text-muted)' }}>
                       {memberCount}
                     </SidebarMenuBadge>
                   )}
@@ -435,9 +481,8 @@ export default function AppSidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={onOpenRecentlyDeleted}
-                    tooltip={isSidebarCollapsed ? (t('nav.recentlyDeleted') || '最近刪除') : undefined}
                   >
-                    <ArchiveRestore style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
+                    <ArchiveRestore style={{ width: '16px', height: '16px', minWidth: '16px', color: 'var(--text-muted)', flexShrink: 0 }} />
                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.recentlyDeleted') || '最近刪除'}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -455,15 +500,15 @@ export default function AppSidebar({
                 padding: '4px 8px',
                 fontSize: '11px',
                 fontWeight: 600,
-                color: '#64748b',
+                color: 'var(--text-muted)',
                 letterSpacing: '0.05em',
                 textTransform: 'uppercase',
                 whiteSpace: 'nowrap',
               }}
-              className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1"
+              className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1"
             >
               <span style={{ whiteSpace: 'nowrap' }}>資料庫清單</span>
-              {canManageStructure && activeWorkspaceId && !isRail && (
+              {canManageStructure && activeWorkspaceId && (
                 <button
                   type="button"
                   onClick={() => onShowDatabaseModal(activeWorkspaceId)}
@@ -479,7 +524,7 @@ export default function AppSidebar({
                     width: '22px',
                     height: '22px',
                     borderRadius: '5px',
-                    color: '#64748b',
+                    color: 'var(--text-muted)',
                     padding: 0,
                     transition: 'all 0.15s ease',
                   }}
@@ -508,38 +553,35 @@ export default function AppSidebar({
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }} className="group/db-row">
                           <CollapsibleTrigger asChild>
                             <SidebarMenuButton
-                              tooltip={isRail ? db.name : undefined}
-                              style={{ display: 'flex', alignItems: 'center', width: '100%', height: '32px', paddingLeft: '6px', paddingRight: canManageStructure && !isRail ? '32px' : '8px' }}
-                              className="font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                              style={{ display: 'flex', alignItems: 'center', width: '100%', height: '32px', paddingLeft: '6px', paddingRight: canManageStructure ? '32px' : '8px' }}
+                              className="font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
                             >
-                              {!isRail && (
-                                <ChevronRight
-                                  style={{
-                                    width: '14px',
-                                    height: '14px',
-                                    minWidth: '14px',
-                                    color: '#94a3b8',
-                                    transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                                    transform: !isDbCollapsed ? 'rotate(90deg)' : 'none',
-                                    marginRight: '4px',
-                                    flexShrink: 0,
-                                  }}
-                                />
-                              )}
-                              <AnimatedDatabase style={{ width: '16px', height: '16px', minWidth: '16px', color: '#39452B', flexShrink: 0 }} />
+                              <ChevronRight
+                                style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  minWidth: '14px',
+                                  color: 'var(--text-muted)',
+                                  transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                                  transform: !isDbCollapsed ? 'rotate(90deg)' : 'none',
+                                  marginRight: '4px',
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <AnimatedDatabase style={{ width: '16px', height: '16px', minWidth: '16px', color: 'var(--brand-green-text)', flexShrink: 0 }} />
                               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, fontSize: '13px', marginLeft: '6px' }}>{db.name}</span>
                             </SidebarMenuButton>
                           </CollapsibleTrigger>
 
                           {/* Database Options Menu */}
-                          {!isRail && canManageStructure && (
-                            <DropdownMenu>
+                          {canManageStructure && (
+                            <DropdownMenu onOpenChange={handleMenuOpenChange}>
                               <DropdownMenuTrigger asChild>
                                 <SidebarMenuAction showOnHover style={{ top: '6px' }}>
                                   <MoreHorizontal style={{ width: '13px', height: '13px', minWidth: '13px' }} />
                                 </SidebarMenuAction>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent side="right" align="start" className="w-44 rounded-xl">
+                              <DropdownMenuContent side="right" align="start" className="w-44 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)]">
                                 <DropdownMenuItem
                                   onClick={() => {
                                     onSetRenameType('database')
@@ -556,13 +598,13 @@ export default function AppSidebar({
                                   onClick={() => onShowCreateTableModal?.(db.id)}
                                   className="cursor-pointer gap-2"
                                 >
-                                  <Plus style={{ width: '14px', height: '14px', color: '#39452B' }} />
+                                  <Plus style={{ width: '14px', height: '14px', color: 'var(--brand-green-text)' }} />
                                   <span>{t('nav.createTable')}</span>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => onDeleteWorkspaceOrDb('delete_database', db.id, db.name)}
-                                  className="cursor-pointer gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                  className="cursor-pointer gap-2 text-[var(--danger)] hover:bg-[var(--bg-cell-hover)]"
                                 >
                                   <Trash2 style={{ width: '14px', height: '14px' }} />
                                   <span>{t('nav.deleteDatabase')}</span>
@@ -573,7 +615,6 @@ export default function AppSidebar({
                         </div>
 
                         {/* Tables Submenu List */}
-                        {!isRail && (
                           <CollapsibleContent>
                             <SidebarMenuSub className="my-0.5">
                               {hasTables ? (
@@ -612,7 +653,7 @@ export default function AppSidebar({
                                         setDraggedItem(null)
                                         setDropTarget(null)
                                       }}
-                                      className={`group/table-row group/sub-item ${dropTarget?.id === table.id ? 'border-t-2 border-orange-500 bg-orange-50/50' : ''}`}
+                                      className={`group/table-row group/sub-item ${dropTarget?.id === table.id ? 'border-t-2 border-[var(--brand-orange-main)] bg-[var(--brand-orange-light)]' : ''}`}
                                     >
                                       <SidebarMenuSubButton
                                         isActive={isActive}
@@ -637,19 +678,19 @@ export default function AppSidebar({
                                             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                                           />
                                         )}
-                                        <AnimatedTable style={{ position: 'relative', zIndex: 1, width: '14px', height: '14px', minWidth: '14px', color: isActive ? 'var(--brand-green-text)' : '#64748b', flexShrink: 0 }} />
+                                        <AnimatedTable style={{ position: 'relative', zIndex: 1, width: '14px', height: '14px', minWidth: '14px', color: isActive ? 'var(--brand-green-text)' : 'var(--text-muted)', flexShrink: 0 }} />
                                         <span style={{ position: 'relative', zIndex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px', marginLeft: '6px' }}>{table.name}</span>
                                       </SidebarMenuSubButton>
 
                                       {/* Table Options Dropdown Action */}
                                       {canManageStructure && (
-                                        <DropdownMenu>
+                                        <DropdownMenu onOpenChange={handleMenuOpenChange}>
                                           <DropdownMenuTrigger asChild>
                                             <SidebarMenuAction showOnHover>
                                               <MoreHorizontal style={{ width: '13px', height: '13px', minWidth: '13px' }} />
                                             </SidebarMenuAction>
                                           </DropdownMenuTrigger>
-                                          <DropdownMenuContent side="right" align="start" className="w-40 rounded-xl">
+                                          <DropdownMenuContent side="right" align="start" className="w-40 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)]">
                                             <DropdownMenuItem
                                               onClick={() => {
                                                 onSetRenameType('table')
@@ -667,7 +708,7 @@ export default function AppSidebar({
                                                 <DropdownMenuSeparator />
                                                 <DropdownMenuItem
                                                   onClick={() => onDeleteTable(table.id, table.name)}
-                                                  className="cursor-pointer gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                  className="cursor-pointer gap-2 text-[var(--danger)] hover:bg-[var(--bg-cell-hover)]"
                                                 >
                                                   <Trash2 style={{ width: '14px', height: '14px' }} />
                                                   <span>{t('nav.deleteTable')}</span>
@@ -681,7 +722,7 @@ export default function AppSidebar({
                                   )
                                 })
                               ) : (
-                                <div className="px-2 py-1 text-xs text-slate-400 italic">
+                                <div className="px-2 py-1 text-xs text-[var(--text-muted)] italic">
                                   無資料表
                                 </div>
                               )}
@@ -691,8 +732,8 @@ export default function AppSidebar({
                                 <SidebarMenuSubItem style={{ width: '100%' }}>
                                   <button
                                     onClick={() => onShowCreateTableModal?.(db.id)}
-                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '4px 6px', fontSize: '12px', color: '#64748b', borderRadius: '6px' }}
-                                    className="hover:text-[#39452B] hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors font-medium mt-0.5"
+                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', width: '100%', padding: '4px 6px', fontSize: '12px', color: 'var(--text-muted)', borderRadius: '6px' }}
+                                    className="hover:text-[var(--brand-green-text)] hover:bg-[var(--bg-tertiary)] transition-colors font-medium mt-0.5"
                                   >
                                     <AnimatedPlus style={{ width: '12px', height: '12px' }} />
                                     <span>{t('nav.createTable')}</span>
@@ -701,7 +742,6 @@ export default function AppSidebar({
                               )}
                             </SidebarMenuSub>
                           </CollapsibleContent>
-                        )}
                       </SidebarMenuItem>
                     </Collapsible>
                   )
@@ -712,54 +752,50 @@ export default function AppSidebar({
         </SidebarContent>
 
         {/* 3. Footer: User Profile Dropdown & System Actions */}
-        <SidebarFooter style={{ height: '48px', minHeight: '48px', maxHeight: '48px', padding: '0 8px', display: isRail ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-t border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
+        <SidebarFooter style={{ height: '52px', minHeight: '52px', maxHeight: '52px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
           <SidebarMenu>
             <SidebarMenuItem>
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={handleMenuOpenChange}>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton
                     size="lg"
-                    style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', padding: isRail ? '0 4px' : '0 8px', borderRadius: '8px', height: '40px', minHeight: '40px', maxHeight: '40px' }}
-                    className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
+                    style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', padding: '0 8px', borderRadius: '8px', height: '40px', minHeight: '40px', maxHeight: '40px' }}
+                    className="hover:bg-[var(--bg-tertiary)] data-[state=open]:bg-[var(--bg-tertiary)] transition-colors"
                   >
                     <div
-                      style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: '#F5F0E6', border: '1px solid #E7E1D3', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}
+                      style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}
                     >
                       <FycdLogo variant="icon" height={10} />
                     </div>
-                    {!isRail && (
-                      <>
-                        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                            FYCD HD MANAGER
-                          </span>
-                          <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                            {currentUser?.email || 'fycd2006@mail.ntut.edu.tw'}
-                          </span>
-                        </div>
-                        <ChevronsUpDown style={{ width: '14px', height: '14px', marginLeft: 'auto', flexShrink: 0, color: '#94a3b8' }} />
-                      </>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
+                      <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        FYCD HD MANAGER
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {currentUser?.email || 'fycd2006@mail.ntut.edu.tw'}
+                      </span>
+                    </div>
+                    <ChevronsUpDown style={{ width: '14px', height: '14px', marginLeft: 'auto', flexShrink: 0, color: 'var(--text-muted)' }} />
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="w-60 rounded-xl shadow-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
-                  side={isRail ? 'right' : 'top'}
+                  className="w-60 rounded-xl shadow-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)]"
+                  side="top"
                   align="end"
                   sideOffset={8}
                 >
                   <DropdownMenuLabel className="p-0 font-normal">
                     <div className="flex items-center gap-2.5 px-2 py-2 text-left text-sm" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px' }}>
                       <div
-                        style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '8px', background: '#F5F0E6', border: '1px solid #E7E1D3', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}
+                        style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '8px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}
                       >
                         <FycdLogo variant="icon" height={12} />
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
-                        <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        <span style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                           FYCD HD MANAGER
                         </span>
-                        <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                           {currentUser?.email || 'fycd2006@mail.ntut.edu.tw'}
                         </span>
                       </div>
@@ -768,47 +804,47 @@ export default function AppSidebar({
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
                     {onShowSubscriptionModal && (
-                      <DropdownMenuItem onClick={onShowSubscriptionModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
+                      <DropdownMenuItem onClick={onShowSubscriptionModal} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
                         <Sparkles className="size-4 text-amber-500 shrink-0" />
                         <span style={{ color: 'inherit' }}>升級方案與授權</span>
                       </DropdownMenuItem>
                     )}
                     {onShowMembersModal && (
-                      <DropdownMenuItem onClick={onShowMembersModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
-                        <Users className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                      <DropdownMenuItem onClick={onShowMembersModal} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
+                        <Users className="size-4 text-[var(--text-muted)] shrink-0" />
                         <span style={{ color: 'inherit' }}>{t('nav.members')}</span>
                       </DropdownMenuItem>
                     )}
                     {onShowNotificationsModal && (
-                      <DropdownMenuItem onClick={onShowNotificationsModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
-                        <Bell className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                      <DropdownMenuItem onClick={onShowNotificationsModal} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
+                        <Bell className="size-4 text-[var(--text-muted)] shrink-0" />
                         <span style={{ color: 'inherit' }}>{t('nav.notifications')}</span>
                       </DropdownMenuItem>
                     )}
                     {onShowUserSettingsModal && (
-                      <DropdownMenuItem onClick={onShowUserSettingsModal} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
-                        <Settings className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                      <DropdownMenuItem onClick={onShowUserSettingsModal} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
+                        <Settings className="size-4 text-[var(--text-muted)] shrink-0" />
                         <span style={{ color: 'inherit' }}>帳號與偏好設定</span>
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={onToggleTheme} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
-                      {theme === 'dark' ? <Sun className="size-4 text-amber-500 shrink-0" /> : <Moon className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />}
+                    <DropdownMenuItem onClick={onToggleTheme} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
+                      {theme === 'dark' ? <Sun className="size-4 text-amber-500 shrink-0" /> : <Moon className="size-4 text-[var(--text-muted)] shrink-0" />}
                       <span style={{ color: 'inherit' }}>{theme === 'dark' ? '切換為亮色模式' : '切換為深色模式'}</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onToggleDarkReaderPanel} className="cursor-pointer gap-2 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100">
-                      <Sliders className="size-4 text-slate-500 dark:text-slate-400 shrink-0" />
+                    <DropdownMenuItem onClick={onToggleDarkReaderPanel} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
+                      <Sliders className="size-4 text-[var(--text-muted)] shrink-0" />
                       <span style={{ color: 'inherit' }}>進階濾鏡調色盤</span>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={onLogout}
-                    className="cursor-pointer gap-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                    className="cursor-pointer gap-2 text-[var(--danger)] hover:bg-[var(--bg-cell-hover)]"
                   >
-                    <LogOut className="size-4 shrink-0 text-red-600 dark:text-red-400" />
+                    <LogOut className="size-4 shrink-0 text-[var(--danger)]" />
                     <span style={{ color: 'inherit' }}>登出系統</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -816,8 +852,32 @@ export default function AppSidebar({
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
-          <SidebarRail onClick={onToggleSidebarCollapse} />
         </Sidebar>
+        </div>
+        </div>
+
+        {/* 收合時畫面上唯一的按鈕：碰到即浮出側邊欄，點擊則固定展開 */}
+        <button
+          type="button"
+          title={`${toggleLabel} (Ctrl+B)`}
+          aria-label={toggleLabel}
+          aria-expanded={mode !== 'collapsed'}
+          tabIndex={mode === 'collapsed' ? undefined : -1}
+          aria-hidden={mode === 'collapsed' ? undefined : true}
+          className={`${styles.toggle} ${styles.floatingToggle}`}
+          onClick={() => toggleSidebar(false)}
+          onMouseEnter={() => {
+            if (!isSidebarCollapsed || suppressPeekRef.current) return
+            cancelPeekClose()
+            setIsPeeking(true)
+          }}
+          onMouseLeave={() => {
+            suppressPeekRef.current = false
+            if (isSidebarCollapsed) schedulePeekClose()
+          }}
+        >
+          <PanelLeftOpen style={{ width: '18px', height: '18px' }} />
+        </button>
       </div>
     </SidebarProvider>
   )

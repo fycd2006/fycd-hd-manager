@@ -72,6 +72,9 @@
   /* Motion & Transitions */
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 側邊欄收合／展開／懸停浮出（快起慢收的減速曲線，對齊 Claude 網頁版） */
+  --sidebar-motion-duration: 280ms;
+  --transition-sidebar: var(--sidebar-motion-duration) cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Z-Index Scale */
   --z-sticky: 20;
@@ -79,6 +82,13 @@
   --z-modal: 100;
   --z-popover: 110;
   --z-toast: 150;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --sidebar-motion-duration: 0ms;
+    --transition-sidebar: none;
+  }
 }
 
 body {
