@@ -2346,7 +2346,7 @@ export const GridView: React.FC<GridViewProps> = ({
 
                             {/* Group Field Name */}
                             {node.field && (
-                              <span style={{ fontSize: isTopLevel ? '12px' : '11px', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
+                              <span style={{ fontSize: isTopLevel ? 'var(--grid-font-size-head, 12px)' : 'var(--grid-font-size-sm, 11px)', color: '#64748b', fontWeight: 600, flexShrink: 0 }}>
                                 {isTopLevel ? `${node.field.name}:` : `Then by ${node.field.name}:`}
                               </span>
                             )}
@@ -2362,7 +2362,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                       alignItems: 'center',
                                       padding: isTopLevel ? '2px 8px' : '1px 6px',
                                       borderRadius: '6px',
-                                      fontSize: isTopLevel ? '12px' : '11px',
+                                      fontSize: isTopLevel ? 'var(--grid-font-size-head, 12px)' : 'var(--grid-font-size-sm, 11px)',
                                       fontWeight: 600,
                                       backgroundColor: b.bg || '#f1f5f9',
                                       color: b.color || '#334155',
@@ -2375,7 +2375,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                   </span>
                                 ))
                               ) : (
-                                <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                                <span style={{ fontSize: 'var(--grid-font-size-head, 12px)', color: '#94a3b8', fontStyle: 'italic' }}>
                                   （空白未指定）
                                 </span>
                               )}
@@ -2384,7 +2384,7 @@ export const GridView: React.FC<GridViewProps> = ({
                             {/* Row Count Badge */}
                             <span
                               style={{
-                                fontSize: '11px',
+                                fontSize: 'var(--grid-font-size-sm, 11px)',
                                 color: '#475569',
                                 fontWeight: 600,
                                 backgroundColor: '#e2e8f0',
@@ -2425,7 +2425,7 @@ export const GridView: React.FC<GridViewProps> = ({
                                 {displayText ? (
                                   <span
                                     style={{
-                                      fontSize: '11px',
+                                      fontSize: 'var(--grid-font-size-sm, 11px)',
                                       fontWeight: 600,
                                       color: '#334155',
                                       fontFamily: 'monospace',
@@ -2665,7 +2665,7 @@ export const GridView: React.FC<GridViewProps> = ({
               style={{
                 display: 'flex',
                 width: `${fieldsWidth}px`,
-                height: 'var(--row-height, 33px)',
+                height: 'var(--row-height, 32px)',
                 borderBottom: '1px solid var(--border-color, #e2e8f0)',
                 borderRight: '1px solid var(--border-color, #e2e8f0)',
                 background: '#ffffff',
