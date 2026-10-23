@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { authorizeAction } from '@/lib/authorize'
+import { softDeleteWorkspace, softDeleteDatabase } from '@/modules/database/services/containerTrash'
 
 // GET: 載入所有的工作區 ➔ 資料庫 ➔ 資料表結構 (需要登入)
 export async function GET() {
@@ -11,9 +12,9 @@ export async function GET() {
       return NextResponse.json({ error: '未授權，請先登入' }, { status: 401 })
     }
 
-    const workspaceWhere = activeUser.role === 'admin' 
-      ? {} 
-      : { members: { some: { userId: activeUser.id } } }
+    const workspaceWhere = activeUser.role === 'admin'
+      ? { deletedAt: null }
+      : { deletedAt: null, members: { some: { userId: activeUser.id } } }
 
     let workspaces = await prisma.workspace.findMany({
       where: workspaceWhere,
@@ -24,6 +25,7 @@ export async function GET() {
           }
         },
         databases: {
+          where: { deletedAt: null },
           include: {
             tables: {
               where: { deletedAt: null },
@@ -88,6 +90,7 @@ export async function GET() {
             }
           },
           databases: {
+            where: { deletedAt: null },
             include: {
               tables: {
                 where: { deletedAt: null },
@@ -132,6 +135,7 @@ export async function GET() {
               }
             },
             databases: {
+              where: { deletedAt: null },
               include: {
                 tables: {
                   where: { deletedAt: null },
@@ -383,7 +387,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE: 刪除工作區或資料庫
+// DELETE: 軟刪除工作區或資料庫（移到最近刪除）
 export async function DELETE(request: Request) {
   try {
     const activeUser = await getSessionUser()
@@ -406,25 +410,21 @@ export async function DELETE(request: Request) {
       const { errorResponse } = await authorizeAction({ workspaceId: targetId, action: 'canManageWorkspace' })
       if (errorResponse) return errorResponse
 
-      const count = await prisma.workspace.count()
+      const count = await prisma.workspace.count({ where: { deletedAt: null } })
       if (count <= 1) {
         return NextResponse.json({ error: '必須保留至少一個工作區' }, { status: 400 })
       }
 
-      await prisma.workspace.delete({
-        where: { id: targetId }
-      })
-      return NextResponse.json({ message: '工作區已刪除' })
+      await softDeleteWorkspace(targetId)
+      return NextResponse.json({ message: '工作區已移到最近刪除' })
     }
 
     if (action === 'delete_database') {
       const { errorResponse } = await authorizeAction({ databaseId: targetId, action: 'canManageStructure' })
       if (errorResponse) return errorResponse
 
-      await prisma.database.delete({
-        where: { id: targetId }
-      })
-      return NextResponse.json({ message: '資料庫已刪除' })
+      await softDeleteDatabase(targetId)
+      return NextResponse.json({ message: '資料庫已移到最近刪除' })
     }
 
     return NextResponse.json({ error: '無效的操作指令' }, { status: 400 })

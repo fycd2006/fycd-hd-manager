@@ -196,10 +196,12 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 
   lookupFields.forEach(lf => {
     const opts = safeJsonParse(lf.options, {} as any)
-    if (opts.relationFieldId && opts.targetFieldId) {
+    const relationFieldId = Number(opts.relationFieldId)
+    const targetFieldId = Number(opts.targetFieldId)
+    if (relationFieldId > 0 && targetFieldId > 0) {
       activeRelationFields[lf.id] = {
-        relationFieldId: opts.relationFieldId,
-        targetFieldId: opts.targetFieldId,
+        relationFieldId,
+        targetFieldId,
         type: 'lookup'
       }
     }
@@ -207,15 +209,36 @@ async function populateRows(rows: ParsedRow[], fields: FieldMeta[]): Promise<Par
 
   rollupFields.forEach(rf => {
     const opts = safeJsonParse(rf.options, {} as any)
-    if (opts.relationFieldId && opts.targetFieldId) {
+    const relationFieldId = Number(opts.relationFieldId)
+    const targetFieldId = Number(opts.targetFieldId)
+    if (relationFieldId > 0 && targetFieldId > 0) {
       activeRelationFields[rf.id] = {
-        relationFieldId: opts.relationFieldId,
-        targetFieldId: opts.targetFieldId,
+        relationFieldId,
+        targetFieldId,
         type: 'rollup',
         rollupFunction: opts.rollupFunction || 'sum'
       }
     }
   })
+
+  // A lookup/rollup is unset when either referenced field is not active (soft-deleted or purged)
+  const referencedFieldIds = new Set<number>()
+  Object.values(activeRelationFields).forEach(ref => {
+    referencedFieldIds.add(ref.relationFieldId)
+    referencedFieldIds.add(ref.targetFieldId)
+  })
+  if (referencedFieldIds.size > 0) {
+    const activeFieldRows = await prisma.tableField.findMany({
+      where: { id: { in: Array.from(referencedFieldIds) }, deletedAt: null },
+      select: { id: true },
+    })
+    const activeFieldIds = new Set(activeFieldRows.map(f => f.id))
+    for (const [id, ref] of Object.entries(activeRelationFields)) {
+      if (!activeFieldIds.has(ref.relationFieldId) || !activeFieldIds.has(ref.targetFieldId)) {
+        delete activeRelationFields[Number(id)]
+      }
+    }
+  }
 
   rows.forEach(row => {
     Object.values(activeRelationFields).forEach(ref => {

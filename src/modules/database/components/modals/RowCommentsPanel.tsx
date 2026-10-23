@@ -65,7 +65,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
             .filter((item: any) => item.content.startsWith('[HISTORY]'))
             .map((item: any) => ({
               id: String(item.id),
-              user: item.user?.username || '系統 (System)',
+              user: item.id === -999 ? '系統 (System)' : (item.user?.username ?? '已刪除的使用者'),
               time: new Date(item.createdAt).toLocaleString('zh-TW', { hour12: false }),
               content: item.content.replace('[HISTORY] ', '')
             }))
@@ -298,7 +298,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
-                        {c.user?.username || 'User'}
+                        {c.user?.username ?? '已刪除的使用者'}
                       </span>
                       <span style={{ fontSize: '11px', color: '#94a3b8' }}>
                         {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

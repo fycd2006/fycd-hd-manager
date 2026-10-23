@@ -12,6 +12,8 @@ import { ViewToolbar } from '@/modules/database/components/toolbar/ViewToolbar'
 import { useUndoRedo } from '@/hooks/useUndoRedo'
 import { AuthScreen, AppShellSkeleton } from '@/modules/database/components/auth'
 import Sidebar from '@/modules/database/components/sidebar/Sidebar'
+import { DeleteConfirmModal } from '@/modules/database/components/modals/DeleteConfirmModal'
+import { RecentlyDeletedModal } from '@/modules/database/components/modals/RecentlyDeletedModal'
 import { WorkspaceModal, DatabaseModal, RenameModal, ViewModal, FieldModal, TableModal } from '@/modules/database/components/modals/Modals'
 
 const AirtableImportModal = dynamic(() => import('@/modules/database/components/import/AirtableImportModal').then(m => m.AirtableImportModal), { ssr: false })
@@ -233,6 +235,8 @@ export default function Home() {
   const [renameNameValue, setRenameNameValue] = useState('')
   const [rowHeightSize, setRowHeightSize] = useState<'small' | 'medium' | 'large' | 'extra'>('small')
   const [showRenameModal, setShowRenameModal] = useState(false)
+  const [showRecentlyDeleted, setShowRecentlyDeleted] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<{ action: 'delete_workspace' | 'delete_database'; id: number; label: string } | null>(null)
   const [showTableModal, setShowTableModal] = useState(false)
   const [modalDbIdForTable, setModalDbIdForTable] = useState<number | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -1017,6 +1021,27 @@ export default function Home() {
     <TableProvider value={tableContextValue}>
       <div className={`app-container theme-${themeState.theme}`} suppressHydrationWarning>
       <ToastContainer toasts={uiState.toasts} />
+      <RecentlyDeletedModal
+        open={showRecentlyDeleted}
+        onClose={() => setShowRecentlyDeleted(false)}
+        onRestored={() => { void wsActions.fetchWorkspaces() }}
+      />
+      <DeleteConfirmModal
+        open={pendingDelete !== null}
+        kind={pendingDelete?.action === 'delete_database' ? 'database' : 'workspace'}
+        name={pendingDelete?.label ?? ''}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={async () => {
+          if (!pendingDelete) return
+          const res = await wsActions.deleteWorkspaceOrDb(pendingDelete.action, pendingDelete.id)
+          if (res.ok) {
+            uiActions.addToast(pendingDelete.action === 'delete_database' ? '資料庫已移到最近刪除' : '工作區已移到最近刪除', 'success')
+            setPendingDelete(null)
+          } else {
+            uiActions.addToast(res.error || '刪除失敗', 'error')
+          }
+        }}
+      />
 
       <div className="layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
         <Sidebar
@@ -1034,6 +1059,7 @@ export default function Home() {
           memberCount={workspaceMemberCount}
           notificationCount={unreadNotificationsCount}
           onShowMembersModal={() => setShowMembersModal(true)}
+          onOpenRecentlyDeleted={() => setShowRecentlyDeleted(true)}
           onShowNotificationsModal={() => setShowNotificationsModal(true)}
           onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
           onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
@@ -1059,12 +1085,10 @@ export default function Home() {
           onSetRenameNameValue={setRenameNameValue}
           onShowRenameModal={() => setShowRenameModal(true)}
           onDeleteWorkspaceOrDb={(action: 'delete_workspace' | 'delete_database', id: number, label: string) => {
-            if (confirm(`確定要刪除「${label}」？`)) {
-              wsActions.deleteWorkspaceOrDb(action, id)
-            }
+            setPendingDelete({ action, id, label })
           }}
           onDeleteTable={async (tableId: number, tableName: string) => {
-            if (confirm(`確定要刪除資料表「${tableName}」？`)) {
+            if (confirm(t('trash.deleteTableConfirm', { name: tableName }) || `確定要刪除資料表「${tableName}」？30 天內可以在「最近刪除」還原。`)) {
               try {
                 const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                 if (res.ok) {
@@ -1111,12 +1135,10 @@ export default function Home() {
                 onSetRenameNameValue={setRenameNameValue}
                 onShowRenameModal={() => setShowRenameModal(true)}
                 onDeleteWorkspaceOrDb={(action, id, label) => {
-                  if (confirm(`確定要刪除「${label}」？`)) {
-                    wsActions.deleteWorkspaceOrDb(action, id)
-                  }
+                  setPendingDelete({ action, id, label })
                 }}
                 onDeleteTable={async (tableId, tableName) => {
-                  if (confirm(`確定要刪除資料表「${tableName}」？`)) {
+                  if (confirm(t('trash.deleteTableConfirm', { name: tableName }) || `確定要刪除資料表「${tableName}」？30 天內可以在「最近刪除」還原。`)) {
                     try {
                       const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                       if (res.ok) {

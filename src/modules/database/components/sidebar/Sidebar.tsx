@@ -69,6 +69,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   PanelLeftOpen,
+  ArchiveRestore,
 } from 'lucide-react'
 import {
   AnimatedHome,
@@ -94,6 +95,7 @@ interface SidebarProps {
   memberCount?: number
   notificationCount?: number
   onShowMembersModal?: () => void
+  onOpenRecentlyDeleted?: () => void
   onShowNotificationsModal?: () => void
   onShowUserSettingsModal?: () => void
   onShowSubscriptionModal?: () => void
@@ -135,6 +137,7 @@ export default function AppSidebar({
   memberCount,
   notificationCount = 0,
   onShowMembersModal,
+  onOpenRecentlyDeleted,
   onShowNotificationsModal,
   onShowUserSettingsModal,
   onShowSubscriptionModal,
@@ -416,6 +419,18 @@ export default function AppSidebar({
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
+
+              {onOpenRecentlyDeleted && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={onOpenRecentlyDeleted}
+                    tooltip={isSidebarCollapsed ? (t('nav.recentlyDeleted') || '最近刪除') : undefined}
+                  >
+                    <ArchiveRestore style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.recentlyDeleted') || '最近刪除'}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroup>
 
