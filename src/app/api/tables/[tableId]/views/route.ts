@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
 import { z } from 'zod'
+import { ROW_HEIGHTS } from '@/modules/database/utils/gridDisplay'
 
 const createViewSchema = z.object({
   name: z.string().min(1, '視圖名稱與類型為必填'),
@@ -19,6 +20,7 @@ const updateViewSchema = z.object({
   rowColors: z.any().optional(),
   groupByField: z.string().nullable().optional(),
   aggregations: z.any().optional(),
+  rowHeight: z.enum(ROW_HEIGHTS).optional(),
 })
 
 export const GET = withApiHandler<{ tableId: string }>(
@@ -84,7 +86,7 @@ export const PATCH = withApiHandler<{ tableId: string }, z.infer<typeof updateVi
       return typeof val === 'string' ? val : JSON.stringify(val)
     }
 
-    const { name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField, aggregations } = body!
+    const { name, filters, sortField, sortOrder, hiddenFields, columnWidths, rowColors, groupByField, aggregations, rowHeight } = body!
 
     const updated = await prisma.tableView.update({
       where: { id: vid, tableId: tid },
@@ -98,6 +100,7 @@ export const PATCH = withApiHandler<{ tableId: string }, z.infer<typeof updateVi
         ...(rowColors !== undefined && { rowColors: toJsonString(rowColors) }),
         ...(groupByField !== undefined && { groupByField }),
         ...(aggregations !== undefined && { aggregations: toJsonString(aggregations) }),
+        ...(rowHeight !== undefined && { rowHeight }),
       }
     })
 
