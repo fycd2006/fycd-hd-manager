@@ -158,7 +158,7 @@
 }
 
 .modal-close-btn:hover {
-  background: rgba(63, 98, 18, 0.1);
+  background: rgba(57, 69, 43, 0.1);
   color: var(--text-primary);
 }
 
@@ -280,19 +280,19 @@
 }
 
 .button--ghost:hover {
-  background: rgba(63, 98, 18, 0.08);
+  background: rgba(57, 69, 43, 0.08);
   color: var(--text-primary);
 }
 
 .button--upload {
-  background: rgba(63, 98, 18, 0.1);
+  background: rgba(57, 69, 43, 0.1);
   color: var(--accent-secondary);
-  border: 1px dashed rgba(63, 98, 18, 0.3);
+  border: 1px dashed rgba(57, 69, 43, 0.3);
 }
 
 .button--upload:hover {
-  background: rgba(63, 98, 18, 0.15);
-  border-color: rgba(63, 98, 18, 0.4);
+  background: rgba(57, 69, 43, 0.15);
+  border-color: rgba(57, 69, 43, 0.4);
 }
 
 .button--tiny { padding: 4px 8px; font-size: 11px; }
@@ -356,7 +356,7 @@
 
 .context-menu-item:hover,
 .context__menu-item:hover {
-  background: rgba(63, 98, 18, 0.1);
+  background: rgba(57, 69, 43, 0.1);
   color: var(--text-primary);
 }
 

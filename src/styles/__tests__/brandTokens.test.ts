@@ -36,16 +36,29 @@ const tokensRoot = block(tokensCss, ':root')
 const themeRoot = block(themeCss, ':root')
 const tokensDark = block(tokensCss, "[data-theme='dark'],\n.theme-dark")
 
+const legacy = [
+  '#ea580c', '#f97316', '#c2410c', '#3f6212', '#365314',
+  '#4d7c0f', '#f7fee7', '#818cf8', 'rgba(234,88,12', 'rgba(63,98,18',
+]
+
+const legacyIn = (css: string): string[] => {
+  const normalized = css.toLowerCase().replace(/\s+/g, '')
+  return legacy.filter((color) => normalized.includes(color))
+}
+
 describe('brand tokens', () => {
   it('has no legacy brand colors', () => {
-    const legacy = [
-      '#ea580c', '#f97316', '#c2410c', '#3f6212', '#365314',
-      '#4d7c0f', '#f7fee7', '#818cf8', 'rgba(234,88,12', 'rgba(63,98,18',
-    ]
-    for (const css of [tokensCss, themeCss]) {
-      const normalized = css.toLowerCase().replace(/\s+/g, '')
-      for (const color of legacy) expect(normalized).not.toContain(color)
-    }
+    for (const css of [tokensCss, themeCss]) expect(legacyIn(css)).toEqual([])
+  })
+
+  it.each([
+    'src/styles/layout.css',
+    'src/styles/toolbar.css',
+    'src/styles/grid.css',
+    'src/styles/components.css',
+    'src/styles/latest-comment.css',
+  ])('%s has no legacy brand colors', (file) => {
+    expect(legacyIn(readCss(file))).toEqual([])
   })
 
   it('uses brand values', () => {
