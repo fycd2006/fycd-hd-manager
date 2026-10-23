@@ -4,6 +4,8 @@ const path = process.getBuiltinModule('node:path') // not require(): the repo li
 
 // `git`, optional global options, then the `commit` subcommand.
 const COMMIT_RE = /\bgit((?:\s+(?:-C|-c)\s+(?:"[^"]*"|'[^']*'|\S+)|\s+--?[\w-]+(?:=\S+)?)*)\s+commit\b/
+const DANGEROUS_BUILD_RE =
+  /(?:^|[;&|]\s*)\s*(?:npm(?:\.cmd)?\s+run|pnpm(?:\s+run)?|yarn(?:\s+run)?)\s+build(?![:\w-])|(?:^|[;&|]\s*)\s*(?:npx(?:\.cmd)?\s+)?prisma\s+db\s+push\b[^;&|]*--accept-data-loss\b/i
 const ARG = String.raw`("[^"]*"|'[^']*'|[^\s;&|]+)`
 const CD_RE = new RegExp(String.raw`(?:^|[;&|]\s*)\s*(?:cd|Set-Location|pushd)\s+(?:-LiteralPath\s+|-Path\s+)?${ARG}`, 'g')
 const DASH_C_RE = new RegExp(String.raw`(?:^|\s)-C\s+${ARG}`, 'g')
@@ -17,6 +19,10 @@ function isGitCommit(command) {
   return COMMIT_RE.test(command)
 }
 
+function isDangerousBuildOrPush(command) {
+  return DANGEROUS_BUILD_RE.test(command)
+}
+
 // Returns the absolute directory git will commit in, or null when the command is not a `git commit`.
 // Applies every `cd <dir>` before the git call, then each `git -C <dir>` in order, starting from cwd.
 function resolveCommitDir(command, cwd) {
@@ -28,4 +34,4 @@ function resolveCommitDir(command, cwd) {
   return dir
 }
 
-module.exports = { isGitCommit, resolveCommitDir }
+module.exports = { isGitCommit, isDangerousBuildOrPush, resolveCommitDir }
