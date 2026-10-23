@@ -172,6 +172,10 @@ export default function AppSidebar({
   const [draggedItem, setDraggedItem] = useState<{ type: 'database' | 'table'; id: number; sourceDbId?: number } | null>(null)
   const [dropTarget, setDropTarget] = useState<{ type: 'database' | 'table'; id: number } | null>(null)
 
+  // 收合後滑鼠移入即暫時展開（浮在內容上方），移出即退回單一切換鈕的窄滑道
+  const [isHoverExpanded, setIsHoverExpanded] = useState(false)
+  const isRail = isSidebarCollapsed && !isHoverExpanded
+
   const activeWorkspace = workspaces.find(w => w.id === activeWorkspaceId) || workspaces[0]
   const canManageStructure = userPermissions?.canManageStructure ?? true
 
@@ -214,12 +218,15 @@ export default function AppSidebar({
   return (
     <SidebarProvider open={!isSidebarCollapsed} onOpenChange={() => onToggleSidebarCollapse?.()}>
       <div
-        className={`layout__col-1 ${isSidebarCollapsed ? 'sidebar--collapsed' : ''}`}
+        className={`layout__col-1 ${isRail ? 'sidebar--collapsed' : ''}`}
+        onMouseEnter={() => setIsHoverExpanded(true)}
+        onMouseLeave={() => setIsHoverExpanded(false)}
         style={{
-          width: isSidebarCollapsed ? '56px' : '250px',
-          minWidth: isSidebarCollapsed ? '56px' : '250px',
-          maxWidth: isSidebarCollapsed ? '56px' : '250px',
-          transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          width: isRail ? '56px' : '250px',
+          minWidth: isRail ? '56px' : '250px',
+          maxWidth: isRail ? '56px' : '250px',
+          transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease',
+          boxShadow: isSidebarCollapsed && !isRail ? '4px 0 16px rgba(15, 23, 42, 0.08)' : undefined,
           position: 'absolute',
           top: 0,
           bottom: 0,
@@ -235,15 +242,15 @@ export default function AppSidebar({
         <Sidebar collapsible="none" className="w-full h-full bg-slate-50/50 dark:bg-slate-900/50 border-none">
           {/* 1. Header: Workspace Switcher & Collapse Toggle */}
           <SidebarHeader style={{ height: '52px', minHeight: '52px', maxHeight: '52px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-b border-slate-200/60 dark:border-slate-800/60">
-            <div style={{ display: 'flex', flexDirection: isSidebarCollapsed ? 'column' : 'row', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'space-between', width: '100%', gap: isSidebarCollapsed ? '6px' : '4px' }}>
-              {isSidebarCollapsed && sidebarToggle}
-              <SidebarMenu style={{ flex: isSidebarCollapsed ? undefined : 1, width: isSidebarCollapsed ? '100%' : undefined, minWidth: 0 }}>
+            <div style={{ display: 'flex', flexDirection: isRail ? 'column' : 'row', alignItems: 'center', justifyContent: isRail ? 'center' : 'space-between', width: '100%', gap: isRail ? '6px' : '4px' }}>
+              {isRail && sidebarToggle}
+              <SidebarMenu style={{ flex: isRail ? undefined : 1, width: isRail ? '100%' : undefined, minWidth: 0, display: isRail ? 'none' : undefined }}>
                 <SidebarMenuItem>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuButton
                         size="lg"
-                        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: isSidebarCollapsed ? 0 : '8px', padding: isSidebarCollapsed ? '0 4px' : '0 8px', borderRadius: '8px', height: '42px', minHeight: '42px', maxHeight: '42px', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start' }}
+                        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: isRail ? 0 : '8px', padding: isRail ? '0 4px' : '0 8px', borderRadius: '8px', height: '42px', minHeight: '42px', maxHeight: '42px', justifyContent: isRail ? 'center' : 'flex-start' }}
                         className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
                       >
                         <div
@@ -252,7 +259,7 @@ export default function AppSidebar({
                         >
                           {activeWorkspace?.name?.[0]?.toUpperCase() || 'F'}
                         </div>
-                        {!isSidebarCollapsed && (
+                        {!isRail && (
                           <>
                             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
                               <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
@@ -373,12 +380,12 @@ export default function AppSidebar({
             </SidebarMenuItem>
           </SidebarMenu>
 
-          {!isSidebarCollapsed && sidebarToggle}
+          {!isRail && sidebarToggle}
         </div>
       </SidebarHeader>
 
         {/* 2. Content: Navigation & Databases/Tables Tree */}
-        <SidebarContent className="p-2 gap-3">
+        <SidebarContent className="p-2 gap-3" style={{ display: isRail ? 'none' : undefined }}>
           {/* Quick Platform Navigation Group */}
           <SidebarGroup className="p-0">
             <SidebarMenu>
@@ -386,7 +393,7 @@ export default function AppSidebar({
                 <SidebarMenuButton
                   isActive={!activeTableId || activeTableId === 0}
                   onClick={onSelectDashboard}
-                  tooltip={isSidebarCollapsed ? (t('nav.home') || '首頁') : undefined}
+                  tooltip={isRail ? (t('nav.home') || '首頁') : undefined}
                   className="data-[active=true]:bg-[#EEF0E8] data-[active=true]:text-[#39452B] dark:data-[active=true]:bg-emerald-950/40 dark:data-[active=true]:text-emerald-400 font-medium"
                 >
                   <AnimatedHome style={{ width: '16px', height: '16px', minWidth: '16px', color: '#39452B', flexShrink: 0 }} />
@@ -397,7 +404,7 @@ export default function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={onShowNotificationsModal}
-                  tooltip={isSidebarCollapsed ? (t('nav.notifications') || '通知中心') : undefined}
+                  tooltip={isRail ? (t('nav.notifications') || '通知中心') : undefined}
                 >
                   <AnimatedBell style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.notifications') || '通知中心'}</span>
@@ -412,7 +419,7 @@ export default function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={onShowMembersModal}
-                  tooltip={isSidebarCollapsed ? (t('nav.members') || '成員管理') : undefined}
+                  tooltip={isRail ? (t('nav.members') || '成員管理') : undefined}
                 >
                   <AnimatedUsers style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.members') || '成員管理'}</span>
@@ -456,7 +463,7 @@ export default function AppSidebar({
               className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1"
             >
               <span style={{ whiteSpace: 'nowrap' }}>資料庫清單</span>
-              {canManageStructure && activeWorkspaceId && !isSidebarCollapsed && (
+              {canManageStructure && activeWorkspaceId && !isRail && (
                 <button
                   type="button"
                   onClick={() => onShowDatabaseModal(activeWorkspaceId)}
@@ -501,11 +508,11 @@ export default function AppSidebar({
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }} className="group/db-row">
                           <CollapsibleTrigger asChild>
                             <SidebarMenuButton
-                              tooltip={isSidebarCollapsed ? db.name : undefined}
-                              style={{ display: 'flex', alignItems: 'center', width: '100%', height: '32px', paddingLeft: '6px', paddingRight: canManageStructure && !isSidebarCollapsed ? '32px' : '8px' }}
+                              tooltip={isRail ? db.name : undefined}
+                              style={{ display: 'flex', alignItems: 'center', width: '100%', height: '32px', paddingLeft: '6px', paddingRight: canManageStructure && !isRail ? '32px' : '8px' }}
                               className="font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                             >
-                              {!isSidebarCollapsed && (
+                              {!isRail && (
                                 <ChevronRight
                                   style={{
                                     width: '14px',
@@ -525,7 +532,7 @@ export default function AppSidebar({
                           </CollapsibleTrigger>
 
                           {/* Database Options Menu */}
-                          {!isSidebarCollapsed && canManageStructure && (
+                          {!isRail && canManageStructure && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <SidebarMenuAction showOnHover style={{ top: '6px' }}>
@@ -566,7 +573,7 @@ export default function AppSidebar({
                         </div>
 
                         {/* Tables Submenu List */}
-                        {!isSidebarCollapsed && (
+                        {!isRail && (
                           <CollapsibleContent>
                             <SidebarMenuSub className="my-0.5">
                               {hasTables ? (
@@ -705,14 +712,14 @@ export default function AppSidebar({
         </SidebarContent>
 
         {/* 3. Footer: User Profile Dropdown & System Actions */}
-        <SidebarFooter style={{ height: '48px', minHeight: '48px', maxHeight: '48px', padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-t border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
+        <SidebarFooter style={{ height: '48px', minHeight: '48px', maxHeight: '48px', padding: '0 8px', display: isRail ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }} className="border-t border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
           <SidebarMenu>
             <SidebarMenuItem>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton
                     size="lg"
-                    style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', padding: isSidebarCollapsed ? '0 4px' : '0 8px', borderRadius: '8px', height: '40px', minHeight: '40px', maxHeight: '40px' }}
+                    style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', padding: isRail ? '0 4px' : '0 8px', borderRadius: '8px', height: '40px', minHeight: '40px', maxHeight: '40px' }}
                     className="hover:bg-slate-100 dark:hover:bg-slate-800 data-[state=open]:bg-slate-100 dark:data-[state=open]:bg-slate-800 transition-colors"
                   >
                     <div
@@ -720,7 +727,7 @@ export default function AppSidebar({
                     >
                       <FycdLogo variant="icon" height={10} />
                     </div>
-                    {!isSidebarCollapsed && (
+                    {!isRail && (
                       <>
                         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', textAlign: 'left', minWidth: 0, gap: '1px' }}>
                           <span style={{ fontWeight: 600, fontSize: '13px', color: '#0f172a', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
@@ -737,7 +744,7 @@ export default function AppSidebar({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   className="w-60 rounded-xl shadow-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800"
-                  side={isSidebarCollapsed ? 'right' : 'top'}
+                  side={isRail ? 'right' : 'top'}
                   align="end"
                   sideOffset={8}
                 >

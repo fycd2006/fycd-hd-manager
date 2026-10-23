@@ -4,7 +4,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import AppSidebar from '../Sidebar'
 import { I18nProvider } from '@/lib/i18n/i18nContext'
-import type { Workspace } from '@/modules/database/types'
+import type { Workspace, User } from '@/modules/database/types'
 
 jest.mock('lucide-react', () => {
   return new Proxy({}, {
@@ -48,6 +48,34 @@ const workspace: Workspace = {
   members: [{ userId: 1, role: 'admin' }],
 }
 
+const baseProps = {
+  currentUser: { id: 1, username: 'tester', email: 'tester@example.com', role: 'admin' } as User,
+  workspaces: [workspace],
+  activeWorkspaceId: 1,
+  activeTableId: null,
+  collapsedDatabases: {},
+  theme: 'light' as const,
+  onToggleTheme: jest.fn(),
+  onLogout: jest.fn(),
+  onToggleDatabaseCollapse: jest.fn(),
+  onSetActiveWorkspaceId: jest.fn(),
+  onSetActiveTableId: jest.fn(),
+  onShowWorkspaceModal: jest.fn(),
+  onShowDatabaseModal: jest.fn(),
+  onSetRenameType: jest.fn(),
+  onSetRenameId: jest.fn(),
+  onSetRenameNameValue: jest.fn(),
+  onShowRenameModal: jest.fn(),
+  onDeleteWorkspaceOrDb: jest.fn(),
+  onToggleDarkReaderPanel: jest.fn(),
+}
+
+function getSidebarRoot(container: HTMLElement) {
+  const root = container.querySelector('.layout__col-1') as HTMLElement
+  expect(root).not.toBeNull()
+  return root
+}
+
 describe('Sidebar prefetch', () => {
   beforeAll(() => {
     Object.defineProperty(window, 'matchMedia', {
@@ -67,26 +95,8 @@ describe('Sidebar prefetch', () => {
       render(
         <I18nProvider>
           <AppSidebar
-            currentUser={{ id: 1, username: 'jeff', email: 'jeff@example.com', role: 'admin' }}
-            workspaces={[workspace]}
-            activeWorkspaceId={1}
-            activeTableId={null}
-            collapsedDatabases={{}}
-            theme="light"
+            {...baseProps}
             onTablePrefetch={onTablePrefetch}
-            onToggleTheme={jest.fn()}
-            onLogout={jest.fn()}
-            onToggleDatabaseCollapse={jest.fn()}
-            onSetActiveWorkspaceId={jest.fn()}
-            onSetActiveTableId={jest.fn()}
-            onShowWorkspaceModal={jest.fn()}
-            onShowDatabaseModal={jest.fn()}
-            onSetRenameType={jest.fn()}
-            onSetRenameId={jest.fn()}
-            onSetRenameNameValue={jest.fn()}
-            onShowRenameModal={jest.fn()}
-            onDeleteWorkspaceOrDb={jest.fn()}
-            onToggleDarkReaderPanel={jest.fn()}
           />
         </I18nProvider>
       )
@@ -97,5 +107,61 @@ describe('Sidebar prefetch', () => {
     } finally {
       jest.useRealTimers()
     }
+  })
+})
+
+describe('AppSidebar 收合滑道', () => {
+  it('展開狀態：寬度 250px 且導覽內容可見', () => {
+    const { container } = render(
+      <I18nProvider>
+        <AppSidebar {...baseProps} isSidebarCollapsed={false} />
+      </I18nProvider>
+    )
+    const root = getSidebarRoot(container)
+
+    expect(root.style.width).toBe('250px')
+    expect(screen.getByText(/Home|首頁/)).toBeVisible()
+  })
+
+  it('收合且未懸停：寬度 56px，只剩展開鈕，導覽內容隱藏', () => {
+    const { container } = render(
+      <I18nProvider>
+        <AppSidebar {...baseProps} isSidebarCollapsed={true} />
+      </I18nProvider>
+    )
+    const root = getSidebarRoot(container)
+
+    expect(root.style.width).toBe('56px')
+    expect(screen.getByRole('button', { name: /Expand Sidebar|展開側邊欄/ })).toBeVisible()
+    expect(screen.getByText(/Home|首頁/)).not.toBeVisible()
+  })
+
+  it('收合時滑鼠移入會暫時展開成 250px，移出後收回 56px', () => {
+    const { container } = render(
+      <I18nProvider>
+        <AppSidebar {...baseProps} isSidebarCollapsed={true} />
+      </I18nProvider>
+    )
+    const root = getSidebarRoot(container)
+
+    fireEvent.mouseEnter(root)
+    expect(root.style.width).toBe('250px')
+    expect(screen.getByText(/Home|首頁/)).toBeVisible()
+
+    fireEvent.mouseLeave(root)
+    expect(root.style.width).toBe('56px')
+    expect(screen.getByText(/Home|首頁/)).not.toBeVisible()
+  })
+
+  it('展開狀態下懸停不影響寬度', () => {
+    const { container } = render(
+      <I18nProvider>
+        <AppSidebar {...baseProps} isSidebarCollapsed={false} />
+      </I18nProvider>
+    )
+    const root = getSidebarRoot(container)
+
+    fireEvent.mouseLeave(root)
+    expect(root.style.width).toBe('250px')
   })
 })
