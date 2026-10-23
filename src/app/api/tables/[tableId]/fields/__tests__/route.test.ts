@@ -1,4 +1,4 @@
-import { POST } from '../route'
+import { GET, POST } from '../route'
 import { getSessionUser } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { createGeneratedColumn } from '@/modules/database/services/schemaService'
@@ -120,5 +120,19 @@ describe('POST /api/tables/[tableId]/fields', () => {
     expect(res.status).toBe(201)
     expect(tx.tableRow.update).toHaveBeenCalledWith({ where: { id: 501 }, data: { data: { field_1: 'a', field_77: 'alice' } } })
     expect(tx.tableRow.update).toHaveBeenCalledWith({ where: { id: 502 }, data: { data: { field_77: 'bob' } } })
+  })
+})
+
+describe('GET /api/tables/[tableId]/fields', () => {
+  it('sets Server-Timing header on GET', async () => {
+    ;(getSessionUser as jest.Mock).mockResolvedValue({ id: 1, username: 'alice', role: 'user' })
+    ;(prisma.databaseTable.findFirst as jest.Mock).mockResolvedValue({ id: 10, database: { workspaceId: 3 } })
+    ;(prisma.workspaceUser.findUnique as jest.Mock).mockResolvedValue({ workspaceId: 3, userId: 1, role: 'builder' })
+    ;(prisma.tableField.findMany as jest.Mock).mockResolvedValue([])
+    const res = await GET(new Request('http://localhost/api/tables/10/fields'), {
+      params: Promise.resolve({ tableId: '10' }),
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Server-Timing')).toContain('handler;dur=')
   })
 })

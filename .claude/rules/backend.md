@@ -32,3 +32,4 @@ paths:
 - 通知「接受邀請」把通知 payload 的 `workspaceId`／`role` 當授權依據每次 upsert，被移除者可用舊通知重新加入 → 成員資格只能來自現有成員或仍存在且 email 相符的 `WorkspaceInvitation`；已處理（`read`）的通知回 409，不覆寫既有角色
 - 寫入路徑各自驗證導致同一個值結果不同 → 新增的寫入路徑一律呼叫 `prepareCellWrites`（批次用 `prepareBatchCellWrites`），不要直接呼叫 `FieldRegistry.validateValue`
 - rollup 下拉選單送 `avg`／`min`／`max`／`concat`，`rowQuery.ts` 只認 `sum`／`count`／`average`，其餘靜默算成 0 → 新增或改 `rollupFunction` 選項時，同步改 `rowQuery.ts` 的 rollup 分支，並在 `rowQuery.test.ts` 的 `it.each` 加一列
+- 資料表軟刪除後 authorizeAction 以 deletedAt: null 查表，PATCH 還原永遠 404 → 需要讀已刪除項目的路徑用 includeDeleted: true，新增還原路徑時補測試

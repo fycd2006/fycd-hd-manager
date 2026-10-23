@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
 import { getSessionUser } from '@/lib/auth'
+import { createServerTiming } from '@/lib/serverTiming'
 import { createGeneratedColumn } from '@/modules/database/services/schemaService'
 import { triggerTableEvent } from '@/lib/pusher-server'
 import { z } from 'zod'
@@ -20,11 +21,12 @@ export const GET = withApiHandler<{ tableId: string }>(
     const id = parseInt(params.tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
-    const fields = await prisma.tableField.findMany({
+    const t = createServerTiming()
+    const fields = await t.time('handler', () => prisma.tableField.findMany({
       where: { tableId: id, deletedAt: null },
       orderBy: { order: 'asc' },
-    })
-    return fields
+    }))
+    return NextResponse.json(fields, { headers: { 'Server-Timing': t.header() } })
   },
   {
     auth: { action: 'canViewData' },

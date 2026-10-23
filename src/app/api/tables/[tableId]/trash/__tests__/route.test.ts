@@ -3,6 +3,7 @@ import { GET, POST, DELETE } from '../route'
 import { invalidateMasterViewCacheForTable } from '@/modules/database/services/masterViewCache'
 import { authorizeAction } from '@/lib/authorize'
 import prisma from '@/lib/prisma'
+import { cleanupFieldDependencies } from '@/modules/database/services/rowCascade'
 
 jest.mock('@/lib/authorize', () => ({
   authorizeAction: jest.fn(),
@@ -15,6 +16,10 @@ jest.mock('@/modules/database/services/masterViewCache', () => ({
 jest.mock('@/modules/database/services/linkRowSync', () => ({
   cleanupRowLinkRowRelations: jest.fn().mockResolvedValue(undefined),
   cleanupInboundLinkRowReferences: jest.fn().mockResolvedValue(undefined),
+}))
+
+jest.mock('@/modules/database/services/rowCascade', () => ({
+  cleanupFieldDependencies: jest.fn().mockResolvedValue(undefined),
 }))
 
 jest.mock('@/modules/database/services/masterViewOverride', () => ({
@@ -78,6 +83,22 @@ describe('Trash Route Handler: /api/tables/[tableId]/trash', () => {
   })
 })
 
+describe('Trash permanent delete field references', () => {
+  it('DELETE field permanently clears lookup/rollup references', async () => {
+    jest.clearAllMocks()
+    ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'owner' } })
+    ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) =>
+      callback({ $executeRaw: jest.fn(), tableField: { delete: jest.fn() } })
+    )
+    const res = await DELETE(
+      new Request('http://localhost:3000/api/tables/10/trash?type=field&id=50', { method: 'DELETE' }),
+      { params: Promise.resolve({ tableId: '10' }) }
+    )
+    expect(res.status).toBe(200)
+    expect(cleanupFieldDependencies).toHaveBeenCalledWith(50)
+  })
+})
+
 describe('Trash restore & listing: /api/tables/[tableId]/trash', () => {
   const restore = (body: unknown) =>
     POST(
@@ -99,9 +120,53 @@ describe('Trash restore & listing: /api/tables/[tableId]/trash', () => {
   it('POST restore field: clears deletedAt scoped to {id, tableId} and invalidates cache', async () => {
     const res = await restore({ type: 'field', id: '50' })
     expect(res.status).toBe(200)
-    expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canEditData' })
+    expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canManageStructure' })
     expect(prisma.tableField.update).toHaveBeenCalledWith({ where: { id: 50, tableId: 10 }, data: { deletedAt: null } })
     expect(invalidateMasterViewCacheForTable).toHaveBeenCalledWith(10)
+  })
+
+  it('POST restoring a field requires canManageStructure', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({
+      errorResponse: NextResponse.json({ error: '權限不足' }, { status: 403 }),
+    })
+    const res = await restore({ type: 'field', id: 50 })
+    expect(res.status).toBe(403)
+    expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canManageStructure' })
+    expect(prisma.tableField.update).not.toHaveBeenCalled()
+  })
+
+  it('POST row restore still uses canEditData', async () => {
+    await restore({ type: 'row', id: 60 })
+    expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canEditData' })
+  })
+
+  it('POST returns 400 for malformed JSON', async () => {
+    const res = await POST(
+      new Request('http://localhost:3000/api/tables/10/trash', { method: 'POST', body: '{bad' }),
+      { params: Promise.resolve({ tableId: '10' }) }
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('DELETE purging a field requires canManageStructure', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({
+      errorResponse: NextResponse.json({ error: '權限不足' }, { status: 403 }),
+    })
+    const res = await DELETE(
+      new Request('http://localhost:3000/api/tables/10/trash?type=field&id=50', { method: 'DELETE' }),
+      { params: Promise.resolve({ tableId: '10' }) }
+    )
+    expect(res.status).toBe(403)
+    expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canManageStructure' })
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('DELETE purging a row uses canEditData', async () => {
+    await DELETE(
+      new Request('http://localhost:3000/api/tables/10/trash?type=row&id=60', { method: 'DELETE' }),
+      { params: Promise.resolve({ tableId: '10' }) }
+    )
+    expect(authorizeAction).toHaveBeenCalledWith({ tableId: 10, action: 'canEditData' })
   })
 
   it('POST restore row: clears deletedAt scoped to {id, tableId}', async () => {

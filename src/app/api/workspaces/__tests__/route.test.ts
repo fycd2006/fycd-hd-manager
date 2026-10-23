@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { PATCH, DELETE } from '../route'
+import { GET, PATCH, DELETE } from '../route'
 import { authorizeAction } from '@/lib/authorize'
 import prisma from '@/lib/prisma'
+import { softDeleteWorkspace, softDeleteDatabase } from '@/modules/database/services/containerTrash'
 
 jest.mock('@/lib/auth', () => ({
   getSessionUser: jest.fn().mockResolvedValue({ id: 1, username: 'alice', role: 'user' }),
@@ -14,9 +15,15 @@ jest.mock('@/lib/authorize', () => ({
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
-    workspace: { update: jest.fn(), delete: jest.fn(), count: jest.fn() },
+    workspace: { update: jest.fn(), delete: jest.fn(), count: jest.fn(), findMany: jest.fn(), create: jest.fn() },
     database: { update: jest.fn(), delete: jest.fn() },
+    databaseTable: { findFirst: jest.fn(), updateMany: jest.fn() },
   },
+}))
+
+jest.mock('@/modules/database/services/containerTrash', () => ({
+  softDeleteWorkspace: jest.fn(),
+  softDeleteDatabase: jest.fn(),
 }))
 
 const forbidden = () => ({
@@ -54,5 +61,55 @@ describe('/api/workspaces cross-workspace protection', () => {
     const last = await DELETE(new Request('http://localhost/api/workspaces?action=delete_workspace&id=2', { method: 'DELETE' }))
     expect(last.status).toBe(400)
     expect(prisma.workspace.delete).not.toHaveBeenCalled()
+  })
+
+  it('DELETE delete_workspace soft deletes via softDeleteWorkspace and never calls prisma.workspace.delete', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'admin' } })
+    ;(prisma.workspace.count as jest.Mock).mockResolvedValue(2)
+    const res = await DELETE(new Request('http://localhost/api/workspaces?action=delete_workspace&id=2', { method: 'DELETE' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).message).toBe('工作區已移到最近刪除')
+    expect(softDeleteWorkspace).toHaveBeenCalledWith(2)
+    expect(prisma.workspace.delete).not.toHaveBeenCalled()
+  })
+
+  it('DELETE delete_workspace counts only live workspaces', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'admin' } })
+    ;(prisma.workspace.count as jest.Mock).mockResolvedValue(1)
+    const res = await DELETE(new Request('http://localhost/api/workspaces?action=delete_workspace&id=2', { method: 'DELETE' }))
+    expect(prisma.workspace.count).toHaveBeenCalledWith({ where: { deletedAt: null } })
+    expect(res.status).toBe(400)
+    expect(softDeleteWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('DELETE does not soft delete when authorize returns an error (e.g. 404 missing/deleted)', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({
+      errorResponse: NextResponse.json({ error: '找不到' }, { status: 404 }),
+    })
+    const ws = await DELETE(new Request('http://localhost/api/workspaces?action=delete_workspace&id=2', { method: 'DELETE' }))
+    const db = await DELETE(new Request('http://localhost/api/workspaces?action=delete_database&id=3', { method: 'DELETE' }))
+    expect(ws.status).toBe(404)
+    expect(db.status).toBe(404)
+    expect(softDeleteWorkspace).not.toHaveBeenCalled()
+    expect(softDeleteDatabase).not.toHaveBeenCalled()
+  })
+
+  it('DELETE delete_database soft deletes via softDeleteDatabase with canManageStructure', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'admin' } })
+    const res = await DELETE(new Request('http://localhost/api/workspaces?action=delete_database&id=3', { method: 'DELETE' }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).message).toBe('資料庫已移到最近刪除')
+    expect(authorizeAction).toHaveBeenCalledWith({ databaseId: 3, action: 'canManageStructure' })
+    expect(softDeleteDatabase).toHaveBeenCalledWith(3)
+    expect(prisma.database.delete).not.toHaveBeenCalled()
+  })
+
+  it('GET excludes deleted workspaces and databases', async () => {
+    ;(prisma.workspace.findMany as jest.Mock).mockResolvedValue([{ id: 1, databases: [] }])
+    const res = await GET()
+    expect(res.status).toBe(200)
+    const arg = (prisma.workspace.findMany as jest.Mock).mock.calls[0][0]
+    expect(arg.where).toMatchObject({ deletedAt: null })
+    expect(arg.include.databases.where).toEqual({ deletedAt: null })
   })
 })

@@ -4,4 +4,4 @@
  */
 
 export { default as AuthScreen } from './AuthScreen'
-export { AuthPage } from './AuthPage'
+export { default as AppShellSkeleton } from './AppShellSkeleton'

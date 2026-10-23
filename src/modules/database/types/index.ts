@@ -314,3 +314,15 @@ export interface ColumnConfig {
   columnWidths: Record<string, number>
   frozenCount: number
 }
+
+// =============================================
+// Trash (recently deleted)
+// =============================================
+export interface TrashEntry {
+  type: 'workspace' | 'database' | 'table'
+  id: number
+  name: string
+  parentName: string | null
+  deletedAt: string
+  daysLeft: number
+}

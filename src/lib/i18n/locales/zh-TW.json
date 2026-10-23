@@ -48,6 +48,7 @@
     "dashboard": "儀表板",
     "workspaces": "工作區",
     "members": "成員管理",
+    "recentlyDeleted": "最近刪除",
     "notifications": "通知中心",
     "accountSettings": "個人帳號設定",
     "logout": "登出系統",
@@ -397,10 +398,27 @@
     "doubleClickRename": "雙擊或點擊圖示可重新命名",
     "tableCount": "{count} 張資料表",
     "addTable": "新增資料表",
-    "emptyTable": "尚無資料表"
+    "emptyTable": "尚無資料表",
+    "databaseCountLabel": "資料庫數",
+    "tableCountLabel": "資料表數",
+    "masterView": "跨表總表",
+    "backToOverview": "返回工作區總覽",
+    "masterViewTitle": "{workspace} · 跨表總表",
+    "showAllTables": "顯示全部（{count}）",
+    "showLess": "收合",
+    "templateProject": "專案範本",
+    "templateCrm": "CRM 範本",
+    "templateFinance": "財務範本",
+    "templateHr": "人資範本",
+    "welcomeLine": "歡迎回來，{username} · {role}"
   },
   "auth": {
     "systemTitle": "雲端資料庫與團隊工作區管理系統",
+    "loadingWorkspace": "正在載入工作區",
+    "brandTagline": "伙食團的資料，一處整理、全員同步",
+    "brandFeatureTables": "像試算表一樣直覺的資料表與多種檢視",
+    "brandFeatureTeams": "團隊工作區與角色權限",
+    "brandFeatureRealtime": "即時同步與留言，變更一目瞭然",
     "login": "登入",
     "register": "註冊",
     "loginTitle": "登入系統",
@@ -668,5 +686,20 @@
     "exportCsv": "匯出 CSV 資料",
     "importCsv": "匯入 CSV 資料",
     "delete": "刪除視圖"
+  },
+  "trash": {
+    "deleteWorkspaceTitle": "刪除工作區「{name}」？",
+    "deleteDatabaseTitle": "刪除資料庫「{name}」？",
+    "deleteDescription": "會移到「最近刪除」，30 天內可以還原，之後永久刪除。",
+    "typeNamePrompt": "請輸入名稱「{name}」確認",
+    "deleteTableConfirm": "確定要刪除資料表「{name}」？30 天內可以在「最近刪除」還原。",
+    "recentlyDeletedTitle": "最近刪除",
+    "empty": "沒有最近刪除的項目",
+    "daysLeft": "剩 {n} 天",
+    "restore": "還原",
+    "restoreFailed": "還原失敗",
+    "groupWorkspace": "工作區",
+    "groupDatabase": "資料庫",
+    "groupTable": "資料表"
   }
 }

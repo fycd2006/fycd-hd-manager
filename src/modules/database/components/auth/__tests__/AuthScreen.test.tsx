@@ -3,7 +3,7 @@
  */
 
 import React from 'react'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import AuthScreen from '../AuthScreen'
 
@@ -50,6 +50,15 @@ const submitForm = (container: HTMLElement) => {
 }
 
 describe('AuthScreen', () => {
+  it('shows the brand panel with tagline and three features', () => {
+    render(<AuthScreen {...baseProps()} />)
+    const panel = screen.getByRole('complementary')
+    expect(within(panel).getByRole('heading', { name: 'auth.brandTagline' })).toBeInTheDocument()
+    const items = within(panel).getAllByRole('listitem')
+    expect(items.map(li => li.textContent)).toEqual([
+      'auth.brandFeatureTables', 'auth.brandFeatureTeams', 'auth.brandFeatureRealtime',
+    ])
+  })
   it('shows the brand logo', () => {
     render(<AuthScreen {...baseProps()} />)
     expect(screen.getByRole('img', { name: 'FYCD HD' })).toBeInTheDocument()

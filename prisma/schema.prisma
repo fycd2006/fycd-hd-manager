@@ -124,6 +124,9 @@ model Workspace {
   invitations WorkspaceInvitation[]
   teams       WorkspaceTeam[]
   createdAt   DateTime              @default(now())
+  deletedAt   DateTime?
+
+  @@index([deletedAt])
 }
 
 model WorkspaceUser {
@@ -182,16 +185,18 @@ model Database {
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tables      DatabaseTable[]
   createdAt   DateTime        @default(now())
+  deletedAt   DateTime?
 
   @@index([workspaceId])
+  @@index([deletedAt])
 }
 
 model RowComment {
   id        Int      @id @default(autoincrement())
   rowId     Int
   row       TableRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   content   String   @db.Text
   createdAt DateTime @default(now())
 

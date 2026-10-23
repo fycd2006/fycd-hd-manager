@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { evaluateFormula, extractFormulaExpression } from '@/lib/formula'
 import { authorizeAction } from '@/lib/authorize'
+import { createServerTiming } from '@/lib/serverTiming'
 import { cascadeRecomputeSingleLevel } from '@/modules/database/services/rowCascade'
 import { syncBiDirectionalLinkRow, cleanupRowLinkRowRelations, parseLinkRowIds, type LinkSyncResult } from '@/modules/database/services/linkRowSync'
 import { authorizeLinkRowOperation } from '@/modules/database/services/linkRowOperations'
@@ -29,12 +30,14 @@ export async function GET(
   { params }: { params: Promise<{ tableId: string }> }
 ) {
   const executeQuery = async () => {
+    const t = createServerTiming()
+    const totalStart = performance.now()
     const { tableId } = await params
     const id = parseInt(tableId)
     if (isNaN(id)) return NextResponse.json({ error: '無效的 ID' }, { status: 400 })
 
     // 讀取資料列同樣需要登入且為工作區成員（含 viewer 角色）
-    const { errorResponse } = await authorizeAction({ tableId: id, action: 'canViewData' })
+    const { errorResponse } = await t.time('auth', () => authorizeAction({ tableId: id, action: 'canViewData' }))
     if (errorResponse) return errorResponse
 
     const { searchParams } = new URL(request.url)
@@ -46,6 +49,7 @@ export async function GET(
     const pageParam = searchParams.get('page')
     const pageSizeParam = searchParams.get('pageSize')
 
+    const queryStart = performance.now()
     const result = await getPopulatedTableRows(id, {
       rowId: rowIdParam ? parseInt(rowIdParam, 10) : undefined,
       sortField,
@@ -53,13 +57,17 @@ export async function GET(
       filterParam,
       searchQuery,
       pageParam,
-      pageSizeParam
+      pageSizeParam,
+      timing: t,
     })
+    t.add('query', performance.now() - queryStart - t.get('populate'))
 
+    t.add('total', performance.now() - totalStart)
     const noCacheHeaders = {
       'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
       'Pragma': 'no-cache',
       'Expires': '0',
+      'Server-Timing': t.header(),
     }
 
     if (result.isPaginated) {

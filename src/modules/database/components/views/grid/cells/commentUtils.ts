@@ -25,6 +25,13 @@ export function formatCommentTime(date: Date): string {
   return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
 }
 
+/** 只取日期（YYYY/MM/DD）；無法解析時原樣回傳 */
+export function formatCommentDate(time?: string | null): string {
+  const date = parseCommentTime(time);
+  if (!date) return time || '';
+  return `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())}`;
+}
+
 export function formatRelativeTime(time: string | undefined, now: Date = new Date()): string {
   const date = parseCommentTime(time);
   if (!date) return time || '';

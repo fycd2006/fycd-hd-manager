@@ -11,6 +11,7 @@ import { formatFieldDate, toEditorValue, fromEditorValue, resolveDateOptions } f
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { renderFormulaCell, parseNumberInput } from '../views/grid/GridViewCell'
 import { safeJsonParse } from '@/lib/json-utils'
+import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
 
 export interface CardDrawerProps {
   show: boolean
@@ -123,6 +124,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
     setSavingKey(fieldKey)
     setSaveError(null)
 
+    const endWrite = localWriteTracker.beginWrite()
     try {
       const res = await fetch(`/api/tables/${tableId}/rows`, {
         method: 'PATCH',
@@ -144,6 +146,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
     } catch (err: any) {
       setSaveError(err.message || '更新失敗')
     } finally {
+      endWrite()
       setSavingKey(null)
     }
   }

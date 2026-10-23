@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
-import { PATCH, POST } from '../route'
+import { GET, PATCH, POST } from '../route'
 import { createTableRow } from '@/modules/database/services/createRow'
 import { authorizeAction } from '@/lib/authorize'
 import prisma from '@/lib/prisma'
 import { triggerTableEvent } from '@/lib/pusher-server'
+import { getPopulatedTableRows } from '@/modules/database/services/rowQuery'
 
 jest.mock('@/lib/auth', () => ({
   getSessionUser: jest.fn().mockResolvedValue({ id: 1, username: 'testuser' }),
@@ -12,6 +13,10 @@ jest.mock('@/lib/auth', () => ({
 
 jest.mock('@/lib/authorize', () => ({
   authorizeAction: jest.fn(),
+}))
+
+jest.mock('@/modules/database/services/rowQuery', () => ({
+  getPopulatedTableRows: jest.fn(),
 }))
 
 jest.mock('@/modules/database/services/createRow', () => ({
@@ -308,5 +313,50 @@ describe('Route Handler: POST /api/tables/[tableId]/rows', () => {
     expect(triggerTableEvent).toHaveBeenCalledWith(1, 'row-created', { row: { id: 5 } }, 's1')
     expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 3, options: {} } })
     expect(triggerTableEvent).toHaveBeenCalledWith(1, 'field-updated', { field: { id: 4, options: {} } })
+  })
+})
+
+describe('Route Handler: GET /api/tables/[tableId]/rows', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('sets Server-Timing header on GET', async () => {
+    ;(authorizeAction as jest.Mock).mockResolvedValue({ auth: { user: { id: 1 }, role: 'member' } })
+    ;(getPopulatedTableRows as jest.Mock).mockImplementation(async (_id, opts) => {
+      await opts.timing.time('populate', async () => undefined)
+      return { isPaginated: false, rows: [] }
+    })
+    const res = await GET(new Request('http://localhost/api/tables/1/rows'), {
+      params: Promise.resolve({ tableId: '1' }),
+    })
+    expect(res.status).toBe(200)
+    const header = res.headers.get('Server-Timing') ?? ''
+    expect(header).toContain('auth;dur=')
+    expect(header).toContain('query;dur=')
+    expect(header).toContain('populate;dur=')
+    expect(header).toContain('total;dur=')
+  })
+
+  it('Server-Timing reflects only the final attempt after retry', async () => {
+    const ok = { auth: { user: { id: 1 }, role: 'member' } }
+    ;(authorizeAction as jest.Mock)
+      .mockImplementationOnce(() => new Promise(r => setTimeout(() => r(ok), 120)))
+      .mockResolvedValue(ok)
+    ;(getPopulatedTableRows as jest.Mock)
+      .mockRejectedValueOnce(new Error('Connection lost'))
+      .mockImplementationOnce(async (_id, opts) => {
+        await opts.timing.time('populate', async () => undefined)
+        return { isPaginated: false, rows: [] }
+      })
+    const res = await GET(new Request('http://localhost/api/tables/1/rows'), {
+      params: Promise.resolve({ tableId: '1' }),
+    })
+    expect(res.status).toBe(200)
+    expect(getPopulatedTableRows).toHaveBeenCalledTimes(2)
+    const header = res.headers.get('Server-Timing') ?? ''
+    expect(header.match(/auth;dur=/g)).toHaveLength(1)
+    // 第一次嘗試的 auth 慢 120ms；若計時物件跨重試共用，auth 會 >= 120
+    expect(Number(/auth;dur=([0-9.]+)/.exec(header)?.[1])).toBeLessThan(60)
   })
 })

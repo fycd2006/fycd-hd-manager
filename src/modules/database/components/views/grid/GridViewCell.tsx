@@ -13,7 +13,7 @@ export { parseNumberInput, formatNumberValue };
 
 import { LatestCommentModal, parseLatestCommentEntries, type CommentLogEntry } from './cells/LatestCommentModal';
 export { LatestCommentModal, parseLatestCommentEntries, type CommentLogEntry };
-import { avatarColor, avatarInitial, formatRelativeTime } from './cells/commentUtils';
+import { avatarColor, avatarInitial, formatCommentDate } from './cells/commentUtils';
 
 
 
@@ -358,6 +358,13 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
 
   // Hover state for showing + button on empty link_row cells
   const [isCellHovered, setIsCellHovered] = useState(false);
+  // 編輯器可能掛在 portal（document.body），開始編輯時滑鼠離開格子 DOM 不會觸發 onMouseLeave，
+  // 編輯結束後 hover 會卡住（灰底殘留），所以進入編輯時直接清掉
+  const [prevIsEditing, setPrevIsEditing] = useState(isEditing);
+  if (prevIsEditing !== isEditing) {
+    setPrevIsEditing(isEditing);
+    if (isEditing) setIsCellHovered(false);
+  }
   const [isLongTextExpanded, setIsLongTextExpanded] = useState(false);
   const cellRef = useRef<HTMLDivElement>(null);
   const longTextRef = useRef<HTMLTextAreaElement>(null);
@@ -1728,20 +1735,19 @@ const GridViewCellInner: React.FC<GridViewCellProps> = ({
                   color: '#334155',
                   whiteSpace: 'normal',
                   wordBreak: 'break-word',
-                  lineHeight: '1.3',
+                  lineHeight: '16px',
                   overflow: 'hidden',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
+                  // 依列高顯示整數行，不會露出半行
+                  maxHeight: 'round(down, 100%, 16px)',
                   flex: 1,
+                  minWidth: 0,
                 }}
                 title={`${latest.user}：${latest.content}`}
               >
                 {latest.content}
               </span>
               <span style={{ fontSize: '11px', color: '#94a3b8', flexShrink: 0, whiteSpace: 'nowrap' }} title={latest.time}>
-                {formatRelativeTime(latest.time)}
-                {entries.length > 1 && ` · ${entries.length} 則`}
+                {formatCommentDate(latest.time)}
               </span>
             </>
           ) : (

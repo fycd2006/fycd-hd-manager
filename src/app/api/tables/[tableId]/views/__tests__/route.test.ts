@@ -44,6 +44,14 @@ describe('Route Handler Integration: /api/tables/[tableId]/views', () => {
       expect(data).toEqual(mockViews)
     })
 
+    it('sets Server-Timing header on GET', async () => {
+      ;(prisma.tableView.findMany as jest.Mock).mockResolvedValue([{ id: 1, tableId: 10 }])
+      const response = await GET(new Request('http://localhost:3000/api/tables/10/views'), {
+        params: Promise.resolve({ tableId: '10' }),
+      })
+      expect(response.headers.get('Server-Timing')).toContain('handler;dur=')
+    })
+
     it('auto-creates default grid view if no views exist', async () => {
       ;(prisma.tableView.findMany as jest.Mock).mockResolvedValue([])
       const createdDefault = { id: 2, tableId: 10, name: '預設表格視圖', type: 'grid' }

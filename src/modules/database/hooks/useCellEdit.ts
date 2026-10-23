@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from 'react'
 import * as rowService from '@/modules/database/services/row'
+import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
 import { evaluateFormula } from '@/lib/formula'
 import { safeJsonParse } from '@/lib/json-utils'
 import { normalizeRowData } from '@/modules/database/utils/normalizeRowData'
@@ -35,6 +36,8 @@ export function useCellEdit({
   const cellAbortMap = useRef<Map<string, AbortController>>(new Map())
   const cellSeqMap = useRef<Map<string, number>>(new Map())
   const cellDebounceMap = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  // Local-write markers for cells whose debounced request has not been sent yet
+  const cellWriteEndMap = useRef<Map<string, () => void>>(new Map())
   // Cells (`${rowId}:${fieldId}`) the server refused in the latest batch write; cleared after 3s
   const [recentlyRejected, setRecentlyRejected] = useState<Set<string>>(() => new Set())
   const rejectedClearTimer = useRef<NodeJS.Timeout | null>(null)
@@ -62,9 +65,12 @@ export function useCellEdit({
   useEffect(() => {
     const debounceMap = cellDebounceMap.current
     const abortMap = cellAbortMap.current
+    const writeEndMap = cellWriteEndMap.current
     return () => {
       debounceMap.forEach(timer => clearTimeout(timer))
       debounceMap.clear()
+      writeEndMap.forEach(endWrite => endWrite())
+      writeEndMap.clear()
       abortMap.forEach(controller => controller.abort())
       abortMap.clear()
     }
@@ -109,6 +115,9 @@ export function useCellEdit({
     const targetTableId = targetRow?.tableId || currentTableId
     const oldValue = targetRow?.data[fieldKey] ?? null
 
+    // Counts as a local write from the optimistic update on, so a background table refresh landing
+    // inside the debounce window is discarded instead of overwriting the new value
+    const endWrite = localWriteTracker.beginWrite()
     try {
       // Optimistically update UI state immediately and recompute formulas locally
       const safeVal = value ?? null
@@ -151,9 +160,11 @@ export function useCellEdit({
       if (cellDebounceMap.current.has(cellKey)) {
         clearTimeout(cellDebounceMap.current.get(cellKey)!)
       }
+      cellWriteEndMap.current.get(cellKey)?.()
+      cellWriteEndMap.current.set(cellKey, endWrite)
 
       // 300ms Debounce + AbortController + 12s Timeout Dual-Layer Protection
-      const timer = setTimeout(async () => {
+      const sendCell = async () => {
         // Guard: Drop if user switched tables before debounce timer fired
         if (targetTableId !== activeTableIdRef.current) return
 
@@ -240,10 +251,15 @@ export function useCellEdit({
           if (err instanceof Error && err.name === 'AbortError') return
           addToastRef.current('更新儲存格時發生網路或系統錯誤', 'error')
         }
+      }
+      const timer = setTimeout(() => {
+        if (cellWriteEndMap.current.get(cellKey) === endWrite) cellWriteEndMap.current.delete(cellKey)
+        sendCell().finally(endWrite)
       }, 300)
 
       cellDebounceMap.current.set(cellKey, timer)
     } catch {
+      endWrite()
       addToastRef.current('更新儲存格時發生網路或系統錯誤', 'error')
     }
   }, [setRows])
