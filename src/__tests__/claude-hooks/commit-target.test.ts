@@ -1,8 +1,33 @@
 import path from 'node:path'
-import { isGitCommit, resolveCommitDir } from '../../../.claude/hooks/commit-target.cjs'
+import { isDangerousBuildOrPush, isGitCommit, resolveCommitDir } from '../../../.claude/hooks/commit-target.cjs'
 
 const cwd = path.resolve('/repo/main')
 const other = path.resolve('/repo/review')
+
+describe('isDangerousBuildOrPush', () => {
+  it.each([
+    'npm run build',
+    'npm.cmd run build',
+    'cd C:\\dev\\fycd-hd-manager && npm run build',
+    'npx prisma db push --accept-data-loss',
+    'prisma db push --force-reset --accept-data-loss',
+    'echo hello && npm run build',
+  ])('偵測危險建置或推庫指令：%s', (command) => {
+    expect(isDangerousBuildOrPush(command)).toBe(true)
+  })
+
+  it.each([
+    'npm run build:check',
+    'npm.cmd run build:check',
+    'npm run verify',
+    'npx prisma generate',
+    'npx prisma db push',
+    'gh pr create --body "includes npm run build in text"',
+    'git commit -m "fix: avoid prisma db push --accept-data-loss"',
+  ])('允許安全指令或內文提及：%s', (command) => {
+    expect(isDangerousBuildOrPush(command)).toBe(false)
+  })
+})
 
 describe('isGitCommit', () => {
   it.each([
