@@ -115,7 +115,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
           }}
           style={{
             position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-            background: '#fff', boxShadow: 'inset 0 0 0 2px #3F6212', 
+            background: '#fff', boxShadow: 'inset 0 0 0 2px var(--brand-green-text)', 
             zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
             alignItems: 'center', padding: '0 8px'
           }}
@@ -279,7 +279,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
         }}
         style={{
           position: 'absolute', top: 0, left: 0, width: '100%', minHeight: '100%', 
-          background: '#fff', boxShadow: 'inset 0 0 0 2px #3F6212', 
+          background: '#fff', boxShadow: 'inset 0 0 0 2px var(--brand-green-text)', 
           zIndex: 9999, display: 'flex', outline: 'none', boxSizing: 'border-box',
           flexWrap: 'wrap', gap: '4px', padding: '4px 8px', alignItems: 'center'
         }}
@@ -355,7 +355,7 @@ export const SelectCellEditor: React.FC<SelectCellEditorProps> = ({
                   const exactOpt = safeOptions.find(o => o.name.toLowerCase() === valId.toLowerCase());
                   if (exactOpt) valId = exactOpt.id;
                 }
-                let nextItems = [...currentItems];
+                const nextItems = [...currentItems];
                 if (!nextItems.includes(valId)) {
                   nextItems.push(valId);
                 }

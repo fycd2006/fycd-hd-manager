@@ -8,6 +8,7 @@
   --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --bg-primary: #FAFAF9;        /* Warm Cream Base Canvas */
   --bg-secondary: #FFFFFF;      /* Pure White Surface */
+  --bg-surface: #FFFFFF;        /* Semantic White Surface Panel */
   --bg-tertiary: #F5F5F4;       /* Soft Warm Gray Surface */
   --bg-card: #FFFFFF;
   --bg-cell: #FFFFFF;
@@ -114,6 +115,7 @@ button {
 .theme-dark {
   --bg-primary: #12131a;
   --bg-secondary: #181922;
+  --bg-surface: #181922;
   --bg-tertiary: #1f202e;
   --bg-card: rgba(24, 25, 34, 0.9);
   --bg-cell: rgba(18, 19, 26, 0.4);
@@ -129,6 +131,7 @@ button {
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   --text-inverse: #FFFFFF;
+  --brand-green-light: rgba(163, 179, 138, 0.15);
   --brand-green-text: #A3B38A;
   --accent-primary: #DD6410;
   --accent-secondary: #F58220;

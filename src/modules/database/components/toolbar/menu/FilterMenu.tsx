@@ -409,7 +409,7 @@ export function FilterMenu({
               type="button"
               onClick={() => updateGroup({ rules: [...groupRules, newRuleFor(safeFields[0])] })}
               disabled={safeFields.length === 0}
-              style={{ border: 'none', background: 'none', color: '#3F6212', fontWeight: 600, fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 6px' }}
+              style={{ border: 'none', background: 'none', color: 'var(--brand-green-text)', fontWeight: 600, fontSize: '12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 6px' }}
             >
               <Plus size={13} />
               {t('filter.addRule')}
@@ -467,7 +467,7 @@ export function FilterMenu({
   const footerButtonStyle: React.CSSProperties = {
     border: 'none',
     background: 'none',
-    color: safeFields.length === 0 ? '#94a3b8' : '#3F6212',
+    color: safeFields.length === 0 ? '#94a3b8' : 'var(--brand-green-text)',
     fontWeight: 600,
     fontSize: '13px',
     cursor: safeFields.length === 0 ? 'not-allowed' : 'pointer',

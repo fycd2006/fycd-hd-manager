@@ -109,6 +109,7 @@ describe('brand tokens', () => {
       '--z-modal',
       '--z-popover',
       '--z-toast',
+      '--bg-surface',
     ]
     for (const token of requiredRootTokens) {
       expect(tokenValue(tokensRoot, token)).toBeTruthy()
@@ -119,11 +120,13 @@ describe('brand tokens', () => {
     const requiredDarkTokens = [
       '--bg-primary',
       '--bg-secondary',
+      '--bg-surface',
       '--bg-tertiary',
       '--text-primary',
       '--text-secondary',
       '--text-muted',
       '--text-inverse',
+      '--brand-green-light',
       '--brand-green-text',
       '--border-color',
       '--border-subtle',
@@ -228,5 +231,49 @@ describe('Shell and business modals token alignment (Phase 3)', () => {
     expect(legacyIn(src)).toEqual([])
     expect(src).not.toMatch(/indigo-\d{2,3}/)
     expect(src).not.toMatch(/emerald-\d{2,3}/)
+  })
+})
+
+describe('Toolbar, dashboard, secondary views, navigation, and app pages token alignment (Phase 4)', () => {
+  const phase4Files = [
+    'src/modules/database/components/toolbar/ViewToolbar.tsx',
+    'src/modules/database/components/toolbar/menu/FilterMenu.tsx',
+    'src/modules/database/components/toolbar/menu/SortMenu.tsx',
+    'src/modules/database/components/toolbar/menu/GroupMenu.tsx',
+    'src/modules/database/components/toolbar/menu/ColorMenu.tsx',
+    'src/modules/database/components/toolbar/menu/MultiValueSelect.tsx',
+    'src/modules/database/components/navigation/LangPicker.tsx',
+    'src/modules/database/components/navigation/LangSwitcherDropdown.tsx',
+    'src/modules/database/components/navigation/MobileSearchModal.tsx',
+    'src/modules/database/components/navigation/MobileBottomNav.tsx',
+    'src/modules/database/components/cards/CardDrawer.tsx',
+    'src/modules/database/components/import/AirtableImportModal.tsx',
+    'src/modules/database/components/views/calendar/CalendarView.tsx',
+    'src/modules/database/components/views/timeline/TimelineView.tsx',
+    'src/modules/database/components/views/form/FormView.tsx',
+    'src/modules/database/components/views/master/FieldMappingModal.tsx',
+    'src/modules/database/components/views/master/MasterGridCell.tsx',
+    'src/modules/database/components/views/grid/GridViewHead.tsx',
+    'src/modules/database/components/views/grid/GridViewRow.tsx',
+    'src/modules/database/components/table/GridViewFieldFooter.tsx',
+    'src/modules/database/components/views/grid/cells/LinkRowCellEditor.tsx',
+    'src/modules/database/components/views/grid/cells/LongTextCellEditor.tsx',
+    'src/modules/database/components/views/grid/cells/SelectCellEditor.tsx',
+    'src/app/form/[tableId]/page.tsx',
+    'src/app/workspace-invitation/page.tsx',
+    'src/app/error.tsx',
+    'src/app/global-error.tsx',
+  ]
+
+  it.each(phase4Files)('%s has no legacy brand colors or broken selectors', (file) => {
+    const src = readCss(file)
+    expect(legacyIn(src)).toEqual([])
+    expect(src).not.toMatch(/indigo-\d{2,3}/)
+    expect(src).not.toMatch(/emerald-\d{2,3}/)
+  })
+
+  it('aligns WorkspaceDashboard.module.css with [data-theme="dark"]', () => {
+    const css = readCss('src/modules/database/components/dashboard/WorkspaceDashboard.module.css')
+    expect(css).toContain(':global([data-theme=\'dark\'])')
   })
 })

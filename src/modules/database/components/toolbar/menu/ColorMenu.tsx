@@ -18,7 +18,7 @@ const COLOR_HEX_MAP: Record<string, string> = {
   blue: '#3b82f6',
   yellow: '#eab308',
   purple: '#a855f7',
-  orange: '#f97316',
+  orange: '#F58220',
 }
 
 export function ColorMenu({
@@ -282,7 +282,7 @@ export function ColorMenu({
           style={{
             border: 'none',
             background: 'none',
-            color: safeFields.length === 0 ? '#94a3b8' : '#3F6212',
+            color: safeFields.length === 0 ? '#94a3b8' : 'var(--brand-green-text)',
             fontWeight: 600,
             fontSize: '13px',
             cursor: safeFields.length === 0 ? 'not-allowed' : 'pointer',

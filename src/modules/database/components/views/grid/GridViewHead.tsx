@@ -156,7 +156,7 @@ const GridViewHeadInner: React.FC<GridViewHeadProps> = ({
             onToggleSelectAllRows?.();
           }}
           onClick={(e) => e.stopPropagation()}
-          style={{ width: '13px', height: '13px', cursor: 'pointer', accentColor: '#3F6212' }}
+          style={{ width: '13px', height: '13px', cursor: 'pointer', accentColor: 'var(--brand-green-main)' }}
         />
         <span>#</span>
       </div>
@@ -226,7 +226,7 @@ const GridViewHeadInner: React.FC<GridViewHeadProps> = ({
               cursor: isHoveringResize || isResizingThis ? 'col-resize' : 'grab',
               backgroundColor: isDraggingThis ? '#e0f2fe' : 'var(--bg-secondary, #ffffff)',
               opacity: isDraggingThis ? 0.6 : 1,
-              boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 #3F6212' : undefined),
+              boxShadow: isPrimary ? '2px 0 5px -2px rgba(0, 0, 0, 0.12)' : (isDragTarget ? 'inset 3px 0 0 0 var(--brand-green-main)' : undefined),
               borderRight: isPrimary ? '2px solid var(--border-color, #cbd5e1)' : '1px solid var(--border-color, #e2e8f0)',
               boxSizing: 'border-box',
               transition: 'background-color 0.15s, box-shadow 0.15s',
@@ -241,8 +241,8 @@ const GridViewHeadInner: React.FC<GridViewHeadProps> = ({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1, pointerEvents: 'none' }}>
-              <IconComponent style={{ width: '14px', height: '14px', color: isSorted ? '#3F6212' : '#64748b', flexShrink: 0 }} />
-              <span style={{ fontSize: 'var(--grid-font-size-head, 12px)', fontWeight: isSorted ? 600 : 500, color: isSorted ? '#3F6212' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <IconComponent style={{ width: '14px', height: '14px', color: isSorted ? 'var(--brand-green-text)' : '#64748b', flexShrink: 0 }} />
+              <span style={{ fontSize: 'var(--grid-font-size-head, 12px)', fontWeight: isSorted ? 600 : 500, color: isSorted ? 'var(--brand-green-text)' : '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {field.name}
               </span>
             </div>
@@ -353,8 +353,8 @@ const GridViewHeadInner: React.FC<GridViewHeadProps> = ({
               <div
                 className="resize-handle-pill"
                 style={{
-                  backgroundColor: (isHoveringResize || isResizingThis) ? '#3F6212' : undefined,
-                  boxShadow: (isHoveringResize || isResizingThis) ? '0 0 6px rgba(63, 98, 18, 0.4)' : undefined,
+                  backgroundColor: (isHoveringResize || isResizingThis) ? 'var(--brand-green-main)' : undefined,
+                  boxShadow: (isHoveringResize || isResizingThis) ? '0 0 6px rgba(57, 69, 43, 0.4)' : undefined,
                 }}
               />
             </div>

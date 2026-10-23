@@ -83,7 +83,7 @@ export default function MobileSearchModal({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Search size={18} color="#3F6212" />
+              <Search size={18} color="var(--brand-green-text)" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
               {t('mobileNav.searchRecords')}

@@ -170,7 +170,7 @@ export const LongTextCellEditor: React.FC<LongTextCellEditorProps> = ({
         width: popoverPos ? popoverPos.width : Math.max(400, cellWidth),
         minHeight: '140px',
         background: '#ffffff',
-        border: '2px solid #3F6212',
+        border: '2px solid var(--brand-green-text)',
         borderRadius: '6px',
         boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
         display: 'flex',
