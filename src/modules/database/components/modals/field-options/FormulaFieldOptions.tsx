@@ -103,8 +103,8 @@ export function FormulaFieldOptions({
               border: 'none',
               background: formulaTab === 'fields' ? '#ffffff' : 'transparent',
               fontWeight: formulaTab === 'fields' ? 600 : 400,
-              color: formulaTab === 'fields' ? '#3F6212' : '#64748b',
-              borderBottom: formulaTab === 'fields' ? '2px solid #3F6212' : 'none',
+              color: formulaTab === 'fields' ? 'var(--brand-green-text)' : '#64748b',
+              borderBottom: formulaTab === 'fields' ? '2px solid var(--brand-green-text)' : 'none',
               cursor: 'pointer'
             }}
           >
@@ -118,8 +118,8 @@ export function FormulaFieldOptions({
               border: 'none',
               background: formulaTab === 'functions' ? '#ffffff' : 'transparent',
               fontWeight: formulaTab === 'functions' ? 600 : 400,
-              color: formulaTab === 'functions' ? '#3F6212' : '#64748b',
-              borderBottom: formulaTab === 'functions' ? '2px solid #3F6212' : 'none',
+              color: formulaTab === 'functions' ? 'var(--brand-green-text)' : '#64748b',
+              borderBottom: formulaTab === 'functions' ? '2px solid var(--brand-green-text)' : 'none',
               cursor: 'pointer'
             }}
           >
@@ -133,8 +133,8 @@ export function FormulaFieldOptions({
               border: 'none',
               background: formulaTab === 'operators' ? '#ffffff' : 'transparent',
               fontWeight: formulaTab === 'operators' ? 600 : 400,
-              color: formulaTab === 'operators' ? '#3F6212' : '#64748b',
-              borderBottom: formulaTab === 'operators' ? '2px solid #3F6212' : 'none',
+              color: formulaTab === 'operators' ? 'var(--brand-green-text)' : '#64748b',
+              borderBottom: formulaTab === 'operators' ? '2px solid var(--brand-green-text)' : 'none',
               cursor: 'pointer'
             }}
           >
@@ -239,12 +239,12 @@ export function FormulaFieldOptions({
                           style={{
                             padding: '3px 8px',
                             borderRadius: '4px',
-                            border: isSelected ? '1px solid #3F6212' : '1px solid #cbd5e1',
+                            border: isSelected ? '1px solid var(--brand-green-text)' : '1px solid #cbd5e1',
                             background: isSelected ? '#F4F4F5' : '#f8fafc',
                             cursor: 'pointer',
                             fontSize: '12px',
                             fontFamily: 'monospace',
-                            color: isSelected ? '#2d470d' : '#3F6212',
+                            color: 'var(--brand-green-text)',
                             fontWeight: isSelected ? 700 : 500
                           }}
                         >
@@ -370,7 +370,7 @@ export function FormulaFieldOptions({
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '12px' }}>
-                <Sparkles size={16} style={{ color: '#3F6212', flexShrink: 0 }} />
+                <Sparkles size={16} style={{ color: 'var(--brand-green-text)', flexShrink: 0 }} />
                 <span>{t('fieldModal.formulaHoverInfo')}</span>
               </div>
             )}

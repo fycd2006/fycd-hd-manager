@@ -134,7 +134,7 @@ export default function UserSettingsModal({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <User size={18} color="#3F6212" />
+              <User size={18} color="var(--brand-green-text)" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
               {t('userSettings.title')}
@@ -166,7 +166,7 @@ export default function UserSettingsModal({
           {/* Quick System & Display Options Section */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-              <Palette size={13} color="#3F6212" />
+              <Palette size={13} color="var(--brand-green-text)" />
               <span>{t('userSettings.systemOptions')}</span>
             </label>
 
@@ -176,7 +176,7 @@ export default function UserSettingsModal({
                 {([
                   { pref: 'light' as const, icon: <Sun size={18} color="#f59e0b" />, label: '淺色模式' },
                   { pref: 'dark' as const, icon: <Moon size={18} color="#6366f1" />, label: '深色模式' },
-                  { pref: 'system' as const, icon: <Monitor size={18} color="#3F6212" />, label: '跟隨系統' },
+                  { pref: 'system' as const, icon: <Monitor size={18} color="var(--brand-green-text)" />, label: '跟隨系統' },
                 ]).map(({ pref, icon, label }) => {
                   const isActive = themeState.themePreference === pref
                   return (
@@ -195,7 +195,7 @@ export default function UserSettingsModal({
                           ? (isDark ? '#1e3a2f' : '#f0fdf4')
                           : (isDark ? '#1e293b' : '#f8fafc'),
                         border: isActive
-                          ? '2px solid #3F6212'
+                          ? '2px solid var(--brand-green-text)'
                           : (isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0'),
                         color: isDark ? '#ffffff' : '#0f172a',
                         fontSize: '12px',
@@ -206,7 +206,7 @@ export default function UserSettingsModal({
                     >
                       {icon}
                       <span>{label}</span>
-                      {isActive && <Check size={14} color="#3F6212" />}
+                      {isActive && <Check size={14} color="var(--brand-green-text)" />}
                     </button>
                   )
                 })}
@@ -234,7 +234,7 @@ export default function UserSettingsModal({
                   textAlign: 'left'
                 }}
               >
-                <Sliders size={18} color="#3F6212" />
+                <Sliders size={18} color="var(--brand-green-text)" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>{t('nav.filterSettings')}</span>
                 </div>
@@ -286,7 +286,7 @@ export default function UserSettingsModal({
             {/* Password Section */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Key size={14} color="#3F6212" />
+                <Key size={14} color="var(--brand-green-text)" />
                 <span>{t('userSettings.changePassword')}</span>
               </label>
 
@@ -402,7 +402,7 @@ export default function UserSettingsModal({
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(63, 98, 18,0.25)',
+                  boxShadow: '0 4px 12px rgba(28, 25, 23, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'

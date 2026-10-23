@@ -134,14 +134,14 @@ export function ViewModal({ show, onClose, onSubmit }: ViewModalProps) {
                     boxSizing: 'border-box',
                     cursor: 'pointer',
                     textAlign: 'left',
-                    border: isSelected ? '1.5px solid #3F6212' : '1px solid #cbd5e1',
+                    border: isSelected ? '1.5px solid var(--brand-green-text)' : '1px solid #cbd5e1',
                     backgroundColor: isSelected ? '#F4F4F5' : '#f8fafc',
-                    color: isSelected ? '#2d470d' : '#334155',
+                    color: isSelected ? 'var(--brand-green-text)' : '#334155',
                     fontWeight: isSelected ? 600 : 500,
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <Icon size={16} style={{ color: isSelected ? '#3F6212' : '#94a3b8', flexShrink: 0 }} />
+                  <Icon size={16} style={{ color: isSelected ? 'var(--brand-green-text)' : '#94a3b8', flexShrink: 0 }} />
                   <span style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>{v.label}</span>
                 </button>
               );

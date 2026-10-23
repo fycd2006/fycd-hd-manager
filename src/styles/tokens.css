@@ -222,7 +222,7 @@ html {
 
 .badge-orange {
   background-color: var(--brand-orange-light) !important;
-  color: #C2560F !important;
+  color: var(--brand-orange-hover) !important;
   border: 1px solid rgba(221, 100, 16, 0.2) !important;
 }
 
@@ -233,16 +233,16 @@ html {
 }
 
 .soft-input {
-  border-radius: 8px !important;
-  border: 1px solid #E7E5E4 !important;
-  background-color: #FFFFFF !important;
-  color: #1C1917 !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--border-color) !important;
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
   font-family: var(--font-sans) !important;
-  transition: all 0.2s ease !important;
+  transition: all var(--transition-normal) !important;
 }
 
 .soft-input:focus {
-  border-color: #39452B !important;
+  border-color: var(--brand-green-text) !important;
   box-shadow: 0 0 0 3px rgba(57, 69, 43, 0.12) !important;
   outline: none !important;
 }
@@ -257,31 +257,31 @@ select, .soft-select {
   background-size: 14px 14px !important;
   padding-right: 30px !important;
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif !important;
-  border-radius: 8px !important;
-  border: 1px solid #E7E5E4 !important;
-  background-color: #FFFFFF !important;
-  color: #1C1917 !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--border-color) !important;
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   outline: none !important;
-  transition: all 0.15s ease !important;
+  transition: all var(--transition-fast) !important;
   cursor: pointer !important;
 }
 
 select:hover, .soft-select:hover {
-  background-color: #FAFAF9 !important;
-  border-color: #D6D3D1 !important;
+  background-color: var(--bg-primary) !important;
+  border-color: var(--border-strong) !important;
 }
 
 select:focus, .soft-select:focus {
-  background-color: #FFFFFF !important;
-  border-color: #39452B !important;
+  background-color: var(--bg-input) !important;
+  border-color: var(--brand-green-text) !important;
   box-shadow: 0 0 0 3px rgba(57, 69, 43, 0.12) !important;
 }
 
 select option, .soft-select option {
-  background-color: #FFFFFF !important;
-  color: #1C1917 !important;
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
   padding: 10px !important;
   font-size: 13px !important;
 }

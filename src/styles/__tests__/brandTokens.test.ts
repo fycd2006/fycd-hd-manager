@@ -37,6 +37,7 @@ const tokensDark = block(tokensCss, "[data-theme='dark'],\n.theme-dark")
 const legacy = [
   '#ea580c', '#f97316', '#c2410c', '#3f6212', '#365314',
   '#4d7c0f', '#f7fee7', '#818cf8', 'rgba(234,88,12', 'rgba(63,98,18',
+  '#2d470d', '#059669', '#34d399',
 ]
 
 const legacyIn = (css: string): string[] => {
@@ -63,6 +64,14 @@ describe('brand tokens', () => {
     'src/styles/baserow/colors.scss',
   ])('%s has no legacy brand colors', (file) => {
     expect(legacyIn(readCss(file))).toEqual([])
+  })
+
+  it('uses [data-theme="dark"] / .theme-dark instead of legacy .dark selector in components.css and tokens.css form controls', () => {
+    const componentsCss = readCss('src/styles/components.css')
+    expect(componentsCss).not.toMatch(/^\.dark\s/m)
+    const softInputBlock = block(tokensCss, '.soft-input')
+    expect(softInputBlock).toContain('var(--bg-input)')
+    expect(softInputBlock).toContain('var(--text-primary)')
   })
 
   it('uses brand values', () => {
@@ -193,5 +202,31 @@ describe('UI primitives token alignment (src/components/ui/)', () => {
 
     const pullToRefresh = readCss('src/components/ui/PullToRefresh.tsx')
     expect(pullToRefresh).toContain("color: isThresholdReached || isRefreshing ? 'var(--text-inverse)' : 'var(--brand-green-text)'")
+  })
+})
+
+describe('Shell and business modals token alignment (Phase 3)', () => {
+  const modalAndShellFiles = [
+    'src/modules/database/components/sidebar/Sidebar.tsx',
+    'src/modules/database/components/modals/CollaboratorSelector.tsx',
+    'src/modules/database/components/modals/DarkReaderModal.tsx',
+    'src/modules/database/components/modals/DatabaseModal.tsx',
+    'src/modules/database/components/modals/MembersModal.tsx',
+    'src/modules/database/components/modals/NotificationsModal.tsx',
+    'src/modules/database/components/modals/RowCommentsPanel.tsx',
+    'src/modules/database/components/modals/RowEditModal.tsx',
+    'src/modules/database/components/modals/SubscriptionModal.tsx',
+    'src/modules/database/components/modals/UserSettingsModal.tsx',
+    'src/modules/database/components/modals/ViewModal.tsx',
+    'src/modules/database/components/modals/field-options/FormulaFieldOptions.tsx',
+    'src/modules/database/components/modals/inputs/AttachmentInput.tsx',
+    'src/modules/database/components/modals/inputs/SelectFieldInput.tsx',
+  ]
+
+  it.each(modalAndShellFiles)('%s has no legacy brand colors (lime/emerald/indigo/old-orange)', (file) => {
+    const src = readCss(file)
+    expect(legacyIn(src)).toEqual([])
+    expect(src).not.toMatch(/indigo-\d{2,3}/)
+    expect(src).not.toMatch(/emerald-\d{2,3}/)
   })
 })

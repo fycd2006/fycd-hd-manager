@@ -45,7 +45,7 @@ export default function DarkReaderModal({
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Sliders size={20} color="#3F6212" />
+            <Sliders size={20} color="var(--brand-green-text)" />
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0 }}>{t('darkReader.title')}</h3>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
@@ -59,7 +59,7 @@ export default function DarkReaderModal({
           {/* Light / Dark Mode Quick Switch */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontSize: '13px', fontWeight: 600, color: '#334155', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={15} color="#3F6212" /> {t('darkReader.themeMode')}
+              <Sparkles size={15} color="var(--brand-green-text)" /> {t('darkReader.themeMode')}
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <button
@@ -68,7 +68,7 @@ export default function DarkReaderModal({
                 style={{
                   padding: '12px',
                   borderRadius: '10px',
-                  border: theme === 'light' ? '2px solid #3F6212' : '1px solid #cbd5e1',
+                  border: theme === 'light' ? '2px solid var(--brand-green-text)' : '1px solid #cbd5e1',
                   backgroundColor: theme === 'light' ? '#F4F4F5' : '#f8fafc',
                   display: 'flex',
                   alignItems: 'center',
@@ -76,7 +76,7 @@ export default function DarkReaderModal({
                   gap: '8px',
                   fontWeight: 600,
                   fontSize: '13px',
-                  color: theme === 'light' ? '#3F6212' : '#64748b',
+                  color: theme === 'light' ? 'var(--brand-green-text)' : '#64748b',
                   cursor: 'pointer'
                 }}
               >
@@ -90,7 +90,7 @@ export default function DarkReaderModal({
                 style={{
                   padding: '12px',
                   borderRadius: '10px',
-                  border: theme === 'dark' ? '2px solid #3F6212' : '1px solid #cbd5e1',
+                  border: theme === 'dark' ? '2px solid var(--brand-green-text)' : '1px solid #cbd5e1',
                   backgroundColor: theme === 'dark' ? '#312e81' : '#f8fafc',
                   display: 'flex',
                   alignItems: 'center',
@@ -111,7 +111,7 @@ export default function DarkReaderModal({
           <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Eye size={15} color="#3F6212" /> {t('darkReader.visualAdjustment')}
+                <Eye size={15} color="var(--brand-green-text)" /> {t('darkReader.visualAdjustment')}
               </span>
               <button
                 type="button"

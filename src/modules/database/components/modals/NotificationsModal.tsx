@@ -143,7 +143,7 @@ export default function NotificationsModal({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '36px', height: '36px', borderRadius: '12px', backgroundColor: '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bell size={18} color="#3F6212" />
+              <Bell size={18} color="var(--brand-green-text)" />
             </div>
             <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
               {t('notifications.title')} {unreadCount > 0 && <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px', backgroundColor: '#ef4444', color: '#fff', fontWeight: 800, marginLeft: '6px' }}>{unreadCount}</span>}
@@ -236,7 +236,7 @@ export default function NotificationsModal({
                           fontSize: '12px',
                           fontWeight: 600,
                           cursor: 'pointer',
-                          boxShadow: '0 4px 12px rgba(63, 98, 18,0.25)'
+                          boxShadow: '0 4px 12px rgba(28, 25, 23, 0.2)'
                         }}
                       >
                         {processingId === n.id ? t('notifications.processing') : t('notifications.accept')}

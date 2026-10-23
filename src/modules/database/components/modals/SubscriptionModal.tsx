@@ -26,7 +26,7 @@ export default function SubscriptionModal({
         {/* Modal Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <CreditCard size={20} color="#3F6212" />
+            <CreditCard size={20} color="var(--brand-green-text)" />
             <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Subscriptions (訂閱與資源用量)</h3>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}>
@@ -41,7 +41,7 @@ export default function SubscriptionModal({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'linear-gradient(135deg, #F4F4F5 0%, #F4F4F5 100%)', borderRadius: '12px', border: '1px solid #E4E4E7' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Sparkles size={16} color="#3F6212" />
+                <Sparkles size={16} color="var(--brand-green-text)" />
                 <span style={{ fontSize: '15px', fontWeight: 700, color: '#1e40af' }}>Enterprise Pro Plan (企業版)</span>
               </div>
               <span style={{ fontSize: '12px', color: '#18181B', fontWeight: 500 }}>

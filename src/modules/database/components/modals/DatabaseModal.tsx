@@ -84,18 +84,18 @@ export function DatabaseModal({ show, onClose, onSubmit, onOpenAirtableImport }:
                 width: '100%',
                 padding: '11px 16px',
                 borderRadius: '12px',
-                border: '1px dashed #EA580C',
-                backgroundColor: '#FFF7ED',
-                color: '#EA580C',
+                border: '1px dashed var(--accent-primary)',
+                backgroundColor: 'var(--brand-orange-light)',
+                color: 'var(--accent-primary)',
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFEDD5'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFF7ED'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-cell-active)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--brand-orange-light)'}
             >
-              <UploadCloud size={16} color="#EA580C" />
+              <UploadCloud size={16} color="var(--accent-primary)" />
               <span>{t('modals.importAirtable')}</span>
             </button>
           </div>
