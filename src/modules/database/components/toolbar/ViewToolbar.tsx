@@ -2,7 +2,8 @@ import React, { useRef, useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'motion/react'
 import { PanelLeft, PanelLeftClose, PanelLeftOpen, ChevronDown, Check, Plus, Filter, ArrowDownAZ, Palette, Layers, EyeOff, Search, AlignJustify, LayoutGrid, Kanban, LayoutTemplate, Calendar, Clock, FormInput, X, MoreVertical, GripVertical, Trash2, Undo2, Redo2, MoreHorizontal, Download, Upload, Sparkles } from 'lucide-react'
-import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule } from '@/modules/database/types'
+import type { TableView, TableField, FilterRule, RowColorRule, GroupByRule, SortRule, RowHeight } from '@/modules/database/types'
+import { ROW_HEIGHTS, ROW_HEIGHT_LABELS, FONT_SCALES, FONT_SCALE_LABELS, type FontScale } from '@/modules/database/utils/gridDisplay'
 import { useOnClickOutside } from '@/hooks/useOnClickOutside'
 import { FIELD_TYPE_ICONS } from '@/modules/database/constants'
 import { ViewContextMenu } from '@/modules/database/components/menu/ViewContextMenu'
@@ -67,8 +68,10 @@ interface ViewToolbarProps {
   setHiddenFieldKeys: (v: string[]) => void
 
   // Row Height
-  rowHeightSize: 'small' | 'medium' | 'large' | 'extra'
-  setRowHeightSize: (v: 'small' | 'medium' | 'large' | 'extra') => void
+  rowHeight?: RowHeight
+  setRowHeight?: (v: RowHeight) => void
+  fontScale?: FontScale
+  setFontScale?: (v: FontScale) => void
 
   // CSV
   handleExportCSV: () => void
@@ -122,8 +125,10 @@ export function ViewToolbar({
   fields,
   hiddenFieldKeys,
   setHiddenFieldKeys,
-  rowHeightSize,
-  setRowHeightSize,
+  rowHeight = 'small',
+  setRowHeight = () => {},
+  fontScale = 'standard',
+  setFontScale = () => {},
   handleExportCSV,
   handleCSVImport,
   csvInputRef,
@@ -208,6 +213,7 @@ export function ViewToolbar({
   const safeViews = Array.isArray(views) ? views : [];
 
   const [isMobile, setIsMobile] = useState(false)
+  const isDisplayActive = rowHeight !== 'small' || fontScale !== 'standard'
   const [showViewContext, setShowViewContext] = useState(false)
   const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
   const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
@@ -554,20 +560,20 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#f0fdf4' : 'none',
+              background: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#f0fdf4' : 'none',
               border: 'none',
               borderRadius: '8px',
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b',
+              color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b',
               flexShrink: 0,
               minWidth: '52px',
               transition: 'all 0.15s ease'
             }}
           >
-            <AlignJustify size={18} color={rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b'} />
-            <span style={{ fontSize: '11px', fontWeight: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? 700 : 500, color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <AlignJustify size={18} color={isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b'} />
+            <span style={{ fontSize: '11px', fontWeight: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 700 : 500, color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.rowHeight', '列高')}
             </span>
           </button>
@@ -959,7 +965,7 @@ export function ViewToolbar({
             {/* Row Height Button */}
             <li className="header__filter-item" style={{ position: 'relative' }}>
               <a 
-                className={`header__filter-link ${rowHeightSize !== 'small' ? 'active' : activeHeaderMenu === 'rowHeight' ? 'active' : ''}`}
+                className={`header__filter-link ${isDisplayActive ? 'active' : activeHeaderMenu === 'rowHeight' ? 'active' : ''}`}
                 onClick={(e) => openMenuWithAnchor('rowHeight', e)}
                 style={{ 
                   cursor: 'pointer', 
@@ -967,7 +973,7 @@ export function ViewToolbar({
                   alignItems: 'center', 
                   gap: '6px',
                   height: '32px',
-                  backgroundColor: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#F4F4F5' : 'transparent',
+                  backgroundColor: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#F4F4F5' : 'transparent',
                   border: 'none',
                   borderRadius: '6px',
                   padding: '0 12px',
@@ -975,14 +981,14 @@ export function ViewToolbar({
                   transition: 'background-color 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
-                  if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = '#F4F4F5';
+                  if (!isDisplayActive && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = '#F4F4F5';
                 }}
                 onMouseLeave={(e) => {
-                  if (rowHeightSize === 'small' && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = 'transparent';
+                  if (!isDisplayActive && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <AlignJustify size={16} color={rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-                <span className="header__filter-name" style={{ color: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#44403C', fontWeight: rowHeightSize !== 'small' || activeHeaderMenu === 'rowHeight' ? 600 : 500 }}>
+                <AlignJustify size={16} color={isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#44403C', fontWeight: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 600 : 500 }}>
                   {t('toolbar.rowHeight')}
                 </span>
               </a>
@@ -1654,49 +1660,91 @@ export function ViewToolbar({
 
             {/* Row Height Content */}
             {activeHeaderMenu === 'rowHeight' && (
-              <ul style={{ listStyle: 'none', margin: 0, padding: '2px', width: isMobile ? '100%' : '180px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                {[
-                  { id: 'small', label: 'Small', icon: <AlignJustify size={14} /> },
-                  { id: 'medium', label: 'Medium', icon: <AlignJustify size={16} /> },
-                  { id: 'large', label: 'Large', icon: <AlignJustify size={18} /> },
-                  { id: 'extra', label: 'Extra', icon: <AlignJustify size={20} /> }
-                ].map((option) => {
-                  const isSelected = rowHeightSize === option.id
-                  return (
-                    <li key={option.id}>
-                      <div
-                        onClick={() => {
-                          setRowHeightSize(option.id as any)
-                          setActiveHeaderMenu(null)
-                        }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
-                          color: isSelected ? '#3F6212' : '#1e293b',
-                          transition: 'background-color 0.15s ease'
-                        }}
-                        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
-                        onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ color: isSelected ? '#3F6212' : '#64748b', display: 'flex', alignItems: 'center' }}>
-                            {option.icon}
-                          </span>
-                          <span style={{ fontSize: '13px', fontWeight: isSelected ? 700 : 500 }}>
-                            {option.label}
-                          </span>
+              <div style={{ padding: '4px', width: isMobile ? '100%' : '180px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <ul
+                  role="group"
+                  aria-label="列高"
+                  style={{ listStyle: 'none', margin: 0, padding: '2px', width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                >
+                  {ROW_HEIGHTS.map((id) => {
+                    const isSelected = rowHeight === id
+                    const iconSize = id === 'small' ? 14 : id === 'medium' ? 16 : id === 'large' ? 18 : 20
+                    return (
+                      <li key={id}>
+                        <div
+                          onClick={() => {
+                            setRowHeight(id)
+                            setActiveHeaderMenu(null)
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
+                            color: isSelected ? '#3F6212' : '#1e293b',
+                            transition: 'background-color 0.15s ease'
+                          }}
+                          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
+                          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ color: isSelected ? '#3F6212' : '#64748b', display: 'flex', alignItems: 'center' }}>
+                              <AlignJustify size={iconSize} />
+                            </span>
+                            <span style={{ fontSize: '13px', fontWeight: isSelected ? 700 : 500 }}>
+                              {ROW_HEIGHT_LABELS[id]}
+                            </span>
+                          </div>
+                          {isSelected && <Check size={15} color="#3F6212" style={{ flexShrink: 0 }} />}
                         </div>
-                        {isSelected && <Check size={15} color="#3F6212" style={{ flexShrink: 0 }} />}
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <div style={{ height: '1px', backgroundColor: '#e2e8f0', margin: '4px 0' }} />
+                <div style={{ padding: '0 8px', fontSize: '11px', fontWeight: 600, color: '#94a3b8' }}>
+                  字級
+                </div>
+                <ul
+                  role="group"
+                  aria-label="字級"
+                  style={{ listStyle: 'none', margin: 0, padding: '2px', width: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}
+                >
+                  {FONT_SCALES.map((scale) => {
+                    const isSelected = fontScale === scale
+                    return (
+                      <li key={scale}>
+                        <div
+                          onClick={() => {
+                            setFontScale(scale)
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
+                            color: isSelected ? '#3F6212' : '#1e293b',
+                            transition: 'background-color 0.15s ease'
+                          }}
+                          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
+                          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
+                        >
+                          <span style={{ fontSize: '13px', fontWeight: isSelected ? 700 : 500 }}>
+                            {FONT_SCALE_LABELS[scale]}
+                          </span>
+                          {isSelected && <Check size={15} color="#3F6212" style={{ flexShrink: 0 }} />}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
             )}
 
             {/* Search Content */}

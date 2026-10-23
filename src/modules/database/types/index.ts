@@ -4,7 +4,7 @@
  */
 
 import type { RowHeight } from '../utils/gridDisplay'
-export type { RowHeight } from '../utils/gridDisplay'
+export type { RowHeight, FontScale } from '../utils/gridDisplay'
 
 // =============================================
 // User & Authentication

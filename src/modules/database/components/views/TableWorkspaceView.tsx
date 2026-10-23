@@ -7,8 +7,11 @@ import DatabaseViewRouter from '@/modules/database/components/views/DatabaseView
 import PullToRefresh from '@/components/ui/PullToRefresh'
 import { useTableContext } from '@/modules/database/context/TableContext'
 import { AiAssistantModal } from '@/modules/database/components/ai/AiAssistantModal'
+import { computeGridDisplay } from '@/modules/database/utils/gridDisplay'
 import type {
   User,
+  RowHeight,
+  FontScale,
   Workspace,
   TableView,
   GroupCollapseState,
@@ -45,8 +48,10 @@ export interface TableWorkspaceViewProps {
   setGroupByField: (field: string | null) => void
   groupCollapseState: GroupCollapseState
   setGroupCollapseState: React.Dispatch<React.SetStateAction<GroupCollapseState>>
-  rowHeightSize: 'small' | 'medium' | 'large' | 'extra'
-  setRowHeightSize: (size: 'small' | 'medium' | 'large' | 'extra') => void
+  rowHeight: RowHeight
+  setRowHeight: (size: RowHeight) => void
+  fontScale: FontScale
+  setFontScale: (scale: FontScale) => void
   frozenColumnsCount: number
 
   // Handlers & Callbacks
@@ -112,8 +117,10 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
   setGroupByField,
   groupCollapseState,
   setGroupCollapseState,
-  rowHeightSize,
-  setRowHeightSize,
+  rowHeight,
+  setRowHeight,
+  fontScale,
+  setFontScale,
   frozenColumnsCount,
   applyViewConfig,
   handleDuplicateView,
@@ -207,6 +214,7 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
     return ''
   }
 
+  const gridDisplay = React.useMemo(() => computeGridDisplay(rowHeight, fontScale), [rowHeight, fontScale])
   const [isAiOpen, setIsAiOpen] = React.useState(false)
   const [isAiExpanded, setIsAiExpanded] = React.useState(false)
   const [isAiDocked, setIsAiDocked] = React.useState(true)
@@ -330,8 +338,10 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
         fields={fields}
         hiddenFieldKeys={hiddenFieldKeys}
         setHiddenFieldKeys={setHiddenFieldKeys}
-        rowHeightSize={rowHeightSize}
-        setRowHeightSize={setRowHeightSize}
+        rowHeight={rowHeight}
+        setRowHeight={setRowHeight}
+        fontScale={fontScale}
+        setFontScale={setFontScale}
         handleExportCSV={handleExportCSV}
         handleCSVImport={handleCSVImport}
         csvInputRef={csvInputRef}
@@ -348,20 +358,13 @@ export const TableWorkspaceView: React.FC<TableWorkspaceViewProps> = ({
 
       {/* View content with PullToRefresh */}
       <div
-        className="layout__col-2-2 content"
+        className={`layout__col-2-2 content ${gridDisplay.multiline ? 'grid-display--multiline' : ''}`}
         style={{
           display: 'flex',
           flexDirection: 'column',
           minHeight: 0,
           overflow: 'hidden',
-          '--row-height':
-            rowHeightSize === 'medium'
-              ? '44px'
-              : rowHeightSize === 'large'
-              ? '60px'
-              : rowHeightSize === 'extra'
-              ? '80px'
-              : '32px',
+          ...gridDisplay.cssVars,
         } as any}
       >
         <PullToRefresh
