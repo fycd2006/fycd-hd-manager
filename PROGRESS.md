@@ -1,21 +1,21 @@
 # PROGRESS
 
 ## 目前進度
-- PR #1–#31 全部已合併。最近一批：側欄收合切換（#28）、工作區總覽 reviewer 追蹤修正（#29）、刪除保護機制（#30）、資料表讀取快取與預載（#31）。
-- Airtable 匯入子專案 3（視圖補強）：分支 `feat/airtable-views`。包含多條件群組過濾、多值運算子、相對日期、多層排序與分組規則保存；schema 新增 `TableView.sortRules`／`groupByRules`。
-- 編輯健檢報告：`docs/audits/2026-10-17-editing-audit.md`，6 個子專案已完成 1（分組選取）、2（統一寫入驗證層）、3（刪除保護，PR #30 已合併）。
-- 主 checkout 停在 `feat/sidebar-collapse-toggle`，有未追蹤與暫存修改，勿動。
+- PR #1–#31 全部已合併。
+- 全站 UI/UX 樣式與 Design Tokens 統一整合（分支 `feat/ui-tokens-unification`）4 階段全數完成並通過 reviewer 審查與 `npm run verify`（共 4 commits）：
+  1. Phase 1（`b2a33a1`）：移除 `theme.css`，將圓角、陰影、z-index、過渡與語意邊框收斂至 `src/styles/tokens.css`。
+  2. Phase 2（`95f46cc`）：收斂 `src/components/ui/` 元件與 `components.css`，新增 `--brand-green-text` 解決暗色對比度。
+  3. Phase 3（`e7b496c`）：側邊欄、全域表單控制項與 13 個業務彈窗對齊 Token。
+  4. Phase 4（`b307426`）：工具列、儀表板、次要視圖、導覽抽屜與獨立頁面全站收斂，防退化測試擴充至 74 項全過。
 
 ## 已做的決定
-- 驗證統一走 `npm run verify`（CI 同指令）；`npm run build` 會 db push，本機不跑。ESLint 舊錯誤凍結、新錯誤一律失敗。
-- 儲存格寫入一律經 `prepareCellWrites`／`prepareBatchCellWrites`；批次部分寫入並回 `rejected`，單格 PATCH 整筆拒絕。
-- 安全修正一律：先 `authorizeAction`，再確認子資源屬於同一張表／工作區；改 API 安全邏輯時 commit 前交 reviewer（opus）。
-- 總表覆寫可寫入其他工作區的來源表是刻意設計，不視為漏洞（2026-10-18 確認）。
-- AI 審查用 claude-code-action（訂閱 token），只留評論不擋合併；漏洞關卡只擋 production critical。
+- 全站設計 Token 唯一真相來源為 `src/styles/tokens.css`；深色模式一律使用 `[data-theme='dark']` / `.theme-dark`，禁止使用失效的 Tailwind `dark:*-slate-*` / `.dark` 選擇器。
+- 驗證統一走 `npm run verify`；`npm run build` 會 db push 抹除資料，嚴禁本機執行。ESLint 舊錯凍結、新錯即失敗。
+- 儲存格寫入一律經 `prepareCellWrites`／`prepareBatchCellWrites`；安全修正一律先 `authorizeAction`。
 
 ## 下一步
-- 設定 main 分支保護：目前沒有任何 ruleset，需 repo admin 在 Settings → Rules 設定（必要檢查 `npm run verify`、`npm audit (production)`）。
-- 部署前需執行 `db push`（新增 Workspace／Database 的 `deletedAt`、RowComment.userId 改可為 null、TableView 的 `sortRules` 與 `groupByRules`；不刪資料），由使用者決定時機。
+- 詢問使用者是否推動 `feat/ui-tokens-unification` 發 PR 合併至 `main`。
+- 部署前需執行 `db push`（由使用者決定時機）。
 
 ## 待辦
 - [ ] **安全（待與 fycd2006 討論）**：forgot-password 回應直接帶 `resetToken`，知道帳號＋Email 即可重設他人密碼
