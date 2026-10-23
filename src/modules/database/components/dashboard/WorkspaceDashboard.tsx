@@ -12,6 +12,7 @@ import { useI18n } from '@/lib/i18n/i18nContext'
 import { MasterGridView } from '@/modules/database/components/views/master'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 import { FycdLogo } from '@/components/brand/FycdLogo'
+import { useHoverPrefetch } from '@/modules/database/cache/useHoverPrefetch'
 import styles from './WorkspaceDashboard.module.css'
 
 /** 每張資料庫卡片預設顯示的資料表數；搜尋中不套用 */
@@ -31,6 +32,7 @@ interface WorkspaceDashboardProps {
   activeWorkspace: Workspace | null
   workspaces: Workspace[]
   onSelectTable: (tableId: number) => void
+  onTablePrefetch?: (tableId: number) => void
   onShowMembersModal?: () => void
   onShowDatabaseModal?: (wsId: number) => void
   onShowCreateTableModal?: (dbId: number) => void
@@ -52,6 +54,7 @@ export default function WorkspaceDashboard({
   currentUser,
   activeWorkspace,
   onSelectTable,
+  onTablePrefetch,
   onShowMembersModal,
   onShowDatabaseModal,
   onShowCreateTableModal,
@@ -63,6 +66,7 @@ export default function WorkspaceDashboard({
   theme = 'light'
 }: WorkspaceDashboardProps) {
   const { t } = useI18n()
+  const getPrefetchHandlers = useHoverPrefetch(onTablePrefetch)
   const [searchQuery, setSearchQuery] = useState('')
   const [showMasterView, setShowMasterView] = useState(false)
   const [expandedDbIds, setExpandedDbIds] = useState<Set<number>>(() => new Set())
@@ -323,6 +327,7 @@ export default function WorkspaceDashboard({
                               type="button"
                               className={styles.tableOpen}
                               onClick={() => onSelectTable(table.id)}
+                              {...getPrefetchHandlers(table.id)}
                             >
                               <TableIcon size={14} aria-hidden="true" />
                               <span className={styles.tableName}>{table.name}</span>

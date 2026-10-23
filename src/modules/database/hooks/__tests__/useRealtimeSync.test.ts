@@ -77,6 +77,18 @@ describe('useRealtimeSync - Pusher Connection Listener Leak Reproduction', () =>
     expect(mockUnbind).toHaveBeenCalledTimes(2) // 1 for table switch cleanup + 1 for unmount
   })
 
+  it('reconnect forces a full refetch of the active table', () => {
+    const fetchTableData = jest.fn().mockResolvedValue(undefined)
+    renderHook(() =>
+      useRealtimeSync({ activeTableId: 1, setRows: jest.fn(), fetchTableData, addToast: jest.fn() })
+    )
+
+    const handleStateChange = mockBind.mock.calls.find(c => c[0] === 'state_change')![1]
+    handleStateChange({ previous: 'connecting', current: 'connected' })
+
+    expect(fetchTableData).toHaveBeenCalledWith(1, { force: true })
+  })
+
   it('subscribes to and handles field-updated, field-created, field-deleted, and fields-reordered events', () => {
     const setRows = jest.fn()
     const setFields = jest.fn()
@@ -137,10 +149,11 @@ describe('useRealtimeSync - Pusher Connection Listener Leak Reproduction', () =>
 
     // 4. Test fields-reordered
     eventHandlers['fields-reordered']()
-    expect(fetchTableData).toHaveBeenCalledWith(1)
+    expect(fetchTableData).toHaveBeenLastCalledWith(1, { force: true })
 
     // 5. Test rows-batch-changed
+    fetchTableData.mockClear()
     eventHandlers['rows-batch-changed']()
-    expect(fetchTableData).toHaveBeenCalledWith(1)
+    expect(fetchTableData).toHaveBeenLastCalledWith(1, { force: true })
   })
 })

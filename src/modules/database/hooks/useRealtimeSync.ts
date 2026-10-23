@@ -43,7 +43,7 @@ interface UseRealtimeSyncParams {
   activeTableId: number | null
   setRows: (payload: TableRow[] | ((prev: TableRow[]) => TableRow[])) => void
   setFields?: (payload: TableField[] | ((prev: TableField[]) => TableField[])) => void
-  fetchTableData: (tableId: number) => Promise<void>
+  fetchTableData: (tableId: number, opts?: { force?: boolean }) => Promise<void>
   addToast: (message: string, type: 'success' | 'error' | 'info') => void
 }
 
@@ -78,7 +78,7 @@ export function useRealtimeSync({ activeTableId, setRows, setFields, fetchTableD
       } else if (['unavailable', 'disconnected', 'failed', 'connecting'].includes(states.previous) && states.current === 'connected') {
         addToastRef.current('網路已重新連線，正在進行全量資料同步...', 'info')
         if (activeTableId) {
-          fetchTableDataRef.current(activeTableId)
+          fetchTableDataRef.current(activeTableId, { force: true })
         }
       }
     }
@@ -174,13 +174,13 @@ export function useRealtimeSync({ activeTableId, setRows, setFields, fetchTableD
 
     channel.bind('fields-reordered', () => {
       if (activeTableId) {
-        fetchTableDataRef.current(activeTableId)
+        fetchTableDataRef.current(activeTableId, { force: true })
       }
     })
 
     channel.bind('rows-batch-changed', () => {
       if (activeTableId) {
-        fetchTableDataRef.current(activeTableId)
+        fetchTableDataRef.current(activeTableId, { force: true })
       }
     })
 

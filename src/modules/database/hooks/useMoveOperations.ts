@@ -3,6 +3,8 @@
 import { useCallback } from 'react'
 import { getSocketId } from '@/lib/pusher-client'
 import type { TableRow } from '@/modules/database/types'
+import { tableDataCache } from '@/modules/database/cache/tableDataCache'
+import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
 import type { PendingOperation, TableAction } from '@/modules/database/hooks/useTableOperations'
 
 interface UseMoveOperationsParams {
@@ -89,6 +91,8 @@ export function useMoveOperations({
       }
     })
 
+    // Ended before the follow-up refetch, so that refetch is not discarded as racing this write
+    const endWrite = localWriteTracker.beginWrite()
     fetch(`/api/tables/${targetTableId}/rows/move`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,8 +104,11 @@ export function useMoveOperations({
     })
     .then(res => res.json())
     .then(data => {
+      endWrite()
       dispatch({ type: 'REMOVE_OPERATION', payload: pendingOpId })
       if (data.success && data.createdRows) {
+        // The source table's cached rows still include the rows that just moved out
+        tableDataCache.invalidate(sourceTableId)
         addToast(`成功搬移 ${data.createdRows.length} 筆資料`, 'success')
         if (targetTableId === activeTableId) {
            fetchTableData(targetTableId)
@@ -111,6 +118,7 @@ export function useMoveOperations({
       }
     })
     .catch(() => {
+      endWrite()
       dispatch({ type: 'REMOVE_OPERATION', payload: pendingOpId })
       addToast('搬移失敗', 'error')
     })

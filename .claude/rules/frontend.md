@@ -32,3 +32,5 @@ paths:
 - 篩選選單（`constants/fieldTypes.ts`）提供 `date_equal`／`date_before`／`date_after`，前端 `evaluateCellCondition` 卻沒處理，選了也無作用 → 新增篩選運算子時同時改 `constants/fieldTypes.ts` 與 `components/views/grid/cells/utils.ts` 的 `evaluateCellCondition`，並在 `components/views/grid/__tests__/` 加一個以該運算子為例的 `it.each` 測試
 - `useThemeStore` 掛載時先以預設 `light` 寫入 `data-theme` 再讀偏好，SSR 首屏與登入頁對暗色使用者閃一次亮色 → 主題副作用等讀完儲存偏好（`themeHydrated`）才執行；首屏元件的暗色用 `:global([data-theme='dark'])` 選擇器上色，不靠 React 主題 state
 - 暗色模式由 Dark Reader 改寫整頁顏色，SVG 的 `fill` 屬性會被行內 `!important` 改成暗色，品牌字標在暗底上看不見 → 需要固定顏色的 SVG 部件用 CSS Module 選擇器 `fill: var(--token) !important` 覆寫
+- `page.tsx` 切表 effect 依賴 `fetchTableData`，切表時 `CLEAR_TABLE_OPERATIONS` 讓 `operations`→`mergeServerRows`→`fetchTableData` 依序換 identity，effect 重跑，每次切表 fields／rows／views 各打兩次 → 只該在 id 改變時執行的 effect 用 ref 記住上次處理的 id（見 `switchedTableIdRef`），不要靠依賴陣列裡的 callback 穩定
+- 儲存格編輯只用 `setRows` 樂觀更新、不登記 operation，背景重抓用 `mergeServerRows` 合併時會把剛改的值蓋回伺服器舊值 → 新增的資料列寫入路徑在送出前呼叫 `localWriteTracker.beginWrite()`、結束時呼叫回傳的 end；`services/row.ts` 的寫入函式已登記，繞過 service 直接 fetch 的地方要自己登記

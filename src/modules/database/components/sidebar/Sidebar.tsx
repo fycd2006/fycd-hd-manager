@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { motion } from 'motion/react'
 import type { Workspace, User } from '@/modules/database/types'
+import { useHoverPrefetch } from '@/modules/database/cache/useHoverPrefetch'
 import { useI18n } from '@/lib/i18n/i18nContext'
 import { FycdLogo } from '@/components/brand/FycdLogo'
 import {
@@ -107,6 +108,7 @@ interface SidebarProps {
   onToggleDatabaseCollapse: (dbId: number) => void
   onSetActiveWorkspaceId: (wsId: number) => void
   onSetActiveTableId: (tableId: number) => void
+  onTablePrefetch?: (tableId: number) => void
   onShowWorkspaceModal: () => void
   onShowDatabaseModal: (wsId: number) => void
   onShowCreateTableModal?: (dbId: number) => void
@@ -147,6 +149,7 @@ export default function AppSidebar({
   onToggleDatabaseCollapse,
   onSetActiveWorkspaceId,
   onSetActiveTableId,
+  onTablePrefetch,
   onShowWorkspaceModal,
   onShowDatabaseModal,
   onShowCreateTableModal,
@@ -163,6 +166,7 @@ export default function AppSidebar({
   onMoveTableToDatabase,
 }: SidebarProps) {
   const { t } = useI18n()
+  const getPrefetchHandlers = useHoverPrefetch(onTablePrefetch)
 
   // Drag and drop state for tables
   const [draggedItem, setDraggedItem] = useState<{ type: 'database' | 'table'; id: number; sourceDbId?: number } | null>(null)
@@ -606,6 +610,7 @@ export default function AppSidebar({
                                       <SidebarMenuSubButton
                                         isActive={isActive}
                                         onClick={() => onSetActiveTableId(table.id)}
+                                        {...getPrefetchHandlers(table.id)}
                                         onDoubleClick={(e) => {
                                           e.stopPropagation()
                                           if (canManageStructure) {

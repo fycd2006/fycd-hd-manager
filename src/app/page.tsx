@@ -65,8 +65,12 @@ import {
 } from '@/modules/database/store'
 import * as workspaceService from '@/modules/database/services/workspace'
 import * as fieldService from '@/modules/database/services/field'
-import * as rowService from '@/modules/database/services/row'
-import * as viewService from '@/modules/database/services/view'
+import { tableDataCache } from '@/modules/database/cache/tableDataCache'
+import { runTableLoad } from '@/modules/database/cache/runTableLoad'
+import { localWriteTracker } from '@/modules/database/cache/localWriteTracker'
+import { pushRecentTable } from '@/modules/database/cache/recentTables'
+import { useIdlePrefetch } from '@/modules/database/cache/useIdlePrefetch'
+import { buildWriteBackEntry, type TableSnapshot } from '@/modules/database/cache/writeBack'
 import * as userService from '@/modules/database/services/user'
 import * as trashService from '@/modules/database/services/trash'
 import { createDatabaseFromTemplate, TemplateKey } from '@/modules/database/services/templateService'
@@ -82,7 +86,6 @@ import type {
   ViewType,
   SortOrder,
   ViewConfigPatch,
-  TableView,
   Toast,
   ContextMenu,
   FilterRule,
@@ -106,6 +109,8 @@ export default function Home() {
   // Local UI State (Not yet extracted to stores)
   // ============================================
   const [fields, setFields] = useState<TableField[]>([])
+  // Table whose fields/rows/views are on screen; set together with them, so it lags activeTableId after a switch
+  const [dataTableId, setDataTableId] = useState<number | null>(null)
   // Real-time updates indicator
   const [isSyncing, setIsSyncing] = useState(false)
 
@@ -349,44 +354,94 @@ export default function Home() {
   }, [undo, redo, wsState.activeTableId])
 
   const tableFetchRequestId = useRef<number>(0)
+  // Forced refetch used after a background refresh is discarded as stale (set below fetchTableData)
+  const retryTableLoadRef = useRef<(tableId: number) => void>(() => {})
 
   // Fetch table data using parallel services with race-condition protection & atomic state hydration
-  const fetchTableData = useCallback(async (tableId: number) => {
+  const fetchTableData = useCallback(async (tableId: number, opts: { force?: boolean } = {}) => {
     const currentRequestId = ++tableFetchRequestId.current
-    setGridLoading(true)
-    try {
-      const [fieldsData, rowsData, viewsData] = await Promise.all([
-        fieldService.fetchFields(tableId),
-        rowService.fetchRows(tableId),
-        viewService.fetchViews(tableId),
-      ])
+    // Drop stale results if the user switched to another table before this finished
+    const isCurrent = () => currentRequestId === tableFetchRequestId.current
 
-      // Drop stale response if user switched to another table before this finished
-      if (currentRequestId !== tableFetchRequestId.current) return
+    // Dev-only timing of a table switch: start → first data applied, tagged cache-hit / cache-miss
+    const measure = process.env.NODE_ENV === 'development' && !opts.force && typeof performance !== 'undefined' && typeof performance.mark === 'function'
+    const startMark = `table-switch:start:${tableId}`
+    const appliedMark = `table-switch:applied:${tableId}`
+    let applied = false
+    const markApplied = () => {
+      if (!measure || applied) return
+      applied = true
+      performance.mark(appliedMark)
+    }
+    if (measure) performance.mark(startMark)
 
-      setFields(fieldsData)
-      mergeServerRows(rowsData)
+    const result = await runTableLoad(tableId, opts, {
+      cache: tableDataCache,
+      isCurrent,
+      applyFull: (entry) => {
+        setFields(entry.fields)
+        mergeServerRows(entry.rows)
+        setDataTableId(tableId)
 
-      if (Array.isArray(viewsData) && viewsData.length > 0) {
-        setViews(viewsData)
-        const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
-        const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
-        const targetView = (savedViewId && viewsData.find(v => v.id === savedViewId)) || viewsData[0]
-        wsActions.setActiveViewId(targetView.id)
-        applyViewConfig(targetView)
-      } else {
-        resetViewState()
+        const viewsData = entry.views
+        if (Array.isArray(viewsData) && viewsData.length > 0) {
+          setViews(viewsData)
+          const savedViewIdStr = typeof window !== 'undefined' ? localStorage.getItem(`activeViewId_${tableId}`) : null
+          const savedViewId = savedViewIdStr ? parseInt(savedViewIdStr, 10) : null
+          const targetView = (savedViewId && viewsData.find(v => v.id === savedViewId)) || viewsData[0]
+          wsActions.setActiveViewId(targetView.id)
+          applyViewConfig(targetView)
+        } else {
+          resetViewState()
+        }
+        markApplied()
+      },
+      applyRefresh: (entry, viewsChanged) => {
+        setFields(entry.fields)
+        mergeServerRows(entry.rows)
+        setDataTableId(tableId)
+        if (viewsChanged) setViews(entry.views)
+      },
+      setLoading: setGridLoading,
+      onError: (error) => {
+        console.error('Failed to load table data:', error)
+        uiActions.addToast(t('toasts.loadTableFailed'), 'error')
+      },
+      writes: localWriteTracker,
+    })
+
+    // The refresh raced a local row write and was discarded: once all writes settle, refetch
+    // (the retry follows the same rule, so this converges). Skip if another load has started since.
+    if (result === 'stale' && isCurrent()) {
+      const retry = () => {
+        if (isCurrent()) retryTableLoadRef.current(tableId)
       }
-    } catch (error) {
-      if (currentRequestId !== tableFetchRequestId.current) return
-      console.error('Failed to load table data:', error)
-      uiActions.addToast(t('toasts.loadTableFailed'), 'error')
-    } finally {
-      if (currentRequestId === tableFetchRequestId.current) {
-        setGridLoading(false)
+      if (localWriteTracker.inFlight() === 0) retry()
+      else localWriteTracker.onSettled(retry)
+    }
+
+    if (measure) {
+      try {
+        if (applied) {
+          // 'stale' only comes from the cache-hit path
+          const name = `table-switch:${tableId}:${result === 'stale' ? 'cache-hit' : result}`
+          const entry = performance.measure(name, startMark, appliedMark)
+          console.debug(`[${name}] ${Math.round(entry?.duration ?? 0)}ms`)
+        }
+      } catch {
+        // Marks may already be cleared by an overlapping load of the same table
       }
+      performance.clearMarks(startMark)
+      performance.clearMarks(appliedMark)
     }
   }, [uiActions, mergeServerRows, t, wsActions, applyViewConfig, resetViewState, setViews])
+
+  // Refresh the table already on screen: force skips re-applying the cached entry, so local edits
+  // made since the last load don't flash back to cached values. Only the switch effect uses the cache.
+  const refetchTableData = useCallback((tableId: number) => fetchTableData(tableId, { force: true }), [fetchTableData])
+  useEffect(() => {
+    retryTableLoadRef.current = (tableId: number) => { void refetchTableData(tableId) }
+  }, [refetchTableData])
 
   // New Field scroll trigger
   const [newFieldScrollTrigger, setNewFieldScrollTrigger] = useState(0)
@@ -426,7 +481,7 @@ export default function Home() {
     rows,
     operations,
     dispatch,
-    fetchTableData,
+    fetchTableData: refetchTableData,
     addToast: uiActions.addToast,
   })
 
@@ -448,12 +503,21 @@ export default function Home() {
     workspaces: wsState.workspaces,
     setFields,
     setGridLoading,
-    fetchTableData,
+    fetchTableData: refetchTableData,
     addToast: uiActions.addToast,
   })
 
+  // Latest on-screen data of the table being shown; written back to the cache when switching away
+  const snapshotRef = useRef<TableSnapshot | null>(null)
+  const switchedTableIdRef = useRef<number | null | undefined>(undefined)
+
   // Load table data and reset transient UI state when activeTableId changes
   useEffect(() => {
+    // fetchTableData's identity also changes right after a switch (CLEAR_TABLE_OPERATIONS gives
+    // mergeServerRows a new identity); only act on an actual table change
+    if (switchedTableIdRef.current === wsState.activeTableId) return
+    switchedTableIdRef.current = wsState.activeTableId
+
     // Reset all transient UI states on table switch
     setEditingCell(null)
     setSelectedRow(null)
@@ -462,10 +526,22 @@ export default function Home() {
     setFieldContextMenu(null)
     setSearchQuery('')
 
+    // Write the previous table's live state (including local edits) back to the cache
+    const snapshot = snapshotRef.current
+    if (snapshot?.tableId && snapshot.tableId !== wsState.activeTableId) {
+      const writeBack = buildWriteBackEntry(snapshot, tableDataCache.get(snapshot.tableId))
+      if (writeBack) tableDataCache.set(snapshot.tableId, writeBack)
+    }
+
     if (wsState.activeTableId) {
-      setGridLoading(true)
-      setFields([])
-      setRows([])
+      if (!tableDataCache.get(wsState.activeTableId)) {
+        setGridLoading(true)
+        setFields([])
+        setRows([])
+      } else {
+        // A previous uncached load may have left the skeleton on; cached data is applied synchronously
+        setGridLoading(false)
+      }
       fetchTableData(wsState.activeTableId)
     } else {
       setFields([])
@@ -473,6 +549,13 @@ export default function Home() {
       setGridLoading(false)
     }
   }, [wsState.activeTableId, fetchTableData, setSearchQuery, setRows, setFields])
+
+  // Declared after the switch effect so the switch effect still sees the previous table's snapshot.
+  // In the first commit after a switch this stores the new id with the previous table's data;
+  // dataTableId still names the previous table then, so buildWriteBackEntry refuses to write it back.
+  useEffect(() => {
+    snapshotRef.current = { tableId: wsState.activeTableId, dataTableId, fields, rows, views, operations }
+  })
 
   // Cell and batch editing hook
   const { updateCell, batchUpdateCells, recentlyRejected } = useCellEdit({
@@ -491,13 +574,13 @@ export default function Home() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       ;(window as any).updateCell = updateCell
-      ;(window as any).fetchTableData = fetchTableData
+      ;(window as any).fetchTableData = refetchTableData
       ;(window as any).dispatchTableOp = dispatch
       ;(window as any).rows = rows
       ;(window as any).fields = fields
       ;(window as any).__activeTableId = wsState.activeTableId
     }
-  }, [updateCell, fetchTableData, dispatch, rows, fields, wsState.activeTableId])
+  }, [updateCell, refetchTableData, dispatch, rows, fields, wsState.activeTableId])
 
 
 
@@ -769,6 +852,27 @@ export default function Home() {
     }
   }
 
+  // 記錄最近開過的表，並在閒置時預載
+  useEffect(() => {
+    if (wsState.activeWorkspaceId && wsState.activeTableId) {
+      pushRecentTable(wsState.activeWorkspaceId, wsState.activeTableId)
+    }
+  }, [wsState.activeWorkspaceId, wsState.activeTableId])
+
+  const validTableIds = useMemo(
+    () =>
+      (wsState.workspaces.find(w => w.id === wsState.activeWorkspaceId)?.databases ?? [])
+        .flatMap(d => d.tables)
+        .map(t => t.id),
+    [wsState.workspaces, wsState.activeWorkspaceId]
+  )
+  useIdlePrefetch({
+    workspaceId: wsState.activeWorkspaceId,
+    activeTableId: wsState.activeTableId,
+    validTableIds,
+    prefetch: tableDataCache.prefetch,
+  })
+
   // Get active table
   const activeTable = wsState.workspaces
     .flatMap(w => w.databases)
@@ -817,7 +921,7 @@ export default function Home() {
     batchAddRows,
     deleteRow,
     duplicateRow,
-    fetchTableData,
+    fetchTableData: refetchTableData,
 
     createField,
     deleteField,
@@ -870,7 +974,7 @@ export default function Home() {
     batchAddRows,
     deleteRow,
     duplicateRow,
-    fetchTableData,
+    refetchTableData,
     createField,
     deleteField,
     handleUpdateField,
@@ -1045,6 +1149,7 @@ export default function Home() {
 
       <div className="layout" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
         <Sidebar
+          onTablePrefetch={tableDataCache.prefetch}
           currentUser={authState.currentUser}
           userPermissions={currentUserRolePermissions}
           workspaces={wsState.workspaces}
@@ -1092,6 +1197,7 @@ export default function Home() {
               try {
                 const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                 if (res.ok) {
+                  tableDataCache.invalidate(tableId)
                   uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
                   if (wsState.activeTableId === tableId) {
                     wsActions.setActiveTableId(0)
@@ -1116,6 +1222,7 @@ export default function Home() {
           {!wsState.activeTableId || wsState.activeTableId === 0 ? (
             <div key="workspace_dashboard" className="animate-view-transition" style={{ height: '100%', width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <WorkspaceDashboard
+                onTablePrefetch={tableDataCache.prefetch}
                 theme={themeState.theme}
                 currentUser={authState.currentUser}
                 activeWorkspace={activeWorkspaceObj || null}
@@ -1142,6 +1249,7 @@ export default function Home() {
                     try {
                       const res = await fetch(`/api/tables/${tableId}`, { method: 'DELETE' })
                       if (res.ok) {
+                        tableDataCache.invalidate(tableId)
                         uiActions.addToast(`已成功刪除資料表「${tableName}」`, 'success')
                         if (wsState.activeTableId === tableId) {
                           wsActions.setActiveTableId(0)
@@ -1216,7 +1324,7 @@ export default function Home() {
               onSetActiveWorkspaceId={wsActions.setActiveWorkspaceId}
               onSetActiveTableId={wsActions.setActiveTableId}
               addToast={uiActions.addToast}
-              fetchTableData={fetchTableData}
+              fetchTableData={refetchTableData}
               isOffline={isOffline}
               newFieldScrollTrigger={newFieldScrollTrigger}
             />
@@ -1275,7 +1383,7 @@ export default function Home() {
         setWorkspaceMemberCount={setWorkspaceMemberCount}
         showNotificationsModal={showNotificationsModal}
         setShowNotificationsModal={setShowNotificationsModal}
-        onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId) }}
+        onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId, { force: true }) }}
         onOpenAirtableImport={() => setShowAirtableModal(true)}
       />
 
