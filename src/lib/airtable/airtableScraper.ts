@@ -61,6 +61,11 @@ interface SharedBaseResult {
  */
 export function extractShareIdFromUrl(publicBaseUrl: string): string {
   const trimmed = publicBaseUrl.trim()
+  if (trimmed.includes('airtable.com/invite/')) {
+    throw new Error(
+      '您提供的是「Airtable 協作邀請連結」，需要登入帳號接受邀請後才能存取。請先在瀏覽器中開啟該連結並接受邀請，進入資料庫後點擊右上角「Share」產生公開共享連結（格式為 https://airtable.com/shr... 或 https://airtable.com/app.../shr...），或使用 Personal Access Token (PAT) 匯入。'
+    )
+  }
 
   // Direct ID (e.g. "shrXXX" or "appXXX")
   if (/^(shr|app)[a-zA-Z0-9]+$/.test(trimmed)) {

@@ -31,11 +31,11 @@ jest.mock('@/lib/airtable/airtableScraper', () => ({
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
-    database: { create: jest.fn() },
-    databaseTable: { create: jest.fn() },
-    tableField: { create: jest.fn(), update: jest.fn() },
-    tableRow: { create: jest.fn() },
-    tableView: { create: jest.fn() },
+    database: { create: jest.fn(), delete: jest.fn() },
+    databaseTable: { create: jest.fn(), findMany: jest.fn(), deleteMany: jest.fn() },
+    tableField: { create: jest.fn(), update: jest.fn(), deleteMany: jest.fn() },
+    tableRow: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn(), deleteMany: jest.fn() },
+    tableView: { create: jest.fn(), deleteMany: jest.fn() },
   },
 }))
 
@@ -182,5 +182,78 @@ describe('POST /api/database/import/airtable', () => {
 
     expect(fetchAllTablesFromSharedLink).toHaveBeenCalledWith('https://airtable.com/shrX')
     expect(prisma.database.create).toHaveBeenCalledWith({ data: { name: '公開 Base', workspaceId: 5 } })
+  })
+
+  it('resolves link_row targetTableId and backfills row links with target dbRow IDs', async () => {
+    ;(parseAirtableBasePayload as jest.Mock).mockReturnValue([
+      {
+        name: '人員',
+        airtableId: 'tblUsers',
+        fields: [{ name: '姓名', type: 'text', airtableId: 'fldName' }],
+        rows: [{ airtableId: 'recU1', data: { 姓名: '王小明' } }],
+      },
+      {
+        name: '任務',
+        airtableId: 'tblTasks',
+        fields: [
+          { name: '任務名', type: 'text', airtableId: 'fldTask' },
+          { name: '指派人員', type: 'link_row', airtableId: 'fldAssignee', options: { linkedTableId: 'tblUsers' } },
+        ],
+        rows: [
+          {
+            airtableId: 'recT1',
+            data: { 任務名: '辦道', 指派人員: '王小明' },
+            rawCellValuesByFieldId: {
+              fldAssignee: [{ foreignRowId: 'recU1', foreignRowDisplayName: '王小明' }],
+            },
+          },
+        ],
+      },
+    ])
+
+    let createdId = 100
+    ;(prisma.tableRow.create as jest.Mock).mockImplementation(async ({ data }: { data: { data: Record<string, unknown> } }) => ({
+      id: createdId++,
+      data: data.data,
+    }))
+    ;(prisma.tableRow.findUnique as jest.Mock).mockImplementation(async ({ where }: { where: { id: number } }) => ({
+      id: where.id,
+      data: { field_70: '辦道', field_71: '王小明' },
+    }))
+
+    const res = await importBase({ workspaceId: 5, rawPayload: {} })
+    expect(res.status).toBe(200)
+
+    // Verify tableField.update was called to set targetTableId
+    expect(prisma.tableField.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          options: expect.objectContaining({ targetTableId: expect.any(Number) }),
+        }),
+      })
+    )
+
+    // Verify tableRow.update was called with resolved link items
+    expect(prisma.tableRow.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          data: expect.objectContaining({
+            field_72: expect.arrayContaining([
+              expect.objectContaining({ id: 100, value: '王小明' }),
+            ]),
+          }),
+        }),
+      })
+    )
+  })
+
+  it('cleans up partial database when an error occurs during table creation', async () => {
+    ;(prisma.databaseTable.create as jest.Mock).mockRejectedValueOnce(new Error('DB connection lost'))
+    ;(prisma.databaseTable.findMany as jest.Mock).mockResolvedValueOnce([{ id: 60 }])
+
+    const res = await importBase({ workspaceId: 5, rawPayload: { name: '失敗 Base' } })
+
+    expect(res.status).toBe(500)
+    expect(prisma.database.delete).toHaveBeenCalledWith({ where: { id: 50 } })
   })
 })

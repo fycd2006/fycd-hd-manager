@@ -2,7 +2,8 @@
 
 ## 目前進度
 - PR #1–#38 全部已合併至 `main`。
-- 側邊欄完成仿 Claude 網頁版升級：收合時完全不留窄欄（0px），左上角保留一顆平滑微縮的展開按鈕；滑鼠碰到展開按鈕時面板平滑浮出（Peek 懸停覆蓋，不推擠內容寬度），滑鼠移開或按 Esc 自動收回；支援點擊鎖定展開、Ctrl/⌘+B 全域快捷鍵、localStorage 記憶收合狀態、Portal 下拉選單開啟時防收回；收合時桌面工具列與儀表板自動退縮 48px 防遮擋；全面對齊 Design Tokens 與深色模式。
+- 側邊欄完成仿 Claude 網頁版升級：收合 0px，支援懸停浮出、Ctrl/⌘+B 與深色模式。
+- Airtable 匯入引擎完整修復：支援 invite 連結引導；解開 Lookup 物件；同表重名欄位去重；雙向關聯兩階段回填真實 rowId；PAT 分頁與 ID 映射；失敗 rollback。單元測試與 verify 全過。
 - 本地 `npm run verify` 全部通過（typecheck、lint、jest 40 套件 276 測試、build:check）。
 
 ## 已做的決定

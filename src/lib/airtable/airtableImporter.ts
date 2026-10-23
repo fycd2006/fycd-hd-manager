@@ -22,7 +22,7 @@ export interface AirtableTableRaw {
   fields: AirtableFieldRaw[]
   records: Array<{
     id: string
-    cellValuesByFieldId: Record<string, any>
+    cellValuesByFieldId: Record<string, unknown>
   }>
 }
 
@@ -35,7 +35,7 @@ export interface ConvertedField {
   name: string
   type: string
   airtableId: string
-  options?: any
+  options?: unknown
 }
 
 export interface ConvertedTable {
@@ -44,14 +44,15 @@ export interface ConvertedTable {
   fields: ConvertedField[]
   rows: Array<{
     airtableId: string
-    data: Record<string, any>
+    data: Record<string, unknown>
+    rawCellValuesByFieldId?: Record<string, unknown>
   }>
 }
 
 /**
  * Maps Airtable field types to internal system field types
  */
-export function mapAirtableFieldToInternal(airtableType: string): { type: string; defaultOptions?: any } {
+export function mapAirtableFieldToInternal(airtableType: string): { type: string; defaultOptions?: unknown } {
   switch (airtableType) {
     // ── Text ──
     case 'text':              // v0.3 internal
@@ -131,6 +132,7 @@ export function mapAirtableFieldToInternal(airtableType: string): { type: string
       return { type: 'text' }
   }
 }
+
 /**
  * Determine the "canonical" Airtable category for a raw field type string.
  * Maps both v0.3 internal names and REST API names to a single key
@@ -191,9 +193,9 @@ function canonicalCategory(rawType: string): string {
  * - Checkbox: true/undefined → boolean
  */
 function convertCellValue(
-  val: any,
+  val: unknown,
   field: AirtableFieldRaw
-): any {
+): unknown {
   if (val === null || val === undefined) return val
 
   const category = canonicalCategory(field.type)
@@ -212,11 +214,15 @@ function convertCellValue(
       // val is an array of choice IDs
       const choicesMap = buildChoicesMap(field)
       if (Array.isArray(val)) {
-        return val.map(v => {
+        return val.map((v: unknown) => {
           if (typeof v === 'string' && choicesMap.size > 0) {
             return choicesMap.get(v) ?? v
           }
-          return typeof v === 'object' ? (v?.name ?? v?.id ?? String(v)) : v
+          if (typeof v === 'object' && v !== null) {
+            const obj = v as Record<string, unknown>
+            return obj.name ?? obj.id ?? String(v)
+          }
+          return v
         })
       }
       // Single string value (edge case)
@@ -230,15 +236,17 @@ function convertCellValue(
       // v0.3: val is an array of objects [{foreignRowId: "recXXX", foreignRowDisplayName: "..."}, ...]
       // REST: val is an array of record ID strings ["recXXX", "recYYY"]
       if (Array.isArray(val)) {
-        return val.map(v => {
+        return val.map((v: unknown) => {
           if (typeof v === 'object' && v !== null) {
-            return v.foreignRowDisplayName ?? v.name ?? v.foreignRowId ?? v.id ?? JSON.stringify(v)
+            const obj = v as Record<string, unknown>
+            return obj.foreignRowDisplayName ?? obj.name ?? obj.foreignRowId ?? obj.id ?? JSON.stringify(v)
           }
           return String(v)
         }).join(', ')
       }
       if (typeof val === 'object' && val !== null) {
-        return val.foreignRowDisplayName ?? val.name ?? val.foreignRowId ?? val.id ?? JSON.stringify(val)
+        const obj = val as Record<string, unknown>
+        return obj.foreignRowDisplayName ?? obj.name ?? obj.foreignRowId ?? obj.id ?? JSON.stringify(val)
       }
       return String(val)
     }
@@ -246,7 +254,8 @@ function convertCellValue(
     case 'date': {
       if (typeof val === 'string') return val
       if (typeof val === 'object' && val !== null) {
-        return val.dateTime ?? val.date ?? val.value ?? JSON.stringify(val)
+        const obj = val as Record<string, unknown>
+        return obj.dateTime ?? obj.date ?? obj.value ?? JSON.stringify(val)
       }
       return String(val)
     }
@@ -258,7 +267,8 @@ function convertCellValue(
     case 'number': {
       if (typeof val === 'number') return val
       if (typeof val === 'object' && val !== null) {
-        return val.value ?? val.specialValue ?? null
+        const obj = val as Record<string, unknown>
+        return obj.value ?? obj.specialValue ?? null
       }
       return val
     }
@@ -269,10 +279,15 @@ function convertCellValue(
 
     case 'attachment': {
       if (Array.isArray(val)) {
-        return val.map(att => ({
-          url: att?.url ?? att?.thumbnails?.large?.url ?? '',
-          name: att?.filename ?? att?.name ?? 'attachment',
-        }))
+        return val.map((att: unknown) => {
+          const a = (att && typeof att === 'object' ? att : {}) as Record<string, unknown>
+          const thumbs = (a.thumbnails && typeof a.thumbnails === 'object' ? a.thumbnails : {}) as Record<string, unknown>
+          const large = (thumbs.large && typeof thumbs.large === 'object' ? thumbs.large : {}) as Record<string, unknown>
+          return {
+            url: (a.url as string) ?? (large.url as string) ?? '',
+            name: (a.filename as string) ?? (a.name as string) ?? 'attachment',
+          }
+        })
       }
       return val
     }
@@ -280,11 +295,18 @@ function convertCellValue(
     case 'collaborator': {
       if (Array.isArray(val)) {
         return val
-          .map(u => (typeof u === 'object' && u !== null ? (u.name ?? u.email ?? u.id ?? JSON.stringify(u)) : String(u)))
+          .map((u: unknown) => {
+            if (typeof u === 'object' && u !== null) {
+              const obj = u as Record<string, unknown>
+              return obj.name ?? obj.email ?? obj.id ?? JSON.stringify(u)
+            }
+            return String(u)
+          })
           .join(', ')
       }
       if (typeof val === 'object' && val !== null) {
-        return val.name ?? val.email ?? val.id ?? JSON.stringify(val)
+        const obj = val as Record<string, unknown>
+        return obj.name ?? obj.email ?? obj.id ?? JSON.stringify(val)
       }
       return val
     }
@@ -293,13 +315,16 @@ function convertCellValue(
       // text and unknown types — flatten objects to strings
       if (typeof val === 'object' && val !== null) {
         if (Array.isArray(val)) {
-          return val.map(v =>
-            typeof v === 'object'
-              ? (v?.foreignRowDisplayName ?? v?.name ?? v?.value ?? v?.foreignRowId ?? v?.id ?? JSON.stringify(v))
-              : String(v)
-          ).join(', ')
+          return val.map((v: unknown) => {
+            if (typeof v === 'object' && v !== null) {
+              const obj = v as Record<string, unknown>
+              return obj.foreignRowDisplayName ?? obj.name ?? obj.value ?? obj.foreignRowId ?? obj.id ?? JSON.stringify(v)
+            }
+            return String(v)
+          }).join(', ')
         }
-        return val.foreignRowDisplayName ?? val.value ?? val.name ?? val.text ?? val.foreignRowId ?? JSON.stringify(val)
+        const obj = val as Record<string, unknown>
+        return obj.foreignRowDisplayName ?? obj.value ?? obj.name ?? obj.text ?? obj.foreignRowId ?? JSON.stringify(val)
       }
       return val
     }
@@ -323,7 +348,7 @@ function buildChoicesMap(field: AirtableFieldRaw): Map<string, string> {
 /**
  * Flatten a formula / rollup / lookup computed value to a displayable scalar
  */
-function flattenComputedValue(val: any): any {
+function flattenComputedValue(val: unknown): unknown {
   if (val === null || val === undefined) return null
   if (typeof val !== 'object') return val
 
@@ -332,14 +357,43 @@ function flattenComputedValue(val: any): any {
     return val.map(v => flattenComputedValue(v)).filter(v => v !== null && v !== undefined).join(', ')
   }
 
+  const obj = val as Record<string, unknown>
+
   // Object with specialValue (e.g., {specialValue: "NaN"} or {specialValue: "#ERROR!"})
-  if ('specialValue' in val) return val.specialValue
+  if ('specialValue' in obj) return obj.specialValue
   // Object with value
-  if ('value' in val) return val.value
+  if ('value' in obj) return obj.value
   // Object with name
-  if ('name' in val) return val.name
+  if ('name' in obj) return obj.name
   // Object with text
-  if ('text' in val) return val.text
+  if ('text' in obj) return obj.text
+
+  // Object with valuesByForeignRowId (Airtable v0.3 lookup format)
+  if ('valuesByForeignRowId' in obj && typeof obj.valuesByForeignRowId === 'object' && obj.valuesByForeignRowId !== null) {
+    const valuesByRow = obj.valuesByForeignRowId as Record<string, unknown>
+    const order = Array.isArray(obj.foreignRowIdOrder) ? (obj.foreignRowIdOrder as string[]) : Object.keys(valuesByRow)
+    const items: string[] = []
+    for (const rowId of order) {
+      const rowVal = valuesByRow[rowId]
+      if (rowVal === null || rowVal === undefined) continue
+      if (Array.isArray(rowVal)) {
+        for (const item of rowVal) {
+          if (typeof item === 'object' && item !== null) {
+            const itemObj = item as Record<string, unknown>
+            items.push(String(itemObj.foreignRowDisplayName ?? itemObj.name ?? itemObj.value ?? itemObj.text ?? itemObj.foreignRowId ?? JSON.stringify(item)))
+          } else {
+            items.push(String(item))
+          }
+        }
+      } else if (typeof rowVal === 'object' && rowVal !== null) {
+        const itemObj = rowVal as Record<string, unknown>
+        items.push(String(itemObj.foreignRowDisplayName ?? itemObj.name ?? itemObj.value ?? itemObj.text ?? itemObj.foreignRowId ?? JSON.stringify(rowVal)))
+      } else {
+        items.push(String(rowVal))
+      }
+    }
+    return items.filter(Boolean).join(', ')
+  }
 
   return JSON.stringify(val)
 }
@@ -353,17 +407,21 @@ export function parseAirtableBasePayload(payload: AirtableBasePayload): Converte
   }
 
   return payload.tables.map(table => {
-    // Build a field ID -> field definition lookup for cell value conversion
-    const fieldById = new Map<string, AirtableFieldRaw>()
-    for (const field of table.fields) {
-      fieldById.set(field.id, field)
-    }
+    // Deduplicate field names within the same table to prevent overwrites
+    const seenNames = new Map<string, number>()
+    const fieldUniqueNameById = new Map<string, string>()
 
     const convertedFields: ConvertedField[] = table.fields.map(field => {
       const { type } = mapAirtableFieldToInternal(field.type)
 
+      const rawName = (field.name || '未命名欄位').trim()
+      const count = seenNames.get(rawName) || 0
+      seenNames.set(rawName, count + 1)
+      const uniqueName = count === 0 ? rawName : `${rawName} (${count + 1})`
+      fieldUniqueNameById.set(field.id, uniqueName)
+
       // For select fields, preserve choices with id, name, and color
-      let options: any = field.options || null
+      let options: unknown = field.options || null
       if ((type === 'single_select' || type === 'multiple_select') && field.options?.choices) {
         options = {
           choices: field.options.choices
@@ -377,7 +435,7 @@ export function parseAirtableBasePayload(payload: AirtableBasePayload): Converte
       }
 
       return {
-        name: field.name || '未命名欄位',
+        name: uniqueName,
         type,
         airtableId: field.id,
         options,
@@ -385,16 +443,18 @@ export function parseAirtableBasePayload(payload: AirtableBasePayload): Converte
     })
 
     const convertedRows = (table.records || []).map(record => {
-      const rowData: Record<string, any> = {}
+      const rowData: Record<string, unknown> = {}
       table.fields.forEach(field => {
-        const rawVal = record.cellValuesByFieldId[field.id]
+        const rawVal = record.cellValuesByFieldId?.[field.id] ?? record.cellValuesByFieldId?.[field.name]
         if (rawVal !== undefined) {
-          rowData[field.name] = convertCellValue(rawVal, field)
+          const uName = fieldUniqueNameById.get(field.id) || field.name
+          rowData[uName] = convertCellValue(rawVal, field)
         }
       })
       return {
         airtableId: record.id,
         data: rowData,
+        rawCellValuesByFieldId: record.cellValuesByFieldId,
       }
     })
 

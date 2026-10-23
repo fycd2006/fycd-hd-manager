@@ -33,3 +33,4 @@ paths:
 - 寫入路徑各自驗證導致同一個值結果不同 → 新增的寫入路徑一律呼叫 `prepareCellWrites`（批次用 `prepareBatchCellWrites`），不要直接呼叫 `FieldRegistry.validateValue`
 - rollup 下拉選單送 `avg`／`min`／`max`／`concat`，`rowQuery.ts` 只認 `sum`／`count`／`average`，其餘靜默算成 0 → 新增或改 `rollupFunction` 選項時，同步改 `rowQuery.ts` 的 rollup 分支，並在 `rowQuery.test.ts` 的 `it.each` 加一列
 - 資料表軟刪除後 authorizeAction 以 deletedAt: null 查表，PATCH 還原永遠 404 → 需要讀已刪除項目的路徑用 includeDeleted: true，新增還原路徑時補測試
+- Airtable 匯入 Lookup 欄位為 valuesByForeignRowId 物件未解構、同表重名欄位以 name 映射導致資料覆蓋、link_row 未做二階段 ID 回填導致無關聯 → 匯入時解構 valuesByForeignRowId、重名欄位加 (2) 去重、二階段更新 targetTableId 並以真實 dbRow.id 回填 link_row 儲存格。

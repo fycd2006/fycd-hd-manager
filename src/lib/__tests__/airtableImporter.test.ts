@@ -72,11 +72,11 @@ describe('parseAirtableBasePayload', () => {
                 fld5: true,
                 fld6: ['rec99', 'rec88'],
                 fld7: { id: 'usr1', name: 'Jeffrey', email: 'jeff@example.com' },
-              }
-            }
-          ]
-        }
-      ]
+              },
+            },
+          ],
+        },
+      ],
     }
 
     const result = parseAirtableBasePayload(mockPayload)
@@ -86,7 +86,7 @@ describe('parseAirtableBasePayload', () => {
       choices: [
         { id: 'sel1', name: 'Active', color: 'green' },
         { id: 'sel2', name: 'Done', color: 'blue' },
-      ]
+      ],
     })
     expect(result[0].fields[6].type).toBe('collaborator')
 
@@ -124,11 +124,11 @@ describe('parseAirtableBasePayload', () => {
                   { foreignRowId: 'recABC', foreignRowDisplayName: '李大偉' },
                   { foreignRowId: 'recDEF', foreignRowDisplayName: '王美玲' },
                 ],
-              }
-            }
-          ]
-        }
-      ]
+              },
+            },
+          ],
+        },
+      ],
     }
 
     const result = parseAirtableBasePayload(mockPayload)
@@ -144,6 +144,69 @@ describe('parseAirtableBasePayload', () => {
     expect(row['Groups']).toEqual(['禱告組', '敬拜組'])
     expect(row['Related']).toBe('李大偉, 王美玲')
   })
+
+  it('unpacks v0.3 lookup format valuesByForeignRowId into clean display strings', () => {
+    const mockPayload = {
+      name: 'Lookup Test',
+      tables: [
+        {
+          id: 'tbl1',
+          name: 'Events',
+          fields: [
+            { id: 'fld1', name: 'Title', type: 'text' },
+            { id: 'fld2', name: 'Activity Type', type: 'lookup' },
+          ],
+          records: [
+            {
+              id: 'rec1',
+              cellValuesByFieldId: {
+                fld1: '暑期營隊',
+                fld2: {
+                  valuesByForeignRowId: {
+                    recA: [{ foreignRowId: 'recTarget', foreignRowDisplayName: '營隊' }],
+                    recB: '工作坊',
+                  },
+                  foreignRowIdOrder: ['recA', 'recB'],
+                },
+              },
+            },
+          ],
+        },
+      ],
+    }
+
+    const result = parseAirtableBasePayload(mockPayload)
+    expect(result[0].rows[0].data['Activity Type']).toBe('營隊, 工作坊')
+  })
+
+  it('deduplicates identical column names within the same table', () => {
+    const mockPayload = {
+      name: 'Duplicate Column Test',
+      tables: [
+        {
+          id: 'tbl1',
+          name: 'Members',
+          fields: [
+            { id: 'fldA', name: '關心紀錄表', type: 'foreignKey' },
+            { id: 'fldB', name: '關心紀錄表', type: 'foreignKey' },
+          ],
+          records: [
+            {
+              id: 'rec1',
+              cellValuesByFieldId: {
+                fldA: [{ foreignRowId: 'recX', foreignRowDisplayName: '紀錄一' }],
+                fldB: [{ foreignRowId: 'recY', foreignRowDisplayName: '紀錄二' }],
+              },
+            },
+          ],
+        },
+      ],
+    }
+
+    const result = parseAirtableBasePayload(mockPayload)
+    expect(result[0].fields[0].name).toBe('關心紀錄表')
+    expect(result[0].fields[1].name).toBe('關心紀錄表 (2)')
+    expect(result[0].rows[0].data['關心紀錄表']).toBe('紀錄一')
+    expect(result[0].rows[0].data['關心紀錄表 (2)']).toBe('紀錄二')
+  })
 })
-
-

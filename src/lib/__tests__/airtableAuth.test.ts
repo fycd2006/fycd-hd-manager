@@ -60,6 +60,14 @@ describe('extractShareIdFromUrl', () => {
     expect(id).toBe('appq84gZBqhGv0fWl')
   })
 
+  it('throws friendly guidance error for airtable invite URL', () => {
+    expect(() =>
+      extractShareIdFromUrl(
+        'https://airtable.com/invite/l?inviteId=invKauYjvgH20nCvP&inviteToken=842b5bb5d9c77aeded82dd81aa865f41ca5bade6d8c3b59ea920aacab577c6e2'
+      )
+    ).toThrow('您提供的是「Airtable 協作邀請連結」')
+  })
+
   it('throws for invalid URL', () => {
     expect(() => extractShareIdFromUrl('https://example.com/foo')).toThrow()
   })

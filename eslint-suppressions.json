@@ -180,11 +180,6 @@
       "count": 1
     }
   },
-  "src/app/api/database/import/airtable/route.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    }
-  },
   "src/app/api/form/[token]/route.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
@@ -422,11 +417,6 @@
   "src/lib/__tests__/json-utils.test.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1
-    }
-  },
-  "src/lib/airtable/airtableImporter.ts": {
-    "@typescript-eslint/no-explicit-any": {
-      "count": 10
     }
   },
   "src/lib/airtable/airtableScraper.ts": {

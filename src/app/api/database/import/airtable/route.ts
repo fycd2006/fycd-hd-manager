@@ -6,10 +6,27 @@ import { fetchAirtableSchemaWithToken, extractAirtableId } from '@/lib/airtable/
 import { fetchAllTablesFromSharedLink } from '@/lib/airtable/airtableScraper'
 import { authorizeAction } from '@/lib/authorize'
 import { prepareBatchCellWrites, mergeChoicesIntoOptions, type FieldMeta } from '@/modules/database/services/cellWrite'
-import { FieldRegistry } from '@/modules/database/fields/types'
-import type { Prisma } from '@prisma/client'
+import { FieldRegistry } from '@/modules/database/fields/FieldRegistry'
+import { normalizeRowData } from '@/modules/database/utils/normalizeRowData'
+import { Prisma } from '@prisma/client'
+
+interface LinkRowMeta {
+  dbFieldId: number
+  dbTableId: number
+  airtableTableId: string
+  airtableFieldId: string
+  linkedAirtableTableId?: string
+}
+
+interface LinkRowRawItem {
+  dbRowId: number
+  dbFieldId: number
+  rawAirtableVal: unknown
+}
 
 export async function POST(req: NextRequest) {
+  let createdDbId: number | null = null
+
   try {
     const session = await getSessionUser()
     if (!session) {
@@ -59,13 +76,20 @@ export async function POST(req: NextRequest) {
 
     let rejectedCellCount = 0
 
-    // Persist to Database via Prisma transaction/sequential calls
+    // Persist to Database via Prisma
     const db = await prisma.database.create({
       data: {
         name: baseName,
         workspaceId: parseInt(workspaceId, 10),
       },
     })
+    createdDbId = db.id
+
+    // Cross-table ID mappings for two-pass relational link resolution
+    const airtableTableIdToDbTableId = new Map<string, number>()
+    const airtableRowIdToDbRowId = new Map<string, number>()
+    const linkRowFields: LinkRowMeta[] = []
+    const linkRowRawValues: LinkRowRawItem[] = []
 
     for (let tableIdx = 0; tableIdx < convertedTables.length; tableIdx++) {
       const convertedTable = convertedTables[tableIdx]
@@ -76,6 +100,9 @@ export async function POST(req: NextRequest) {
           order: tableIdx,
         },
       })
+      if (convertedTable.airtableId) {
+        airtableTableIdToDbTableId.set(convertedTable.airtableId, dbTable.id)
+      }
 
       // Create TableFields and build mapping
       const fieldMap = new Map<string, number>()
@@ -88,11 +115,22 @@ export async function POST(req: NextRequest) {
             name: f.name,
             type: f.type,
             order: colIdx,
-            options: f.options ? (f.options as any) : null,
+            options: f.options ? (f.options as Prisma.InputJsonValue) : Prisma.JsonNull,
           },
         })
         fieldMap.set(f.name, dbField.id)
         fieldMetas.push({ id: dbField.id, name: f.name, type: f.type, options: f.options ?? null })
+
+        if (f.type === 'link_row') {
+          const opts = (f.options && typeof f.options === 'object' ? f.options : {}) as Record<string, unknown>
+          linkRowFields.push({
+            dbFieldId: dbField.id,
+            dbTableId: dbTable.id,
+            airtableTableId: convertedTable.airtableId,
+            airtableFieldId: f.airtableId,
+            linkedAirtableTableId: typeof opts.linkedTableId === 'string' ? opts.linkedTableId : undefined,
+          })
+        }
       }
 
       // Imported history: values of read-only fields (formula, autonumber, created_on...) are copied as-is;
@@ -132,13 +170,37 @@ export async function POST(req: NextRequest) {
       // Create TableRows
       for (const row of prepared.rows) {
         rejectedCellCount += row.rejected.length
-        await prisma.tableRow.create({
+        const dbRow = await prisma.tableRow.create({
           data: {
             tableId: dbTable.id,
             data: { ...row.data, ...readOnlyValues.get(row.key) } as Prisma.InputJsonValue,
             order: row.key,
           },
         })
+
+        const convertedRow = convertedTable.rows[row.key]
+        if (dbRow && dbRow.id && convertedRow && convertedRow.airtableId) {
+          airtableRowIdToDbRowId.set(convertedRow.airtableId, dbRow.id)
+        }
+
+        // Track raw foreign key data for link_row fields on this row
+        if (dbRow && dbRow.id && convertedRow && convertedRow.rawCellValuesByFieldId) {
+          for (const lf of convertedTable.fields) {
+            if (lf.type === 'link_row' && lf.airtableId) {
+              const rawVal = convertedRow.rawCellValuesByFieldId[lf.airtableId] ?? convertedRow.rawCellValuesByFieldId[lf.name]
+              if (rawVal !== undefined && rawVal !== null) {
+                const dbFieldId = fieldMap.get(lf.name)
+                if (dbFieldId) {
+                  linkRowRawValues.push({
+                    dbRowId: dbRow.id,
+                    dbFieldId,
+                    rawAirtableVal: rawVal,
+                  })
+                }
+              }
+            }
+          }
+        }
       }
 
       // Create default grid view
@@ -149,6 +211,97 @@ export async function POST(req: NextRequest) {
           type: 'grid',
         },
       })
+    }
+
+    // ── Phase 2: Bi-directional link_row options & record backfilling ───
+    // 1. Update link_row field options (targetTableId & relatedFieldId)
+    for (const lf of linkRowFields) {
+      if (lf.linkedAirtableTableId) {
+        const targetTableId = airtableTableIdToDbTableId.get(lf.linkedAirtableTableId)
+        if (targetTableId) {
+          // Exclude self to avoid self-referencing reverse loop
+          const targetLinkFields = linkRowFields.filter(f => f.dbTableId === targetTableId && f.dbFieldId !== lf.dbFieldId)
+          // Match reverse field only if unambiguous (exactly 1 candidate)
+          const matchingReverseFields = targetLinkFields.filter(f => f.linkedAirtableTableId === lf.airtableTableId)
+          const reverseField = matchingReverseFields.length === 1 ? matchingReverseFields[0] : undefined
+
+          const fieldOpts: Record<string, unknown> = {
+            targetTableId,
+            ...(reverseField ? { relatedFieldId: reverseField.dbFieldId } : {}),
+          }
+
+          await prisma.tableField.update({
+            where: { id: lf.dbFieldId },
+            data: {
+              options: fieldOpts as Prisma.InputJsonValue,
+            },
+          })
+        }
+      }
+    }
+
+    // 2. Update link_row cells with real target dbRow IDs
+    const linkUpdatesByRowId = new Map<number, Record<string, unknown>>()
+    for (const item of linkRowRawValues) {
+      const raw = item.rawAirtableVal
+      let rawItems: unknown[] = []
+      if (Array.isArray(raw)) {
+        rawItems = raw
+      } else if (raw && typeof raw === 'object') {
+        rawItems = [raw]
+      } else if (typeof raw === 'string') {
+        rawItems = [raw]
+      }
+
+      const resolvedLinks: Array<{ id: number; value: string }> = []
+      for (const rItem of rawItems) {
+        let foreignRecId: string | null = null
+        let displayName: string | null = null
+
+        if (rItem && typeof rItem === 'object') {
+          const obj = rItem as Record<string, unknown>
+          foreignRecId = (obj.foreignRowId as string) ?? (obj.id as string) ?? null
+          displayName = (obj.foreignRowDisplayName as string) ?? (obj.name as string) ?? (obj.value as string) ?? null
+        } else if (typeof rItem === 'string') {
+          foreignRecId = rItem
+        }
+
+        if (foreignRecId && airtableRowIdToDbRowId.has(foreignRecId)) {
+          const targetDbRowId = airtableRowIdToDbRowId.get(foreignRecId)
+          if (targetDbRowId) {
+            resolvedLinks.push({
+              id: targetDbRowId,
+              value: displayName ? String(displayName) : `列 ID: ${targetDbRowId}`,
+            })
+          }
+        }
+      }
+
+      if (resolvedLinks.length > 0) {
+        const existing = linkUpdatesByRowId.get(item.dbRowId) || {}
+        existing[`field_${item.dbFieldId}`] = resolvedLinks
+        linkUpdatesByRowId.set(item.dbRowId, existing)
+      }
+    }
+
+    for (const [rowId, fieldUpdates] of linkUpdatesByRowId.entries()) {
+      const existingRow = await prisma.tableRow.findUnique({
+        where: { id: rowId },
+        select: { data: true },
+      })
+      if (existingRow) {
+        const currentData = typeof existingRow.data === 'string'
+          ? JSON.parse(existingRow.data)
+          : ((existingRow.data as Record<string, unknown>) || {})
+
+        const mergedData = normalizeRowData({ ...currentData, ...fieldUpdates })
+        await prisma.tableRow.update({
+          where: { id: rowId },
+          data: {
+            data: mergedData as Prisma.InputJsonValue,
+          },
+        })
+      }
     }
 
     const totalTables = convertedTables.length
@@ -164,10 +317,27 @@ export async function POST(req: NextRequest) {
         rejectedCellCount,
       },
     })
-  } catch (error: any) {
-    console.error('Airtable Import Error:', error?.message, error?.stack)
-    return NextResponse.json({ error: error.message || '匯入 Airtable 時發生錯誤' }, { status: 500 })
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error('Airtable Import Error:', err?.message, err?.stack)
+
+    // Rollback / clean up partial database on failure
+    if (createdDbId) {
+      try {
+        const tables = await prisma.databaseTable.findMany({ where: { databaseId: createdDbId } })
+        const tableIds = tables.map(t => t.id)
+        if (tableIds.length > 0) {
+          await prisma.tableRow.deleteMany({ where: { tableId: { in: tableIds } } })
+          await prisma.tableView.deleteMany({ where: { tableId: { in: tableIds } } })
+          await prisma.tableField.deleteMany({ where: { tableId: { in: tableIds } } })
+          await prisma.databaseTable.deleteMany({ where: { id: { in: tableIds } } })
+        }
+        await prisma.database.delete({ where: { id: createdDbId } })
+      } catch (cleanupErr) {
+        console.error('Failed to cleanup partial database on import error:', cleanupErr)
+      }
+    }
+
+    return NextResponse.json({ error: err?.message || '匯入 Airtable 時發生錯誤' }, { status: 500 })
   }
 }
-
-
