@@ -1,9 +1,9 @@
 # PROGRESS
 
 ## 目前進度
-- PR #1–#27 全部已合併。最近：統一寫入驗證層（#17）、最新留言／hover 修正（#21、#22）、Airtable 匯入與檢視（#23、#26）、總覽／入口頁／主題品牌改版（#24、#25、#27）。
-- 編輯健檢報告：`docs/audits/2026-10-17-editing-audit.md`，6 個子專案已完成 1（分組選取）、2（統一寫入驗證層）；子專案 3「刪除保護」已完成實作（分支 `feat/delete-protection`，尚未發 PR）：工作區／資料庫軟刪除＋最近刪除還原、刪除前輸入名稱確認、刪使用者保留留言、還原欄位保留 lookup／rollup、欄位回收站需結構權限。
-- 主 checkout 為 detached HEAD，有他人未 commit 的修改（TiDB HTTP adapter：`src/lib/prisma.ts`＋`package.json`），勿動。
+- PR #1–#29 全部已合併。最近一批：側欄收合切換（#28）、工作區總覽 reviewer 追蹤修正（#29）。
+- 編輯健檢報告：`docs/audits/2026-10-17-editing-audit.md`，6 個子專案已完成 1（分組選取）、2（統一寫入驗證層）；子專案 3「刪除保護」已完成實作並開啟 PR #30（分支 `feat/delete-protection`）：工作區／資料庫軟刪除＋最近刪除還原、刪除前輸入名稱確認、刪使用者保留留言、還原欄位保留 lookup／rollup、欄位回收站需結構權限。
+- 主 checkout 停在 `feat/sidebar-collapse-toggle`，有未追蹤與暫存修改，勿動。
 
 ## 已做的決定
 - 驗證統一走 `npm run verify`（CI 同指令）；`npm run build` 會 db push，本機不跑。ESLint 舊錯誤凍結、新錯誤一律失敗。

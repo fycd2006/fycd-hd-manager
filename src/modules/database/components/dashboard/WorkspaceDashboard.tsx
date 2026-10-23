@@ -41,6 +41,7 @@ interface WorkspaceDashboardProps {
   onDeleteWorkspaceOrDb?: (action: 'delete_workspace' | 'delete_database', id: number, label: string) => void
   onDeleteTable?: (tableId: number, tableName: string) => void
   onCreateFromTemplate?: (templateKey: TemplateKey) => void
+  theme?: 'light' | 'dark'
 }
 
 /**
@@ -58,7 +59,8 @@ export default function WorkspaceDashboard({
   onSetRenameId,
   onSetRenameNameValue,
   onShowRenameModal,
-  onCreateFromTemplate
+  onCreateFromTemplate,
+  theme = 'light'
 }: WorkspaceDashboardProps) {
   const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState('')
@@ -146,7 +148,7 @@ export default function WorkspaceDashboard({
         {/* 表頭：品牌字標、工作區標題、歡迎列 */}
         <header className={styles.header}>
           <div className={styles.identity}>
-            <FycdLogo variant="full" height={18} />
+            <FycdLogo variant="full" height={18} tone={theme === 'dark' ? 'onDark' : 'brand'} />
             <h1 className={styles.title}>
               {activeWorkspace?.name || t('dashboard.cloudWorkspace')} {t('dashboard.overview')}
             </h1>
@@ -220,6 +222,7 @@ export default function WorkspaceDashboard({
               <input
                 type="text"
                 className={styles.search}
+                aria-label={t('dashboard.searchPlaceholder')}
                 placeholder={t('dashboard.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -288,7 +291,7 @@ export default function WorkspaceDashboard({
                                 type="button"
                                 className={styles.iconBtn}
                                 title={t('nav.renameDatabase')}
-                                aria-label={t('nav.renameDatabase')}
+                                aria-label={`${t('nav.renameDatabase')} - ${db.name}`}
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   startRename('database', db.id, db.name)
@@ -320,11 +323,6 @@ export default function WorkspaceDashboard({
                               type="button"
                               className={styles.tableOpen}
                               onClick={() => onSelectTable(table.id)}
-                              onDoubleClick={(e) => {
-                                e.stopPropagation()
-                                startRename('table', table.id, table.name)
-                              }}
-                              title={`${table.name} (${t('dashboard.doubleClickRename')})`}
                             >
                               <TableIcon size={14} aria-hidden="true" />
                               <span className={styles.tableName}>{table.name}</span>
@@ -334,7 +332,7 @@ export default function WorkspaceDashboard({
                               <button
                                 type="button"
                                 className={styles.iconBtn}
-                                aria-label={t('nav.renameTable')}
+                                aria-label={`${t('nav.renameTable')} - ${table.name}`}
                                 title={t('nav.renameTable')}
                                 onClick={() => startRename('table', table.id, table.name)}
                               >
