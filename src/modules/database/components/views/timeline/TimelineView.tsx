@@ -108,7 +108,7 @@ export default function TimelineView({
   const nameFieldKey = firstTextField ? `field_${firstTextField.id}` : ''
 
   const taskColors = [
-    { bg: 'rgba(63, 98, 18, 0.08)', border: 'rgba(63, 98, 18, 0.4)', text: 'var(--accent-secondary)' },
+    { bg: 'var(--brand-green-light)', border: 'var(--brand-green-text)', text: 'var(--brand-green-text)' },
     { bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.4)', text: 'var(--success)' },
     { bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.4)', text: 'var(--warning)' },
     { bg: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.4)', text: 'var(--danger)' },
@@ -305,8 +305,8 @@ export default function TimelineView({
                     justifyContent: 'center',
                     fontSize: '11px',
                     fontWeight: isToday ? 700 : 500,
-                    color: isToday ? 'var(--accent-secondary)' : 'var(--text-muted)',
-                    background: isToday ? 'rgba(63, 98, 18, 0.05)' : 'transparent',
+                    color: isToday ? 'var(--brand-green-text)' : 'var(--text-muted)',
+                    background: isToday ? 'var(--brand-green-light)' : 'transparent',
                     flexShrink: 0
                   }}
                 >
@@ -336,7 +336,7 @@ export default function TimelineView({
                       width: `${colWidth}px`, 
                       height: '100%', 
                       borderRight: '1px solid rgba(255,255,255,0.02)', 
-                      borderRightColor: isToday ? 'rgba(63, 98, 18, 0.15)' : 'rgba(255,255,255,0.02)',
+                      borderRightColor: isToday ? 'var(--brand-green-text)' : 'rgba(255,255,255,0.02)',
                       flexShrink: 0 
                     }}
                   />
@@ -489,7 +489,7 @@ export default function TimelineView({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(63, 98, 18,0.4)',
+            boxShadow: '0 4px 14px rgba(57, 69, 43, 0.4)',
             cursor: 'pointer',
             zIndex: 100,
             transition: 'transform 0.15s'

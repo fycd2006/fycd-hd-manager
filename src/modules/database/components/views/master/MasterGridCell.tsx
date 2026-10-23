@@ -327,7 +327,7 @@ function renderCellValueContent(
           title={latest.content}
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', flex: 1, minWidth: 0 }}>
-            <MessageSquare size={12} color="#ea580c" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <MessageSquare size={12} color="var(--accent-primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
             <span
               style={{
                 fontSize: '12px',
@@ -490,7 +490,7 @@ function renderCellValueContent(
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
         style={{
-          color: '#ea580c',
+          color: 'var(--accent-primary)',
           textDecoration: 'underline',
           display: 'inline-flex',
           alignItems: 'center',
@@ -502,7 +502,7 @@ function renderCellValueContent(
           maxWidth: '220px',
         }}
       >
-        <Link2 size={12} color="#ea580c" style={{ flexShrink: 0 }} />
+        <Link2 size={12} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
         <span>{urlStr}</span>
       </a>
     )
@@ -517,7 +517,7 @@ function renderCellValueContent(
         href={`mailto:${emailStr}`}
         onClick={(e) => e.stopPropagation()}
         style={{
-          color: '#ea580c',
+          color: 'var(--accent-primary)',
           display: 'inline-flex',
           alignItems: 'center',
           gap: '4px',
@@ -528,7 +528,7 @@ function renderCellValueContent(
           maxWidth: '220px',
         }}
       >
-        <Mail size={12} color="#ea580c" style={{ flexShrink: 0 }} />
+        <Mail size={12} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
         <span>{emailStr}</span>
       </a>
     )
@@ -581,7 +581,7 @@ function renderCellValueContent(
           whiteSpace: 'nowrap',
         }}
       >
-        <Sparkles size={11} color="#ea580c" style={{ flexShrink: 0 }} />
+        <Sparkles size={11} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
         <span>{String(val)}</span>
       </span>
     )

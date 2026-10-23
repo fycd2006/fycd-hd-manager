@@ -195,8 +195,8 @@ export default function FormView({
                   justifyContent: 'space-between',
                   padding: '10px 12px',
                   borderRadius: '8px',
-                  background: isActive ? 'rgba(63, 98, 18, 0.05)' : 'rgba(255,255,255,0.01)',
-                  border: `1px solid ${isActive ? 'rgba(63, 98, 18, 0.2)' : 'var(--border-color)'}`,
+                  background: isActive ? 'var(--brand-green-light)' : 'var(--bg-secondary)',
+                  border: `1px solid ${isActive ? 'var(--brand-green-text)' : 'var(--border-color)'}`,
                   cursor: 'pointer',
                   transition: 'all 0.15s ease'
                 }}

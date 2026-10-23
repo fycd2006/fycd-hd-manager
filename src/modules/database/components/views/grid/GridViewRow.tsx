@@ -160,7 +160,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
         height: 'var(--row-height, 32px)',
         maxHeight: 'var(--row-height, 32px)',
         overflow: 'visible',
-        borderTop: isDragTarget ? '2px solid #3F6212' : 'none',
+        borderTop: isDragTarget ? '2px solid var(--brand-green-main)' : 'none',
         borderBottom: '1px solid var(--border-color, #E7E5E4)',
         boxSizing: 'border-box',
         background: matchedColorBg || undefined,
@@ -237,7 +237,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
             ? '#F4F4F5' 
             : (isHovered ? '#F5F5F4' : (matchedColorBg || '#ffffff')),
           borderRight: '1px solid var(--border-color, #E7E5E4)',
-          boxShadow: isRowSelected ? 'inset 3px 0 0 0 #3F6212' : (isHovered ? 'inset 3px 0 0 0 #A8A29E' : undefined),
+          boxShadow: isRowSelected ? 'inset 3px 0 0 0 var(--brand-green-main)' : (isHovered ? 'inset 3px 0 0 0 #A8A29E' : undefined),
           transition: 'background-color 0.12s ease, box-shadow 0.12s ease',
           padding: '0 4px',
           display: 'flex',
@@ -288,7 +288,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
                 width: '13px',
                 height: '13px',
                 cursor: 'pointer',
-                accentColor: '#3F6212',
+                accentColor: 'var(--brand-green-main)',
                 borderRadius: '3px',
                 flexShrink: 0,
               }}
@@ -325,7 +325,7 @@ const GridViewRowInner: React.FC<GridViewRowProps> = ({
             </div>
           </div>
         ) : (
-          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--grid-font-size-sm, 11px)', color: isRowSelected ? '#3F6212' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
+          <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 'var(--grid-font-size-sm, 11px)', color: isRowSelected ? 'var(--brand-green-text)' : '#94a3b8', fontWeight: isRowSelected ? 600 : 400 }}>
             {rowIndex + 1}
           </span>
         )}

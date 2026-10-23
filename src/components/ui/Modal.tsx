@@ -58,7 +58,7 @@ export default function Modal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 8 }}
         transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-        className="relative bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xl"
+        className="relative rounded-2xl"
         style={{
           position: 'relative',
           display: 'flex',
@@ -68,9 +68,11 @@ export default function Modal({
           margin: '0 auto',
           boxSizing: 'border-box',
           overflow: overflowVisible ? 'visible' : 'hidden',
-          borderRadius: '16px',
-          backgroundColor: '#ffffff',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(228, 228, 231, 0.9)',
+          borderRadius: 'var(--radius-modal)',
+          backgroundColor: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          boxShadow: 'var(--shadow-modal)',
+          color: 'var(--text-primary)',
         }}
       >
         <div
@@ -86,7 +88,7 @@ export default function Modal({
                 width: '100%',
                 paddingBottom: '14px',
                 marginBottom: '18px',
-                borderBottom: '1px solid #E4E4E7',
+                borderBottom: '1px solid var(--border-color)',
                 boxSizing: 'border-box'
               }}
             >
@@ -97,7 +99,7 @@ export default function Modal({
                     padding: 0,
                     fontSize: '16px',
                     fontWeight: 600,
-                    color: '#18181B',
+                    color: 'var(--text-primary)',
                     whiteSpace: 'nowrap',
                     letterSpacing: '-0.01em'
                   }}
@@ -115,16 +117,20 @@ export default function Modal({
                     background: 'transparent',
                     cursor: 'pointer',
                     padding: '6px',
-                    borderRadius: '8px',
+                    borderRadius: 'var(--radius-md)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#71717A',
+                    color: 'var(--text-muted)',
                     marginLeft: 'auto',
-                    transition: 'all 0.15s ease'
+                    transition: 'all var(--transition-fast)'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F4F4F5'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-cell-hover)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
+                  }}
                 >
                   <X size={18} />
                 </button>

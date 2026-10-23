@@ -151,7 +151,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
             border: 'none',
             cursor: 'pointer',
             background: 'transparent',
-            color: activeTab === 'comments' ? '#EA580C' : '#64748b',
+            color: activeTab === 'comments' ? 'var(--accent-primary)' : '#64748b',
             transition: 'color 0.15s ease',
             display: 'flex',
             alignItems: 'center',
@@ -174,7 +174,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                 left: 0,
                 right: 0,
                 height: '2px',
-                backgroundColor: '#EA580C',
+                backgroundColor: 'var(--accent-primary)',
               }}
               transition={{ type: 'spring', stiffness: 450, damping: 30 }}
             />
@@ -191,7 +191,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
             border: 'none',
             cursor: 'pointer',
             background: 'transparent',
-            color: activeTab === 'activity' ? '#EA580C' : '#64748b',
+            color: activeTab === 'activity' ? 'var(--accent-primary)' : '#64748b',
             transition: 'color 0.15s ease',
             display: 'flex',
             alignItems: 'center',
@@ -214,7 +214,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                 left: 0,
                 right: 0,
                 height: '2px',
-                backgroundColor: '#EA580C',
+                backgroundColor: 'var(--accent-primary)',
               }}
               transition={{ type: 'spring', stiffness: 450, damping: 30 }}
             />
@@ -333,7 +333,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                       color: '#0f172a',
                       transition: 'border-color 0.15s ease',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = '#EA580C')}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent-primary)')}
                     onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                   />
                   <button
@@ -344,7 +344,7 @@ export const RowCommentsPanel: React.FC<RowCommentsPanelProps> = ({
                       right: '10px',
                       background: 'none',
                       border: 'none',
-                      color: commentInput.trim() ? '#EA580C' : '#cbd5e1',
+                      color: commentInput.trim() ? 'var(--accent-primary)' : '#cbd5e1',
                       cursor: commentInput.trim() ? 'pointer' : 'default',
                       display: 'flex',
                       alignItems: 'center',

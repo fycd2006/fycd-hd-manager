@@ -93,10 +93,10 @@ export default function BottomSheet({
                 width: '100vw',
                 maxWidth: '100vw',
                 maxHeight: typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight,
-                backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                backgroundColor: 'var(--bg-secondary)',
                 borderRadius: '24px 24px 0 0',
-                boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.25)',
-                border: isDark ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                boxShadow: 'var(--shadow-modal)',
+                border: isDark ? '1px solid var(--border-color)' : 'none',
                 borderBottom: 'none',
                 display: 'flex',
                 flexDirection: 'column',
@@ -114,8 +114,8 @@ export default function BottomSheet({
                 style={{
                   width: '36px',
                   height: '4px',
-                  borderRadius: '9999px',
-                  backgroundColor: isDark ? '#334155' : '#cbd5e1',
+                  borderRadius: 'var(--radius-pill)',
+                  backgroundColor: 'var(--border-strong)',
                   margin: '10px auto 4px auto',
                   flexShrink: 0,
                   cursor: 'grab',
@@ -126,7 +126,7 @@ export default function BottomSheet({
                 <div
                   style={{
                     padding: '8px 20px 12px 20px',
-                    borderBottom: isDark ? '1px solid #1e293b' : '1px solid #f1f5f9',
+                    borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -137,7 +137,7 @@ export default function BottomSheet({
                       style={{
                         fontSize: '16px',
                         fontWeight: 700,
-                        color: isDark ? '#f8fafc' : '#0f172a',
+                        color: 'var(--text-primary)',
                       }}
                     >
                       {title}

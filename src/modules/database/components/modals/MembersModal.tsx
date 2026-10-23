@@ -52,7 +52,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
       uid: 'editor',
       name: t('members.roles.editorName'),
       description: t('members.roles.editorDesc'),
-      badgeColor: '#059669'
+      badgeColor: 'var(--brand-green-main)'
     },
     {
       uid: 'commenter',
@@ -353,7 +353,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
           align-items: center;
           gap: 6px;
           padding: 9px 18px;
-          background: var(--cta-gradient, linear-gradient(135deg, #EA580C 0%, #F97316 100%));
+          background: var(--cta-gradient, linear-gradient(135deg, #DD6410 0%, #E87524 100%));
           color: #ffffff;
           border: none;
           border-radius: 10px;
@@ -361,12 +361,12 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
-          box-shadow: 0 2px 8px rgba(234, 88, 12, 0.3);
+          box-shadow: 0 2px 8px var(--brand-orange-glow, rgba(221, 100, 16, 0.3));
           transition: all 0.15s ease;
         }
         .members-modal-invite-btn:hover {
-          background: linear-gradient(135deg, #C2410C 0%, #EA580C 100%);
-          box-shadow: 0 4px 12px rgba(234, 88, 12, 0.4);
+          background: linear-gradient(135deg, #C2560F 0%, #DD6410 100%);
+          box-shadow: 0 4px 12px var(--brand-orange-glow, rgba(221, 100, 16, 0.4));
         }
 
         @media (max-width: 640px) {
@@ -529,7 +529,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                             {/* Name */}
                             <td style={{ padding: '14px 18px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isCreator ? '#2d470d' : '#3F6212', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                                <div style={{ width: '34px', height: '34px', borderRadius: '50%', backgroundColor: isCreator ? 'var(--brand-green-hover)' : 'var(--brand-green-main)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
                                   {m.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
@@ -605,10 +605,10 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                                         setActiveRoleContextMember(m)
                                         setActiveActionMenuMemberId(null)
                                       }}
-                                      style={{ width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-                                    >
-                                      <Shield size={14} color="#3F6212" /> 編輯角色權限
-                                    </button>
+                                        style={{ width: '100%', padding: '9px 14px', textAlign: 'left', background: 'none', border: 'none', fontSize: '13px', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                      >
+                                        <Shield size={14} color="var(--brand-green-text)" /> 編輯角色權限
+                                      </button>
                                   )}
                                   {!isCreator ? (
                                     <button
@@ -836,7 +836,7 @@ export default function MembersModal({ workspace, currentUser, onClose, onToast,
                         }}
                         style={{ padding: '10px 12px', borderRadius: '6px', cursor: 'pointer', backgroundColor: inviteRole === role.uid ? '#F4F4F5' : 'transparent', display: 'flex', flexDirection: 'column', gap: '2px' }}
                       >
-                        <span style={{ fontWeight: 700, fontSize: '13px', color: inviteRole === role.uid ? '#3F6212' : '#0f172a' }}>{role.name}</span>
+                        <span style={{ fontWeight: 700, fontSize: '13px', color: inviteRole === role.uid ? 'var(--brand-green-text)' : '#0f172a' }}>{role.name}</span>
                         <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{role.description}</p>
                       </div>
                     ))}

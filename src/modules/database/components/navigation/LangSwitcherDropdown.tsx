@@ -28,7 +28,7 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
   return (
     <FloatingMenuContainer show={isOpen} x={leftPos} y={topPos} onClose={onClose} width={200}>
       <div style={{ padding: '6px 10px 4px 10px', fontSize: '11px', fontWeight: 700, color: '#78716C', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <Globe size={13} color="#3F6212" />
+        <Globe size={13} color="var(--brand-green-text)" />
         <span>{t('common.language')}</span>
       </div>
 
@@ -51,7 +51,7 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
                 borderRadius: '6px',
                 fontSize: '13px',
                 fontWeight: isSelected ? 600 : 400,
-                color: isSelected ? '#3F6212' : '#1C1917',
+                color: isSelected ? 'var(--brand-green-text)' : '#1C1917',
                 backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
                 border: 'none',
                 display: 'flex',
@@ -68,7 +68,7 @@ export const LangSwitcherDropdown: React.FC<LangSwitcherDropdownProps> = ({
               }}
             >
               <span>{loc.name}</span>
-              {isSelected && <Check size={16} color="#3F6212" style={{ flexShrink: 0 }} />}
+              {isSelected && <Check size={16} color="var(--brand-green-text)" style={{ flexShrink: 0 }} />}
             </button>
           )
         })}

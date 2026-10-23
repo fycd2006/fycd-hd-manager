@@ -34,17 +34,17 @@ export function ToastContainer({ toasts }: ToastContainerProps) {
             style={{
               pointerEvents: 'auto',
               padding: '12px 18px',
-              borderRadius: '10px',
+              borderRadius: 'var(--radius-lg)',
               fontSize: '13px',
               fontWeight: 600,
-              color: '#ffffff',
+              color: 'var(--text-inverse)',
               backgroundColor:
                 toast.type === 'error'
-                  ? '#dc2626'
+                  ? 'var(--danger)'
                   : toast.type === 'success'
-                    ? '#16a34a'
-                    : '#3F6212',
-              boxShadow: '0 10px 25px -5px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.2)',
+                    ? 'var(--success)'
+                    : 'var(--brand-green-main)',
+              boxShadow: 'var(--shadow-popover)',
               backdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
@@ -60,15 +60,15 @@ export function ToastContainer({ toasts }: ToastContainerProps) {
                 }}
                 style={{
                   padding: '4px 12px',
-                  borderRadius: '6px',
+                  borderRadius: 'var(--radius-sm)',
                   border: '1px solid rgba(255,255,255,0.4)',
                   background: 'rgba(255,255,255,0.15)',
-                  color: '#ffffff',
+                  color: 'var(--text-inverse)',
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
-                  transition: 'background 0.15s ease',
+                  transition: 'background var(--transition-fast)',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.3)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.15)')}
@@ -82,4 +82,3 @@ export function ToastContainer({ toasts }: ToastContainerProps) {
     </div>
   )
 }
-

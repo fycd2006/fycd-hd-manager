@@ -570,9 +570,9 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
                             onClick={() => handleRestoreAutoMerge(field)}
                             data-testid={`restore-automerge-${field.fieldKey}`}
                             style={{
-                              border: '1px solid #d9f99d',
-                              backgroundColor: '#f7fee7',
-                              color: '#365314',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--brand-green-light)',
+                              color: 'var(--brand-green-text)',
                               borderRadius: '4px',
                               fontSize: '10px',
                               padding: '2px 6px',
@@ -591,9 +591,9 @@ export const FieldMappingModal: React.FC<FieldMappingModalProps> = ({
                             fontSize: '11px',
                             padding: '3px 6px',
                             borderRadius: '4px',
-                            border: `1px solid ${currentAlias ? '#bef264' : '#e4e4e7'}`,
-                            backgroundColor: currentAlias ? '#f7fee7' : '#ffffff',
-                            color: currentAlias ? '#365314' : '#52525b',
+                            border: `1px solid ${currentAlias ? 'var(--brand-green-text)' : 'var(--border-color)'}`,
+                            backgroundColor: currentAlias ? 'var(--brand-green-light)' : 'var(--bg-surface)',
+                            color: currentAlias ? 'var(--brand-green-text)' : 'var(--text-secondary)',
                             fontWeight: currentAlias ? 600 : 400,
                             maxWidth: '160px',
                           }}

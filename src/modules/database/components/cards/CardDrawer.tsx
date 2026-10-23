@@ -273,9 +273,9 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
                   gap: '4.5px',
                   fontSize: '11px',
                   fontWeight: 600,
-                  color: '#3F6212',
-                  background: '#f7fee7',
-                  border: '1px solid #d9f99d',
+                  color: 'var(--brand-green-text)',
+                  background: 'var(--brand-green-light)',
+                  border: '1px solid var(--border-color)',
                   padding: '2px 8px',
                   borderRadius: '12px',
                 }}
@@ -400,7 +400,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
             <div data-testid="card-drawer-loading" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {/* Skeleton header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <Loader2 size={15} className="animate-spin" style={{ color: '#3F6212' }} />
+                <Loader2 size={15} className="animate-spin" style={{ color: 'var(--brand-green-text)' }} />
                 <span style={{ fontSize: '12px', fontWeight: 600, color: '#71717a' }}>載入資料列詳情中...</span>
               </div>
               {/* Skeleton Cards */}
@@ -593,7 +593,7 @@ export const CardDrawer: React.FC<CardDrawerProps> = ({
                           checked={Boolean(value)}
                           disabled={isReadOnlyField}
                           onChange={(e) => handleUpdateCell(fieldKey, e.target.checked)}
-                          style={{ width: '16px', height: '16px', accentColor: '#4d7c0f', cursor: 'pointer' }}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--brand-green-main)', cursor: 'pointer' }}
                         />
                         <span style={{ fontSize: '13px', fontWeight: 500, color: '#3f3f46' }}>{value ? '是 (True)' : '否 (False)'}</span>
                       </label>

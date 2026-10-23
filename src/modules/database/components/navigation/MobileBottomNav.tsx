@@ -458,15 +458,15 @@ export default function MobileBottomNav({
         }
 
         @keyframes liv-bubble-pulse-dark {
-          0% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0.45); }
-          70% { box-shadow: 0 0 0 16px rgba(63, 98, 18, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0); }
+          0% { box-shadow: 0 0 0 0 rgba(57, 69, 43, 0.45); }
+          70% { box-shadow: 0 0 0 16px rgba(57, 69, 43, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(57, 69, 43, 0); }
         }
 
         @keyframes liv-bubble-pulse-light {
-          0% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0.35); }
-          70% { box-shadow: 0 0 0 16px rgba(63, 98, 18, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(63, 98, 18, 0); }
+          0% { box-shadow: 0 0 0 0 rgba(57, 69, 43, 0.35); }
+          70% { box-shadow: 0 0 0 16px rgba(57, 69, 43, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(57, 69, 43, 0); }
         }
       `}</style>
 
@@ -529,7 +529,7 @@ export default function MobileBottomNav({
                   height: '44px',
                   borderRadius: '9999px',
                   backgroundColor: isActive
-                    ? '#3F6212'
+                    ? 'var(--brand-green-main)'
                     : isDark
                     ? 'rgba(15, 23, 42, 0.94)'
                     : 'rgba(255, 255, 255, 0.96)',
@@ -541,7 +541,7 @@ export default function MobileBottomNav({
                     ? '1px solid rgba(255, 255, 255, 0.25)'
                     : '1px solid rgba(203, 213, 225, 0.9)',
                   boxShadow: isActive
-                    ? '0 10px 25px rgba(63, 98, 18, 0.45), 0 0 15px rgba(63, 98, 18, 0.4)'
+                    ? '0 10px 25px rgba(57, 69, 43, 0.45), 0 0 15px rgba(57, 69, 43, 0.4)'
                     : isDark
                     ? '0 8px 20px rgba(0, 0, 0, 0.4)'
                     : '0 8px 22px rgba(15, 23, 42, 0.14)',
@@ -608,7 +608,7 @@ export default function MobileBottomNav({
               height: '52px',
               borderRadius: '9999px',
               backgroundColor: isBubbleMenuOpen
-                ? '#3F6212'
+                ? 'var(--brand-green-text)'
                 : isDark
                 ? '#1C1917'
                 : '#ffffff',
@@ -621,13 +621,13 @@ export default function MobileBottomNav({
                 : '1.5px solid #E7E5E4',
               boxShadow: isDraggingBubble
                 ? isDark
-                  ? '0 20px 45px rgba(0, 0, 0, 0.45), 0 0 25px rgba(63, 98, 18, 0.6)'
-                  : '0 20px 45px rgba(15, 23, 42, 0.25), 0 0 25px rgba(63, 98, 18, 0.5)'
+                  ? '0 20px 45px rgba(0, 0, 0, 0.45), 0 0 25px rgba(57, 69, 43, 0.6)'
+                  : '0 20px 45px rgba(15, 23, 42, 0.25), 0 0 25px rgba(57, 69, 43, 0.5)'
                 : isBubbleMenuOpen
-                ? '0 12px 35px rgba(63, 98, 18, 0.5), 0 0 20px rgba(63, 98, 18, 0.5)'
+                ? '0 12px 35px rgba(57, 69, 43, 0.5), 0 0 20px rgba(57, 69, 43, 0.5)'
                 : isDark
-                ? '0 12px 35px rgba(0, 0, 0, 0.35), 0 0 15px rgba(63, 98, 18, 0.3)'
-                : '0 12px 35px rgba(15, 23, 42, 0.16), 0 0 15px rgba(63, 98, 18, 0.25)',
+                ? '0 12px 35px rgba(0, 0, 0, 0.35), 0 0 15px rgba(57, 69, 43, 0.3)'
+                : '0 12px 35px rgba(15, 23, 42, 0.16), 0 0 15px rgba(57, 69, 43, 0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -645,7 +645,7 @@ export default function MobileBottomNav({
             {isBubbleMenuOpen ? (
               <Plus size={26} color="#ffffff" style={{ pointerEvents: 'none' }} />
             ) : (
-              <Compass size={26} color={isDark ? '#60a5fa' : '#3F6212'} style={{ pointerEvents: 'none' }} />
+              <Compass size={26} color={isDark ? '#60a5fa' : 'var(--brand-green-text)'} style={{ pointerEvents: 'none' }} />
             )}
           </div>
         </div>
@@ -723,13 +723,13 @@ export default function MobileBottomNav({
                 borderRadius: '14px',
                 border: 'none',
                 backgroundColor: activeTab === 'home' ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
-                color: activeTab === 'home' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
+                color: activeTab === 'home' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <Home size={18} color={activeTab === 'home' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Home size={18} color={activeTab === 'home' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'home' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 {t('mobileNav.home')}
               </span>
@@ -758,13 +758,13 @@ export default function MobileBottomNav({
                 borderRadius: '14px',
                 border: 'none',
                 backgroundColor: (activeTab === 'database' || showDbModal) ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
-                color: (activeTab === 'database' || showDbModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
+                color: (activeTab === 'database' || showDbModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <DatabaseIcon size={18} color={(activeTab === 'database' || showDbModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <DatabaseIcon size={18} color={(activeTab === 'database' || showDbModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: (activeTab === 'database' || showDbModal) ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 {t('mobileNav.databases')}
               </span>
@@ -793,13 +793,13 @@ export default function MobileBottomNav({
                 borderRadius: '14px',
                 border: 'none',
                 backgroundColor: (activeTab === 'search' || showSearchModal) ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
-                color: (activeTab === 'search' || showSearchModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
+                color: (activeTab === 'search' || showSearchModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <Search size={18} color={(activeTab === 'search' || showSearchModal) ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Search size={18} color={(activeTab === 'search' || showSearchModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: (activeTab === 'search' || showSearchModal) ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 {t('mobileNav.search')}
               </span>
@@ -829,14 +829,14 @@ export default function MobileBottomNav({
                 borderRadius: '14px',
                 border: 'none',
                 backgroundColor: activeTab === 'alerts' ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
-                color: activeTab === 'alerts' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
+                color: activeTab === 'alerts' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation',
                 position: 'relative'
               }}
             >
-              <Bell size={18} color={activeTab === 'alerts' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Bell size={18} color={activeTab === 'alerts' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'alerts' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 {t('mobileNav.alerts')}
               </span>
@@ -871,13 +871,13 @@ export default function MobileBottomNav({
                 borderRadius: '14px',
                 border: 'none',
                 backgroundColor: activeTab === 'settings' ? (isDark ? '#1e3a8a' : '#F4F4F5') : 'transparent',
-                color: activeTab === 'settings' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b',
+                color: activeTab === 'settings' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
                 touchAction: 'manipulation'
               }}
             >
-              <Settings size={18} color={activeTab === 'settings' ? '#3F6212' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
+              <Settings size={18} color={activeTab === 'settings' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'settings' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 {t('mobileNav.settings')}
               </span>
@@ -944,7 +944,7 @@ export default function MobileBottomNav({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: isDark ? '#1e293b' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <DatabaseIcon size={18} color="#3F6212" />
+                    <DatabaseIcon size={18} color="var(--brand-green-text)" />
                   </div>
                   <h3 style={{ fontSize: '17px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>
                     {t('mobileNav.databasesAndTables')}
@@ -1019,7 +1019,7 @@ export default function MobileBottomNav({
                       padding: '0 12px',
                       borderRadius: '10px',
                       backgroundColor: '#FFF7ED',
-                      color: '#EA580C',
+                      color: 'var(--accent-primary)',
                       border: '1px solid #FFEDD5',
                       fontSize: '12px',
                       fontWeight: 600,
@@ -1053,10 +1053,10 @@ export default function MobileBottomNav({
                           fontWeight: 600,
                           whiteSpace: 'nowrap',
                           cursor: 'pointer',
-                          backgroundColor: activeWorkspaceId === ws.id ? '#3F6212' : isDark ? '#1e293b' : '#f1f5f9',
+                          backgroundColor: activeWorkspaceId === ws.id ? 'var(--brand-green-main)' : isDark ? '#1e293b' : '#f1f5f9',
                           color: activeWorkspaceId === ws.id ? '#ffffff' : isDark ? '#cbd5e1' : '#475569',
-                          border: activeWorkspaceId === ws.id ? '1px solid #3F6212' : '1px solid transparent',
-                          boxShadow: activeWorkspaceId === ws.id ? '0 2px 6px rgba(63, 98, 18, 0.25)' : 'none',
+                          border: activeWorkspaceId === ws.id ? '1px solid var(--brand-green-text)' : '1px solid transparent',
+                          boxShadow: activeWorkspaceId === ws.id ? '0 2px 6px rgba(57, 69, 43, 0.25)' : 'none',
                           flexShrink: 0,
                           transition: 'all 0.15s ease'
                         }}
@@ -1101,7 +1101,7 @@ export default function MobileBottomNav({
                     <div key={db.id} style={{ backgroundColor: isDark ? '#1e293b' : '#f8fafc', border: 'none', borderRadius: '16px', padding: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', padding: '0 2px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <DatabaseIcon size={16} color="#3F6212" />
+                          <DatabaseIcon size={16} color="var(--brand-green-text)" />
                           <h4 style={{ fontSize: '13px', fontWeight: 700, color: isDark ? '#ffffff' : '#0f172a', margin: 0 }}>{db.name}</h4>
                         </div>
                         <button
@@ -1179,14 +1179,14 @@ export default function MobileBottomNav({
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease',
-                                backgroundColor: isSelected ? '#3F6212' : isDark ? '#0f172a' : '#ffffff',
+                                backgroundColor: isSelected ? 'var(--brand-green-main)' : isDark ? '#0f172a' : '#ffffff',
                                 color: isSelected ? '#ffffff' : isDark ? '#e2e8f0' : '#334155',
                                 border: 'none',
-                                boxShadow: isSelected ? '0 4px 12px rgba(63, 98, 18,0.25)' : 'none'
+                                boxShadow: isSelected ? '0 4px 12px rgba(57, 69, 43,0.25)' : 'none'
                               }}
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                                <TableIcon size={16} color={isSelected ? '#ffffff' : '#3F6212'} />
+                                <TableIcon size={16} color={isSelected ? '#ffffff' : 'var(--brand-green-text)'} />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{table.name}</span>
                               </div>
                               {isSelected ? (

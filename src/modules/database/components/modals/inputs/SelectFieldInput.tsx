@@ -334,7 +334,7 @@ export function SelectFieldInput({ field, value, onChange, onUpdateField, readOn
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              className="hover:border-indigo-400 hover:text-[#3F6212] hover:bg-[#F4F4F5]/50"
+              className="hover:border-[var(--brand-green-text)] hover:text-[var(--brand-green-text)] hover:bg-[var(--bg-cell-hover)]"
             >
               <Plus size={12} />
               <span>新增選項</span>

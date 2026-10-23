@@ -31,14 +31,13 @@ const contrast = (hexA: string, hexB: string): number => {
 }
 
 const tokensCss = readCss('src/styles/tokens.css')
-const themeCss = readCss('src/app/theme.css')
 const tokensRoot = block(tokensCss, ':root')
-const themeRoot = block(themeCss, ':root')
 const tokensDark = block(tokensCss, "[data-theme='dark'],\n.theme-dark")
 
 const legacy = [
   '#ea580c', '#f97316', '#c2410c', '#3f6212', '#365314',
   '#4d7c0f', '#f7fee7', '#818cf8', 'rgba(234,88,12', 'rgba(63,98,18',
+  '#2d470d', '#059669', '#34d399',
 ]
 
 const legacyIn = (css: string): string[] => {
@@ -47,8 +46,13 @@ const legacyIn = (css: string): string[] => {
 }
 
 describe('brand tokens', () => {
-  it('has no legacy brand colors', () => {
-    for (const css of [tokensCss, themeCss]) expect(legacyIn(css)).toEqual([])
+  it('consolidates into tokens.css as the single source of truth (no src/app/theme.css)', () => {
+    expect(fs.existsSync(path.join(process.cwd(), 'src/app/theme.css'))).toBe(false)
+    expect(readCss('src/app/layout.tsx')).not.toContain('theme.css')
+  })
+
+  it('has no legacy brand colors across style files and baserow colors.scss', () => {
+    expect(legacyIn(tokensCss)).toEqual([])
   })
 
   it.each([
@@ -57,23 +61,219 @@ describe('brand tokens', () => {
     'src/styles/grid.css',
     'src/styles/components.css',
     'src/styles/latest-comment.css',
+    'src/styles/baserow/colors.scss',
   ])('%s has no legacy brand colors', (file) => {
     expect(legacyIn(readCss(file))).toEqual([])
+  })
+
+  it('uses [data-theme="dark"] / .theme-dark instead of legacy .dark selector in components.css and tokens.css form controls', () => {
+    const componentsCss = readCss('src/styles/components.css')
+    expect(componentsCss).not.toMatch(/^\.dark\s/m)
+    const softInputBlock = block(tokensCss, '.soft-input')
+    expect(softInputBlock).toContain('var(--bg-input)')
+    expect(softInputBlock).toContain('var(--text-primary)')
   })
 
   it('uses brand values', () => {
     expect(tokenValue(tokensRoot, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensRoot, '--brand-green-main')).toBe('#39452B')
+    expect(tokenValue(tokensRoot, '--brand-green-text')).toBe('#39452B')
     expect(tokenValue(tokensRoot, '--brand-orange-main')).toBe('#DD6410')
-    expect(tokenValue(themeRoot, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensDark, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensDark, '--accent-gradient').toLowerCase()).not.toContain('#818cf8')
   })
 
-  it('keeps readable contrast', () => {
+  it('defines unified radii, shadows, transitions, z-index, and semantic tokens in :root', () => {
+    const requiredRootTokens = [
+      '--text-inverse',
+      '--border-subtle',
+      '--border-strong',
+      '--border-focus',
+      '--brand-green-text',
+      '--radius-xs',
+      '--radius-sm',
+      '--radius-md',
+      '--radius-lg',
+      '--radius-xl',
+      '--radius-modal',
+      '--radius-pill',
+      '--shadow-sm',
+      '--shadow-md',
+      '--shadow-lg',
+      '--shadow-modal',
+      '--shadow-popover',
+      '--transition-fast',
+      '--transition-normal',
+      '--z-sticky',
+      '--z-dropdown',
+      '--z-modal',
+      '--z-popover',
+      '--z-toast',
+      '--bg-surface',
+    ]
+    for (const token of requiredRootTokens) {
+      expect(tokenValue(tokensRoot, token)).toBeTruthy()
+    }
+  })
+
+  it('aligns dark theme overrides for semantic text, border, and shadow tokens', () => {
+    const requiredDarkTokens = [
+      '--bg-primary',
+      '--bg-secondary',
+      '--bg-surface',
+      '--bg-tertiary',
+      '--text-primary',
+      '--text-secondary',
+      '--text-muted',
+      '--text-inverse',
+      '--brand-green-light',
+      '--brand-green-text',
+      '--border-color',
+      '--border-subtle',
+      '--border-strong',
+      '--border-focus',
+      '--shadow-sm',
+      '--shadow-md',
+      '--shadow-lg',
+      '--shadow-modal',
+      '--shadow-popover',
+    ]
+    for (const token of requiredDarkTokens) {
+      expect(tokenValue(tokensDark, token)).toBeTruthy()
+    }
+  })
+
+  it('uses brand focus ring in Button.tsx instead of legacy lime ring', () => {
+    const buttonTsx = readCss('src/components/ui/Button.tsx')
+    expect(buttonTsx).not.toContain('ring-lime-500')
+  })
+
+  it('keeps readable contrast across light and dark surfaces', () => {
     const darkBg = tokenValue(tokensDark, '--bg-primary')
-    expect(contrast(tokenValue(themeRoot, '--accent-primary'), '#FFFFFF')).toBeGreaterThanOrEqual(3)
+    const darkSurface = tokenValue(tokensDark, '--bg-secondary')
+    expect(contrast(tokenValue(tokensRoot, '--accent-primary'), '#FFFFFF')).toBeGreaterThanOrEqual(3)
     expect(contrast(tokenValue(tokensDark, '--accent-primary'), darkBg)).toBeGreaterThanOrEqual(3)
     expect(contrast(tokenValue(tokensDark, '--accent-secondary'), darkBg)).toBeGreaterThanOrEqual(3)
+    expect(contrast(tokenValue(tokensRoot, '--brand-green-text'), '#FFFFFF')).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenValue(tokensDark, '--brand-green-text'), darkBg)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenValue(tokensDark, '--brand-green-text'), darkSurface)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+describe('UI primitives token alignment (src/components/ui/)', () => {
+  const uiFiles = [
+    'src/components/ui/Button.tsx',
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/ModalOverlay.tsx',
+    'src/components/ui/CustomSelect.tsx',
+    'src/components/ui/ToastContainer.tsx',
+    'src/components/ui/FloatingMenuContainer.tsx',
+    'src/components/ui/PopoverPortal.tsx',
+    'src/components/ui/BottomSheet.tsx',
+    'src/components/ui/PullToRefresh.tsx',
+    'src/components/ui/avatar.tsx',
+    'src/components/ui/breadcrumb.tsx',
+    'src/components/ui/separator.tsx',
+    'src/components/ui/tooltip.tsx',
+  ]
+
+  it.each(uiFiles)('%s has no legacy brand colors or broken Tailwind dark:*-slate-* classes', (file) => {
+    const src = readCss(file)
+    expect(legacyIn(src)).toEqual([])
+    expect(src).not.toMatch(/dark:(bg|text|border)-slate-/)
+  })
+
+  it.each([
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/CustomSelect.tsx',
+    'src/components/ui/FloatingMenuContainer.tsx',
+    'src/components/ui/BottomSheet.tsx',
+  ])('%s uses semantic CSS variables instead of hardcoded light/slate surface colors', (file) => {
+    const src = readCss(file).toLowerCase()
+    expect(src).not.toContain('#ffffff')
+    expect(src).not.toContain('#fafaf9')
+    expect(src).not.toContain('#18181b')
+    expect(src).not.toContain('#1c1917')
+    expect(src).not.toContain('#0f172a')
+    expect(src).toContain('var(--bg-secondary)')
+  })
+
+  it('uses --brand-green-text for green foreground text/icons on surfaces (dark-mode readable)', () => {
+    const customSelect = readCss('src/components/ui/CustomSelect.tsx')
+    expect(customSelect).toContain('var(--brand-green-text)')
+    expect(customSelect).not.toContain('var(--brand-green-main)')
+
+    const pullToRefresh = readCss('src/components/ui/PullToRefresh.tsx')
+    expect(pullToRefresh).toContain("color: isThresholdReached || isRefreshing ? 'var(--text-inverse)' : 'var(--brand-green-text)'")
+  })
+})
+
+describe('Shell and business modals token alignment (Phase 3)', () => {
+  const modalAndShellFiles = [
+    'src/modules/database/components/sidebar/Sidebar.tsx',
+    'src/modules/database/components/modals/CollaboratorSelector.tsx',
+    'src/modules/database/components/modals/DarkReaderModal.tsx',
+    'src/modules/database/components/modals/DatabaseModal.tsx',
+    'src/modules/database/components/modals/MembersModal.tsx',
+    'src/modules/database/components/modals/NotificationsModal.tsx',
+    'src/modules/database/components/modals/RowCommentsPanel.tsx',
+    'src/modules/database/components/modals/RowEditModal.tsx',
+    'src/modules/database/components/modals/SubscriptionModal.tsx',
+    'src/modules/database/components/modals/UserSettingsModal.tsx',
+    'src/modules/database/components/modals/ViewModal.tsx',
+    'src/modules/database/components/modals/field-options/FormulaFieldOptions.tsx',
+    'src/modules/database/components/modals/inputs/AttachmentInput.tsx',
+    'src/modules/database/components/modals/inputs/SelectFieldInput.tsx',
+  ]
+
+  it.each(modalAndShellFiles)('%s has no legacy brand colors (lime/emerald/indigo/old-orange)', (file) => {
+    const src = readCss(file)
+    expect(legacyIn(src)).toEqual([])
+    expect(src).not.toMatch(/indigo-\d{2,3}/)
+    expect(src).not.toMatch(/emerald-\d{2,3}/)
+  })
+})
+
+describe('Toolbar, dashboard, secondary views, navigation, and app pages token alignment (Phase 4)', () => {
+  const phase4Files = [
+    'src/modules/database/components/toolbar/ViewToolbar.tsx',
+    'src/modules/database/components/toolbar/menu/FilterMenu.tsx',
+    'src/modules/database/components/toolbar/menu/SortMenu.tsx',
+    'src/modules/database/components/toolbar/menu/GroupMenu.tsx',
+    'src/modules/database/components/toolbar/menu/ColorMenu.tsx',
+    'src/modules/database/components/toolbar/menu/MultiValueSelect.tsx',
+    'src/modules/database/components/navigation/LangPicker.tsx',
+    'src/modules/database/components/navigation/LangSwitcherDropdown.tsx',
+    'src/modules/database/components/navigation/MobileSearchModal.tsx',
+    'src/modules/database/components/navigation/MobileBottomNav.tsx',
+    'src/modules/database/components/cards/CardDrawer.tsx',
+    'src/modules/database/components/import/AirtableImportModal.tsx',
+    'src/modules/database/components/views/calendar/CalendarView.tsx',
+    'src/modules/database/components/views/timeline/TimelineView.tsx',
+    'src/modules/database/components/views/form/FormView.tsx',
+    'src/modules/database/components/views/master/FieldMappingModal.tsx',
+    'src/modules/database/components/views/master/MasterGridCell.tsx',
+    'src/modules/database/components/views/grid/GridViewHead.tsx',
+    'src/modules/database/components/views/grid/GridViewRow.tsx',
+    'src/modules/database/components/table/GridViewFieldFooter.tsx',
+    'src/modules/database/components/views/grid/cells/LinkRowCellEditor.tsx',
+    'src/modules/database/components/views/grid/cells/LongTextCellEditor.tsx',
+    'src/modules/database/components/views/grid/cells/SelectCellEditor.tsx',
+    'src/app/form/[tableId]/page.tsx',
+    'src/app/workspace-invitation/page.tsx',
+    'src/app/error.tsx',
+    'src/app/global-error.tsx',
+  ]
+
+  it.each(phase4Files)('%s has no legacy brand colors or broken selectors', (file) => {
+    const src = readCss(file)
+    expect(legacyIn(src)).toEqual([])
+    expect(src).not.toMatch(/indigo-\d{2,3}/)
+    expect(src).not.toMatch(/emerald-\d{2,3}/)
+  })
+
+  it('aligns WorkspaceDashboard.module.css with [data-theme="dark"]', () => {
+    const css = readCss('src/modules/database/components/dashboard/WorkspaceDashboard.module.css')
+    expect(css).toContain(':global([data-theme=\'dark\'])')
   })
 })

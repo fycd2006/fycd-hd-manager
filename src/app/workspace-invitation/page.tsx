@@ -151,7 +151,7 @@ function WorkspaceInvitationContent() {
         
         {/* Header Icon */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, #3F6212, #2d470d)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(63, 98, 18,0.25)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'linear-gradient(135deg, var(--brand-green-main), var(--brand-green-hover))', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(57, 69, 43, 0.25)' }}>
             <Building2 size={32} color="#ffffff" />
           </div>
         </div>
@@ -187,7 +187,7 @@ function WorkspaceInvitationContent() {
         {currentUser ? (
           <div>
             <div style={{ padding: '12px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <UserCheck size={18} color="#3F6212" />
+              <UserCheck size={18} color="var(--brand-green-text)" />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {currentUser.username}
@@ -207,7 +207,7 @@ function WorkspaceInvitationContent() {
               style={{
                 width: '100%',
                 padding: '12px 20px',
-                backgroundColor: accepting ? '#93c5fd' : '#3F6212',
+                backgroundColor: accepting ? '#93c5fd' : 'var(--brand-green-main)',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '10px',
@@ -218,7 +218,7 @@ function WorkspaceInvitationContent() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 4px 12px rgba(63, 98, 18,0.3)',
+                boxShadow: '0 4px 12px rgba(57, 69, 43, 0.3)',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -345,7 +345,7 @@ function WorkspaceInvitationContent() {
                   marginTop: '6px',
                   width: '100%',
                   padding: '12px 20px',
-                  backgroundColor: authLoading ? '#93c5fd' : '#3F6212',
+                  backgroundColor: authLoading ? '#93c5fd' : 'var(--brand-green-main)',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '10px',
@@ -356,7 +356,7 @@ function WorkspaceInvitationContent() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 12px rgba(63, 98, 18,0.25)'
+                  boxShadow: '0 4px 12px rgba(57, 69, 43, 0.25)'
                 }}
               >
                 {authLoading ? '正在驗證並加入...' : (authMode === 'register' ? '完成註冊並加入工作區' : '登入並加入工作區')}

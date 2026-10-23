@@ -263,7 +263,7 @@ export const LinkRowCellEditor: React.FC<LinkRowCellEditorProps> = ({
                         onClick={() => toggleRowSelection(row)}
                         style={{
                           cursor: 'pointer',
-                          backgroundColor: isSelected ? 'rgba(63, 98, 18, 0.08)' : 'transparent',
+                          backgroundColor: isSelected ? 'rgba(57, 69, 43, 0.08)' : 'transparent',
                           borderBottom: '1px solid #e2e8f0',
                         }}
                       >

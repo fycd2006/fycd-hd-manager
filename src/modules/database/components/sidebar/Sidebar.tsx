@@ -339,10 +339,10 @@ export default function AppSidebar({
                   {canManageStructure && (
                     <DropdownMenuItem
                       onClick={onShowWorkspaceModal}
-                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', color: '#39452B', fontWeight: 600, fontSize: '13px' }}
-                      className="hover:bg-[#EEF0E8] dark:hover:bg-emerald-950/40"
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', color: 'var(--brand-green-text)', fontWeight: 600, fontSize: '13px' }}
+                      className="hover:bg-[var(--bg-cell-hover)]"
                     >
-                      <div style={{ width: '24px', height: '24px', minWidth: '24px', borderRadius: '6px', border: '1px dashed #C9CFB8', background: '#EEF0E8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#39452B' }}>
+                      <div style={{ width: '24px', height: '24px', minWidth: '24px', borderRadius: '6px', border: '1px dashed var(--border-color)', background: 'var(--bg-cell-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--brand-green-text)' }}>
                         <Plus style={{ width: '14px', height: '14px' }} />
                       </div>
                       <span>建立新工作區</span>
@@ -394,9 +394,9 @@ export default function AppSidebar({
                   isActive={!activeTableId || activeTableId === 0}
                   onClick={onSelectDashboard}
                   tooltip={isRail ? (t('nav.home') || '首頁') : undefined}
-                  className="data-[active=true]:bg-[#EEF0E8] data-[active=true]:text-[#39452B] dark:data-[active=true]:bg-emerald-950/40 dark:data-[active=true]:text-emerald-400 font-medium"
+                  className="data-[active=true]:bg-[var(--bg-cell-hover)] data-[active=true]:text-[var(--brand-green-text)] font-medium"
                 >
-                  <AnimatedHome style={{ width: '16px', height: '16px', minWidth: '16px', color: '#39452B', flexShrink: 0 }} />
+                  <AnimatedHome style={{ width: '16px', height: '16px', minWidth: '16px', color: 'var(--brand-green-text)', flexShrink: 0 }} />
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.home') || '首頁'}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -409,7 +409,7 @@ export default function AppSidebar({
                   <AnimatedBell style={{ width: '16px', height: '16px', minWidth: '16px', color: '#64748b', flexShrink: 0 }} />
                   <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('nav.notifications') || '通知中心'}</span>
                   {notificationCount > 0 && (
-                    <SidebarMenuBadge style={{ background: '#f97316', color: '#ffffff' }}>
+                    <SidebarMenuBadge style={{ background: 'var(--accent-primary)', color: '#ffffff' }}>
                       {notificationCount}
                     </SidebarMenuBadge>
                   )}
@@ -483,7 +483,7 @@ export default function AppSidebar({
                     padding: 0,
                     transition: 'all 0.15s ease',
                   }}
-                  className="hover:bg-[#EEF0E8] hover:text-[#39452B] dark:hover:bg-emerald-950/40 dark:hover:text-emerald-400 active:scale-95"
+                  className="hover:bg-[var(--bg-cell-hover)] hover:text-[var(--brand-green-text)] active:scale-95"
                 >
                   <FolderPlus style={{ width: '14px', height: '14px' }} />
                   <span className="sr-only">{t('nav.createDatabase') || '新增資料庫'}</span>
@@ -628,16 +628,16 @@ export default function AppSidebar({
                                           }
                                         }}
                                         style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', height: '28px', paddingRight: canManageStructure ? '30px' : '6px' }}
-                                        className={`group/btn ${isActive ? 'text-[#39452B] dark:text-emerald-300 font-semibold' : ''}`}
+                                        className={`group/btn ${isActive ? 'text-[var(--brand-green-text)] font-semibold' : ''}`}
                                       >
                                         {isActive && (
                                           <motion.div
                                             layoutId="active-sidebar-table-indicator"
-                                            className="absolute inset-0 rounded-md bg-[#EEF0E8] border border-[#C9CFB8] dark:bg-emerald-500/15 dark:border-emerald-500/30 pointer-events-none"
+                                            className="absolute inset-0 rounded-md bg-[var(--bg-cell-hover)] border border-[var(--border-color)] pointer-events-none"
                                             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                                           />
                                         )}
-                                        <AnimatedTable style={{ position: 'relative', zIndex: 1, width: '14px', height: '14px', minWidth: '14px', color: isActive ? '#39452B' : '#64748b', flexShrink: 0 }} />
+                                        <AnimatedTable style={{ position: 'relative', zIndex: 1, width: '14px', height: '14px', minWidth: '14px', color: isActive ? 'var(--brand-green-text)' : '#64748b', flexShrink: 0 }} />
                                         <span style={{ position: 'relative', zIndex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '12px', marginLeft: '6px' }}>{table.name}</span>
                                       </SidebarMenuSubButton>
 

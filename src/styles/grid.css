@@ -38,7 +38,7 @@
 }
 
 .grid-table th {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+  background: var(--bg-surface);
   border: 1px solid var(--border-color);
   border-top: none;
   padding: 0;
@@ -522,10 +522,10 @@
 }
 
 .grid-view__add-field:hover .add-field-icon-box {
-  background-color: #e2e8f0;
+  background-color: var(--bg-cell-hover);
 }
 .grid-view__add-field:hover svg {
-  color: #1e293b !important;
+  color: var(--text-primary) !important;
 }
 
 .table-name-input {

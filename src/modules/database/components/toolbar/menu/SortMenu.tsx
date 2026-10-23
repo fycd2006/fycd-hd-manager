@@ -305,7 +305,7 @@ export function SortMenu({
           style={{
             border: 'none',
             background: 'none',
-            color: availableFieldsToAdd.length === 0 ? '#94a3b8' : '#3F6212',
+            color: availableFieldsToAdd.length === 0 ? '#94a3b8' : 'var(--brand-green-text)',
             fontWeight: 600,
             fontSize: '13px',
             cursor: availableFieldsToAdd.length === 0 ? 'not-allowed' : 'pointer',

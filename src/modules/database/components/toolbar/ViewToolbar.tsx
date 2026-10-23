@@ -361,14 +361,14 @@ export function ViewToolbar({
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: showViewContext ? '#3F6212' : '#64748b',
+              color: showViewContext ? 'var(--brand-green-text)' : '#64748b',
               flexShrink: 0,
               minWidth: '54px',
               transition: 'all 0.15s ease'
             }}
           >
-            {getViewIcon(views.find(v => v.id === activeViewId)?.type || 'grid', { size: 18, color: showViewContext ? '#3F6212' : '#64748b' })}
-            <span style={{ fontSize: '11px', fontWeight: showViewContext ? 700 : 500, color: showViewContext ? '#3F6212' : '#475569', maxWidth: '64px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {getViewIcon(views.find(v => v.id === activeViewId)?.type || 'grid', { size: 18, color: showViewContext ? 'var(--brand-green-text)' : '#64748b' })}
+            <span style={{ fontSize: '11px', fontWeight: showViewContext ? 700 : 500, color: showViewContext ? 'var(--brand-green-text)' : '#475569', maxWidth: '64px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {views.find(v => v.id === activeViewId)?.name || getI18n('toolbar.views', '視圖')}
             </span>
           </button>
@@ -382,13 +382,13 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#f0fdf4' : 'none',
+              background: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 'var(--brand-green-light)' : 'none',
               border: 'none',
               borderRadius: '8px',
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#64748b',
+              color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 'var(--brand-green-text)' : '#64748b',
               position: 'relative',
               flexShrink: 0,
               minWidth: '52px',
@@ -396,14 +396,14 @@ export function ViewToolbar({
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Filter size={18} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#64748b'} />
+              <Filter size={18} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? 'var(--brand-green-text)' : '#64748b'} />
               {filterRules.length > 0 && (
-                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: 'var(--brand-green-main)', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
                   <SlidingNumber number={filterRules.length} />
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 700 : 500, color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 700 : 500, color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 'var(--brand-green-text)' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.filter', '篩選')}
             </span>
           </button>
@@ -417,13 +417,13 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#f0fdf4' : 'none',
+              background: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 'var(--brand-green-light)' : 'none',
               border: 'none',
               borderRadius: '8px',
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#64748b',
+              color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 'var(--brand-green-text)' : '#64748b',
               position: 'relative',
               flexShrink: 0,
               minWidth: '52px',
@@ -431,14 +431,14 @@ export function ViewToolbar({
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <ArrowDownAZ size={18} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#64748b'} />
+              <ArrowDownAZ size={18} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 'var(--brand-green-text)' : '#64748b'} />
               {activeSortRules.length > 0 && (
-                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: 'var(--brand-green-main)', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
                   <SlidingNumber number={activeSortRules.length} />
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 700 : 500, color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 700 : 500, color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 'var(--brand-green-text)' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.sort', '排序')}
             </span>
           </button>
@@ -452,13 +452,13 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#f0fdf4' : 'none',
+              background: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 'var(--brand-green-light)' : 'none',
               border: 'none',
               borderRadius: '8px',
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#64748b',
+              color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 'var(--brand-green-text)' : '#64748b',
               position: 'relative',
               flexShrink: 0,
               minWidth: '52px',
@@ -466,14 +466,14 @@ export function ViewToolbar({
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Palette size={18} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#64748b'} />
+              <Palette size={18} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 'var(--brand-green-text)' : '#64748b'} />
               {safeRowColorRules.length > 0 && (
-                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: 'var(--brand-green-main)', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
                   <SlidingNumber number={safeRowColorRules.length} />
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 700 : 500, color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 700 : 500, color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 'var(--brand-green-text)' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.color', '色彩')}
             </span>
           </button>
@@ -487,13 +487,13 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#f0fdf4' : 'none',
+              background: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 'var(--brand-green-light)' : 'none',
               border: 'none',
               borderRadius: '8px',
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#64748b',
+              color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 'var(--brand-green-text)' : '#64748b',
               position: 'relative',
               flexShrink: 0,
               minWidth: '52px',
@@ -501,14 +501,14 @@ export function ViewToolbar({
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Layers size={18} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#64748b'} />
+              <Layers size={18} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 'var(--brand-green-text)' : '#64748b'} />
               {activeGroupByRules.length > 0 && (
-                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: 'var(--brand-green-main)', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
                   <SlidingNumber number={activeGroupByRules.length} />
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 700 : 500, color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 700 : 500, color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 'var(--brand-green-text)' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.group', '分組')}
             </span>
           </button>
@@ -522,13 +522,13 @@ export function ViewToolbar({
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              background: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#f0fdf4' : 'none',
+              background: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 'var(--brand-green-light)' : 'none',
               border: 'none',
               borderRadius: '8px',
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#64748b',
+              color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 'var(--brand-green-text)' : '#64748b',
               position: 'relative',
               flexShrink: 0,
               minWidth: '56px',
@@ -536,14 +536,14 @@ export function ViewToolbar({
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <EyeOff size={18} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#64748b'} />
+              <EyeOff size={18} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 'var(--brand-green-text)' : '#64748b'} />
               {actualHiddenCount > 0 && (
-                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: '#3F6212', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
+                <span style={{ position: 'absolute', top: '-4px', right: '-8px', minWidth: '14px', height: '14px', borderRadius: '7px', backgroundColor: 'var(--brand-green-main)', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 2px' }}>
                   <SlidingNumber number={actualHiddenCount} />
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 700 : 500, color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 700 : 500, color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 'var(--brand-green-text)' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.hideFields', '隱藏欄位')}
             </span>
           </button>
@@ -563,14 +563,14 @@ export function ViewToolbar({
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b',
+              color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 'var(--brand-green-text)' : '#64748b',
               flexShrink: 0,
               minWidth: '52px',
               transition: 'all 0.15s ease'
             }}
           >
-            <AlignJustify size={18} color={isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#64748b'} />
-            <span style={{ fontSize: '11px', fontWeight: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 700 : 500, color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <AlignJustify size={18} color={isDisplayActive || activeHeaderMenu === 'rowHeight' ? 'var(--brand-green-text)' : '#64748b'} />
+            <span style={{ fontSize: '11px', fontWeight: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 700 : 500, color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 'var(--brand-green-text)' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.rowHeight', '列高')}
             </span>
           </button>
@@ -590,7 +590,7 @@ export function ViewToolbar({
               padding: '4px 8px',
               cursor: 'pointer',
               gap: '2px',
-              color: searchQuery || activeHeaderMenu === 'search' ? '#3F6212' : '#64748b',
+              color: searchQuery || activeHeaderMenu === 'search' ? 'var(--brand-green-text)' : '#64748b',
               position: 'relative',
               flexShrink: 0,
               minWidth: '52px',
@@ -598,12 +598,12 @@ export function ViewToolbar({
             }}
           >
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search size={18} color={searchQuery || activeHeaderMenu === 'search' ? '#3F6212' : '#64748b'} />
+              <Search size={18} color={searchQuery || activeHeaderMenu === 'search' ? 'var(--brand-green-text)' : '#64748b'} />
               {searchQuery && (
-                <span style={{ position: 'absolute', top: '-2px', right: '-4px', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#3F6212' }} />
+                <span style={{ position: 'absolute', top: '-2px', right: '-4px', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--brand-green-text)' }} />
               )}
             </div>
-            <span style={{ fontSize: '11px', fontWeight: searchQuery || activeHeaderMenu === 'search' ? 700 : 500, color: searchQuery || activeHeaderMenu === 'search' ? '#3F6212' : '#475569', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: searchQuery || activeHeaderMenu === 'search' ? 700 : 500, color: searchQuery || activeHeaderMenu === 'search' ? 'var(--brand-green-text)' : '#475569', whiteSpace: 'nowrap' }}>
               {getI18n('toolbar.search', '搜尋')}
             </span>
           </button>
@@ -795,8 +795,8 @@ export function ViewToolbar({
                   if (filterRules.length === 0 && activeHeaderMenu !== 'filter') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <Filter size={16} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-                <span className="header__filter-name" style={{ color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? '#3F6212' : '#44403C', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 600 : 500 }}>
+                <Filter size={16} color={filterRules.length > 0 || activeHeaderMenu === 'filter' ? 'var(--brand-green-text)' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 'var(--brand-green-text)' : '#44403C', fontWeight: filterRules.length > 0 || activeHeaderMenu === 'filter' ? 600 : 500 }}>
                   {filterRules.length > 0 ? `${t('toolbar.filter')} (${filterRules.length})` : t('toolbar.filter')}
                 </span>
               </a>
@@ -827,8 +827,8 @@ export function ViewToolbar({
                   if (activeSortRules.length === 0 && activeHeaderMenu !== 'sort') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <ArrowDownAZ size={16} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-                <span className="header__filter-name" style={{ color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? '#3F6212' : '#44403C', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 600 : 500 }}>
+                <ArrowDownAZ size={16} color={activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 'var(--brand-green-text)' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 'var(--brand-green-text)' : '#44403C', fontWeight: activeSortRules.length > 0 || activeHeaderMenu === 'sort' ? 600 : 500 }}>
                   {activeSortRules.length > 0 ? `${t('toolbar.sort')} (${activeSortRules.length})` : t('toolbar.sort')}
                 </span>
               </a>
@@ -859,8 +859,8 @@ export function ViewToolbar({
                   if (safeRowColorRules.length === 0 && activeHeaderMenu !== 'color') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <Palette size={16} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-                <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? '#3F6212' : '#44403C', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 600 : 500 }}>
+                <Palette size={16} color={safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 'var(--brand-green-text)' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 'var(--brand-green-text)' : '#44403C', fontWeight: safeRowColorRules.length > 0 || activeHeaderMenu === 'color' ? 600 : 500 }}>
                   {safeRowColorRules.length > 0 ? `${t('toolbar.color')} (${safeRowColorRules.length})` : t('toolbar.color')}
                 </span>
               </a>
@@ -891,8 +891,8 @@ export function ViewToolbar({
                   if (activeGroupByRules.length === 0 && activeHeaderMenu !== 'group') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <Layers size={16} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-                <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? '#3F6212' : '#44403C', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 600 : 500 }}>
+                <Layers size={16} color={activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 'var(--brand-green-text)' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 'var(--brand-green-text)' : '#44403C', fontWeight: activeGroupByRules.length > 0 || activeHeaderMenu === 'group' ? 600 : 500 }}>
                   {activeGroupByRules.length > 0 ? `${t('toolbar.group')} (${activeGroupByRules.length})` : t('toolbar.group')}
                 </span>
               </a>
@@ -925,8 +925,8 @@ export function ViewToolbar({
                   if (actualHiddenCount === 0 && activeHeaderMenu !== 'hide') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <EyeOff size={16} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-                <span className="header__filter-name" style={{ color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? '#3F6212' : '#44403C', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 600 : 500 }}>
+                <EyeOff size={16} color={actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 'var(--brand-green-text)' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 'var(--brand-green-text)' : '#44403C', fontWeight: actualHiddenCount > 0 || activeHeaderMenu === 'hide' ? 600 : 500 }}>
                   {actualHiddenCount > 0 ? `${t('toolbar.hideFields')} (${actualHiddenCount})` : t('toolbar.hideFields')}
                 </span>
               </a>
@@ -957,8 +957,8 @@ export function ViewToolbar({
                   if (!isDisplayActive && activeHeaderMenu !== 'rowHeight') e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <AlignJustify size={16} color={isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#78716C'} className="header__filter-icon" />
-                <span className="header__filter-name" style={{ color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? '#3F6212' : '#44403C', fontWeight: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 600 : 500 }}>
+                <AlignJustify size={16} color={isDisplayActive || activeHeaderMenu === 'rowHeight' ? 'var(--brand-green-text)' : '#78716C'} className="header__filter-icon" />
+                <span className="header__filter-name" style={{ color: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 'var(--brand-green-text)' : '#44403C', fontWeight: isDisplayActive || activeHeaderMenu === 'rowHeight' ? 600 : 500 }}>
                   {t('toolbar.rowHeight')}
                 </span>
               </a>
@@ -1059,8 +1059,8 @@ export function ViewToolbar({
                     boxShadow: '0 1px 2px rgba(15,23,42,0.04)'
                   }}
                   onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#3F6212';
-                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(63, 98, 18,0.12)';
+                    e.currentTarget.style.borderColor = 'var(--brand-green-text)';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(57, 69, 43, 0.12)';
                     e.currentTarget.style.width = '170px';
                   }}
                   onBlur={(e) => {
@@ -1259,10 +1259,10 @@ export function ViewToolbar({
                         transition: 'background-color 0.15s ease'
                       }}
                     >
-                      {getViewIcon(view.type || 'grid', { size: 16, color: activeViewId === view.id ? '#3F6212' : '#64748b', style: { marginRight: '10px', flexShrink: 0 } })}
-                      <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? '#3F6212' : 'inherit', fontWeight: activeViewId === view.id ? 700 : 500 }}>{view.name}</span>
+                      {getViewIcon(view.type || 'grid', { size: 16, color: activeViewId === view.id ? 'var(--brand-green-text)' : '#64748b', style: { marginRight: '10px', flexShrink: 0 } })}
+                      <span className="select__item-name" style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: activeViewId === view.id ? 'var(--brand-green-text)' : 'inherit', fontWeight: activeViewId === view.id ? 700 : 500 }}>{view.name}</span>
                       {activeViewId === view.id && (
-                        <Check size={16} color="#3F6212" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
+                        <Check size={16} color="var(--brand-green-text)" style={{ flexShrink: 0, marginLeft: '8px', marginRight: '4px' }} />
                       )}
                     </a>
                     <button
@@ -1299,7 +1299,7 @@ export function ViewToolbar({
                     setShowViewContext(false)
                     setShowNewViewModal(true)
                   }}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '10px 12px' : '8px 12px', borderRadius: '8px', cursor: 'pointer', color: '#3F6212', backgroundColor: isMobile ? '#f0fdf4' : 'transparent', fontSize: '13px', fontWeight: 600, transition: 'all 0.15s ease' }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', padding: isMobile ? '10px 12px' : '8px 12px', borderRadius: '8px', cursor: 'pointer', color: 'var(--brand-green-text)', backgroundColor: isMobile ? '#f0fdf4' : 'transparent', fontSize: '13px', fontWeight: 600, transition: 'all 0.15s ease' }}
                 >
                   <Plus size={15} style={{ marginRight: '8px' }} />
                   {t('toolbar.addView') || '新增視圖'}
@@ -1404,7 +1404,7 @@ export function ViewToolbar({
                       type="button"
                       onClick={() => setActiveHeaderMenu(null)}
                       style={{
-                        background: '#3F6212',
+                        background: 'var(--brand-green-main)',
                         border: 'none',
                         borderRadius: '8px',
                         padding: '4px 12px',
@@ -1508,7 +1508,7 @@ export function ViewToolbar({
                       style={{
                         border: 'none',
                         background: 'none',
-                        color: '#3F6212',
+                        color: 'var(--brand-green-text)',
                         fontSize: '12px',
                         fontWeight: 600,
                         cursor: 'pointer',
@@ -1581,7 +1581,7 @@ export function ViewToolbar({
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = isHidden ? 'transparent' : '#f8fafc')}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <span style={{ color: isHidden ? '#94a3b8' : '#3F6212', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                            <span style={{ color: isHidden ? '#94a3b8' : 'var(--brand-green-text)', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                               {getFieldIcon(field.type)}
                             </span>
                             <span style={{ color: isHidden ? '#94a3b8' : '#1e293b', fontWeight: isHidden ? 400 : 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1599,7 +1599,7 @@ export function ViewToolbar({
                               width: '34px',
                               height: '20px',
                               borderRadius: '10px',
-                              backgroundColor: !isHidden ? '#3F6212' : '#cbd5e1',
+                              backgroundColor: !isHidden ? 'var(--brand-green-main)' : '#cbd5e1',
                               position: 'relative',
                               transition: 'background-color 0.2s ease',
                               flexShrink: 0,
@@ -1655,21 +1655,21 @@ export function ViewToolbar({
                             borderRadius: '8px',
                             cursor: 'pointer',
                             backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
-                            color: isSelected ? '#3F6212' : '#1e293b',
+                            color: isSelected ? 'var(--brand-green-text)' : '#1e293b',
                             transition: 'background-color 0.15s ease'
                           }}
                           onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
                           onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent' }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ color: isSelected ? '#3F6212' : '#64748b', display: 'flex', alignItems: 'center' }}>
+                            <span style={{ color: isSelected ? 'var(--brand-green-text)' : '#64748b', display: 'flex', alignItems: 'center' }}>
                               <AlignJustify size={iconSize} />
                             </span>
                             <span style={{ fontSize: '13px', fontWeight: isSelected ? 700 : 500 }}>
                               {ROW_HEIGHT_LABELS[id]}
                             </span>
                           </div>
-                          {isSelected && <Check size={15} color="#3F6212" style={{ flexShrink: 0 }} />}
+                          {isSelected && <Check size={15} color="var(--brand-green-text)" style={{ flexShrink: 0 }} />}
                         </div>
                       </li>
                     )
@@ -1700,7 +1700,7 @@ export function ViewToolbar({
                             borderRadius: '8px',
                             cursor: 'pointer',
                             backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
-                            color: isSelected ? '#3F6212' : '#1e293b',
+                            color: isSelected ? 'var(--brand-green-text)' : '#1e293b',
                             transition: 'background-color 0.15s ease'
                           }}
                           onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc' }}
@@ -1709,7 +1709,7 @@ export function ViewToolbar({
                           <span style={{ fontSize: '13px', fontWeight: isSelected ? 700 : 500 }}>
                             {FONT_SCALE_LABELS[scale]}
                           </span>
-                          {isSelected && <Check size={15} color="#3F6212" style={{ flexShrink: 0 }} />}
+                          {isSelected && <Check size={15} color="var(--brand-green-text)" style={{ flexShrink: 0 }} />}
                         </div>
                       </li>
                     )
@@ -1734,7 +1734,7 @@ export function ViewToolbar({
                       height: '42px',
                       padding: '0 36px 0 38px',
                       borderRadius: '12px',
-                      border: '1.5px solid #3F6212',
+                      border: '1.5px solid var(--brand-green-text)',
                       fontSize: '14px',
                       outline: 'none',
                       boxSizing: 'border-box',
@@ -1753,7 +1753,7 @@ export function ViewToolbar({
                 </div>
                 {searchQuery ? (
                   <p style={{ margin: 0, fontSize: '12px', color: '#64748b', textAlign: 'center' }}>
-                    已篩選含有「<strong style={{ color: '#3F6212' }}>{searchQuery}</strong>」的資料列
+                    已篩選含有「<strong style={{ color: 'var(--brand-green-text)' }}>{searchQuery}</strong>」的資料列
                   </p>
                 ) : (
                   <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center' }}>

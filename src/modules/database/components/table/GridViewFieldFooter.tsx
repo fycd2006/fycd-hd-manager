@@ -245,7 +245,7 @@ export default function GridViewFieldFooter({
                   cursor: 'pointer',
                   background: currentMode === item.key ? '#F4F4F5' : 'transparent',
                   fontWeight: currentMode === item.key ? 600 : 400,
-                  color: currentMode === item.key ? '#3F6212' : '#334155',
+                  color: currentMode === item.key ? 'var(--brand-green-text)' : '#334155',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -254,7 +254,7 @@ export default function GridViewFieldFooter({
                 onMouseLeave={(e) => { if (currentMode !== item.key) e.currentTarget.style.background = 'transparent' }}
               >
                 <span>{item.label}</span>
-                {currentMode === item.key && <Check size={14} color="#3F6212" />}
+                {currentMode === item.key && <Check size={14} color="var(--brand-green-text)" />}
               </div>
             ))}
           </div>

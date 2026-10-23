@@ -84,7 +84,7 @@ export function AttachmentInput({ field, value, onChange, readOnly }: Attachment
                 fontWeight: 500
               }}
             >
-              <Paperclip size={14} color="#EA580C" />
+              <Paperclip size={14} color="var(--accent-primary)" />
               <a href={file.url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {file.name}
               </a>
@@ -129,7 +129,7 @@ export function AttachmentInput({ field, value, onChange, readOnly }: Attachment
             cursor: 'pointer',
             transition: 'all 0.15s ease'
           }}
-          className="hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/30">
+          className="hover:border-[var(--brand-green-text)] hover:text-[var(--brand-green-text)] hover:bg-[var(--bg-cell-hover)]">
             <Paperclip size={14} />
             <span>{t('advancedInputs.addFile')}</span>
             <input

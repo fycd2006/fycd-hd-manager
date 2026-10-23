@@ -32,8 +32,8 @@ export function MultiValueSelect({ value, options, onChange, placeholder }: Mult
           minHeight: '32px',
           padding: '4px 10px',
           borderRadius: '10px',
-          border: isOpen ? '1px solid #3F6212' : '1px solid #E7E5E4',
-          backgroundColor: isOpen ? '#ffffff' : '#FAFAF9',
+          border: isOpen ? '1px solid var(--border-focus)' : '1px solid var(--border-color)',
+          backgroundColor: isOpen ? 'var(--bg-surface)' : 'var(--bg-secondary)',
           cursor: 'pointer',
           fontSize: '13px',
           boxSizing: 'border-box',
@@ -41,19 +41,19 @@ export function MultiValueSelect({ value, options, onChange, placeholder }: Mult
       >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', minWidth: 0 }}>
           {selected.length === 0 ? (
-            <span style={{ color: '#78716C' }}>{placeholder}</span>
+            <span style={{ color: 'var(--text-secondary)' }}>{placeholder}</span>
           ) : (
             selected.map(v => (
               <span
                 key={v}
-                style={{ padding: '1px 8px', borderRadius: '999px', backgroundColor: '#ecfccb', color: '#3F6212', fontSize: '12px' }}
+                style={{ padding: '1px 8px', borderRadius: '999px', backgroundColor: 'var(--brand-green-light)', color: 'var(--brand-green-text)', fontSize: '12px' }}
               >
                 {labelOf(v)}
               </span>
             ))
           )}
         </div>
-        <ChevronDown size={14} color="#78716C" style={{ flexShrink: 0 }} />
+        <ChevronDown size={14} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
       </div>
       {isOpen && (
         <div
@@ -65,8 +65,8 @@ export function MultiValueSelect({ value, options, onChange, placeholder }: Mult
             zIndex: 20,
             maxHeight: '200px',
             overflowY: 'auto',
-            backgroundColor: '#ffffff',
-            border: '1px solid #E7E5E4',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.08)',
             padding: '4px',
@@ -86,11 +86,11 @@ export function MultiValueSelect({ value, options, onChange, placeholder }: Mult
                   borderRadius: '6px',
                   cursor: 'pointer',
                   fontSize: '13px',
-                  backgroundColor: isOn ? '#f7fee7' : 'transparent',
+                  backgroundColor: isOn ? 'var(--bg-cell-hover)' : 'transparent',
                 }}
               >
                 <span>{opt.label}</span>
-                {isOn && <Check size={14} color="#3F6212" />}
+                {isOn && <Check size={14} color="var(--brand-green-text)" />}
               </div>
             )
           })}
