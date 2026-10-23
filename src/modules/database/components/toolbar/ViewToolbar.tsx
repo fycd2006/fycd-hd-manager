@@ -210,7 +210,7 @@ export function ViewToolbar({
   const safeViews = Array.isArray(views) ? views : [];
 
   const [isMobile, setIsMobile] = useState(false)
-  const isDisplayActive = rowHeight !== 'small' || fontScale !== 'standard'
+  const isDisplayActive = Boolean((rowHeight && rowHeight !== 'small') || (fontScale && fontScale !== 'standard'))
   const [showViewContext, setShowViewContext] = useState(false)
   const [showViewOptionsMenu, setShowViewOptionsMenu] = useState(false)
   const [selectedViewForMenu, setSelectedViewForMenu] = useState<TableView | null>(null)
@@ -1644,7 +1644,7 @@ export function ViewToolbar({
                       <li key={id}>
                         <div
                           onClick={() => {
-                            setRowHeight(id)
+                            setRowHeight?.(id)
                             setActiveHeaderMenu(null)
                           }}
                           style={{
@@ -1690,7 +1690,7 @@ export function ViewToolbar({
                       <li key={scale}>
                         <div
                           onClick={() => {
-                            setFontScale(scale)
+                            setFontScale?.(scale)
                           }}
                           style={{
                             display: 'flex',

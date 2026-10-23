@@ -159,4 +159,27 @@ describe('ViewToolbar - Display & Density Menu', () => {
     const activeLink2 = document.querySelector('.header__filter-link.active')
     expect(activeLink2).toBeInTheDocument()
   })
+
+  it('does not crash and does not activate toolbar button when rowHeight and fontScale are undefined', () => {
+    const propsWithoutDensity = {
+      ...defaultProps,
+      rowHeight: undefined,
+      fontScale: undefined,
+      setRowHeight: undefined,
+      setFontScale: undefined,
+    }
+
+    render(<ViewToolbar {...propsWithoutDensity} />)
+    const rowHeightBtn = screen.getAllByText('列高')[0].closest('.header__filter-link')
+    expect(rowHeightBtn).not.toHaveClass('active')
+
+    // Clicking options without callback should not throw
+    const buttons = screen.getAllByText('列高')
+    fireEvent.click(buttons[0])
+
+    const rowHeightGroup = screen.getByRole('group', { name: '列高' })
+    expect(() => {
+      fireEvent.click(within(rowHeightGroup).getByText('大'))
+    }).not.toThrow()
+  })
 })
