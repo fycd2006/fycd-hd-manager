@@ -61,7 +61,7 @@ export default function Button({
     baseClasses,
     typeClasses[type],
     sizeClasses[size],
-    'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-500/40',
+    'transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]/40',
     fullWidth && 'button--full-width',
     loading && 'button--loading',
     active && 'button--active',

@@ -31,9 +31,7 @@ const contrast = (hexA: string, hexB: string): number => {
 }
 
 const tokensCss = readCss('src/styles/tokens.css')
-const themeCss = readCss('src/app/theme.css')
 const tokensRoot = block(tokensCss, ':root')
-const themeRoot = block(themeCss, ':root')
 const tokensDark = block(tokensCss, "[data-theme='dark'],\n.theme-dark")
 
 const legacy = [
@@ -47,8 +45,13 @@ const legacyIn = (css: string): string[] => {
 }
 
 describe('brand tokens', () => {
-  it('has no legacy brand colors', () => {
-    for (const css of [tokensCss, themeCss]) expect(legacyIn(css)).toEqual([])
+  it('consolidates into tokens.css as the single source of truth (no src/app/theme.css)', () => {
+    expect(fs.existsSync(path.join(process.cwd(), 'src/app/theme.css'))).toBe(false)
+    expect(readCss('src/app/layout.tsx')).not.toContain('theme.css')
+  })
+
+  it('has no legacy brand colors across style files and baserow colors.scss', () => {
+    expect(legacyIn(tokensCss)).toEqual([])
   })
 
   it.each([
@@ -57,6 +60,7 @@ describe('brand tokens', () => {
     'src/styles/grid.css',
     'src/styles/components.css',
     'src/styles/latest-comment.css',
+    'src/styles/baserow/colors.scss',
   ])('%s has no legacy brand colors', (file) => {
     expect(legacyIn(readCss(file))).toEqual([])
   })
@@ -65,14 +69,73 @@ describe('brand tokens', () => {
     expect(tokenValue(tokensRoot, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensRoot, '--brand-green-main')).toBe('#39452B')
     expect(tokenValue(tokensRoot, '--brand-orange-main')).toBe('#DD6410')
-    expect(tokenValue(themeRoot, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensDark, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensDark, '--accent-gradient').toLowerCase()).not.toContain('#818cf8')
   })
 
+  it('defines unified radii, shadows, transitions, z-index, and semantic tokens in :root', () => {
+    const requiredRootTokens = [
+      '--text-inverse',
+      '--border-subtle',
+      '--border-strong',
+      '--border-focus',
+      '--radius-xs',
+      '--radius-sm',
+      '--radius-md',
+      '--radius-lg',
+      '--radius-xl',
+      '--radius-modal',
+      '--radius-pill',
+      '--shadow-sm',
+      '--shadow-md',
+      '--shadow-lg',
+      '--shadow-modal',
+      '--shadow-popover',
+      '--transition-fast',
+      '--transition-normal',
+      '--z-sticky',
+      '--z-dropdown',
+      '--z-modal',
+      '--z-popover',
+      '--z-toast',
+    ]
+    for (const token of requiredRootTokens) {
+      expect(tokenValue(tokensRoot, token)).toBeTruthy()
+    }
+  })
+
+  it('aligns dark theme overrides for semantic text, border, and shadow tokens', () => {
+    const requiredDarkTokens = [
+      '--bg-primary',
+      '--bg-secondary',
+      '--bg-tertiary',
+      '--text-primary',
+      '--text-secondary',
+      '--text-muted',
+      '--text-inverse',
+      '--border-color',
+      '--border-subtle',
+      '--border-strong',
+      '--border-focus',
+      '--shadow-sm',
+      '--shadow-md',
+      '--shadow-lg',
+      '--shadow-modal',
+      '--shadow-popover',
+    ]
+    for (const token of requiredDarkTokens) {
+      expect(tokenValue(tokensDark, token)).toBeTruthy()
+    }
+  })
+
+  it('uses brand focus ring in Button.tsx instead of legacy lime ring', () => {
+    const buttonTsx = readCss('src/components/ui/Button.tsx')
+    expect(buttonTsx).not.toContain('ring-lime-500')
+  })
+
   it('keeps readable contrast', () => {
     const darkBg = tokenValue(tokensDark, '--bg-primary')
-    expect(contrast(tokenValue(themeRoot, '--accent-primary'), '#FFFFFF')).toBeGreaterThanOrEqual(3)
+    expect(contrast(tokenValue(tokensRoot, '--accent-primary'), '#FFFFFF')).toBeGreaterThanOrEqual(3)
     expect(contrast(tokenValue(tokensDark, '--accent-primary'), darkBg)).toBeGreaterThanOrEqual(3)
     expect(contrast(tokenValue(tokensDark, '--accent-secondary'), darkBg)).toBeGreaterThanOrEqual(3)
   })

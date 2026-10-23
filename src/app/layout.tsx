@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import "./theme.css";
 import "@/styles/baserow/default.scss";
 import { toStartupImages } from "@/lib/brand/splashScreens";
 
@@ -60,4 +59,3 @@ export default function RootLayout({
     </html>
   );
 }
-

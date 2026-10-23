@@ -15,7 +15,7 @@ paths:
 - 行為邏輯放在對應 hook（`useRowOperations`、`useCellEdit`、`useViewConfig`、`useFieldOperations`、`useMoveOperations`、`useRealtimeSync`、`useTableCSV`），元件只負責呈現。
 - 視圖由 `components/views/DatabaseViewRouter.tsx` 分派；新增視圖要在這裡註冊。
 - 欄位型別在 `fields/FieldRegistry.ts` 註冊；未註冊的型別一律拒絕寫入，新型別務必註冊並補測試。
-- 樣式用 `src/styles/` 下的 SCSS（Baserow 衍生），不以 Tailwind 為主。
+- 設計 Token 唯一真相來源為 `src/styles/tokens.css`（含淺色 `:root` 與暗色 `[data-theme='dark']`）；顏色、圓角、陰影、邊框與 Z-index 一律使用 `var(--...)` 或 `src/styles/` 語意化 class／CSS Modules，禁止另開平行 token 檔或寫死 `#hex`／Tailwind 色票（Tailwind 僅作 Flex/Grid/間距排版輔助）。
 - `MasterGridView.tsx`（3k+ 行）、`GridView.tsx`（3k+ 行）、`GridViewCell.tsx`（2k+ 行）極易互相影響：只做最小改動，改完必跑相關 `__tests__`，不要順手重構。
 - UI 文案一律繁體中文。
 
@@ -34,3 +34,4 @@ paths:
 - 暗色模式由 Dark Reader 改寫整頁顏色，SVG 的 `fill` 屬性會被行內 `!important` 改成暗色，品牌字標在暗底上看不見 → 需要固定顏色的 SVG 部件用 CSS Module 選擇器 `fill: var(--token) !important` 覆寫
 - `page.tsx` 切表 effect 依賴 `fetchTableData`，切表時 `CLEAR_TABLE_OPERATIONS` 讓 `operations`→`mergeServerRows`→`fetchTableData` 依序換 identity，effect 重跑，每次切表 fields／rows／views 各打兩次 → 只該在 id 改變時執行的 effect 用 ref 記住上次處理的 id（見 `switchedTableIdRef`），不要靠依賴陣列裡的 callback 穩定
 - 儲存格編輯只用 `setRows` 樂觀更新、不登記 operation，背景重抓用 `mergeServerRows` 合併時會把剛改的值蓋回伺服器舊值 → 新增的資料列寫入路徑在送出前呼叫 `localWriteTracker.beginWrite()`、結束時呼叫回傳的 end；`services/row.ts` 的寫入函式已登記，繞過 service 直接 fetch 的地方要自己登記
+- `layout.tsx` 同時載入 `tokens.css` 與只有 `:root` 的 `theme.css`，後者靜默覆蓋淺色 `--text-*` 卻沒有暗色定義 → 全域設計變數只放 `src/styles/tokens.css`，新增語意色／陰影／邊框變數時同步補齊 `[data-theme='dark']` 並加入 `brandTokens.test.ts`

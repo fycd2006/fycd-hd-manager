@@ -15,10 +15,14 @@
   --bg-cell-active: #FFF1E5;    /* Brand Orange Soft Active */
   --bg-header: #FAFAF9;
   --border-color: #E7E5E4;      /* Warm Gray Hairline Border */
+  --border-subtle: #F4F4F5;     /* Subtle Divider Border */
+  --border-strong: #D6D3D1;     /* Emphasized Border */
   --border-active: #DD6410;     /* Brand Orange Active Border */
+  --border-focus: #F58220;      /* Brand Orange Focus Ring */
   --text-primary: #1C1917;      /* Warm Charcoal Text */
   --text-secondary: #44403C;    /* Secondary Charcoal */
   --text-muted: #78716C;        /* Warm Muted Gray Text */
+  --text-inverse: #FFFFFF;      /* Inverse Foreground on Brand Surfaces */
 
   /* 30% Primary Brand: FYCD Orange（品牌原色 #F58220；互動用可讀深階 #DD6410） */
   --brand-orange-main: #DD6410;
@@ -46,6 +50,33 @@
   --toolbar-height: 48px;
   --bg-toolbar: #FFFFFF;
   --bg-input: #FFFFFF;
+
+  /* Border Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-modal: 16px;
+  --radius-pill: 9999px;
+
+  /* Shadows & Depth */
+  --shadow-sm: 0 1px 2px 0 rgba(28, 25, 23, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(28, 25, 23, 0.08), 0 2px 4px -2px rgba(28, 25, 23, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(28, 25, 23, 0.1), 0 4px 6px -4px rgba(28, 25, 23, 0.05);
+  --shadow-modal: 0 25px 50px -12px rgba(28, 25, 23, 0.18), 0 0 0 1px rgba(231, 229, 228, 0.9);
+  --shadow-popover: 0 15px 35px -5px rgba(28, 25, 23, 0.12), 0 0 0 1px rgba(231, 229, 228, 0.8);
+
+  /* Motion & Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Z-Index Scale */
+  --z-sticky: 20;
+  --z-dropdown: 50;
+  --z-modal: 100;
+  --z-popover: 110;
+  --z-toast: 150;
 }
 
 body {
@@ -89,15 +120,24 @@ button {
   --bg-cell-active: rgba(245, 130, 32, 0.14);
   --bg-header: #12131a;
   --border-color: #242637;
+  --border-subtle: #1c1e2c;
+  --border-strong: #33364d;
   --border-active: #F58220;
+  --border-focus: #F58220;
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
+  --text-inverse: #FFFFFF;
   --accent-primary: #DD6410;
   --accent-secondary: #F58220;
   --accent-gradient: linear-gradient(135deg, #DD6410 0%, #F58220 100%);
   --bg-toolbar: #181922;
   --bg-input: #12131a;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-popover: 0 15px 35px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
   color-scheme: dark;
 }
 
