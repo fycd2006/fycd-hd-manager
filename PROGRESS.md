@@ -1,12 +1,13 @@
 # PROGRESS
 
 ## 目前進度
-- PR #1–#31 全部已合併。
-- 全站 UI/UX 樣式與 Design Tokens 統一整合（分支 `feat/ui-tokens-unification`）4 階段全數完成並通過 reviewer 審查與 `npm run verify`（共 4 commits）：
+- PR #1–#38 全部已合併至 `main`。
+- PR #38 全站 UI/UX 樣式與 Design Tokens 統一整合 4 階段全數合併：
   1. Phase 1（`b2a33a1`）：移除 `theme.css`，將圓角、陰影、z-index、過渡與語意邊框收斂至 `src/styles/tokens.css`。
   2. Phase 2（`95f46cc`）：收斂 `src/components/ui/` 元件與 `components.css`，新增 `--brand-green-text` 解決暗色對比度。
   3. Phase 3（`e7b496c`）：側邊欄、全域表單控制項與 13 個業務彈窗對齊 Token。
   4. Phase 4（`b307426`）：工具列、儀表板、次要視圖、導覽抽屜與獨立頁面全站收斂，防退化測試擴充至 74 項全過。
+- `main` 分支本地 `npm run verify` 全部通過。
 
 ## 已做的決定
 - 全站設計 Token 唯一真相來源為 `src/styles/tokens.css`；深色模式一律使用 `[data-theme='dark']` / `.theme-dark`，禁止使用失效的 Tailwind `dark:*-slate-*` / `.dark` 選擇器。
@@ -14,8 +15,8 @@
 - 儲存格寫入一律經 `prepareCellWrites`／`prepareBatchCellWrites`；安全修正一律先 `authorizeAction`。
 
 ## 下一步
-- 詢問使用者是否推動 `feat/ui-tokens-unification` 發 PR 合併至 `main`。
-- 部署前需執行 `db push`（由使用者決定時機）。
+- 提醒使用者執行 `/compact` 或切換新對話。
+- 接續待辦清單中之安全漏洞或展開編輯／結構變更修正。
 
 ## 待辦
 - [ ] **安全（待與 fycd2006 討論）**：forgot-password 回應直接帶 `resetToken`，知道帳號＋Email 即可重設他人密碼
