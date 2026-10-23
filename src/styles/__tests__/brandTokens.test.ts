@@ -68,6 +68,7 @@ describe('brand tokens', () => {
   it('uses brand values', () => {
     expect(tokenValue(tokensRoot, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensRoot, '--brand-green-main')).toBe('#39452B')
+    expect(tokenValue(tokensRoot, '--brand-green-text')).toBe('#39452B')
     expect(tokenValue(tokensRoot, '--brand-orange-main')).toBe('#DD6410')
     expect(tokenValue(tokensDark, '--accent-primary')).toBe('#DD6410')
     expect(tokenValue(tokensDark, '--accent-gradient').toLowerCase()).not.toContain('#818cf8')
@@ -79,6 +80,7 @@ describe('brand tokens', () => {
       '--border-subtle',
       '--border-strong',
       '--border-focus',
+      '--brand-green-text',
       '--radius-xs',
       '--radius-sm',
       '--radius-md',
@@ -113,6 +115,7 @@ describe('brand tokens', () => {
       '--text-secondary',
       '--text-muted',
       '--text-inverse',
+      '--brand-green-text',
       '--border-color',
       '--border-subtle',
       '--border-strong',
@@ -133,10 +136,62 @@ describe('brand tokens', () => {
     expect(buttonTsx).not.toContain('ring-lime-500')
   })
 
-  it('keeps readable contrast', () => {
+  it('keeps readable contrast across light and dark surfaces', () => {
     const darkBg = tokenValue(tokensDark, '--bg-primary')
+    const darkSurface = tokenValue(tokensDark, '--bg-secondary')
     expect(contrast(tokenValue(tokensRoot, '--accent-primary'), '#FFFFFF')).toBeGreaterThanOrEqual(3)
     expect(contrast(tokenValue(tokensDark, '--accent-primary'), darkBg)).toBeGreaterThanOrEqual(3)
     expect(contrast(tokenValue(tokensDark, '--accent-secondary'), darkBg)).toBeGreaterThanOrEqual(3)
+    expect(contrast(tokenValue(tokensRoot, '--brand-green-text'), '#FFFFFF')).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenValue(tokensDark, '--brand-green-text'), darkBg)).toBeGreaterThanOrEqual(4.5)
+    expect(contrast(tokenValue(tokensDark, '--brand-green-text'), darkSurface)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+describe('UI primitives token alignment (src/components/ui/)', () => {
+  const uiFiles = [
+    'src/components/ui/Button.tsx',
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/ModalOverlay.tsx',
+    'src/components/ui/CustomSelect.tsx',
+    'src/components/ui/ToastContainer.tsx',
+    'src/components/ui/FloatingMenuContainer.tsx',
+    'src/components/ui/PopoverPortal.tsx',
+    'src/components/ui/BottomSheet.tsx',
+    'src/components/ui/PullToRefresh.tsx',
+    'src/components/ui/avatar.tsx',
+    'src/components/ui/breadcrumb.tsx',
+    'src/components/ui/separator.tsx',
+    'src/components/ui/tooltip.tsx',
+  ]
+
+  it.each(uiFiles)('%s has no legacy brand colors or broken Tailwind dark:*-slate-* classes', (file) => {
+    const src = readCss(file)
+    expect(legacyIn(src)).toEqual([])
+    expect(src).not.toMatch(/dark:(bg|text|border)-slate-/)
+  })
+
+  it.each([
+    'src/components/ui/Modal.tsx',
+    'src/components/ui/CustomSelect.tsx',
+    'src/components/ui/FloatingMenuContainer.tsx',
+    'src/components/ui/BottomSheet.tsx',
+  ])('%s uses semantic CSS variables instead of hardcoded light/slate surface colors', (file) => {
+    const src = readCss(file).toLowerCase()
+    expect(src).not.toContain('#ffffff')
+    expect(src).not.toContain('#fafaf9')
+    expect(src).not.toContain('#18181b')
+    expect(src).not.toContain('#1c1917')
+    expect(src).not.toContain('#0f172a')
+    expect(src).toContain('var(--bg-secondary)')
+  })
+
+  it('uses --brand-green-text for green foreground text/icons on surfaces (dark-mode readable)', () => {
+    const customSelect = readCss('src/components/ui/CustomSelect.tsx')
+    expect(customSelect).toContain('var(--brand-green-text)')
+    expect(customSelect).not.toContain('var(--brand-green-main)')
+
+    const pullToRefresh = readCss('src/components/ui/PullToRefresh.tsx')
+    expect(pullToRefresh).toContain("color: isThresholdReached || isRefreshing ? 'var(--text-inverse)' : 'var(--brand-green-text)'")
   })
 })

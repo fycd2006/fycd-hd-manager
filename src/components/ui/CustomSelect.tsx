@@ -118,27 +118,27 @@ export function CustomSelect({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '6px 10px',
-          borderRadius: '10px',
-          border: isOpen ? '1px solid #3F6212' : '1px solid #E7E5E4',
-          backgroundColor: isOpen ? '#ffffff' : '#FAFAF9',
-          boxShadow: isOpen ? '0 0 0 3px rgba(63, 98, 18, 0.12)' : 'none',
+          borderRadius: 'var(--radius-lg)',
+          border: isOpen ? '1px solid var(--brand-green-text)' : '1px solid var(--border-color)',
+          backgroundColor: isOpen ? 'var(--bg-secondary)' : 'var(--bg-primary)',
+          boxShadow: isOpen ? '0 0 0 3px rgba(57, 69, 43, 0.12)' : 'none',
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.6 : 1,
-          transition: 'all 0.18s ease',
+          transition: 'all var(--transition-normal)',
           fontSize: '13px',
-          color: selectedOption ? '#1C1917' : '#78716C',
+          color: selectedOption ? 'var(--text-primary)' : 'var(--text-muted)',
           fontWeight: selectedOption ? 500 : 400,
         }}
         onMouseEnter={(e) => {
           if (!isOpen && !disabled) {
-            e.currentTarget.style.backgroundColor = '#ffffff'
-            e.currentTarget.style.borderColor = '#D6D3D1'
+            e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'
+            e.currentTarget.style.borderColor = 'var(--border-strong)'
           }
         }}
         onMouseLeave={(e) => {
           if (!isOpen && !disabled) {
-            e.currentTarget.style.backgroundColor = '#FAFAF9'
-            e.currentTarget.style.borderColor = '#E7E5E4'
+            e.currentTarget.style.backgroundColor = 'var(--bg-primary)'
+            e.currentTarget.style.borderColor = 'var(--border-color)'
           }
         }}
       >
@@ -148,11 +148,11 @@ export function CustomSelect({
         </span>
         <ChevronDown
           size={14}
-          color="#78716C"
+          color="var(--text-muted)"
           style={{
             marginLeft: '6px',
             flexShrink: 0,
-            transition: 'transform 0.2s ease',
+            transition: 'transform var(--transition-normal)',
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
           }}
         />
@@ -192,10 +192,10 @@ export function CustomSelect({
                   left: `${popoverCoords.left}px`,
                   width: `${popoverCoords.width}px`,
                   minWidth: '150px',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '10px',
-                  border: '1px solid #E7E5E4',
-                  boxShadow: '0 12px 28px -4px rgba(28, 25, 23, 0.12), 0 0 0 1px rgba(0,0,0,0.03)',
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border-color)',
+                  boxShadow: 'var(--shadow-popover)',
                   zIndex: 1000000,
                   padding: '4px',
                   maxHeight: '220px',
@@ -221,18 +221,18 @@ export function CustomSelect({
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '7px 10px',
-                        borderRadius: '6px',
+                        borderRadius: 'var(--radius-sm)',
                         cursor: 'pointer',
                         fontSize: '13px',
-                        backgroundColor: isSelected ? '#F4F4F5' : 'transparent',
-                        color: isSelected ? '#3F6212' : '#1C1917',
+                        backgroundColor: isSelected ? 'var(--bg-cell-hover)' : 'transparent',
+                        color: isSelected ? 'var(--brand-green-text)' : 'var(--text-primary)',
                         fontWeight: isSelected ? 600 : 400,
                         transition: 'background-color 0.12s ease',
                         marginBottom: '2px',
                       }}
                       onMouseEnter={(e) => {
                         if (!isSelected) {
-                          e.currentTarget.style.backgroundColor = '#FAFAF9'
+                          e.currentTarget.style.backgroundColor = 'var(--bg-cell-hover)'
                         }
                       }}
                       onMouseLeave={(e) => {
@@ -245,7 +245,7 @@ export function CustomSelect({
                         {opt.icon}
                         {opt.label}
                       </span>
-                      {isSelected && <Check size={14} color="#3F6212" style={{ flexShrink: 0, marginLeft: '6px' }} />}
+                      {isSelected && <Check size={14} color="var(--brand-green-text)" style={{ flexShrink: 0, marginLeft: '6px' }} />}
                     </motion.div>
                   )
                 })}

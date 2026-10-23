@@ -168,20 +168,20 @@ export default function PullToRefresh({
             opacity: isRefreshing ? 1 : opacity,
             transform: `scale(${Math.min(1, pullDistance / pullThreshold)})`,
             transition: pullDistance > 0 ? 'opacity 0.1s ease' : 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-            backgroundColor: isThresholdReached || isRefreshing ? '#3F6212' : '#ffffff',
-            color: isThresholdReached || isRefreshing ? '#ffffff' : '#3F6212',
-            border: isThresholdReached || isRefreshing ? 'none' : '1px solid #cbd5e1',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+            backgroundColor: isThresholdReached || isRefreshing ? 'var(--brand-green-main)' : 'var(--bg-secondary)',
+            color: isThresholdReached || isRefreshing ? 'var(--text-inverse)' : 'var(--brand-green-text)',
+            border: isThresholdReached || isRefreshing ? 'none' : '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-lg)',
             width: '40px',
             height: '40px',
-            borderRadius: '9999px',
+            borderRadius: 'var(--radius-pill)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
           {refreshSuccess ? (
-            <Check size={20} color="#ffffff" className="animate-in zoom-in-50 duration-200" />
+            <Check size={20} color="var(--text-inverse)" className="animate-in zoom-in-50 duration-200" />
           ) : isRefreshing ? (
             <RefreshCw size={20} className="animate-spin" />
           ) : (

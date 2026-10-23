@@ -12,18 +12,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: var(--z-modal);
   animation: fadeIn 0.15s ease;
 }
 
 .modal {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 24px;
   min-width: 380px;
   max-width: 480px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-modal);
   animation: slideUp 0.2s ease;
 }
 
@@ -53,12 +53,12 @@
   width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--bg-input);
   color: var(--text-primary);
   font-size: 13px;
   font-family: inherit;
-  transition: border-color 0.15s;
+  transition: border-color var(--transition-fast);
 }
 
 .modal input:focus,
@@ -77,11 +77,11 @@
 
 .modal-actions button {
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
   font-family: inherit;
 }
 
@@ -99,7 +99,7 @@
 .modal-actions .confirm-btn {
   background: var(--accent-gradient);
   border: none;
-  color: white;
+  color: var(--text-inverse);
 }
 
 .modal-actions .confirm-btn:hover {
@@ -110,8 +110,8 @@
 .modal-box {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.16), 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
   max-width: 480px;
   width: 90%;
   max-height: 90vh;
@@ -152,9 +152,9 @@
   border: none;
   background: transparent;
   color: var(--text-muted);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
 }
 
 .modal-close-btn:hover {
@@ -194,7 +194,7 @@
     flex: 1 1 auto !important;
     width: 100% !important;
     min-height: 50vh !important;
-    border-bottom: 2px solid var(--border-color, #e2e8f0) !important;
+    border-bottom: 2px solid var(--border-color) !important;
   }
 
   .row-edit-modal-right {
@@ -231,12 +231,12 @@
   gap: 8px;
   padding: 8px 16px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all var(--transition-fast);
   text-decoration: none;
   position: relative;
 }
@@ -245,7 +245,7 @@
 
 .button--primary {
   background: var(--accent-gradient);
-  color: white;
+  color: var(--text-inverse);
 }
 
 .button--primary:hover {
@@ -286,7 +286,7 @@
 
 .button--upload {
   background: rgba(57, 69, 43, 0.1);
-  color: var(--accent-secondary);
+  color: var(--brand-green-text);
   border: 1px dashed rgba(57, 69, 43, 0.3);
 }
 
@@ -302,7 +302,7 @@
 .button--xlarge { padding: 16px 24px; font-size: 15px; }
 .button--full-width { width: 100%; }
 .button--loading { pointer-events: none; opacity: 0.7; }
-.button--active { background: var(--accent-primary); color: white; }
+.button--active { background: var(--accent-primary); color: var(--text-inverse); }
 .button--icon-only { padding: 8px; }
 
 .button:disabled {
@@ -328,11 +328,11 @@
   position: fixed;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 4px;
   min-width: 180px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-  z-index: 200;
+  box-shadow: var(--shadow-popover);
+  z-index: var(--z-popover);
   animation: fadeIn 0.1s ease;
 }
 
@@ -342,7 +342,7 @@
   align-items: center;
   gap: 8px;
   padding: 7px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
@@ -382,7 +382,7 @@
   position: fixed;
   bottom: 20px;
   right: 20px;
-  z-index: 300;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -390,11 +390,11 @@
 
 .toast {
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   font-size: 13px;
-  color: white;
+  color: var(--text-inverse);
   animation: slideInRight 0.2s ease;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-popover);
   max-width: 360px;
 }
 
@@ -459,7 +459,7 @@
 .dark-reader-panel {
   padding: 12px;
   background: var(--bg-tertiary);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   margin-top: 8px;
 }
 
@@ -575,6 +575,7 @@
   animation: fycdSkeletonShimmer 1.4s ease-in-out infinite;
 }
 
+[data-theme='dark'] .fycd-skeleton,
 .theme-dark .fycd-skeleton {
   --skeleton-base: #1f2937;
   --skeleton-shine: rgba(255, 255, 255, 0.06);
@@ -938,7 +939,7 @@
 }
 
 [data-radix-popper-content-wrapper] {
-  z-index: 100 !important;
+  z-index: var(--z-modal) !important;
 }
 
 [data-radix-popper-content-wrapper] [role="menu"],
@@ -969,13 +970,8 @@ nextjs-portal,
 
 /* Consistent, readable dropdown menu container and item styling (no black frames/borders) */
 [role="menu"] {
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
-}
-
-.dark [role="menu"] {
-  border: 1px solid #334155 !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-popover) !important;
 }
 
 [role="menuitem"],
@@ -988,18 +984,8 @@ nextjs-portal,
 [role="menuitem"]:focus,
 [role="menuitem"]:hover,
 [data-radix-collection-item][data-highlighted] {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-.dark [role="menuitem"][data-highlighted],
-.dark [role="menuitem"]:focus,
-.dark [role="menuitem"]:hover,
-.dark [data-radix-collection-item][data-highlighted] {
-  background-color: #1e293b !important;
-  color: #f8fafc !important;
+  background-color: var(--bg-cell-hover) !important;
+  color: var(--text-primary) !important;
   outline: none !important;
   box-shadow: none !important;
 }
@@ -1091,4 +1077,3 @@ nextjs-portal,
   display: flex !important;
   align-items: center !important;
 }
-

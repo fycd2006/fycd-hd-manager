@@ -35,6 +35,7 @@
   --brand-green-hover: #2C3621;
   --brand-green-light: #EEF0E8;
   --brand-green-border: #4A5A37;
+  --brand-green-text: #39452B;
 
   --accent-primary: #DD6410;
   --accent-secondary: #F58220;
@@ -128,6 +129,7 @@ button {
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
   --text-inverse: #FFFFFF;
+  --brand-green-text: #A3B38A;
   --accent-primary: #DD6410;
   --accent-secondary: #F58220;
   --accent-gradient: linear-gradient(135deg, #DD6410 0%, #F58220 100%);

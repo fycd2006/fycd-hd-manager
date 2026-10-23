@@ -35,3 +35,4 @@ paths:
 - `page.tsx` 切表 effect 依賴 `fetchTableData`，切表時 `CLEAR_TABLE_OPERATIONS` 讓 `operations`→`mergeServerRows`→`fetchTableData` 依序換 identity，effect 重跑，每次切表 fields／rows／views 各打兩次 → 只該在 id 改變時執行的 effect 用 ref 記住上次處理的 id（見 `switchedTableIdRef`），不要靠依賴陣列裡的 callback 穩定
 - 儲存格編輯只用 `setRows` 樂觀更新、不登記 operation，背景重抓用 `mergeServerRows` 合併時會把剛改的值蓋回伺服器舊值 → 新增的資料列寫入路徑在送出前呼叫 `localWriteTracker.beginWrite()`、結束時呼叫回傳的 end；`services/row.ts` 的寫入函式已登記，繞過 service 直接 fetch 的地方要自己登記
 - `layout.tsx` 同時載入 `tokens.css` 與只有 `:root` 的 `theme.css`，後者靜默覆蓋淺色 `--text-*` 卻沒有暗色定義 → 全域設計變數只放 `src/styles/tokens.css`，新增語意色／陰影／邊框變數時同步補齊 `[data-theme='dark']` 並加入 `brandTokens.test.ts`
+- `--brand-green-main`（`#39452B`）是深墨綠，在暗色表面（`#181922`）當文字或圖示色時對比度僅 1.7:1 → 深綠作為實心底色配 `--text-inverse` 用 `--brand-green-main`；作為表面上的文字／圖示／強調邊框色時一律用 `--brand-green-text`（暗色自動切換為 `#A3B38A`）
