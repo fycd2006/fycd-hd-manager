@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HD Manager 概覽 - FYCD HD 北科伙食團資料庫</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* ==========================================================================
+       Forest Land Glassmorphism UI - 極簡置中與光學修復版
+       - 修復字體溢出：主標題自適應尺寸，絕不被右邊緣或 OVERVIEW 切斷
+       - 左側內容極簡化：刪除所有冗長廢話說明
+       - 標題與核心模組優雅置中 (Centered Editorial Rhythm)
+       ========================================================================== */
+    :root {
+      --color-forest-deep: #1B3B22;       /* 自然背景主色 (梯田深林綠) */
+      --color-morning-gold: #9BB828;      /* 晨光高光色 (金芒青草綠) */
+      --color-pure-white: #FFFFFF;        /* 介面主文字 (極致純淨白) */
+      --glass-panel-bg: rgba(22, 38, 26, 0.48); /* 沉穩通透漫射森林底色 */
+      --search-bg: rgba(18, 28, 22, 0.6); /* 搜尋欄深邃漫射底色 */
+      --border-text-color: rgba(255, 255, 255, 0.28); /* 邊界裝飾文字 */
+      --secondary-btn-text: #1B291E;
+
+      /* 物理玻璃微弱頂緣高光 (無封閉生硬外框) */
+      --card-glass-bg: rgba(255, 255, 255, 0.07);
+      --card-glass-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 0.18);
+      --card-hover-bg: rgba(255, 255, 255, 0.12);
+      --card-hover-shadow: 0 14px 40px -8px rgba(0, 0, 0, 0.4);
+
+      /* 字型定義 */
+      --font-display: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+      /* 高解析梯田景觀背景 */
+      --terrace-bg-url: url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=85&w=2400&auto=format&fit=crop');
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font-sans);
+      background-color: var(--color-forest-deep);
+      color: var(--color-pure-white);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      user-select: none;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* 頂部原型控制列 */
+    .proto-ctrl-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 42px;
+      background: rgba(14, 24, 18, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-size: 12.5px;
+    }
+    .proto-title-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .proto-tag {
+      background: var(--color-morning-gold);
+      color: #121c15;
+      font-size: 10.5px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .proto-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 9999px;
+      padding: 3px;
+    }
+    .proto-tab-btn {
+      border: none;
+      background: none;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 5px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 9999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .proto-tab-btn.active {
+      background: var(--color-pure-white);
+      color: var(--color-forest-deep);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .proto-direct-link {
+      color: var(--color-morning-gold);
+      font-weight: 700;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      background: rgba(155, 184, 40, 0.12);
+      transition: all 0.15s;
+    }
+    .proto-direct-link:hover {
+      background: rgba(155, 184, 40, 0.25);
+      color: #FFFFFF;
+    }
+
+    /* 全幅高解析背景視差畫布 */
+    .canvas-stage {
+      position: absolute;
+      top: 42px;
+      left: 0;
+      width: 100%;
+      height: calc(100% - 42px);
+      background-image: var(--terrace-bg-url);
+      background-size: cover;
+      background-position: center center;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .canvas-stage::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 75% 30%, rgba(27, 59, 34, 0.02) 0%, rgba(18, 36, 22, 0.6) 85%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ==========================================================================
+       左側大面積高霧度毛玻璃面板 (Asymmetric Glass Split: 46%)
+       無厚重硬框，通透空靈
+       ========================================================================== */
+    .glass-panel {
+      position: relative;
+      z-index: 10;
+      width: 46%;
+      height: 100%;
+      background: var(--glass-panel-bg);
+      backdrop-filter: blur(32px) saturate(150%);
+      -webkit-backdrop-filter: blur(32px) saturate(150%);
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      border-top-right-radius: 36px;
+      border-bottom-right-radius: 36px;
+      box-shadow: 24px 0 64px -12px rgba(8, 18, 12, 0.55);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 44px 52px 48px 56px;
+      transition: width 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow-y: auto;
+    }
+
+    /* 頂部極簡列 */
+    .brand-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    .brand-identity-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-svg-mark {
+      height: 24px;
+      width: auto;
+      display: block;
+    }
+    .workspace-pill-tag {
+      background: rgba(155, 184, 40, 0.15);
+      color: var(--color-morning-gold);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      letter-spacing: 0.04em;
+    }
+    .top-controls-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .glass-btn-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .glass-btn-capsule:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #FFFFFF;
+    }
+
+    /* ==========================================================================
+       核心主標題置中 (Centered Editorial Focus - 零冗詞廢話)
+       ========================================================================== */
+    .hero-content-section {
+      margin: auto 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 20px;
+      width: 100%;
+    }
+    
+    /* 標題置中與純淨主視覺 */
+    .hero-greeting-title {
+      font-size: clamp(30px, 3.2vw, 44px);
+      font-weight: 850;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #FFFFFF;
+      margin: 0;
+    }
+    .hero-greeting-title span.role-highlight {
+      color: var(--color-morning-gold);
+    }
+    .role-sub-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.08);
+      padding: 3px 12px;
+      border-radius: 9999px;
+      letter-spacing: 0.05em;
+    }
+
+    /* 雙核心指標膠囊 (置中對齊) */
+    .metrics-duo {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 440px;
+    }
+    .metric-island-card {
+      background: var(--card-glass-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 18px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--card-glass-specular), 0 8px 24px -6px rgba(0, 0, 0, 0.25);
+      transition: all 0.25s ease;
+      text-align: left;
+    }
+    .metric-island-card:hover {
+      background: var(--card-hover-bg);
+      box-shadow: var(--card-glass-specular), var(--card-hover-shadow);
+      transform: translateY(-2px);
+    }
+    .metric-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 4px;
+    }
+    .metric-big-num {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 900;
+      color: #FFFFFF;
+      line-height: 1;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .metric-unit-text {
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.6);
+      font-family: var(--font-sans);
+    }
+    .metric-icon-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(155, 184, 40, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-morning-gold);
+    }
+    .metric-icon-circle.orange {
+      background: rgba(245, 130, 32, 0.15);
+      color: #F58220;
+    }
+
+    /* 精選焦點資料庫卡片 (置中容器) */
+    .featured-hubs-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 440px;
+      text-align: left;
+    }
+    .featured-db-card {
+      background: var(--card-glass-bg);
+      border-radius: 18px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: var(--card-glass-specular), 0 8px 24px -6px rgba(0, 0, 0, 0.25);
+      transition: all 0.2s ease;
+    }
+    .featured-db-card:hover {
+      background: var(--card-hover-bg);
+      box-shadow: var(--card-glass-specular), var(--card-hover-shadow);
+    }
+    .f-db-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .f-db-title {
+      font-size: 14px;
+      font-weight: 750;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .f-db-badge {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-morning-gold);
+      background: rgba(155, 184, 40, 0.12);
+      padding: 2px 8px;
+      border-radius: 9999px;
+    }
+    .f-db-tables-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .table-chip-link {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.85);
+      background: rgba(255, 255, 255, 0.07);
+      padding: 5px 11px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .table-chip-link:hover {
+      background: var(--color-morning-gold);
+      color: var(--secondary-btn-text);
+      font-weight: 600;
+      transform: translateY(-1px);
+    }
+
+    /* 動作按鈕列 (置中) */
+    .bottom-cta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      margin-top: 8px;
+    }
+    .btn-create-db {
+      background: var(--color-morning-gold);
+      color: var(--secondary-btn-text);
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 12px 24px;
+      border-radius: 9999px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 20px rgba(155, 184, 40, 0.35);
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .btn-create-db:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(155, 184, 40, 0.5);
+      background: #A9C92C;
+    }
+    .btn-view-all {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFFFFF;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 11px 20px;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-view-all:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    /* ==========================================================================
+       右側全幅開放區域：搜尋膠囊與垂直邊界軌道字 ("OVERVIEW")
+       ========================================================================== */
+    .right-stage-area {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 54%;
+      height: 100%;
+      z-index: 15;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 36px 44px;
+    }
+
+    /* 頂部膠囊型搜尋組件 */
+    .pill-search-container {
+      align-self: flex-end;
+      pointer-events: auto;
+      margin-top: 8px;
+      margin-right: 48px;
+      width: 340px;
+      background: var(--search-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 9999px;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 0 8px 32px rgba(0, 0, 0, 0.35);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+    .pill-search-container:hover, .pill-search-container:focus-within {
+      background: rgba(26, 40, 31, 0.85);
+      width: 380px;
+      box-shadow: inset 0 1px 1px 0 rgba(155, 184, 40, 0.35), 0 12px 36px rgba(0, 0, 0, 0.5);
+    }
+    .pill-search-input {
+      background: none;
+      border: none;
+      color: var(--color-pure-white);
+      font-size: 13px;
+      font-family: var(--font-sans);
+      width: 100%;
+      outline: none;
+      cursor: pointer;
+    }
+    .pill-search-input::placeholder {
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    /* 右側垂直縱向文字 ("OVERVIEW") - 保持在右邊界，不擠壓主標題 */
+    .vertical-rail-text {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: clamp(36px, 4.2vw, 60px);
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      writing-mode: vertical-rl;
+      color: var(--border-text-color);
+      pointer-events: none;
+      line-height: 1;
+      text-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    /* 右下角跨表總表快速入口膠囊 */
+    .dest-floating-card {
+      align-self: flex-start;
+      margin-left: 24px;
+      margin-bottom: 24px;
+      pointer-events: auto;
+      background: rgba(22, 44, 28, 0.78);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 20px;
+      padding: 15px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.2), 0 12px 36px rgba(0, 0, 0, 0.45);
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s;
+    }
+    .dest-floating-card:hover {
+      transform: translateY(-3px);
+      background: rgba(22, 44, 28, 0.95);
+    }
+    .dest-card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(155, 184, 40, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-morning-gold);
+    }
+    .dest-title {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 13.5px;
+      color: #FFFFFF;
+      margin-bottom: 2px;
+    }
+    .dest-meta {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* ==========================================================================
+       跨界主標題 ("FYCD / HD MANAGER") - 如圖三超大字號錯落兩行排版
+       ========================================================================== */
+    .hero-heading-container {
+      position: absolute;
+      top: 25%;
+      left: calc(46% - 120px);
+      z-index: 20;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s;
+    }
+    .heading-row-1 {
+      display: flex;
+      align-items: baseline;
+    }
+    .heading-row-2 {
+      display: flex;
+      align-items: baseline;
+      margin-left: clamp(60px, 8vw, 120px); /* 錯落向右推移，座落在右側清晰自然梯田上 */
+    }
+    .title-forest {
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: clamp(64px, 8vw, 112px); /* 超大行 1 字號 */
+      line-height: 0.9;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+      background-image: var(--terrace-bg-url);
+      background-size: cover;
+      background-position: center center;
+      background-attachment: fixed;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
+      position: relative;
+      flex-shrink: 0;
+    }
+    .title-land {
+      font-family: var(--font-display);
+      font-weight: 900;
+      font-size: clamp(48px, 5.8vw, 82px); /* 行 2 依長度等比縮放，確保右側留有充足呼吸空間 */
+      line-height: 0.9;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+      color: var(--color-pure-white);
+      white-space: nowrap;
+      text-shadow: 0 10px 40px rgba(10, 24, 15, 0.75);
+      pointer-events: auto;
+      transition: transform 0.3s ease;
+      overflow: visible;
+    }
+    .title-land:hover {
+      transform: translateX(8px);
+    }
+
+    /* 非第一視覺模式時隱藏主標題，避免遮蔽展開的資料庫 Bento 卡片或行動端 */
+    .mode-bento #hero-heading-block,
+    .mode-mobile #hero-heading-block {
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+      transform: translateY(-24px) !important;
+    }
+
+    /* ==========================================================================
+       全展開模式 (72% 寬幅 Bento Grid：輕盈無框感卡片)
+       ========================================================================== */
+    .full-db-deck-view {
+      display: none;
+      margin-top: 16px;
+    }
+    .bento-db-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .bento-db-card {
+      background: var(--card-glass-bg);
+      border-radius: 18px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--card-glass-specular), 0 8px 24px -6px rgba(0, 0, 0, 0.25);
+      transition: all 0.2s ease;
+    }
+    .bento-db-card:hover {
+      background: var(--card-hover-bg);
+      box-shadow: var(--card-glass-specular), var(--card-hover-shadow);
+      transform: translateY(-2px);
+    }
+    .b-card-head {
+      padding: 12px 18px;
+      background: rgba(0, 0, 0, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .b-card-id {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .b-card-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .b-card-name {
+      font-size: 13.5px;
+      font-weight: 750;
+      color: #FFFFFF;
+    }
+    .b-card-sub {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+    .b-table-rows {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .b-table-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 12.5px;
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .b-table-row:hover {
+      background: var(--color-morning-gold);
+      color: var(--secondary-btn-text);
+      font-weight: 600;
+      transform: translateX(3px);
+    }
+
+    /* 行動裝置適配模擬器 */
+    .mobile-simulator-frame {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+    }
+    .mobile-screen {
+      width: 380px;
+      height: 720px;
+      border-radius: 40px;
+      border: 8px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.8);
+      position: relative;
+      overflow: hidden;
+      background-image: var(--terrace-bg-url);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .mobile-bottom-sheet {
+      background: rgba(22, 44, 28, 0.88);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border-top-left-radius: 28px;
+      border-top-right-radius: 28px;
+      padding: 18px 20px;
+      max-height: 65%;
+      overflow-y: auto;
+      box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .mobile-handle {
+      width: 40px;
+      height: 4px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 2px;
+      margin: 0 auto 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       頂部原型控制列 (Prototype Bar)
+       ========================================================================== -->
+  <header class="proto-ctrl-bar">
+    <div class="proto-title-badge">
+      <span class="proto-tag">精簡置中優化</span>
+      <span>HD MANAGER 概覽 · 零贅詞 × 標題置中 × 主標題溢出修復</span>
+    </div>
+
+    <!-- 變體模式切換器 -->
+    <div class="proto-tabs">
+      <button type="button" class="proto-tab-btn active" id="btn-tab-hero" onclick="switchMode('hero')">
+        <i data-lucide="layout-dashboard" style="width:13px;height:13px;"></i>
+        <span>1. 精簡聚焦主無視覺 (46% 置中)</span>
+      </button>
+      <button type="button" class="proto-tab-btn" id="btn-tab-bento" onclick="switchMode('bento')">
+        <i data-lucide="grid-2x2" style="width:13px;height:13px;"></i>
+        <span>2. 6 大資料庫 Bento 全展 (72%)</span>
+      </button>
+      <button type="button" class="proto-tab-btn" id="btn-tab-mobile" onclick="switchMode('mobile')">
+        <i data-lucide="smartphone" style="width:13px;height:13px;"></i>
+        <span>3. 行動端適配抽屜</span>
+      </button>
+    </div>
+
+    <div class="proto-actions">
+      <a href="/" target="_blank" class="proto-direct-link">
+        <i data-lucide="external-link" style="width:13px;height:13px;"></i>
+        <span>開啟原版畫面比對</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       全幅高解析階梯農田背景主畫布
+       ========================================================================== -->
+  <main class="canvas-stage" id="main-stage">
+
+    <!-- 左側大面積高霧度毛玻璃面板 (Asymmetric Glass Split) -->
+    <section class="glass-panel" id="glass-panel">
+      
+      <!-- 頂部極簡品牌標示 -->
+      <div class="brand-top-bar">
+        <div class="brand-identity-row">
+          <svg viewBox="8 -30 704 136" class="brand-svg-mark" role="img" aria-label="FYCD HD">
+            <defs>
+              <linearGradient id="fycd-fold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0.5" stop-color="#F58220" />
+                <stop offset="0.5" stop-color="#DD6410" />
+              </linearGradient>
+            </defs>
+            <g transform="translate(46 0) skewX(-17)">
+              <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="3" stroke-linejoin="round">
+                <path d="M0 0H82V25H27V39H66V62H27V100H0Z" fill-rule="evenodd"/>
+                <path d="M86 0H116L130 31L144 0H174L143 57V100H116V57Z" fill-rule="evenodd"/>
+                <path d="M272 0H228C198 0 180 19 180 47V53C180 81 198 100 228 100H272V75H232C215 75 207 67 207 53V47C207 33 215 25 232 25H272Z" fill-rule="evenodd"/>
+                <path d="M278 0H330C358 0 377 19 377 47V53C377 81 358 100 330 100H278ZM305 25V75H326C342 75 350 67 350 53V47C350 33 342 25 326 25Z" fill-rule="evenodd"/>
+              </g>
+              <g transform="translate(392 -24) scale(1.24)">
+                <g fill="#F58220" stroke="#F58220" stroke-width="2.4" stroke-linejoin="round">
+                  <path d="M0 0H29V37H67V0H96V100H67V63H29V100H0Z" fill-rule="evenodd"/>
+                  <path d="M104 0H156C190 0 210 21 210 50C210 79 190 100 156 100H104ZM133 26V74H153C171 74 181 64 181 50C181 36 171 26 153 26Z" fill-rule="evenodd"/>
+                </g>
+                <g fill="url(#fycd-fold)" stroke="url(#fycd-fold)" stroke-width="2.4" stroke-linejoin="round">
+                  <path d="M0 0H29V37H67V0H96V100H67V63H29V100H0Z" fill-rule="evenodd"/>
+                  <path d="M104 0H156C190 0 210 21 210 50C210 79 190 100 156 100H104ZM133 26V74H153C171 74 181 64 181 50C181 36 171 26 153 26Z" fill-rule="evenodd"/>
+                </g>
+              </g>
+            </g>
+          </svg>
+          <span class="workspace-pill-tag">HD MANAGER 概覽</span>
+        </div>
+
+        <div class="top-controls-group">
+          <div class="glass-btn-capsule">
+            <i data-lucide="globe" style="width:13px;height:13px;"></i>
+            <span>繁體中文</span>
+          </div>
+          <div class="glass-btn-capsule">
+            <i data-lucide="users" style="width:13px;height:13px;"></i>
+            <span>協作成員 (12)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 核心標題與歡迎區塊 (精簡廢話 · 標題大氣置中) -->
+      <div class="hero-content-section" id="hero-focus-block">
+        
+        <!-- 標題置中 (刪除冗長贅述說明) -->
+        <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+          <h1 class="hero-greeting-title">
+            歡迎回來，<span class="role-highlight">NTUT CD</span>
+          </h1>
+          <div class="role-sub-pill">
+            <i data-lucide="shield-check" style="width:12px;height:12px;color:var(--color-morning-gold);"></i>
+            <span>系統管理者</span>
+          </div>
+        </div>
+
+        <!-- 雙核心指標膠囊 (置中排版) -->
+        <div class="metrics-duo">
+          <div class="metric-island-card">
+            <div>
+              <div class="metric-title">資料庫數</div>
+              <div class="metric-big-num">
+                <span>6</span>
+                <span class="metric-unit-text">個資料庫</span>
+              </div>
+            </div>
+            <div class="metric-icon-circle">
+              <i data-lucide="database" style="width:20px;height:20px;"></i>
+            </div>
+          </div>
+
+          <div class="metric-island-card">
+            <div>
+              <div class="metric-title">資料表數</div>
+              <div class="metric-big-num">
+                <span>28</span>
+                <span class="metric-unit-text">張資料表</span>
+              </div>
+            </div>
+            <div class="metric-icon-circle orange">
+              <i data-lucide="table-2" style="width:20px;height:20px;"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 焦點資料庫快覽 (簡潔乾淨) -->
+        <div class="featured-hubs-container">
+          <!-- 焦點 A: 北科驊德-十七成... (9 表) -->
+          <div class="featured-db-card">
+            <div class="f-db-top">
+              <div class="f-db-title">
+                <i data-lucide="folder-kanban" style="width:16px;height:16px;color:var(--color-morning-gold);"></i>
+                <span>北科驊德-十七成全...</span>
+                <i data-lucide="pencil" style="width:11px;height:11px;color:rgba(255,255,255,0.4);"></i>
+              </div>
+              <span class="f-db-badge">9 張資料表</span>
+            </div>
+            <div class="f-db-tables-chips">
+              <a href="/" target="_blank" class="table-chip-link">
+                <i data-lucide="table-2" style="width:11px;height:11px;"></i>
+                <span>成全名單</span>
+              </a>
+              <a href="/" target="_blank" class="table-chip-link">
+                <i data-lucide="table-2" style="width:11px;height:11px;"></i>
+                <span>成全任務表</span>
+              </a>
+              <a href="/" target="_blank" class="table-chip-link">
+                <i data-lucide="table-2" style="width:11px;height:11px;"></i>
+                <span>活動邀約記錄</span>
+              </a>
+              <a href="/" target="_blank" class="table-chip-link">
+                <i data-lucide="table-2" style="width:11px;height:11px;"></i>
+                <span>活動表</span>
+              </a>
+              <a href="/" target="_blank" class="table-chip-link" style="color:var(--color-morning-gold);font-weight:600;">
+                <span>+ 更多 (共9張)</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- 焦點 B: 阿耀組 與 結緣名單 -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="featured-db-card">
+              <div class="f-db-top">
+                <div class="f-db-title" style="font-size:13px;">
+                  <span>阿耀組</span>
+                  <i data-lucide="pencil" style="width:10px;height:10px;color:rgba(255,255,255,0.4);"></i>
+                </div>
+                <span style="font-size:10px;color:rgba(255,255,255,0.5);">1 表</span>
+              </div>
+              <a href="/" target="_blank" class="table-chip-link" style="justify-content:space-between;">
+                <span>阿耀組</span>
+                <i data-lucide="chevron-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+
+            <div class="featured-db-card">
+              <div class="f-db-top">
+                <div class="f-db-title" style="font-size:13px;">
+                  <span>結緣名單</span>
+                  <i data-lucide="pencil" style="width:10px;height:10px;color:rgba(255,255,255,0.4);"></i>
+                </div>
+                <span style="font-size:10px;color:rgba(255,255,255,0.5);">1 表</span>
+              </div>
+              <a href="/" target="_blank" class="table-chip-link" style="justify-content:space-between;">
+                <span>115-1</span>
+                <i data-lucide="chevron-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 動作按鈕列 (置中) -->
+        <div class="bottom-cta-row">
+          <button type="button" class="btn-create-db" onclick="alert('開啟新增資料庫彈窗')">
+            <i data-lucide="plus" style="width:14px;height:14px;"></i>
+            <span>新增資料庫</span>
+          </button>
+          <button type="button" class="btn-view-all" onclick="switchMode('bento')">
+            <i data-lucide="grid" style="width:14px;height:14px;color:var(--color-morning-gold);"></i>
+            <span>展開全域 6 大資料庫 (72%)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 72% 全展開模式：Bento Grid 排列全部 6 大資料庫 -->
+      <div class="full-db-deck-view" id="bento-deck-block">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px;">
+            <i data-lucide="layers" style="width:18px;height:18px;color:var(--color-morning-gold);"></i>
+            <span>資料庫清單 (6) · 全域檢視</span>
+          </div>
+          <button type="button" class="glass-btn-capsule" onclick="switchMode('hero')">
+            <i data-lucide="arrow-left" style="width:12px;height:12px;"></i>
+            <span>返回聚焦主視覺</span>
+          </button>
+        </div>
+
+        <div class="bento-db-grid">
+          <!-- 1. 阿耀組 -->
+          <div class="bento-db-card">
+            <div class="b-card-head">
+              <div class="b-card-id">
+                <div class="b-card-icon"><i data-lucide="database" style="width:14px;height:14px;"></i></div>
+                <div>
+                  <div class="b-card-name">阿耀組</div>
+                  <div class="b-card-sub">1 張資料表</div>
+                </div>
+              </div>
+              <button type="button" class="glass-btn-capsule" style="font-size:11px;padding:3px 8px;">+ 新增資料表</button>
+            </div>
+            <div class="b-table-rows">
+              <a href="/" target="_blank" class="b-table-row">
+                <span>阿耀組</span>
+                <i data-lucide="chevron-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+          </div>
+
+          <!-- 2. 北科驊德-十七成... (9 表) -->
+          <div class="bento-db-card">
+            <div class="b-card-head">
+              <div class="b-card-id">
+                <div class="b-card-icon"><i data-lucide="database" style="width:14px;height:14px;"></i></div>
+                <div>
+                  <div class="b-card-name">北科驊德-十七成...</div>
+                  <div class="b-card-sub">9 張資料表</div>
+                </div>
+              </div>
+              <button type="button" class="glass-btn-capsule" style="font-size:11px;padding:3px 8px;">+ 新增資料表</button>
+            </div>
+            <div class="b-table-rows">
+              <a href="/" target="_blank" class="b-table-row"><span>成全名單</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+              <a href="/" target="_blank" class="b-table-row"><span>成全任務表</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+              <a href="/" target="_blank" class="b-table-row"><span>活動邀約記錄</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+              <a href="/" target="_blank" class="b-table-row"><span>活動表</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+              <a href="/" target="_blank" class="b-table-row"><span>活動類型</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+            </div>
+          </div>
+
+          <!-- 3. 結緣名單 -->
+          <div class="bento-db-card">
+            <div class="b-card-head">
+              <div class="b-card-id">
+                <div class="b-card-icon"><i data-lucide="database" style="width:14px;height:14px;"></i></div>
+                <div>
+                  <div class="b-card-name">結緣名單</div>
+                  <div class="b-card-sub">1 張資料表</div>
+                </div>
+              </div>
+              <button type="button" class="glass-btn-capsule" style="font-size:11px;padding:3px 8px;">+ 新增資料表</button>
+            </div>
+            <div class="b-table-rows">
+              <a href="/" target="_blank" class="b-table-row">
+                <span>115-1</span>
+                <i data-lucide="chevron-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+          </div>
+
+          <!-- 4. 阿光組 -->
+          <div class="bento-db-card">
+            <div class="b-card-head">
+              <div class="b-card-id">
+                <div class="b-card-icon"><i data-lucide="database" style="width:14px;height:14px;"></i></div>
+                <div>
+                  <div class="b-card-name">阿光組</div>
+                  <div class="b-card-sub">1 張資料表</div>
+                </div>
+              </div>
+              <button type="button" class="glass-btn-capsule" style="font-size:11px;padding:3px 8px;">+ 新增資料表</button>
+            </div>
+            <div class="b-table-rows">
+              <a href="/" target="_blank" class="b-table-row">
+                <span>阿光</span>
+                <i data-lucide="chevron-right" style="width:12px;height:12px;"></i>
+              </a>
+            </div>
+          </div>
+
+          <!-- 5. 北科驊德-成全小組 -->
+          <div class="bento-db-card">
+            <div class="b-card-head">
+              <div class="b-card-id">
+                <div class="b-card-icon"><i data-lucide="database" style="width:14px;height:14px;"></i></div>
+                <div>
+                  <div class="b-card-name">北科驊德-成全小組</div>
+                  <div class="b-card-sub">8 張資料表</div>
+                </div>
+              </div>
+              <button type="button" class="glass-btn-capsule" style="font-size:11px;padding:3px 8px;">+ 新增資料表</button>
+            </div>
+            <div class="b-table-rows">
+              <a href="/" target="_blank" class="b-table-row"><span>成全名單</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+              <a href="/" target="_blank" class="b-table-row"><span>成全任務表</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+            </div>
+          </div>
+
+          <!-- 6. 北科驊德-成全小組 (分組) -->
+          <div class="bento-db-card">
+            <div class="b-card-head">
+              <div class="b-card-id">
+                <div class="b-card-icon"><i data-lucide="database" style="width:14px;height:14px;"></i></div>
+                <div>
+                  <div class="b-card-name">北科驊德-成全小組</div>
+                  <div class="b-card-sub">8 張資料表</div>
+                </div>
+              </div>
+              <button type="button" class="glass-btn-capsule" style="font-size:11px;padding:3px 8px;">+ 新增資料表</button>
+            </div>
+            <div class="b-table-rows">
+              <a href="/" target="_blank" class="b-table-row"><span>成全名單</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+              <a href="/" target="_blank" class="b-table-row"><span>成全任務表</span><i data-lucide="chevron-right" style="width:12px;height:12px;"></i></a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==========================================================================
+       右側全幅開放區域：搜尋膠囊與垂直邊界軌道字 ("OVERVIEW")
+       ========================================================================== -->
+    <div class="right-stage-area">
+      <!-- 頂部膠囊型搜尋組件 -->
+      <div class="pill-search-container" onclick="switchMode('bento')">
+        <i data-lucide="search" style="width:16px;height:16px;color:rgba(255,255,255,0.75);"></i>
+        <input type="text" class="pill-search-input" placeholder="搜尋資料庫或資料表 (點擊 72% 展開)..." readonly />
+        <i data-lucide="arrow-right" style="width:14px;height:14px;color:var(--color-morning-gold);"></i>
+      </div>
+
+      <!-- 右側垂直縱向文字 ("OVERVIEW") -->
+      <div class="vertical-rail-text">
+        OVERVIEW
+      </div>
+
+      <!-- 右下角跨表總表快速入口膠囊 -->
+      <a href="/?view=master" target="_blank" class="dest-floating-card">
+        <div class="dest-card-icon">
+          <i data-lucide="layers" style="width:20px;height:20px;"></i>
+        </div>
+        <div>
+          <div class="dest-title">跨表總表 (Master View)</div>
+          <div class="dest-meta">彙總 6 大資料庫 · 28 張資料表即時關聯</div>
+        </div>
+      </a>
+    </div>
+
+    <!-- 跨界雙行主標題 ("FYCD" / "HD MANAGER") - 如圖三超大字號錯落兩行排版 -->
+    <div class="hero-heading-container" id="hero-heading-block">
+      <div class="heading-row-1">
+        <h1 class="title-forest">FYCD</h1>
+      </div>
+      <div class="heading-row-2">
+        <h1 class="title-land">HD MANAGER</h1>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 行動端適配抽屜模擬器 -->
+  <div class="mobile-simulator-frame" id="mobile-simulator" onclick="if(event.target === this) switchMode('hero')">
+    <div class="mobile-screen">
+      <div style="padding: 16px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-family:var(--font-display);font-weight:900;font-size:13px;">HD Manager 概覽</span>
+        <span style="font-size:11px;color:var(--color-morning-gold);font-weight:700;">NTUT CD</span>
+      </div>
+
+      <div style="padding: 20px; text-align:center;">
+        <h1 style="font-family:var(--font-display);font-weight:900;font-size:30px;letter-spacing:-0.03em;color:#FFFFFF;text-shadow:0 4px 16px rgba(0,0,0,0.8);">
+          FYCD<br>HD MANAGER
+        </h1>
+        <p style="font-size:11.5px;color:rgba(255,255,255,0.85);margin-top:4px;">6 個資料庫 · 28 張資料表</p>
+      </div>
+
+      <div class="mobile-bottom-sheet">
+        <div class="mobile-handle"></div>
+        <div style="font-size:12px;font-weight:700;color:var(--color-morning-gold);margin-bottom:8px;">常用資料庫快速存取</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="background:rgba(255,255,255,0.08);padding:7px 10px;border-radius:6px;font-size:12px;display:flex;justify-content:space-between;">
+            <span>阿耀組 (1 表)</span>
+            <span>→</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.08);padding:7px 10px;border-radius:6px;font-size:12px;display:flex;justify-content:space-between;">
+            <span>北科驊德-十七成全... (9 表)</span>
+            <span>→</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.08);padding:7px 10px;border-radius:6px;font-size:12px;display:flex;justify-content:space-between;">
+            <span>結緣名單 (1 表)</span>
+            <span>→</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+
+    function switchMode(mode) {
+      document.querySelectorAll('.proto-tab-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = document.getElementById('btn-tab-' + mode);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      const stage = document.getElementById('main-stage');
+      const glassPanel = document.getElementById('glass-panel');
+      const heroFocus = document.getElementById('hero-focus-block');
+      const bentoDeck = document.getElementById('bento-deck-block');
+      const mobileSim = document.getElementById('mobile-simulator');
+      const heroHeading = document.getElementById('hero-heading-block');
+
+      // 更新 stage 樣式類別
+      stage.classList.remove('mode-hero', 'mode-bento', 'mode-mobile');
+      stage.classList.add('mode-' + mode);
+
+      mobileSim.style.display = 'none';
+
+      if (mode === 'hero') {
+        glassPanel.style.width = '46%';
+        heroFocus.style.display = 'flex';
+        bentoDeck.style.display = 'none';
+        if (heroHeading) {
+          heroHeading.style.display = 'flex';
+          heroHeading.style.visibility = 'visible';
+          heroHeading.style.opacity = '1';
+          heroHeading.style.transform = 'translateY(0)';
+        }
+      } else if (mode === 'bento') {
+        glassPanel.style.width = '72%';
+        heroFocus.style.display = 'none';
+        bentoDeck.style.display = 'block';
+        if (heroHeading) {
+          heroHeading.style.opacity = '0';
+          heroHeading.style.visibility = 'hidden';
+          heroHeading.style.transform = 'translateY(-24px)';
+          setTimeout(() => {
+            if (!stage.classList.contains('mode-hero')) heroHeading.style.display = 'none';
+          }, 350);
+        }
+      } else if (mode === 'mobile') {
+        mobileSim.style.display = 'flex';
+        if (heroHeading) {
+          heroHeading.style.opacity = '0';
+          heroHeading.style.visibility = 'hidden';
+          heroHeading.style.transform = 'translateY(-24px)';
+          setTimeout(() => {
+            if (!stage.classList.contains('mode-hero')) heroHeading.style.display = 'none';
+          }, 350);
+        }
+      }
+
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

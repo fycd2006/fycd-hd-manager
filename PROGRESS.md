@@ -3,8 +3,8 @@
 ## 目前進度
 - PR #1–#38 全部已合併至 `main`。
 - 側邊欄完成仿 Claude 網頁版升級：收合 0px，支援懸停浮出、Ctrl/⌘+B 與深色模式。
-- Airtable 匯入引擎完整修復：支援 invite 連結引導；解開 Lookup 物件；同表重名欄位去重；雙向關聯兩階段回填真實 rowId；PAT 分頁與 ID 映射；失敗 rollback。單元測試與 verify 全過。
-- 本地 `npm run verify` 全部通過（typecheck、lint、jest 40 套件 276 測試、build:check）。
+- Airtable 匯入引擎完整修復；本地 `npm run verify` 全部通過。
+- 首頁總覽現代化改版（Forest Land Glassmorphism UI）實裝完成：雙行階梯超大標題、全幅相片底圖與穿透遮罩、46% 聚焦與 72% Bento 全展雙模式、非第一無視覺自動隱藏主標題，單元測試與 build:check 全數通過。
 
 ## 已做的決定
 - 全站設計 Token 唯一真相來源為 `src/styles/tokens.css`；深色模式一律使用 `[data-theme='dark']` / `.theme-dark`，禁止使用失效的 Tailwind `dark:*-slate-*` / `.dark` 選擇器。

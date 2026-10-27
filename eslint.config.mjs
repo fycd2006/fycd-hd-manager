@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     ".baserow_src/**",
     // App-managed git worktrees nested in the checkout (each verifies itself).
     ".claude/worktrees/**",
+    "scratch/**",
+    "scripts/scratch/**",
   ]),
 ]);
 

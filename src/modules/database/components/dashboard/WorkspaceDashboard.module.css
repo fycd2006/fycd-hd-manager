@@ -1,53 +1,71 @@
-/* 工作區總覽：配色只用本檔的 --dash-* 變數；暗色由外層 .theme-dark 覆寫 */
-/* .tokens 只放變數，跨表總表外層也用它，不把總覽頁的文字色、字型套進 MasterGridView */
-.tokens {
-  --dash-bg: #faf8f3;
-  --dash-surface: #ffffff;
-  --dash-surface-muted: #f5f0e6;
-  --dash-border: #e7e1d3;
-  --dash-border-strong: #d3ccba;
-  --dash-text: #1a1d16;
-  --dash-text-secondary: #52554b;
-  --dash-text-muted: #6b6e62;
-  --dash-primary: #39452b;
-  --dash-primary-hover: #2c3621;
-  --dash-primary-fg: #39452b;
-  --dash-primary-soft: #eef0e8;
-  --dash-accent: #f58220;
-  --dash-accent-fg: #b8500a;
-  --dash-accent-soft: #fff1e5;
-  --dash-focus: #f58220;
-}
+/* 工作區總覽：Forest Land Glassmorphism UI 現代毛玻璃擬真風格 */
+/* 配色全走本檔 CSS 變數，絕不在元件內寫死 inline 顏色 */
 
-.root {
-  composes: tokens;
-  flex: 1;
-  height: 100%;
-  overflow-y: auto;
-  box-sizing: border-box;
-  background: var(--dash-bg);
-  color: var(--dash-text);
-  font-family: Geist, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+.tokens {
+  --dash-bg-photo: url('https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=85&w=2400&auto=format&fit=crop');
+  --color-forest-deep: #1b3b22;
+  --color-morning-gold: #9bb828;
+  --color-pure-white: #ffffff;
+  --glass-panel-bg: rgba(22, 44, 28, 0.78);
+  --glass-panel-border: rgba(255, 255, 255, 0.12);
+  --card-glass-bg: rgba(255, 255, 255, 0.08);
+  --card-glass-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  --card-hover-bg: rgba(255, 255, 255, 0.14);
+  --card-hover-shadow: 0 14px 40px -8px rgba(0, 0, 0, 0.4);
+  --search-bg: rgba(35, 45, 48, 0.55);
+  --border-text-color: rgba(255, 255, 255, 0.35);
+  --secondary-btn-text: #2b3530;
+
+  /* 傳統 tokens 保留，兼容 MasterGridView 與一般 UI 元件 */
+  --dash-bg: #132717;
+  --dash-surface: rgba(255, 255, 255, 0.08);
+  --dash-surface-muted: rgba(255, 255, 255, 0.05);
+  --dash-border: rgba(255, 255, 255, 0.12);
+  --dash-border-strong: rgba(255, 255, 255, 0.24);
+  --dash-text: #ffffff;
+  --dash-text-secondary: rgba(255, 255, 255, 0.75);
+  --dash-text-muted: rgba(255, 255, 255, 0.55);
+  --dash-primary: #9bb828;
+  --dash-primary-hover: #b1d030;
+  --dash-primary-fg: #2b3530;
+  --dash-primary-soft: rgba(155, 184, 40, 0.15);
+  --dash-accent: #f58220;
+  --dash-accent-fg: #f58220;
+  --dash-accent-soft: rgba(245, 130, 32, 0.14);
+  --dash-focus: #9bb828;
+
+  --font-display: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 :global([data-theme='dark']) .tokens,
 :global(.theme-dark) .tokens {
-  --dash-bg: #12131a;
-  --dash-surface: #181922;
-  --dash-surface-muted: #1f202e;
-  --dash-border: #242637;
-  --dash-border-strong: #34374d;
-  --dash-text: #f1f5f9;
-  --dash-text-secondary: #b6bcc8;
-  --dash-text-muted: #8b93a3;
-  --dash-primary: #4a5a37;
-  --dash-primary-hover: #56683f;
-  --dash-primary-fg: #a3b38a;
-  --dash-primary-soft: rgba(163, 179, 138, 0.12);
-  --dash-accent: #f58220;
-  --dash-accent-fg: #f58220;
-  --dash-accent-soft: rgba(245, 130, 32, 0.14);
-  --dash-focus: #f58220;
+  --glass-panel-bg: rgba(16, 32, 21, 0.84);
+  --glass-panel-border: rgba(255, 255, 255, 0.09);
+  --card-glass-bg: rgba(255, 255, 255, 0.06);
+  --card-hover-bg: rgba(255, 255, 255, 0.11);
+}
+
+/* ==========================================================================
+   主畫布根節點
+   ========================================================================== */
+.root {
+  composes: tokens;
+  position: relative;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  background-color: var(--color-forest-deep);
+  background-image: var(--dash-bg-photo);
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  display: flex;
+  color: var(--color-pure-white);
+  font-family: var(--font-sans);
 }
 
 .root button {
@@ -61,544 +79,787 @@
   outline-offset: 2px;
 }
 
-.inner {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 40px 32px 80px;
+/* ==========================================================================
+   左側大面積高霧度毛玻璃面板 (Asymmetric Glass Split)
+   ========================================================================== */
+.glassPanel {
+  position: relative;
+  z-index: 10;
+  width: 46%;
+  height: 100%;
+  background: var(--glass-panel-bg);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  border-right: 1px solid var(--glass-panel-border);
+  border-top-right-radius: 36px;
+  border-bottom-right-radius: 36px;
+  box-shadow: 24px 0 64px -12px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
-  gap: 32px;
-}
-
-/* ---------- 表頭 ---------- */
-.header {
-  display: flex;
-  align-items: flex-end;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--dash-border);
+  padding: 34px 40px 34px 44px;
+  transition: width 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
-.identity {
+.glassPanelExpanded {
+  width: 72%;
+}
+
+/* 頂部極簡標籤列 */
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 18px;
+  flex-shrink: 0;
+}
+
+.identityRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspacePill {
+  background: rgba(155, 184, 40, 0.15);
+  color: var(--color-morning-gold);
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.topControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.glassBtnCapsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.glassBtnCapsule:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   模式 1: 聚焦首頁模式 (大氣置中排版)
+   ========================================================================== */
+.heroContentSection {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-width: 0;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  margin: auto 0;
+  width: 100%;
 }
 
 .title {
   margin: 0;
-  font-size: 24px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 850;
   letter-spacing: -0.03em;
-  color: var(--dash-text);
+  color: #ffffff;
 }
 
 .welcome {
   margin: 0;
   font-size: 13px;
-  line-height: 1.5;
-  color: var(--dash-text-muted);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.btn {
+  color: rgba(255, 255, 255, 0.72);
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 6px;
-  height: 38px;
-  padding: 0 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-family: inherit;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease,
-    transform 0.15s ease;
 }
 
-.btnSecondary {
-  composes: btn;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-border);
-  color: var(--dash-text-secondary);
+.roleSubPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 3px 10px;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
 }
 
-.btnSecondary:hover {
-  background: var(--dash-surface-muted);
-  border-color: var(--dash-border-strong);
-  color: var(--dash-text);
-}
-
-.btnOutline {
-  composes: btn;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-primary-fg);
-  color: var(--dash-primary-fg);
-}
-
-.btnOutline:hover {
-  background: var(--dash-primary-soft);
-}
-
-.btnPrimary {
-  composes: btn;
-  background: var(--dash-primary);
-  border: 1px solid var(--dash-primary);
-  color: #ffffff;
-}
-
-.btnPrimary:hover {
-  background: var(--dash-primary-hover);
-  border-color: var(--dash-primary-hover);
-}
-
-.btnPrimary:active,
-.btnSecondary:active,
-.btnOutline:active {
-  transform: scale(0.98);
-}
-
-/* ---------- 指標卡 ---------- */
-.metrics {
+/* 雙核心指標膠囊 */
+.metricsDuo {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 440px;
 }
 
 .metricCard {
+  background: var(--card-glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 18px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px;
-  border-radius: 12px;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-border);
+  box-shadow: var(--card-glass-specular), 0 8px 24px -6px rgba(0, 0, 0, 0.3);
+  transition: all 0.25s ease;
+  text-align: left;
+}
+
+.metricCard:hover {
+  background: var(--card-hover-bg);
+  box-shadow: var(--card-glass-specular), var(--card-hover-shadow);
+  transform: translateY(-2px);
 }
 
 .metricLabel {
   font-size: 12px;
   font-weight: 600;
-  color: var(--dash-text-muted);
+  color: rgba(255, 255, 255, 0.65);
+  margin-bottom: 4px;
 }
 
 .metricValue {
   display: flex;
   align-items: baseline;
-  margin-top: 4px;
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--dash-text);
+  gap: 4px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  color: #ffffff;
+  line-height: 1;
 }
 
 .metricUnit {
-  margin-left: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dash-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
 }
 
-.metricIcon {
+.metricIconCircle {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(155, 184, 40, 0.16);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: var(--dash-primary-soft);
-  color: var(--dash-primary-fg);
+  color: var(--color-morning-gold);
+  flex-shrink: 0;
 }
 
-.metricIconAccent {
-  composes: metricIcon;
-  background: var(--dash-accent-soft);
-  color: var(--dash-accent-fg);
+.metricIconCircleOrange {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(245, 130, 32, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dash-accent);
+  flex-shrink: 0;
 }
 
-/* ---------- 資料庫清單 ---------- */
-.section {
+/* 焦點資料庫快覽卡片 */
+.featuredHubsContainer {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
+  width: 100%;
+  max-width: 440px;
+  text-align: left;
 }
 
-.sectionBar {
+.featuredDbCard {
+  background: var(--card-glass-bg);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--card-glass-specular), 0 6px 20px -4px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.featuredDbCard:hover {
+  background: var(--card-hover-bg);
+  box-shadow: var(--card-glass-specular), var(--card-hover-shadow);
+}
+
+.fDbTop {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
 }
 
-.sectionTitle {
+.fDbTitle {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: #ffffff;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0;
-  font-size: 18px;
+  gap: 6px;
+}
+
+.fDbBadge {
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--dash-text);
+  color: var(--color-morning-gold);
+  background: rgba(155, 184, 40, 0.12);
+  padding: 2px 8px;
+  border-radius: 9999px;
 }
 
-.sectionTitle svg {
-  color: var(--dash-primary-fg);
+.fDbTablesChips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.searchWrap {
-  position: relative;
-  width: 280px;
-  max-width: 100%;
-}
-
-.searchIcon {
-  position: absolute;
-  top: 50%;
-  left: 12px;
-  transform: translateY(-50%);
-  color: var(--dash-text-muted);
-  pointer-events: none;
-}
-
-.search {
-  width: 100%;
-  height: 36px;
-  box-sizing: border-box;
-  padding: 0 12px 0 36px;
+.tableChipLink {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 5px 11px;
   border-radius: 8px;
-  border: 1px solid var(--dash-border);
-  background: var(--dash-surface);
-  color: var(--dash-text);
-  font-size: 13px;
-  outline: none;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.search::placeholder {
-  color: var(--dash-text-muted);
+.tableChipLink:hover {
+  background: var(--color-morning-gold);
+  color: var(--secondary-btn-text);
+  font-weight: 600;
+  transform: translateY(-1px);
 }
 
-.search:focus {
-  border-color: var(--dash-primary-fg);
-  box-shadow: 0 0 0 3px var(--dash-primary-soft);
+/* 底部操作按鈕列 (置中) */
+.bottomCtaRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr));
-  gap: 20px;
+.btnCreateDb {
+  background: var(--color-morning-gold);
+  color: var(--secondary-btn-text);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 11px 20px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  box-shadow: 0 4px 18px rgba(155, 184, 40, 0.35);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.dbCard {
+.btnCreateDb:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(155, 184, 40, 0.5);
+  background: #a9c92c;
+}
+
+.btnViewAll {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnViewAll:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   模式 2: 72% 全展開 Bento Grid 檢視
+   ========================================================================== */
+.fullDbDeckView {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-width: 0;
-  padding: 20px;
-  border-radius: 12px;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-border);
-  transition: border-color 0.15s ease;
+  width: 100%;
 }
 
-.dbCard:hover {
-  border-color: var(--dash-border-strong);
-}
-
-.dbHeader {
+.deckHeaderRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.dbIdentity {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.dbIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: var(--dash-primary-soft);
-  color: var(--dash-primary-fg);
-}
-
-.dbText {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.dbNameRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.dbName {
-  margin: 0;
-  overflow: hidden;
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.2;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--dash-text);
-  cursor: pointer;
-}
-
-.dbMeta {
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  color: var(--dash-text-muted);
-}
-
-.addTableBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--dash-surface-muted);
-  border: 1px solid var(--dash-border);
-  color: var(--dash-text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.addTableBtn:hover {
-  border-color: var(--dash-border-strong);
-  color: var(--dash-primary-fg);
-}
-
-.tableList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 12px;
-  border-top: 1px solid var(--dash-border);
-}
-
-.tableRow {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 6px;
-  background: var(--dash-surface-muted);
-  transition: background-color 0.12s ease;
-}
-
-.tableRow:hover {
-  background: var(--dash-primary-soft);
-}
-
-.tableOpen {
+.deckTitle {
+  font-size: 18px;
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
-  min-width: 0;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--dash-text);
-  font-size: 13px;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
+  color: #ffffff;
 }
 
-.tableOpen > svg:first-child {
-  flex-shrink: 0;
-  color: var(--dash-primary-fg);
+.bentoDbGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
 }
 
-.tableName {
-  flex: 1;
+.bentoDbCard {
+  background: var(--card-glass-bg);
+  border-radius: 18px;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--card-glass-specular), 0 8px 24px -6px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
 }
 
-.chevron {
-  flex-shrink: 0;
-  color: var(--dash-text-muted);
+.bentoDbCard:hover {
+  background: var(--card-hover-bg);
+  box-shadow: var(--card-glass-specular), var(--card-hover-shadow);
+  transform: translateY(-2px);
+}
+
+.bCardHead {
+  padding: 12px 18px;
+  background: rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bCardId {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bCardIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(155, 184, 40, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-morning-gold);
+}
+
+.bCardName {
+  font-size: 13.5px;
+  font-weight: 750;
+  color: #ffffff;
+}
+
+.bCardSub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.bTableRows {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bTableRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.88);
+  transition: all 0.15s ease;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+.bTableRow:hover {
+  background: var(--color-morning-gold);
+  color: var(--secondary-btn-text);
+  font-weight: 600;
+  transform: translateX(3px);
 }
 
 .iconBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  padding: 4px;
-  margin-right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: none;
-  border-radius: 4px;
-  background: none;
-  color: var(--dash-text-muted);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .iconBtn:hover {
-  color: var(--dash-primary-fg);
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
 }
 
 .showMore {
-  align-self: flex-start;
-  padding: 4px 12px;
   border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--dash-accent-fg);
-  font-size: 12px;
+  background: transparent;
+  color: var(--color-morning-gold);
+  font-size: 11.5px;
   font-weight: 600;
+  padding: 4px 8px;
   cursor: pointer;
+  align-self: flex-start;
+  transition: opacity 0.15s;
 }
 
 .showMore:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  opacity: 0.8;
 }
 
-.emptyTable {
-  padding: 8px 0;
+/* ==========================================================================
+   跨界雙行主標題 ("FYCD" / "HD MANAGER") - 如圖三超大錯落階梯排版
+   ========================================================================== */
+.heroHeadingContainer {
+  position: absolute;
+  top: 25%;
+  left: calc(46% - 120px);
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s;
+}
+
+.heroHeadingHidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(-24px) !important;
+}
+
+.headingRow1 {
+  display: flex;
+  align-items: baseline;
+}
+
+.headingRow2 {
+  display: flex;
+  align-items: baseline;
+  margin-left: clamp(60px, 8vw, 120px);
+}
+
+.titleForest {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(62px, 7.8vw, 112px);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  background-image: var(--dash-bg-photo);
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.45));
+  position: relative;
+  flex-shrink: 0;
+}
+
+.titleLand {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(48px, 5.8vw, 82px);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: var(--color-pure-white);
+  white-space: nowrap;
+  text-shadow: 0 10px 40px rgba(10, 24, 15, 0.75);
+  pointer-events: auto;
+  transition: transform 0.3s ease;
+}
+
+.titleLand:hover {
+  transform: translateX(8px);
+}
+
+/* ==========================================================================
+   右側全幅開放區域：搜尋膠囊與垂直邊界軌道字 ("OVERVIEW")
+   ========================================================================== */
+.rightStageArea {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 54%;
+  height: 100%;
+  z-index: 15;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 32px 40px;
+  box-sizing: border-box;
+}
+
+.pillSearchContainer {
+  align-self: flex-end;
+  pointer-events: auto;
+  margin-top: 6px;
+  margin-right: 48px;
+  width: 320px;
+  background: var(--search-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 9999px;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.15), 0 8px 28px rgba(0, 0, 0, 0.35);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pillSearchContainer:focus-within,
+.pillSearchContainer:hover {
+  width: 360px;
+  background: rgba(26, 40, 31, 0.85);
+  box-shadow: inset 0 1px 1px 0 rgba(155, 184, 40, 0.35), 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+.pillSearchInput {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  width: 100%;
+  outline: none;
+}
+
+.pillSearchInput::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.verticalRailText {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(34px, 4vw, 56px);
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  color: var(--border-text-color);
+  pointer-events: none;
+  line-height: 1;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.destFloatingCard {
+  align-self: flex-start;
+  margin-left: 20px;
+  margin-bottom: 20px;
+  pointer-events: auto;
+  background: rgba(22, 44, 28, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 20px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.2), 0 12px 36px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  border: none;
+  color: #ffffff;
+  text-align: left;
+  transition: transform 0.2s ease, background 0.2s;
+}
+
+.destFloatingCard:hover {
+  transform: translateY(-3px);
+  background: rgba(22, 44, 28, 0.95);
+}
+
+.destCardIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(155, 184, 40, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-morning-gold);
+  flex-shrink: 0;
+}
+
+.destTitle {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.destMeta {
   font-size: 12px;
-  text-align: center;
-  color: var(--dash-text-muted);
+  color: rgba(255, 255, 255, 0.7);
 }
 
-/* ---------- 空狀態 ---------- */
+/* ==========================================================================
+   空狀態與範本按鈕
+   ========================================================================== */
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 50px 24px;
-  border-radius: 12px;
-  background: var(--dash-surface);
-  border: 1px dashed var(--dash-border-strong);
   text-align: center;
+  padding: 40px 20px;
+  gap: 12px;
 }
 
 .emptyIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: var(--dash-primary-soft);
-  color: var(--dash-primary-fg);
+  color: var(--color-morning-gold);
 }
 
 .emptyTitle {
   font-size: 15px;
   font-weight: 700;
-  color: var(--dash-text);
+  color: #ffffff;
 }
 
 .emptySub {
-  max-width: 380px;
-  font-size: 13px;
-  color: var(--dash-text-muted);
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .emptyActions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   margin-top: 8px;
 }
 
 .templates {
   display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
 }
 
 .templateBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
   padding: 6px 12px;
   border-radius: 8px;
-  background: var(--dash-surface);
-  border: 1px solid var(--dash-border);
-  color: var(--dash-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
+  border: none;
   cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
-
-.templateBtn svg {
-  color: var(--dash-accent-fg);
+  transition: all 0.15s;
 }
 
 .templateBtn:hover {
-  border-color: var(--dash-border-strong);
-  color: var(--dash-text);
+  background: var(--color-morning-gold);
+  color: var(--secondary-btn-text);
+  font-weight: 600;
 }
 
-/* ---------- 跨表總表 ---------- */
+.emptyTable {
+  padding: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  text-align: center;
+}
+
+/* ==========================================================================
+   跨表總表容器
+   ========================================================================== */
 .masterRoot {
   composes: tokens;
+  flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
+  background: var(--dash-bg);
+  color: var(--dash-text);
 }
 
 .masterBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 16px;
-  background: var(--dash-surface-muted);
-  border-bottom: 1px solid var(--dash-border);
+  gap: 16px;
+  padding: 12px 24px;
+  background: rgba(12, 24, 16, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   transition: padding-left var(--transition-sidebar);
 }
 
@@ -609,47 +870,32 @@
 }
 
 .masterBack {
-  composes: btnSecondary;
-  height: 32px;
-  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.masterBack:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .masterTitle {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--dash-text-secondary);
+  font-size: 14px;
+  font-weight: 750;
+  color: #ffffff;
 }
 
 .masterBody {
   flex: 1;
   min-height: 0;
-}
-
-@media (max-width: 768px) {
-  .inner {
-    padding: 20px 16px max(100px, calc(env(safe-area-inset-bottom) + 80px));
-    gap: 20px;
-  }
-
-  .actions {
-    width: 100%;
-  }
-
-  .actions > * {
-    flex: 1 1 calc(50% - 4px);
-  }
-
-  .searchWrap {
-    width: 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .root *,
-  .root {
-    transition: none !important;
-  }
+  overflow: hidden;
 }

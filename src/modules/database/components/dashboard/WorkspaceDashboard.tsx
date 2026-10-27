@@ -5,7 +5,7 @@ import type { User, Workspace, Database } from '@/modules/database/types'
 import {
   Database as DatabaseIcon, Table as TableIcon, Users, Plus,
   FolderPlus, Layers, ChevronRight, Search, ArrowLeft, Pencil,
-  FolderKanban, Briefcase, Wallet, type LucideIcon
+  FolderKanban, Briefcase, Wallet, ArrowRight, type LucideIcon
 } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -47,8 +47,7 @@ interface WorkspaceDashboardProps {
 }
 
 /**
- * 登入後首頁（工作區總覽）：FYCD 暖米白底、深綠主色、橘色強調。
- * 配色只用 WorkspaceDashboard.module.css 的 --dash-* 變數，暗色由外層 .theme-dark 覆寫。
+ * 登入後首頁（工作區總覽）：Forest Land Glassmorphism 現代毛玻璃擬真風格
  */
 export default function WorkspaceDashboard({
   currentUser,
@@ -69,6 +68,7 @@ export default function WorkspaceDashboard({
   const getPrefetchHandlers = useHoverPrefetch(onTablePrefetch)
   const [searchQuery, setSearchQuery] = useState('')
   const [showMasterView, setShowMasterView] = useState(false)
+  const [isDeckExpanded, setIsDeckExpanded] = useState(false)
   const [expandedDbIds, setExpandedDbIds] = useState<Set<number>>(() => new Set())
   const isSearching = searchQuery.trim().length > 0
 
@@ -82,7 +82,7 @@ export default function WorkspaceDashboard({
   }
 
   // Calculate statistics
-  const databases: Database[] = activeWorkspace?.databases || []
+  const databases: Database[] = useMemo(() => activeWorkspace?.databases || [], [activeWorkspace?.databases])
   const totalTablesCount = useMemo(() => {
     return databases.reduce((acc, db) => acc + (db.tables?.length || 0), 0)
   }, [databases])
@@ -122,6 +122,9 @@ export default function WorkspaceDashboard({
     onShowRenameModal()
   }
 
+  // 展開模式切換（搜尋中有輸入時自動視同展開）
+  const showFullDeck = isDeckExpanded || isSearching
+
   if (showMasterView && activeWorkspace) {
     return (
       <div className={styles.masterRoot}>
@@ -147,46 +150,61 @@ export default function WorkspaceDashboard({
 
   return (
     <div className={styles.root}>
-      <div className={styles.inner}>
-
-        {/* 表頭：品牌字標、工作區標題、歡迎列 */}
-        <header className={styles.header}>
-          <div className={styles.identity}>
+      {/* 左側大面積高霧度毛玻璃面板 (46% 聚焦 / 72% 全展開) */}
+      <section className={`${styles.glassPanel} ${showFullDeck ? styles.glassPanelExpanded : ''}`}>
+        
+        {/* 表頭區：品牌字標、工作區名稱、歡迎文字與動作列 */}
+        <div className={styles.topBar}>
+          <div className={styles.identityRow}>
             <FycdLogo variant="full" height={18} tone={theme === 'dark' ? 'onDark' : 'brand'} />
             <h1 className={styles.title}>
               {activeWorkspace?.name || t('dashboard.cloudWorkspace')} {t('dashboard.overview')}
             </h1>
-            <p className={styles.welcome}>
-              {t('dashboard.welcomeLine', { username: currentUser.username, role: currentUser.role === 'admin' ? t('dashboard.adminRole') : t('dashboard.memberRole') })}
-            </p>
           </div>
 
-          <div className={styles.actions}>
+          <div className={styles.topControls}>
             <LangPicker align="right" variant="dashboard" />
             {onShowMembersModal && (
-              <button type="button" className={styles.btnSecondary} onClick={onShowMembersModal}>
-                <Users size={15} aria-hidden="true" /> {t('dashboard.membersCount', { count: memberCount })}
+              <button type="button" className={styles.glassBtnCapsule} onClick={onShowMembersModal}>
+                <Users size={13} aria-hidden="true" />
+                <span>{t('dashboard.membersCount', { count: memberCount })}</span>
               </button>
             )}
 
             {activeWorkspace && totalTablesCount > 0 && (
-              <button type="button" className={styles.btnOutline} onClick={() => setShowMasterView(true)}>
-                <Layers size={15} aria-hidden="true" />
+              <button
+                type="button"
+                className={styles.glassBtnCapsule}
+                onClick={() => setShowMasterView(true)}
+              >
+                <Layers size={13} aria-hidden="true" />
                 <span>{t('dashboard.masterView')}</span>
               </button>
             )}
 
             {activeWorkspace && onShowDatabaseModal && (
-              <button type="button" className={styles.btnPrimary} onClick={() => onShowDatabaseModal(activeWorkspace.id)}>
-                <Plus size={14} aria-hidden="true" />
+              <button
+                type="button"
+                className={styles.btnCreateDb}
+                onClick={() => onShowDatabaseModal(activeWorkspace.id)}
+              >
+                <Plus size={13} aria-hidden="true" />
                 <span>{t('dashboard.addDatabase')}</span>
               </button>
             )}
           </div>
-        </header>
+        </div>
 
-        {/* 指標卡 */}
-        <div className={styles.metrics}>
+        {/* 歡迎列 */}
+        <p className={styles.welcome}>
+          {t('dashboard.welcomeLine', {
+            username: currentUser.username,
+            role: currentUser.role === 'admin' ? t('dashboard.adminRole') : t('dashboard.memberRole')
+          })}
+        </p>
+
+        {/* 雙核心指標膠囊 */}
+        <div className={styles.metricsDuo}>
           <div className={styles.metricCard}>
             <div>
               <div className={styles.metricLabel}>{t('dashboard.databaseCountLabel')}</div>
@@ -195,8 +213,8 @@ export default function WorkspaceDashboard({
                 <span className={styles.metricUnit}>{t('dashboard.databaseUnit')}</span>
               </div>
             </div>
-            <div className={styles.metricIcon}>
-              <DatabaseIcon size={20} aria-hidden="true" />
+            <div className={styles.metricIconCircle}>
+              <DatabaseIcon size={18} aria-hidden="true" />
             </div>
           </div>
 
@@ -208,140 +226,166 @@ export default function WorkspaceDashboard({
                 <span className={styles.metricUnit}>{t('dashboard.tableUnit')}</span>
               </div>
             </div>
-            <div className={styles.metricIconAccent}>
-              <TableIcon size={20} aria-hidden="true" />
+            <div className={styles.metricIconCircleOrange}>
+              <TableIcon size={18} aria-hidden="true" />
             </div>
           </div>
         </div>
 
-        {/* 資料庫與資料表 */}
-        <section className={styles.section}>
-          <div className={styles.sectionBar}>
-            <h2 className={styles.sectionTitle}>
-              <Layers size={18} aria-hidden="true" /> {t('dashboard.databaseList', { count: filteredDatabases.length })}
-            </h2>
-
-            <div className={styles.searchWrap}>
-              <Search size={15} className={styles.searchIcon} aria-hidden="true" />
-              <input
-                type="text"
-                className={styles.search}
-                aria-label={t('dashboard.searchPlaceholder')}
-                placeholder={t('dashboard.searchPlaceholder')}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+        {/* 內容區：空工作區 或 資料庫清單卡片 */}
+        {filteredDatabases.length === 0 ? (
+          <div className={styles.empty}>
+            <div className={styles.emptyIcon}>
+              <FolderPlus size={24} aria-hidden="true" />
             </div>
+            <div className={styles.emptyTitle}>
+              {searchQuery ? t('dashboard.noMatchTitle', { query: searchQuery }) : t('dashboard.emptyTitle')}
+            </div>
+            <div className={styles.emptySub}>
+              {searchQuery ? t('dashboard.noMatchSub') : t('dashboard.emptySub')}
+            </div>
+            {activeWorkspace && onShowDatabaseModal && !searchQuery && (
+              <div className={styles.emptyActions}>
+                <button
+                  type="button"
+                  className={styles.btnCreateDb}
+                  onClick={() => onShowDatabaseModal(activeWorkspace.id)}
+                >
+                  {t('dashboard.createDatabase')}
+                </button>
+
+                {onCreateFromTemplate && (
+                  <div className={styles.templates}>
+                    {TEMPLATES.map(({ key, labelKey, icon: Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={styles.templateBtn}
+                        onClick={() => onCreateFromTemplate(key)}
+                      >
+                        <Icon size={14} aria-hidden="true" />
+                        <span>{t(labelKey)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-
-          {filteredDatabases.length === 0 ? (
-            <div className={styles.empty}>
-              <div className={styles.emptyIcon}>
-                <FolderPlus size={24} aria-hidden="true" />
+        ) : (
+          <div className={styles.fullDbDeckView}>
+            <div className={styles.deckHeaderRow}>
+              <div className={styles.deckTitle}>
+                <Layers size={18} aria-hidden="true" />
+                <span>{t('dashboard.databaseList', { count: filteredDatabases.length })}</span>
               </div>
-              <div className={styles.emptyTitle}>
-                {searchQuery ? t('dashboard.noMatchTitle', { query: searchQuery }) : t('dashboard.emptyTitle')}
-              </div>
-              <div className={styles.emptySub}>
-                {searchQuery ? t('dashboard.noMatchSub') : t('dashboard.emptySub')}
-              </div>
-              {activeWorkspace && onShowDatabaseModal && !searchQuery && (
-                <div className={styles.emptyActions}>
-                  <button type="button" className={styles.btnPrimary} onClick={() => onShowDatabaseModal(activeWorkspace.id)}>
-                    {t('dashboard.createDatabase')}
-                  </button>
-
-                  {onCreateFromTemplate && (
-                    <div className={styles.templates}>
-                      {TEMPLATES.map(({ key, labelKey, icon: Icon }) => (
-                        <button key={key} type="button" className={styles.templateBtn} onClick={() => onCreateFromTemplate(key)}>
-                          <Icon size={14} aria-hidden="true" />
-                          <span>{t(labelKey)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              <button
+                type="button"
+                className={styles.glassBtnCapsule}
+                onClick={() => {
+                  setIsDeckExpanded(prev => !prev)
+                  if (isSearching) setSearchQuery('')
+                }}
+              >
+                {showFullDeck ? (
+                  <>
+                    <ArrowLeft size={12} aria-hidden="true" />
+                    <span>{t('dashboard.backToOverview')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Layers size={12} aria-hidden="true" />
+                    <span>展開全域檢視 (72%)</span>
+                  </>
+                )}
+              </button>
             </div>
-          ) : (
-            <div className={styles.grid}>
+
+            <div className={styles.bentoDbGrid}>
               {filteredDatabases.map(db => {
                 const tables = db.tables || []
                 const expanded = isSearching || expandedDbIds.has(db.id)
                 const visibleTables = expanded ? tables : tables.slice(0, TABLE_PREVIEW_LIMIT)
                 const canToggle = !isSearching && tables.length > TABLE_PREVIEW_LIMIT
+
                 return (
-                  <div key={db.id} className={styles.dbCard}>
-                    <div className={styles.dbHeader}>
-                      <div className={styles.dbIdentity}>
-                        <div className={styles.dbIcon}>
-                          <DatabaseIcon size={18} aria-hidden="true" />
+                  <div key={db.id} className={styles.bentoDbCard}>
+                    <div className={styles.bCardHead}>
+                      <div className={styles.bCardId}>
+                        <div className={styles.bCardIcon}>
+                          <DatabaseIcon size={14} aria-hidden="true" />
                         </div>
-                        <div className={styles.dbText}>
-                          <div className={styles.dbNameRow}>
-                            <h3
-                              className={styles.dbName}
-                              title={`${db.name} (${t('dashboard.doubleClickRename')})`}
-                              onDoubleClick={(e) => {
-                                e.stopPropagation()
-                                startRename('database', db.id, db.name)
-                              }}
-                            >
-                              {db.name}
-                            </h3>
-                            {onShowRenameModal && (
-                              <button
-                                type="button"
-                                className={styles.iconBtn}
-                                title={t('nav.renameDatabase')}
-                                aria-label={`${t('nav.renameDatabase')} - ${db.name}`}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  startRename('database', db.id, db.name)
-                                }}
-                              >
-                                <Pencil size={13} aria-hidden="true" />
-                              </button>
-                            )}
+                        <div>
+                          <div
+                            className={styles.bCardName}
+                            title={`${db.name} (${t('dashboard.doubleClickRename')})`}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation()
+                              startRename('database', db.id, db.name)
+                            }}
+                          >
+                            {db.name}
                           </div>
-                          <span className={styles.dbMeta}>
+                          <div className={styles.bCardSub}>
                             {t('dashboard.tableCount', { count: tables.length })}
-                          </span>
+                          </div>
                         </div>
+                        {onShowRenameModal && (
+                          <button
+                            type="button"
+                            className={styles.iconBtn}
+                            aria-label={`${t('nav.renameDatabase')} - ${db.name}`}
+                            title={t('nav.renameDatabase')}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              startRename('database', db.id, db.name)
+                            }}
+                          >
+                            <Pencil size={11} aria-hidden="true" />
+                          </button>
+                        )}
                       </div>
 
                       {onShowCreateTableModal && (
-                        <button type="button" className={styles.addTableBtn} onClick={() => onShowCreateTableModal(db.id)}>
-                          <Plus size={14} aria-hidden="true" />
+                        <button
+                          type="button"
+                          className={styles.glassBtnCapsule}
+                          onClick={() => onShowCreateTableModal(db.id)}
+                        >
+                          <Plus size={11} aria-hidden="true" />
                           <span>{t('dashboard.addTable')}</span>
                         </button>
                       )}
                     </div>
 
-                    <div className={styles.tableList}>
+                    <div className={styles.bTableRows}>
                       {visibleTables.length > 0 ? (
-                        visibleTables.map(table => (
-                          <div key={table.id} className={styles.tableRow}>
+                        visibleTables.map(tbl => (
+                          <div key={tbl.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <button
                               type="button"
-                              className={styles.tableOpen}
-                              onClick={() => onSelectTable(table.id)}
-                              {...getPrefetchHandlers(table.id)}
+                              className={styles.bTableRow}
+                              onClick={() => onSelectTable(tbl.id)}
+                              {...getPrefetchHandlers(tbl.id)}
                             >
-                              <TableIcon size={14} aria-hidden="true" />
-                              <span className={styles.tableName}>{table.name}</span>
-                              <ChevronRight size={14} className={styles.chevron} aria-hidden="true" />
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <TableIcon size={12} aria-hidden="true" />
+                                <span>{tbl.name}</span>
+                              </span>
+                              <ChevronRight size={12} aria-hidden="true" />
                             </button>
                             {onShowRenameModal && (
                               <button
                                 type="button"
                                 className={styles.iconBtn}
-                                aria-label={`${t('nav.renameTable')} - ${table.name}`}
+                                aria-label={`${t('nav.renameTable')} - ${tbl.name}`}
                                 title={t('nav.renameTable')}
-                                onClick={() => startRename('table', table.id, table.name)}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  startRename('table', tbl.id, tbl.name)
+                                }}
                               >
-                                <Pencil size={13} aria-hidden="true" />
+                                <Pencil size={11} aria-hidden="true" />
                               </button>
                             )}
                           </div>
@@ -351,6 +395,7 @@ export default function WorkspaceDashboard({
                           {t('dashboard.emptyTable')}
                         </div>
                       )}
+
                       {canToggle && (
                         <button
                           type="button"
@@ -358,7 +403,9 @@ export default function WorkspaceDashboard({
                           aria-expanded={expandedDbIds.has(db.id)}
                           onClick={() => toggleExpanded(db.id)}
                         >
-                          {expandedDbIds.has(db.id) ? t('dashboard.showLess') : t('dashboard.showAllTables', { count: tables.length })}
+                          {expandedDbIds.has(db.id)
+                            ? t('dashboard.showLess')
+                            : t('dashboard.showAllTables', { count: tables.length })}
                         </button>
                       )}
                     </div>
@@ -366,9 +413,66 @@ export default function WorkspaceDashboard({
                 )
               })}
             </div>
-          )}
-        </section>
+          </div>
+        )}
+      </section>
 
+      {/* 右側開放全景區域：搜尋膠囊、垂直軌道字與跨表總表捷徑 */}
+      <div className={styles.rightStageArea}>
+        <div className={styles.pillSearchContainer}>
+          <Search size={14} aria-hidden="true" />
+          <input
+            type="text"
+            className={styles.pillSearchInput}
+            aria-label={t('dashboard.searchPlaceholder')}
+            placeholder={t('dashboard.searchPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <ArrowRight size={13} aria-hidden="true" />
+        </div>
+
+        <div className={styles.verticalRailText}>
+          OVERVIEW
+        </div>
+
+        {activeWorkspace && totalTablesCount > 0 && (
+          <div
+            className={styles.destFloatingCard}
+            role="link"
+            tabIndex={0}
+            onClick={() => setShowMasterView(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setShowMasterView(true)
+              }
+            }}
+          >
+            <div className={styles.destCardIcon}>
+              <Layers size={18} aria-hidden="true" />
+            </div>
+            <div>
+              <div className={styles.destTitle}>{t('dashboard.masterView')}</div>
+              <div className={styles.destMeta}>
+                {t('dashboard.masterViewTitle', { workspace: activeWorkspace.name })}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 跨界雙行超大主標題 ("FYCD" / "HD MANAGER") - 僅在第一無視覺出現 */}
+      <div
+        className={`${styles.heroHeadingContainer} ${showFullDeck ? styles.heroHeadingHidden : ''}`}
+        aria-hidden="true"
+      >
+        <div className={styles.headingRow1}>
+          <span className={styles.titleForest}>FYCD</span>
+        </div>
+        <div className={styles.headingRow2}>
+          <span className={styles.titleLand}>HD MANAGER</span>
+        </div>
       </div>
     </div>
   )
