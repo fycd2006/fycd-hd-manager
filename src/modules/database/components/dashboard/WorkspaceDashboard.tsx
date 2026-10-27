@@ -5,7 +5,7 @@ import type { User, Workspace, Database } from '@/modules/database/types'
 import {
   Database as DatabaseIcon, Table as TableIcon, Users, Plus,
   FolderPlus, Layers, ChevronRight, Search, ArrowLeft, Pencil,
-  FolderKanban, Briefcase, Wallet, ArrowRight, type LucideIcon
+  FolderKanban, Briefcase, Wallet, ArrowRight, X, type LucideIcon
 } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -282,7 +282,7 @@ export default function WorkspaceDashboard({
                 )}
                 <button
                   type="button"
-                  className={styles.glassBtnCapsule}
+                  className={`${styles.glassBtnCapsule} ${styles.deckExpandBtn}`}
                   onClick={() => {
                     setIsDeckExpanded(prev => !prev)
                     if (isSearching) setSearchQuery('')
@@ -431,7 +431,18 @@ export default function WorkspaceDashboard({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <ArrowRight size={13} aria-hidden="true" />
+          {searchQuery ? (
+            <button
+              type="button"
+              className={styles.pillSearchClear}
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+            >
+              <X size={13} aria-hidden="true" />
+            </button>
+          ) : (
+            <ArrowRight size={13} aria-hidden="true" />
+          )}
         </div>
 
         <div className={styles.verticalRailText}>
