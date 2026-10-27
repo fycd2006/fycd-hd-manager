@@ -178,10 +178,11 @@
 .title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(22px, 2.4vw, 32px);
-  font-weight: 850;
-  letter-spacing: -0.03em;
+  font-size: 16px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
   color: #ffffff;
+  white-space: nowrap;
 }
 
 .welcome {
@@ -898,4 +899,55 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+
+@media (max-width: 900px) {
+  .root {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .searchContainer {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 100% !important;
+    padding: 16px 16px 8px !important;
+    order: 1;
+    z-index: 20 !important;
+    box-sizing: border-box;
+  }
+  .searchWrap {
+    width: 100% !important;
+  }
+  .search {
+    width: 100% !important;
+  }
+  .glassPanel {
+    width: 100% !important;
+    border-radius: 0 !important;
+    padding: 16px 16px 80px !important;
+    order: 2;
+  }
+  .heroHeadingContainer {
+    display: none !important;
+  }
+  .destFloatingCard {
+    display: none !important;
+  }
+  .verticalRailText {
+    display: none !important;
+  }
+  .topBar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .metricsDuo {
+    grid-template-columns: 1fr !important;
+  }
+  .bentoDbGrid {
+    grid-template-columns: 1fr !important;
+  }
 }
