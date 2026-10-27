@@ -182,16 +182,6 @@ export default function WorkspaceDashboard({
               </button>
             )}
 
-            {activeWorkspace && onShowDatabaseModal && (
-              <button
-                type="button"
-                className={styles.btnCreateDb}
-                onClick={() => onShowDatabaseModal(activeWorkspace.id)}
-              >
-                <Plus size={13} aria-hidden="true" />
-                <span>{t('dashboard.addDatabase')}</span>
-              </button>
-            )}
           </div>
         </div>
 
@@ -279,26 +269,38 @@ export default function WorkspaceDashboard({
                 <Layers size={18} aria-hidden="true" />
                 <span>{t('dashboard.databaseList', { count: filteredDatabases.length })}</span>
               </div>
-              <button
-                type="button"
-                className={styles.glassBtnCapsule}
-                onClick={() => {
-                  setIsDeckExpanded(prev => !prev)
-                  if (isSearching) setSearchQuery('')
-                }}
-              >
-                {showFullDeck ? (
-                  <>
-                    <ArrowLeft size={12} aria-hidden="true" />
-                    <span>{t('dashboard.backToOverview')}</span>
-                  </>
-                ) : (
-                  <>
-                    <Layers size={12} aria-hidden="true" />
-                    <span>展開全域檢視 (72%)</span>
-                  </>
+              <div className={styles.deckActions}>
+                {activeWorkspace && onShowDatabaseModal && (
+                  <button
+                    type="button"
+                    className={styles.btnCreateDbCapsule}
+                    onClick={() => onShowDatabaseModal(activeWorkspace.id)}
+                  >
+                    <Plus size={12} aria-hidden="true" />
+                    <span>{t('dashboard.addDatabase')}</span>
+                  </button>
                 )}
-              </button>
+                <button
+                  type="button"
+                  className={styles.glassBtnCapsule}
+                  onClick={() => {
+                    setIsDeckExpanded(prev => !prev)
+                    if (isSearching) setSearchQuery('')
+                  }}
+                >
+                  {showFullDeck ? (
+                    <>
+                      <ArrowLeft size={12} aria-hidden="true" />
+                      <span>{t('dashboard.backToOverview')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Layers size={12} aria-hidden="true" />
+                      <span>展開全域檢視 (72%)</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             <div className={styles.bentoDbGrid}>
