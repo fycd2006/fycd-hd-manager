@@ -5,6 +5,8 @@ import { CreateFieldPopover } from '../field/CreateFieldPopover'
 import RowEditModal from './RowEditModal'
 import MembersModal from './MembersModal'
 import NotificationsModal from './NotificationsModal'
+import { ChangelogModal } from './ChangelogModal'
+import { APP_CURRENT_VERSION, CHANGELOG_RELEASES, type VersionRelease } from '@/config/changelog'
 import { FieldContextMenu } from '../menu/FieldContextMenu'
 import type { TableField, TableRow, FilterItem } from '../../types'
 import type { WorkspaceState, WorkspaceActions } from '../../store/useWorkspaceStore'
@@ -62,6 +64,13 @@ interface GlobalModalsContainerProps {
   deleteField?: (fieldId: number) => Promise<void>
   onRefreshRows?: () => Promise<void>
   onOpenAirtableImport?: () => void
+  showChangelogModal?: boolean
+  setShowChangelogModal?: (show: boolean) => void
+  currentVersion?: string
+  latestVersion?: string | null
+  hasUpdate?: boolean
+  onUpdateApp?: () => void
+  changelog?: VersionRelease[]
 }
 
 export default function GlobalModalsContainer(props: GlobalModalsContainerProps) {
@@ -93,7 +102,14 @@ export default function GlobalModalsContainer(props: GlobalModalsContainerProps)
     showNotificationsModal = false,
     setShowNotificationsModal = () => {},
     onRefreshRows,
-    onOpenAirtableImport
+    onOpenAirtableImport,
+    showChangelogModal = false,
+    setShowChangelogModal = () => {},
+    currentVersion = APP_CURRENT_VERSION,
+    latestVersion = null,
+    hasUpdate = false,
+    onUpdateApp,
+    changelog = CHANGELOG_RELEASES,
   } = props
 
   const fields = props.fields ?? tableCtx?.fields ?? []
@@ -432,6 +448,16 @@ export default function GlobalModalsContainer(props: GlobalModalsContainerProps)
           }}
         />
       )}
+      {/* Changelog Modal */}
+      <ChangelogModal
+        open={showChangelogModal}
+        onClose={() => setShowChangelogModal(false)}
+        currentVersion={currentVersion}
+        latestVersion={latestVersion}
+        hasUpdate={hasUpdate}
+        onUpdate={onUpdateApp}
+        changelog={changelog}
+      />
     </>
   )
 }

@@ -71,6 +71,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ArchiveRestore,
+  History,
 } from 'lucide-react'
 import {
   AnimatedHome,
@@ -81,6 +82,7 @@ import {
   AnimatedFolderPlus,
   AnimatedPlus,
 } from '@/components/animate-ui/icons'
+import { APP_CURRENT_VERSION } from '@/config/changelog'
 
 // 離開浮出的面板後延遲收回，容忍游標短暫滑出邊界
 const PEEK_CLOSE_DELAY_MS = 250
@@ -103,6 +105,9 @@ interface SidebarProps {
   onShowNotificationsModal?: () => void
   onShowUserSettingsModal?: () => void
   onShowSubscriptionModal?: () => void
+  onShowChangelogModal?: () => void
+  currentVersion?: string
+  hasUpdate?: boolean
 
   // Actions
   onToggleTheme: () => void
@@ -146,6 +151,9 @@ export default function AppSidebar({
   onShowNotificationsModal,
   onShowUserSettingsModal,
   onShowSubscriptionModal,
+  onShowChangelogModal,
+  currentVersion,
+  hasUpdate = false,
 
   onToggleTheme,
   onLogout,
@@ -833,6 +841,21 @@ export default function AppSidebar({
                       <DropdownMenuItem onClick={onShowUserSettingsModal} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
                         <Settings className="size-4 text-[var(--text-muted)] shrink-0" />
                         <span style={{ color: 'inherit' }}>帳號與偏好設定</span>
+                      </DropdownMenuItem>
+                    )}
+                    {onShowChangelogModal && (
+                      <DropdownMenuItem onClick={onShowChangelogModal} className="cursor-pointer gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-cell-hover)]">
+                        <History className="size-4 text-[var(--text-muted)] shrink-0" />
+                        <span style={{ color: 'inherit', flex: 1 }}>版本紀錄</span>
+                        {hasUpdate ? (
+                          <span style={{ fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px', backgroundColor: 'var(--brand-orange-light)', color: 'var(--brand-orange-main)' }}>
+                            NEW
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {currentVersion || APP_CURRENT_VERSION}
+                          </span>
+                        )}
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuGroup>

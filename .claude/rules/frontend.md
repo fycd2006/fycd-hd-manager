@@ -36,3 +36,4 @@ paths:
 - 儲存格編輯只用 `setRows` 樂觀更新、不登記 operation，背景重抓用 `mergeServerRows` 合併時會把剛改的值蓋回伺服器舊值 → 新增的資料列寫入路徑在送出前呼叫 `localWriteTracker.beginWrite()`、結束時呼叫回傳的 end；`services/row.ts` 的寫入函式已登記，繞過 service 直接 fetch 的地方要自己登記
 - `layout.tsx` 同時載入 `tokens.css` 與只有 `:root` 的 `theme.css`，後者靜默覆蓋淺色 `--text-*` 卻沒有暗色定義 → 全域設計變數只放 `src/styles/tokens.css`，新增語意色／陰影／邊框變數時同步補齊 `[data-theme='dark']` 並加入 `brandTokens.test.ts`
 - `--brand-green-main`（`#39452B`）是深墨綠，在暗色表面（`#181922`）當文字或圖示色時對比度僅 1.7:1 → 深綠作為實心底色配 `--text-inverse` 用 `--brand-green-main`；作為表面上的文字／圖示／強調邊框色時一律用 `--brand-green-text`（暗色自動切換為 `#A3B38A`）
+- 共用按鈕元件（`components/ui/Button`）主次樣式屬性為 `type?: 'primary' | 'secondary'` 而非 `variant`，且標籤徽章需走 `tokens.css` 的 CSS 變數避免暗色跑版 → 引用 Button 時使用 `type` 屬性，狀態標籤顏色嚴禁寫死 `#hex`。

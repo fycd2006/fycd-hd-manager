@@ -11,3 +11,4 @@ export {
   FieldModal
 } from './Modals'
 export { DeleteConfirmModal } from './DeleteConfirmModal'
+export { ChangelogModal } from './ChangelogModal'

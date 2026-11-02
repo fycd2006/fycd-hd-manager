@@ -21,6 +21,7 @@ const PUBLIC_EXACT = new Set([
   // /api/auth/me performs its own session check and doubles as the logout
   // endpoint (POST clears the cookie), so it must stay reachable
   '/api/auth/me',
+  '/api/version',
 ])
 
 

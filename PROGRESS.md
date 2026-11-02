@@ -4,13 +4,14 @@
 - PR #1–#38 全部已合併至 `main`。
 - 側邊欄完成仿 Claude 網頁版升級：收合 0px，支援懸停浮出、Ctrl/⌘+B 與深色模式。
 - Airtable 匯入引擎完整修復；本地 `npm run verify` 全部通過。
-- 首頁總覽現代化改版（Forest Land Glassmorphism UI）實裝完成：雙行階梯超大標題、全幅相片底圖與穿透遮罩、46% 聚焦與 72% Bento 全展雙模式、非第一無視覺自動隱藏主標題，單元測試與 build:check 全數通過。
+- 首頁總覽現代化改版實裝完成；版本紀錄與新版本自動檢測/更新系統實裝完成（包含 `/api/version`、`useVersionCheck`、`ChangelogModal` 與 `Sidebar` 整合，單元測試與 `npm run verify` 全數通過）。
 
 ## 已做的決定
 - 全站設計 Token 唯一真相來源為 `src/styles/tokens.css`；深色模式一律使用 `[data-theme='dark']` / `.theme-dark`，禁止使用失效的 Tailwind `dark:*-slate-*` / `.dark` 選擇器。
 - 側邊欄改以 GPU 合成層 `transform: translate3d` 平滑位移；收合時主版面佔滿 100% 寬度，透過 `@media (min-width: 1024px)` 補償工具列左側間隔。
 - 驗證統一走 `npm run verify`；`npm run build` 會 db push 抹除資料，嚴禁本機執行。ESLint 舊錯凍結、新錯即失敗。
 - 儲存格寫入一律經 `prepareCellWrites`／`prepareBatchCellWrites`；安全修正一律先 `authorizeAction`。
+- 版本紀錄由 `src/config/changelog.ts` 靜態維護，公開端點 `/api/version` 納入 `proxy.ts` 白名單並設 `no-store`；前端藉由輕量輪詢與視窗聚焦自動檢查新版本，提供 Toast 與彈窗一鍵更新。
 
 ## 下一步
 - 提醒使用者執行 `/compact` 或切換新對話。

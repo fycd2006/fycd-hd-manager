@@ -41,6 +41,7 @@ import { useMoveOperations } from '@/modules/database/hooks/useMoveOperations'
 import { useCellEdit } from '@/modules/database/hooks/useCellEdit'
 import { useRowOperations } from '@/modules/database/hooks/useRowOperations'
 import { TableProvider, TableContextValue } from '@/modules/database/context/TableContext'
+import { useVersionCheck } from '@/hooks/useVersionCheck'
 const getViewIcon = (type: string, props: any) => {
   switch (type) {
     case 'kanban': return <Kanban {...props} />;
@@ -132,6 +133,25 @@ export default function Home() {
   const [editingFieldId, setEditingFieldId] = useState<number | null>(null)
   const [editingFieldName, setEditingFieldName] = useState('')
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState<number>(0)
+  const versionCheck = useVersionCheck()
+  const hasNotifiedUpdateRef = useRef(false)
+
+  useEffect(() => {
+    if (versionCheck.hasUpdate && !versionCheck.isDismissed && !hasNotifiedUpdateRef.current) {
+      hasNotifiedUpdateRef.current = true
+      uiActions.addToast(
+        `🎉 發現新版本 ${versionCheck.latestVersion} 發布！`,
+        'info',
+        {
+          action: {
+            label: '立即更新',
+            onClick: versionCheck.applyUpdate,
+          },
+          duration: 15000,
+        }
+      )
+    }
+  }, [versionCheck.hasUpdate, versionCheck.isDismissed, versionCheck.latestVersion, versionCheck.applyUpdate, uiActions])
 
   // View configuration and rules hook
   const {
@@ -1158,6 +1178,9 @@ export default function Home() {
           onShowNotificationsModal={() => setShowNotificationsModal(true)}
           onShowUserSettingsModal={() => setShowUserSettingsModal(true)}
           onShowSubscriptionModal={() => setShowSubscriptionModal(true)}
+          onShowChangelogModal={() => versionCheck.setShowModal(true)}
+          currentVersion={versionCheck.currentVersion}
+          hasUpdate={versionCheck.hasUpdate}
           onToggleTheme={themeActions.toggleTheme}
           onToggleSidebarCollapse={uiActions.toggleSidebarCollapsed}
           onLogout={authActions.logout}
@@ -1383,6 +1406,13 @@ export default function Home() {
         setShowNotificationsModal={setShowNotificationsModal}
         onRefreshRows={async () => { if (wsState.activeTableId) await fetchTableData(wsState.activeTableId, { force: true }) }}
         onOpenAirtableImport={() => setShowAirtableModal(true)}
+        showChangelogModal={versionCheck.showModal}
+        setShowChangelogModal={versionCheck.setShowModal}
+        currentVersion={versionCheck.currentVersion}
+        latestVersion={versionCheck.latestVersion}
+        hasUpdate={versionCheck.hasUpdate}
+        onUpdateApp={versionCheck.applyUpdate}
+        changelog={versionCheck.changelog}
       />
 
       {/* User Account & Subscription Modals - Always Mounted */}
