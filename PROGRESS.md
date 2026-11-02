@@ -4,7 +4,7 @@
 - PR #1–#38 全部已合併至 `main`。
 - 側邊欄完成仿 Claude 網頁版升級：收合 0px，支援懸停浮出、Ctrl/⌘+B 與深色模式。
 - Airtable 匯入引擎完整修復；本地 `npm run verify` 全部通過。
-- 首頁總覽現代化改版實裝完成；版本紀錄與新版本自動檢測/更新系統實裝完成（包含 `/api/version`、`useVersionCheck`、`ChangelogModal` 與 `Sidebar` 整合，單元測試與 `npm run verify` 全數通過）。
+- 版本紀錄與自動更新系統實裝完成（含桌面側邊欄、手機端 UserSettingsModal、WorkspaceDashboard 頂部膠囊、MobileBottomNav 氣泡更新紅點，及 /api/version、useVersionCheck、ChangelogModal）；已通過驗證並 push 至遠端 main。
 
 ## 已做的決定
 - 全站設計 Token 唯一真相來源為 `src/styles/tokens.css`；深色模式一律使用 `[data-theme='dark']` / `.theme-dark`，禁止使用失效的 Tailwind `dark:*-slate-*` / `.dark` 選擇器。

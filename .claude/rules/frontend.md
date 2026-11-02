@@ -37,3 +37,4 @@ paths:
 - `layout.tsx` 同時載入 `tokens.css` 與只有 `:root` 的 `theme.css`，後者靜默覆蓋淺色 `--text-*` 卻沒有暗色定義 → 全域設計變數只放 `src/styles/tokens.css`，新增語意色／陰影／邊框變數時同步補齊 `[data-theme='dark']` 並加入 `brandTokens.test.ts`
 - `--brand-green-main`（`#39452B`）是深墨綠，在暗色表面（`#181922`）當文字或圖示色時對比度僅 1.7:1 → 深綠作為實心底色配 `--text-inverse` 用 `--brand-green-main`；作為表面上的文字／圖示／強調邊框色時一律用 `--brand-green-text`（暗色自動切換為 `#A3B38A`）
 - 共用按鈕元件（`components/ui/Button`）主次樣式屬性為 `type?: 'primary' | 'secondary'` 而非 `variant`，且標籤徽章需走 `tokens.css` 的 CSS 變數避免暗色跑版 → 引用 Button 時使用 `type` 屬性，狀態標籤顏色嚴禁寫死 `#hex`。
+- 響應式佈局在小於 1024px 時完全隱藏桌面側邊欄，導致只放在 Sidebar 的系統功能（如版本更新紀錄）在手機端無法存取 → 跨平台全域功能在桌面側邊欄實作時，必須同步在手機導覽列（MobileBottomNav）、使用者設定彈窗（UserSettingsModal）或儀表板（WorkspaceDashboard）提供對應入口。
