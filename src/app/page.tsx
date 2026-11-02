@@ -1248,6 +1248,9 @@ export default function Home() {
                 workspaces={wsState.workspaces}
                 onSelectTable={(tableId) => wsActions.setActiveTableId(tableId)}
                 onShowMembersModal={() => setShowMembersModal(true)}
+                onShowChangelogModal={() => versionCheck.setShowModal(true)}
+                currentVersion={versionCheck.currentVersion}
+                hasUpdate={versionCheck.hasUpdate}
                 onShowDatabaseModal={(wsId) => {
                   wsActions.setModalWsId(wsId)
                   wsActions.setShowDatabaseModal(true)
@@ -1374,6 +1377,7 @@ export default function Home() {
             setShowDetailModal(true)
           }}
           onImportAirtable={() => setShowAirtableModal(true)}
+          hasUpdate={versionCheck.hasUpdate}
         />
       </div>
 
@@ -1425,6 +1429,12 @@ export default function Home() {
           onToggleTheme={themeActions.toggleTheme}
           onToggleDarkReaderPanel={() => themeActions.setShowDarkReaderPanel(!themeState.showDarkReaderPanel)}
           onLogout={authActions.logout}
+          onShowChangelogModal={() => {
+            setShowUserSettingsModal(false)
+            versionCheck.setShowModal(true)
+          }}
+          currentVersion={versionCheck.currentVersion}
+          hasUpdate={versionCheck.hasUpdate}
           onUpdateProfile={async (updates) => {
             const res = await authActions.updateProfile(updates)
             if (res.ok) {

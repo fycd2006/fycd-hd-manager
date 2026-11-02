@@ -5,7 +5,7 @@ import type { User, Workspace, Database } from '@/modules/database/types'
 import {
   Database as DatabaseIcon, Table as TableIcon, Users, Plus,
   FolderPlus, Layers, ChevronRight, Search, ArrowLeft, Pencil,
-  FolderKanban, Briefcase, Wallet, ArrowRight, X, type LucideIcon
+  FolderKanban, Briefcase, Wallet, ArrowRight, X, History, type LucideIcon
 } from 'lucide-react'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
@@ -13,6 +13,7 @@ import { MasterGridView } from '@/modules/database/components/views/master'
 import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number'
 import { FycdLogo } from '@/components/brand/FycdLogo'
 import { useHoverPrefetch } from '@/modules/database/cache/useHoverPrefetch'
+import { APP_CURRENT_VERSION } from '@/config/changelog'
 import styles from './WorkspaceDashboard.module.css'
 
 /** 每張資料庫卡片預設顯示的資料表數；搜尋中不套用 */
@@ -44,6 +45,9 @@ interface WorkspaceDashboardProps {
   onDeleteTable?: (tableId: number, tableName: string) => void
   onCreateFromTemplate?: (templateKey: TemplateKey) => void
   theme?: 'light' | 'dark'
+  onShowChangelogModal?: () => void
+  currentVersion?: string
+  hasUpdate?: boolean
 }
 
 /**
@@ -62,7 +66,10 @@ export default function WorkspaceDashboard({
   onSetRenameNameValue,
   onShowRenameModal,
   onCreateFromTemplate,
-  theme = 'light'
+  theme = 'light',
+  onShowChangelogModal,
+  currentVersion,
+  hasUpdate = false,
 }: WorkspaceDashboardProps) {
   const { t } = useI18n()
   const getPrefetchHandlers = useHoverPrefetch(onTablePrefetch)
@@ -168,6 +175,32 @@ export default function WorkspaceDashboard({
               <button type="button" className={styles.glassBtnCapsule} onClick={onShowMembersModal}>
                 <Users size={13} aria-hidden="true" />
                 <span>{t('dashboard.membersCount', { count: memberCount })}</span>
+              </button>
+            )}
+
+            {onShowChangelogModal && (
+              <button
+                type="button"
+                className={styles.glassBtnCapsule}
+                onClick={onShowChangelogModal}
+                title="查看版本更新紀錄"
+              >
+                <History size={13} aria-hidden="true" />
+                <span>{currentVersion || APP_CURRENT_VERSION}</span>
+                {hasUpdate && (
+                  <span
+                    style={{
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      padding: '1px 5px',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--brand-orange-light)',
+                      color: 'var(--brand-orange-main)',
+                    }}
+                  >
+                    NEW
+                  </span>
+                )}
               </button>
             )}
 

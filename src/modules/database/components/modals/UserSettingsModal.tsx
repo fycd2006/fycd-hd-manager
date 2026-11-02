@@ -1,11 +1,12 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { X, User, Mail, Key, Check, Sun, Moon, Monitor, Sliders, LogOut, Palette } from 'lucide-react'
+import { X, User, Mail, Key, Check, Sun, Moon, Monitor, Sliders, LogOut, Palette, History, ChevronRight } from 'lucide-react'
 import type { User as UserType } from '@/modules/database/types'
 import { useThemeStore } from '@/modules/database/store/useThemeStore'
 import { LangPicker } from '@/modules/database/components/navigation/LangPicker'
 import { useI18n } from '@/lib/i18n/i18nContext'
+import { APP_CURRENT_VERSION } from '@/config/changelog'
 
 interface UserSettingsModalProps {
   show: boolean
@@ -16,6 +17,9 @@ interface UserSettingsModalProps {
   onToggleDarkReaderPanel?: () => void
   onLogout?: () => void
   onUpdateProfile?: (updates: { username?: string; oldPassword?: string; newPassword?: string }) => Promise<{ ok: boolean; error?: string }>
+  onShowChangelogModal?: () => void
+  currentVersion?: string
+  hasUpdate?: boolean
 }
 
 export default function UserSettingsModal({
@@ -26,7 +30,10 @@ export default function UserSettingsModal({
   onToggleTheme,
   onToggleDarkReaderPanel,
   onLogout,
-  onUpdateProfile
+  onUpdateProfile,
+  onShowChangelogModal,
+  currentVersion,
+  hasUpdate = false,
 }: UserSettingsModalProps) {
   const { t } = useI18n()
   const [username, setUsername] = useState(currentUser?.username || '')
@@ -239,6 +246,57 @@ export default function UserSettingsModal({
                   <span style={{ fontSize: '12px', fontWeight: 700 }}>{t('nav.filterSettings')}</span>
                 </div>
               </button>
+
+              {/* Version & Changelog Section */}
+              {onShowChangelogModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose()
+                    onShowChangelogModal()
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: '14px',
+                    backgroundColor: isDark ? '#1e293b' : '#f8fafc',
+                    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0',
+                    color: isDark ? '#ffffff' : '#0f172a',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <History size={18} color="var(--brand-orange-main)" />
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700 }}>版本紀錄與更新</span>
+                      <span style={{ fontSize: '11px', color: isDark ? '#94a3b8' : '#64748b' }}>
+                        目前版本：{currentVersion || APP_CURRENT_VERSION}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {hasUpdate && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: 'var(--brand-orange-light)',
+                          color: 'var(--brand-orange-main)',
+                        }}
+                      >
+                        NEW
+                      </span>
+                    )}
+                    <ChevronRight size={16} color={isDark ? '#64748b' : '#94a3b8'} />
+                  </div>
+                </button>
+              )}
             </div>
           </div>
 

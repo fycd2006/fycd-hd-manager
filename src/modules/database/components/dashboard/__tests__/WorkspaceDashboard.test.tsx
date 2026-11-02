@@ -239,3 +239,22 @@ describe('WorkspaceDashboard prefetch', () => {
     }
   })
 })
+
+
+describe('WorkspaceDashboard changelog button', () => {
+  it('renders changelog capsule and triggers onShowChangelogModal when clicked', () => {
+    const handleShowChangelog = jest.fn()
+    renderDashboard({
+      onShowChangelogModal: handleShowChangelog,
+      currentVersion: 'v1.1.0',
+      hasUpdate: true,
+    })
+
+    const versionBtn = screen.getByRole('button', { name: /v1\.1\.0/ })
+    expect(versionBtn).toBeInTheDocument()
+    expect(screen.getByText('NEW')).toBeInTheDocument()
+
+    fireEvent.click(versionBtn)
+    expect(handleShowChangelog).toHaveBeenCalledTimes(1)
+  })
+})

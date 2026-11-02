@@ -29,6 +29,7 @@ interface MobileBottomNavProps {
   onToggleDarkReaderPanel?: () => void
   onLogout?: () => void
   onImportAirtable?: () => void
+  hasUpdate?: boolean
 }
 
 // Crisp native haptic vibration helper
@@ -59,7 +60,8 @@ export default function MobileBottomNav({
   onToggleTheme,
   onToggleDarkReaderPanel,
   onLogout,
-  onImportAirtable
+  onImportAirtable,
+  hasUpdate = false,
 }: MobileBottomNavProps) {
   const { t } = useI18n()
   const [mounted, setMounted] = useState(false)
@@ -586,6 +588,20 @@ export default function MobileBottomNav({
                   }}>
                     {item.badge}
                   </span>
+                ) : item.id === 'settings' && hasUpdate ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '-1px',
+                      right: '-1px',
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '9999px',
+                      backgroundColor: 'var(--brand-orange-main)',
+                      boxShadow: '0 0 8px var(--brand-orange-main)',
+                      border: '1.5px solid #ffffff',
+                    }}
+                  />
                 ) : null}
 
 
@@ -726,7 +742,8 @@ export default function MobileBottomNav({
                 color: activeTab === 'home' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
-                touchAction: 'manipulation'
+                touchAction: 'manipulation',
+                position: 'relative'
               }}
             >
               <Home size={18} color={activeTab === 'home' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
@@ -761,7 +778,8 @@ export default function MobileBottomNav({
                 color: (activeTab === 'database' || showDbModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
-                touchAction: 'manipulation'
+                touchAction: 'manipulation',
+                position: 'relative'
               }}
             >
               <DatabaseIcon size={18} color={(activeTab === 'database' || showDbModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
@@ -796,7 +814,8 @@ export default function MobileBottomNav({
                 color: (activeTab === 'search' || showSearchModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
-                touchAction: 'manipulation'
+                touchAction: 'manipulation',
+                position: 'relative'
               }}
             >
               <Search size={18} color={(activeTab === 'search' || showSearchModal) ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
@@ -874,13 +893,28 @@ export default function MobileBottomNav({
                 color: activeTab === 'settings' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
-                touchAction: 'manipulation'
+                touchAction: 'manipulation',
+                position: 'relative'
               }}
             >
               <Settings size={18} color={activeTab === 'settings' ? 'var(--brand-green-text)' : isDark ? '#94a3b8' : '#64748b'} style={{ flexShrink: 0, display: 'block', margin: '0 auto' }} />
               <span style={{ fontSize: '10px', fontWeight: activeTab === 'settings' ? 800 : 500, lineHeight: 1.2, marginTop: '2px', whiteSpace: 'nowrap', textAlign: 'center', display: 'block' }}>
                 {t('mobileNav.settings')}
               </span>
+              {hasUpdate && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '12px',
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '9999px',
+                    backgroundColor: 'var(--brand-orange-main)',
+                    boxShadow: '0 0 6px var(--brand-orange-main)',
+                  }}
+                />
+              )}
             </button>
           </div>
 
